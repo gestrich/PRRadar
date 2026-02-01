@@ -175,6 +175,11 @@ jobs:
             echo "No review summary generated at $SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Save execution file for debugging
+        if: always() && steps.claude-review.outputs.execution_file != ''
+        run: |
+          cp "${{ steps.claude-review.outputs.execution_file }}" review-output/execution.json
+
       - name: Upload review artifact
         if: always()
         uses: actions/upload-artifact@v4
