@@ -57,6 +57,7 @@ jobs:
   claude-review:
     if: |
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_call' ||
       (github.event.action == 'labeled' && github.event.label.name == 'claude_review') ||
       (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'claude_review'))
 

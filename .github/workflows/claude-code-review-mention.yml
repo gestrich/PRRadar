@@ -75,7 +75,7 @@ jobs:
 
             Your output MUST be valid JSON matching the action schema.
 
-          claude_args: --allowedTools Read,Glob,Grep --json-schema ${{ toJSON(env.ACTION_SCHEMA) }}
+          claude_args: --allowedTools Read,Glob,Grep --json-schema '${{ env.ACTION_SCHEMA }}'
 
       - name: Parse action output
         id: parse-action
@@ -177,7 +177,7 @@ jobs:
     if: needs.interpret-request.outputs.action == 'performReview'
     uses: ./.github/workflows/claude-code-review.yml
     with:
-      pr_number: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
+      pr_number: ${{ inputs.pr_number || format('{0}', github.event.issue.number) || format('{0}', github.event.pull_request.number) }}
       additional_instructions: ${{ needs.interpret-request.outputs.additional_instructions }}
       filter_files: ${{ needs.interpret-request.outputs.filter_files }}
       filter_rules: ${{ needs.interpret-request.outputs.filter_rules }}
