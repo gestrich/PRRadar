@@ -130,12 +130,14 @@ def post_review_comment(
         comment_body += f"\n\n---\n*Details: {feedback.details}*"
 
     # Build the gh api command for posting a PR review comment
+    # Uses -F for integer values and -f for strings
     cmd = [
         "gh", "api",
         f"repos/{repo}/pulls/{pr_number}/comments",
         "-f", f"body={comment_body}",
         "-f", f"path={feedback.file}",
-        "-f", f"line={feedback.line_number}",
+        "-F", f"line={feedback.line_number}",  # -F for integer
+        "-f", "side=RIGHT",  # Required for multi-line diff format
     ]
 
     # Add commit SHA if provided (required for review comments)

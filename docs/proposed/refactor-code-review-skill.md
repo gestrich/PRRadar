@@ -674,7 +674,37 @@ Parse the structured output to verify:
 
 ---
 
-- [ ] Phase 7: Validation - Comment posting
+- [x] Phase 7: Validation - Comment posting
+
+### Technical Notes
+
+Completed on 2026-02-01. Validation results:
+
+**Issue Found and Fixed:**
+The original `post_review_comments.py` script had an issue with GitHub's PR review comment API:
+- Used `-f line=N` (string) instead of `-F line=N` (integer)
+- Missing required `side=RIGHT` parameter for multi-line diff format
+
+Fix applied to `scripts/post_review_comments.py`:
+- Changed `-f` to `-F` for `line` parameter to pass as integer
+- Added `-f "side=RIGHT"` for diff line positioning
+
+**Validation Results:**
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| At least one review comment exists on PR | ✅ | 2 review comments posted |
+| Comment references the violated rule | ✅ | `nullability-h-objc` identified |
+| Comment includes file path and line number | ✅ | `FFDataFormatter.h:5` and `:8` |
+| Comment body matches expected format | ✅ | `**rule** (Score: N)` format |
+
+**Comments Posted to PR #4:**
+1. Review comment ID 2751942708: Line 5 (properties) - nullability-h-objc, Score 10
+2. Review comment ID 2751942724: Line 8 (methods) - nullability-h-objc, Score 10
+3. Issue comment ID 3832004266: Summary comment with category scores
+
+**Note on Workflow Integration:**
+The Python script works correctly when invoked with properly formatted JSON. The workflow skips the Python step because Claude's structured output doesn't match the expected schema (`success: false`). This is a known limitation from Phase 6 - the integration between Claude's `--json-schema` output and the Python script needs additional work in a future phase.
 
 ### Overview
 
@@ -696,10 +726,10 @@ gh api repos/{owner}/{repo}/issues/{pr}/comments
 ```
 
 **Expected Results:**
-- [ ] At least one review comment exists on the PR
-- [ ] Comment references the violated rule
-- [ ] Comment includes file path and line number
-- [ ] Comment body matches expected format from rule's template
+- [x] At least one review comment exists on the PR
+- [x] Comment references the violated rule
+- [x] Comment includes file path and line number
+- [x] Comment body matches expected format from rule's template
 
 ---
 
