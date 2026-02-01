@@ -44,6 +44,7 @@ jobs:
       body: ${{ steps.parse-action.outputs.body }}
       comment_id: ${{ steps.parse-action.outputs.comment_id }}
       pr_number: ${{ steps.set-pr-number.outputs.pr_number }}
+      comment_type: ${{ steps.set-comment-type.outputs.comment_type }}
 
     steps:
       - name: Set PR number
@@ -58,6 +59,18 @@ jobs:
           fi
           echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
           echo "PR number resolved to: $PR_NUM"
+
+      - name: Set comment type
+        id: set-comment-type
+        run: |
+          # Determine if comment is from PR conversation (issue_comment) or inline review (pull_request_review_comment)
+          if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
+            COMMENT_TYPE="review_comment"
+          else
+            COMMENT_TYPE="issue_comment"
+          fi
+          echo "comment_type=$COMMENT_TYPE" >> $GITHUB_OUTPUT
+          echo "Comment type: $COMMENT_TYPE"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -199,10 +212,12 @@ jobs:
           BODY: ${{ needs.interpret-request.outputs.body }}
           COMMENT_ID: ${{ needs.interpret-request.outputs.comment_id }}
           PR_NUMBER: ${{ needs.interpret-request.outputs.pr_number }}
+          COMMENT_TYPE: ${{ needs.interpret-request.outputs.comment_type }}
           REPO: ${{ github.repository }}
         run: |
           echo "Handling action: $ACTION"
           echo "PR: $PR_NUMBER"
+          echo "Comment type: $COMMENT_TYPE"
           echo "Body length: ${#BODY}"
 
           case "$ACTION" in
@@ -211,8 +226,14 @@ jobs:
               gh api "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$BODY"
               ;;
             replyToComment)
-              echo "Replying to comment $COMMENT_ID"
-              gh api "repos/$REPO/pulls/comments/$COMMENT_ID/replies" -f body="$BODY"
+              # GitHub only supports threaded replies on PR review comments, not issue comments
+              if [ "$COMMENT_TYPE" == "review_comment" ]; then
+                echo "Replying to review comment $COMMENT_ID"
+                gh api "repos/$REPO/pulls/comments/$COMMENT_ID/replies" -f body="$BODY"
+              else
+                echo "Cannot reply to issue comment - posting new comment instead"
+                gh api "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$BODY"
+              fi
               ;;
             replaceComment)
               echo "Replacing comment $COMMENT_ID"

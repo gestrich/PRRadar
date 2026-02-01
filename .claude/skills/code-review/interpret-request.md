@@ -71,12 +71,14 @@ Use when the user asks a question or makes a request that can be answered direct
 
 ---
 
-### 3. `replyToComment` - Reply to an Existing Comment
+### 3. `replyToComment` - Reply to an Existing Review Comment
 
-Use when the user is responding to a specific review comment and wants a reply in that thread.
+Use **ONLY** when `Comment Location: review_thread` - this action is for inline code review comments, not PR conversation comments.
+
+**IMPORTANT:** If `Comment Location: pr_conversation`, do NOT use this action. Use `postComment` instead - GitHub does not support threaded replies on PR conversation comments.
 
 **Indicators:**
-- Comment is on a review thread (not the main PR conversation)
+- `Comment Location: review_thread` (REQUIRED)
 - User references "this comment", "this violation", "this issue"
 - Asking for clarification about a specific inline review comment
 
@@ -89,7 +91,7 @@ Use when the user is responding to a specific review comment and wants a reply i
 }
 ```
 
-Note: The `commentId` is provided by the workflow context.
+Note: The `commentId` is provided by the workflow context. Only use this action when Comment Location is `review_thread`.
 
 ---
 
@@ -151,14 +153,16 @@ postComment   Does user want a review?
         Yes        No
          │          │
          ▼          ▼
- performReview    Is this a reply to a thread?
+ performReview    Is Comment Location: review_thread?
                   │
              ┌────┴────┐
             Yes        No
              │          │
              ▼          ▼
-    replyToComment    postSummary
+    replyToComment    postComment (NOT replyToComment!)
 ```
+
+**Key Rule:** `replyToComment` can ONLY be used when `Comment Location: review_thread`. For `pr_conversation`, always use `postComment`.
 
 ## Rule Name Mapping
 
