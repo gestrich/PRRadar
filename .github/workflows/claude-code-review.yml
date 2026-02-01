@@ -17,8 +17,8 @@ on:
     #   - "src/**/*.jsx"
 
 env:
-  # JSON schema for structured output from Claude Code (compact single-line format required)
-  REVIEW_SCHEMA: '{"type":"object","properties":{"success":{"type":"boolean","description":"Whether the review was completed successfully"},"summary_file":{"type":"string","description":"Path to the markdown summary file that was created"},"error_message":{"type":"string","description":"Error message if the review failed"}},"required":["success","summary_file"],"additionalProperties":false}'
+  # Rich JSON schema for structured output from Claude Code (compact single-line format required)
+  REVIEW_SCHEMA: '{"type":"object","properties":{"success":{"type":"boolean","description":"Whether the review was completed successfully"},"feedback":{"type":"array","items":{"type":"object","properties":{"file":{"type":"string","description":"Path to the file being reviewed"},"segment":{"type":"string","description":"Name of the code segment (e.g., Method fetchUserData())"},"rule":{"type":"string","description":"Name of the rule that was violated"},"score":{"type":"integer","description":"Violation score from 1-10"},"lineNumber":{"type":"integer","description":"Line number in the diff where the violation occurs"},"githubComment":{"type":"string","description":"Comment to post on GitHub for this violation"},"details":{"type":"string","description":"Detailed explanation of the violation"}},"required":["file","segment","rule","score","lineNumber","githubComment","details"]}},"summary":{"type":"object","properties":{"summaryFile":{"type":"string","description":"Path to the markdown summary file"},"totalSegments":{"type":"integer","description":"Total number of segments reviewed"},"totalViolations":{"type":"integer","description":"Number of violations found (score >= 5)"},"categories":{"type":"object","additionalProperties":{"type":"object","properties":{"aggregateScore":{"type":"integer","description":"Highest score in this category"},"summary":{"type":"string","description":"Brief summary of findings in this category"}}}}},"required":["summaryFile","totalSegments","totalViolations","categories"]}},"required":["success","feedback","summary"]}'
 
 jobs:
   claude-review:
@@ -30,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
@@ -50,22 +50,30 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
 
-            Please review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
+            Please review this pull request using the /code-review skill.
 
             Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
 
             **IMPORTANT OUTPUT REQUIREMENTS:**
             1. Create a directory called `review-output` using `mkdir -p review-output`
             2. Write your complete review summary to `review-output/review-summary.md` using the Write tool
-            3. Post your review as a comment on the PR using `gh pr comment`
-            4. Your structured output MUST include:
+            3. Your structured output MUST include the rich JSON format with:
                - success: true if review completed, false if it failed
-               - summary_file: "review-output/review-summary.md"
+               - feedback: array of violation objects, each with:
+                 - file: path to the file
+                 - segment: name of the code segment
+                 - rule: name of the violated rule
+                 - score: violation score (1-10)
+                 - lineNumber: line number in the diff
+                 - githubComment: concise comment for GitHub
+                 - details: detailed explanation
+               - summary: object with:
+                 - summaryFile: "review-output/review-summary.md"
+                 - totalSegments: number of segments reviewed
+                 - totalViolations: count of violations (score >= 5)
+                 - categories: object mapping category names to {aggregateScore, summary}
+
+            Only include items in the feedback array that have score >= 5 (violations).
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
@@ -83,12 +91,12 @@ jobs:
           SUMMARY_FILE=$(jq -r '
             # Try array format (verbose mode)
             if type == "array" then
-              .[-1].result.structured_output.summary_file // empty
+              .[-1].result.structured_output.summary.summaryFile // empty
             # Try direct object format
             elif .structured_output then
-              .structured_output.summary_file
+              .structured_output.summary.summaryFile
             elif .result.structured_output then
-              .result.structured_output.summary_file
+              .result.structured_output.summary.summaryFile
             else
               empty
             end
@@ -136,4 +144,21 @@ jobs:
           path: review-output/
           if-no-files-found: ignore
           retention-days: 90
+
+      - name: Setup Python
+        if: steps.parse-output.outputs.success == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Post review comments
+        if: steps.parse-output.outputs.success == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/post_review_comments.py \
+            --execution-file "${{ steps.claude-review.outputs.execution_file }}" \
+            --pr-number "${{ inputs.pr_number || github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --post-summary
 

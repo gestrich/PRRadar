@@ -361,6 +361,49 @@ After retrieving the diff and segmenting it:
 3. Execute the review by spawning subagents for each segment/rule combination, **passing the segment's diff in each subagent prompt**
 4. After all subagents complete, add the summary section with violations by rule and results by segment
 
+## Structured Output Format (GitHub Actions)
+
+When running in GitHub Actions with a JSON schema, the structured output must include:
+
+```json
+{
+  "success": true,
+  "feedback": [
+    {
+      "file": "src/MyService.swift",
+      "segment": "Method fetchUserData()",
+      "rule": "error-handling",
+      "score": 8,
+      "lineNumber": 42,
+      "githubComment": "Missing error handling for network timeout. Consider wrapping in do/catch.",
+      "details": "The async network call has no error handling..."
+    }
+  ],
+  "summary": {
+    "summaryFile": "review-output/review-summary.md",
+    "totalSegments": 12,
+    "totalViolations": 3,
+    "categories": {
+      "architecture": {
+        "aggregateScore": 7,
+        "summary": "Weak client contracts found in 2 files"
+      },
+      "apis-apple": {
+        "aggregateScore": 4,
+        "summary": "Minor nullability issues in header files"
+      }
+    }
+  }
+}
+```
+
+**Important:**
+- Only include items in `feedback` array that have `score >= 5` (violations)
+- The `githubComment` should be a concise, actionable comment suitable for posting on GitHub
+- The `lineNumber` should reference the line in the diff where the violation occurs
+- Categories in `summary.categories` should match the rule category names (folder names in `rules/`)
+- The `aggregateScore` is the highest score found in that category
+
 ## Examples
 
 ```

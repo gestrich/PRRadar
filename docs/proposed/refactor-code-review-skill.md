@@ -203,7 +203,31 @@ Files created:
 
 ---
 
-- [ ] Phase 3: Rich JSON schema and Python comment poster
+- [x] Phase 3: Rich JSON schema and Python comment poster
+
+### Technical Notes
+
+Completed on 2026-02-01. Changes made:
+
+1. Created `scripts/post_review_comments.py` with:
+   - Dataclass models: `Feedback`, `CategorySummary`, `ReviewSummary`, `ReviewOutput`
+   - JSON parsing functions that extract structured output from Claude's execution file format
+   - `post_review_comment()` function that posts violations as PR review comments via `gh api`
+   - `post_summary_comment()` function that posts a summary comment with category scores
+   - CLI interface with `--execution-file`, `--pr-number`, `--repo`, `--min-score`, `--post-summary`, `--dry-run` options
+
+2. Updated `.github/workflows/claude-code-review.yml`:
+   - Replaced simple schema with rich JSON schema including `feedback[]`, `summary{}` with categories
+   - Updated prompt to instruct Claude on the rich JSON output format
+   - Updated parse-output step to use new field paths (`summary.summaryFile`)
+   - Added `setup-python@v5` step for Python 3.11
+   - Added "Post review comments" step that runs the Python script
+   - Changed permissions to `pull-requests: write` and `issues: write` for posting comments
+
+3. Updated `.claude/skills/code-review/SKILL.md`:
+   - Added "Structured Output Format (GitHub Actions)" section with JSON schema example
+   - Documented feedback array requirements (score >= 5 only)
+   - Documented summary categories structure and aggregateScore meaning
 
 ### Overview
 
