@@ -75,7 +75,7 @@ The code-review skill was refactored to separate concerns (core review logic vs 
 
 ---
 
-- [ ] Phase 4: Test @mention with question (postComment action)
+- [x] Phase 4: Test @mention with question (postComment action)
 
 **What I staged:** Same PR
 
@@ -96,7 +96,7 @@ The code-review skill was refactored to separate concerns (core review logic vs 
 
 ---
 
-- [ ] Phase 5: Test @mention for full review (performReview action)
+- [x] Phase 5: Test @mention for full review (performReview action)
 
 **What I staged:** Same PR
 
@@ -120,7 +120,7 @@ The code-review skill was refactored to separate concerns (core review logic vs 
 
 ---
 
-- [ ] Phase 6: Test @mention with filters (performReview + filters)
+- [x] Phase 6: Test @mention with filters (performReview + filters)
 
 **What I staged:** Same PR
 
