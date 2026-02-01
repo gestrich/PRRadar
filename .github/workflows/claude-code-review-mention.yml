@@ -98,26 +98,14 @@ jobs:
           EXEC_FILE="${{ steps.interpret.outputs.execution_file }}"
           echo "Parsing execution file: $EXEC_FILE"
 
-          # Debug: show file structure
-          echo "=== File type and structure ==="
-          jq 'type' "$EXEC_FILE" || echo "Failed to get type"
-          echo "=== Last element keys ==="
-          jq '.[-1] | keys' "$EXEC_FILE" 2>/dev/null || echo "No keys"
-          echo "=== Last element result keys ==="
-          jq '.[-1].result | keys' "$EXEC_FILE" 2>/dev/null || echo "No result.keys"
-          echo "=== Last element result.structured_output ==="
-          jq '.[-1].result.structured_output // "not found in result"' "$EXEC_FILE" 2>/dev/null || echo "Failed"
-          echo "=== Direct structured_output on last element ==="
-          jq '.[-1].structured_output // "not found directly"' "$EXEC_FILE" 2>/dev/null || echo "Failed"
-
           # Extract action from structured output
+          # Array format: .[-1].structured_output (not .[-1].result.structured_output)
+          # Object format: .structured_output
           ACTION=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.action // "unknown"
+              .[-1].structured_output.action // "unknown"
             elif .structured_output then
               .structured_output.action
-            elif .result.structured_output then
-              .result.structured_output.action
             else
               "unknown"
             end
@@ -125,11 +113,9 @@ jobs:
 
           ADDITIONAL_INSTRUCTIONS=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.additionalInstructions // ""
+              .[-1].structured_output.additionalInstructions // ""
             elif .structured_output then
               .structured_output.additionalInstructions // ""
-            elif .result.structured_output then
-              .result.structured_output.additionalInstructions // ""
             else
               ""
             end
@@ -137,11 +123,9 @@ jobs:
 
           FILTER_FILES=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.filterFiles // [] | @json
+              .[-1].structured_output.filterFiles // [] | @json
             elif .structured_output then
               .structured_output.filterFiles // [] | @json
-            elif .result.structured_output then
-              .result.structured_output.filterFiles // [] | @json
             else
               "[]"
             end
@@ -149,11 +133,9 @@ jobs:
 
           FILTER_RULES=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.filterRules // [] | @json
+              .[-1].structured_output.filterRules // [] | @json
             elif .structured_output then
               .structured_output.filterRules // [] | @json
-            elif .result.structured_output then
-              .result.structured_output.filterRules // [] | @json
             else
               "[]"
             end
