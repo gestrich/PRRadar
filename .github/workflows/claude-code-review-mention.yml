@@ -38,10 +38,11 @@ jobs:
       id-token: write
     outputs:
       action: ${{ steps.parse-action.outputs.action }}
-      execution_file: ${{ steps.interpret.outputs.execution_file }}
       additional_instructions: ${{ steps.parse-action.outputs.additional_instructions }}
       filter_files: ${{ steps.parse-action.outputs.filter_files }}
       filter_rules: ${{ steps.parse-action.outputs.filter_rules }}
+      body: ${{ steps.parse-action.outputs.body }}
+      comment_id: ${{ steps.parse-action.outputs.comment_id }}
       pr_number: ${{ steps.set-pr-number.outputs.pr_number }}
 
     steps:
@@ -141,15 +142,45 @@ jobs:
             end
           ' "$EXEC_FILE" 2>/dev/null || echo "[]")
 
+          # Extract body for postComment/replyToComment/replaceComment/postSummary
+          BODY=$(jq -r '
+            if type == "array" then
+              .[-1].structured_output.body // ""
+            elif .structured_output then
+              .structured_output.body // ""
+            else
+              ""
+            end
+          ' "$EXEC_FILE" 2>/dev/null || echo "")
+
+          # Extract commentId for replyToComment/replaceComment
+          COMMENT_ID=$(jq -r '
+            if type == "array" then
+              .[-1].structured_output.commentId // ""
+            elif .structured_output then
+              .structured_output.commentId // ""
+            else
+              ""
+            end
+          ' "$EXEC_FILE" 2>/dev/null || echo "")
+
           echo "action=$ACTION" >> $GITHUB_OUTPUT
           echo "additional_instructions=$ADDITIONAL_INSTRUCTIONS" >> $GITHUB_OUTPUT
           echo "filter_files=$FILTER_FILES" >> $GITHUB_OUTPUT
           echo "filter_rules=$FILTER_RULES" >> $GITHUB_OUTPUT
 
+          # Use heredoc for multiline body to preserve formatting
+          {
+            echo 'body<<EOF_BODY'
+            echo "$BODY"
+            echo 'EOF_BODY'
+          } >> $GITHUB_OUTPUT
+
+          echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+
           echo "Parsed action: $ACTION"
-          echo "Additional instructions: $ADDITIONAL_INSTRUCTIONS"
-          echo "Filter files: $FILTER_FILES"
-          echo "Filter rules: $FILTER_RULES"
+          echo "Body length: ${#BODY}"
+          echo "Comment ID: $COMMENT_ID"
 
   handle-comment-action:
     needs: interpret-request
@@ -161,24 +192,39 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Handle comment action
         env:
           GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ needs.interpret-request.outputs.action }}
+          BODY: ${{ needs.interpret-request.outputs.body }}
+          COMMENT_ID: ${{ needs.interpret-request.outputs.comment_id }}
+          PR_NUMBER: ${{ needs.interpret-request.outputs.pr_number }}
+          REPO: ${{ github.repository }}
         run: |
-          python scripts/handle_comment_action.py \
-            --action-file "${{ needs.interpret-request.outputs.execution_file }}" \
-            --pr-number "${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}" \
-            --repo "${{ github.repository }}"
+          echo "Handling action: $ACTION"
+          echo "PR: $PR_NUMBER"
+          echo "Body length: ${#BODY}"
+
+          case "$ACTION" in
+            postComment|postSummary)
+              echo "Posting comment to PR #$PR_NUMBER"
+              gh api "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$BODY"
+              ;;
+            replyToComment)
+              echo "Replying to comment $COMMENT_ID"
+              gh api "repos/$REPO/pulls/comments/$COMMENT_ID/replies" -f body="$BODY"
+              ;;
+            replaceComment)
+              echo "Replacing comment $COMMENT_ID"
+              gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH -f body="$BODY"
+              ;;
+            *)
+              echo "Unknown action: $ACTION"
+              exit 1
+              ;;
+          esac
+
+          echo "Action completed successfully"
 
   # performReview action - triggers full code review via workflow dispatch
   trigger-review:
