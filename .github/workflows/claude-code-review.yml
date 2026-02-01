@@ -55,9 +55,10 @@ env:
 
 jobs:
   claude-review:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'workflow_call' ||
+    # For pull_request events, only run on label or synchronize with label
+    # For workflow_dispatch and workflow_call, always run (controlled at workflow trigger level)
+    if: >-
+      github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'claude_review') ||
       (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'claude_review'))
 
