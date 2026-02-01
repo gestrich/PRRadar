@@ -42,8 +42,22 @@ jobs:
       additional_instructions: ${{ steps.parse-action.outputs.additional_instructions }}
       filter_files: ${{ steps.parse-action.outputs.filter_files }}
       filter_rules: ${{ steps.parse-action.outputs.filter_rules }}
+      pr_number: ${{ steps.set-pr-number.outputs.pr_number }}
 
     steps:
+      - name: Set PR number
+        id: set-pr-number
+        run: |
+          PR_NUM="${{ inputs.pr_number }}"
+          if [ -z "$PR_NUM" ]; then
+            PR_NUM="${{ github.event.issue.number }}"
+          fi
+          if [ -z "$PR_NUM" ]; then
+            PR_NUM="${{ github.event.pull_request.number }}"
+          fi
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "PR number resolved to: $PR_NUM"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -172,29 +186,14 @@ jobs:
             --pr-number "${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}" \
             --repo "${{ github.repository }}"
 
-  # trigger-review job temporarily disabled for debugging
-  # trigger-review:
-  #   needs: interpret-request
-  #   if: needs.interpret-request.outputs.action == 'performReview'
-  #   uses: ./.github/workflows/claude-code-review.yml
-  #   with:
-  #     pr_number: ${{ inputs.pr_number || format('{0}', github.event.issue.number) || format('{0}', github.event.pull_request.number) }}
-  #     additional_instructions: ${{ needs.interpret-request.outputs.additional_instructions }}
-  #     filter_files: ${{ needs.interpret-request.outputs.filter_files }}
-  #     filter_rules: ${{ needs.interpret-request.outputs.filter_rules }}
-  #   secrets: inherit
-
-  # Placeholder for performReview action - logs the intent but doesn't trigger review
-  trigger-review-placeholder:
+  # performReview action - triggers full code review via reusable workflow
+  trigger-review:
     needs: interpret-request
     if: needs.interpret-request.outputs.action == 'performReview'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log performReview intent
-        run: |
-          echo "performReview action detected"
-          echo "Additional instructions: ${{ needs.interpret-request.outputs.additional_instructions }}"
-          echo "Filter files: ${{ needs.interpret-request.outputs.filter_files }}"
-          echo "Filter rules: ${{ needs.interpret-request.outputs.filter_rules }}"
-          echo ""
-          echo "To trigger a full review, use the claude-code-review workflow directly."
+    uses: ./.github/workflows/claude-code-review.yml
+    with:
+      pr_number: ${{ needs.interpret-request.outputs.pr_number }}
+      additional_instructions: ${{ needs.interpret-request.outputs.additional_instructions }}
+      filter_files: ${{ needs.interpret-request.outputs.filter_files }}
+      filter_rules: ${{ needs.interpret-request.outputs.filter_rules }}
+    secrets: inherit
