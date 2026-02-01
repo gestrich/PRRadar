@@ -1,6 +1,12 @@
 name: Claude Code Review
 
 on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
   pull_request:
     types: [labeled, synchronize]
     # Optional: Only run on specific file changes
@@ -13,6 +19,7 @@ on:
 jobs:
   claude-review:
     if: |
+      github.event_name == 'workflow_dispatch' ||
       (github.event.action == 'labeled' && github.event.label.name == 'claude_review') ||
       (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'claude_review'))
 
@@ -36,7 +43,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
 
             Please review this pull request and provide feedback on:
             - Code quality and best practices
