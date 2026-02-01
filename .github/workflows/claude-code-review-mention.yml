@@ -52,6 +52,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             You have been mentioned in a pull request comment with @code-review.
 
@@ -74,7 +75,7 @@ jobs:
                - success: true if review completed, false if it failed
                - summary_file: "review-output/review-summary.md"
 
-          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh api:*),Bash(gh run list:*),Bash(gh run download:*),Bash(cat:*),Bash(mkdir:*),Bash(cp:*),Bash(tee:*),Write" --json-schema ${{ toJSON(env.REVIEW_SCHEMA) }}'
+          claude_args: --allowedTools Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh api:*),Bash(gh run list:*),Bash(gh run download:*),Bash(cat:*),Bash(mkdir:*),Bash(cp:*),Bash(tee:*),Write --json-schema ${{ toJSON(env.REVIEW_SCHEMA) }}
 
       - name: Parse structured output
         id: parse-output
