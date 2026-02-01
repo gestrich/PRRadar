@@ -101,9 +101,13 @@ def parse_review_output(data: dict) -> ReviewOutput:
 def extract_structured_output(execution_data: dict | list) -> dict:
     """Extract structured_output from Claude's execution file format."""
     if isinstance(execution_data, list):
-        # Array format (verbose mode) - get last item's result
+        # Array format (verbose mode) - get last item
         if execution_data:
             last_item = execution_data[-1]
+            # Check direct structured_output first
+            if "structured_output" in last_item:
+                return last_item["structured_output"]
+            # Then check nested in result
             if "result" in last_item and "structured_output" in last_item["result"]:
                 return last_item["result"]["structured_output"]
     elif isinstance(execution_data, dict):
