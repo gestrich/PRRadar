@@ -1,0 +1,442 @@
+---
+name: code-review
+description: Analyzes git diffs and generates structured markdown summaries of code changes. Use when reviewing commits, understanding what changed in a branch, creating change documentation, reviewing pull requests, or posting review comments to GitHub.
+user-invocable: true
+model-invocable: false
+---
+
+# Code Review
+
+Analyzes code changes from a specified commit or pull request, segments each file into logical code units (methods, declarations, etc.), reviews each segment against applicable rules, and generates a structured summary.
+
+```
+┌─────────────┐
+│ Input       │  (commit SHA, PR link, or PR #)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ Get Diff    │  (gh pr diff / git diff)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ List Files  │  (extract changed files)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ Segment     │  (parse each file's diff into logical units)
+│ Files       │
+└──────┬──────┘
+       │
+       ▼
+┌───────────────────┐
+│ review-summary-   │  (segments × rules as checkboxes)
+│    <id>.md        │
+└─────────┬─────────┘
+       │
+       ▼
+┌─────────────────────────────────────┐
+│  For each Segment × Rule:           │
+│  ┌───────┐ ┌───────┐ ┌───────┐      │
+│  │Agent 1│ │Agent 2│ │Agent 3│ ...  │  (parallel)
+│  └───┬───┘ └───┬───┘ └───┬───┘      │
+│      │         │         │          │
+│      └─────────┼─────────┘          │
+│                ▼                    │
+│      Update review-summary-<id>.md  │
+│             [x] Score: 3            │
+└─────────────────────────────────────┘
+       │
+       ▼
+┌─────────────┐
+│  Summary    │  (violations by rule + by segment)
+└─────────────┘
+```
+
+## Usage
+
+```
+/code-review <commit-sha>
+/code-review <pr-link>
+/code-review <pr-number>
+```
+
+### GitHub @code-review Mentions
+
+Users can mention `@code-review` in PR comments to trigger a review. When invoked this way, follow the request handling guide in [github-request.md](github-request.md) to interpret and respond to different types of requests (full review, specific rules, file-focused review, or rule explanations).
+
+### Posting Comments to GitHub
+
+After completing a review, you can post violations as comments directly to the PR. When the user asks to "post comments", "post review", "submit feedback", or "add comments to PR", follow the workflow in [posting-comments.md](posting-comments.md).
+
+The skill accepts:
+- **Commit SHA**: Analyzes changes from the specified commit through HEAD
+- **PR link**: Analyzes changes in the pull request (e.g., `https://github.com/owner/repo/pull/123`)
+- **PR number**: Analyzes changes in the PR by number (e.g., `#123` or `123`)
+
+## Process
+
+1. **Detect input type**: Determine if input is a commit SHA, PR link, or PR number
+2. **Get the diff**: Retrieve the relevant changes
+3. **List changed files**: Extract all files from the diff
+4. **Segment each file**: Parse each file's diff into logical code segments (methods, declarations, etc.)
+5. **Create review summary**: Generate `review-summary-<id>.md` (where `<id>` is the PR number or commit SHA) with segments organized by file, each segment having checkboxes for applicable rules
+6. **Execute reviews**: Spawn one subagent per segment × rule combination, updating the plan with scores and details
+7. **Generate summary**: Violation counts by rule, then detailed results by segment
+
+## Code Segmentation
+
+Each file's diff is parsed into logical **segments**. Every line of changed code must belong to exactly one segment. Segments are classified by type and change status.
+
+### Segment Types
+
+| Type | Description | Examples |
+|------|-------------|----------|
+| **imports** | Import/include statements | `#import`, `import`, `@import` |
+| **interface** | Class/protocol/struct declarations | `@interface`, `@protocol`, `class`, `struct` |
+| **extension** | Extensions/categories | `@interface Foo ()`, `extension Foo` |
+| **properties** | Property declarations | `@property`, `var`, `let` at class level |
+| **method** | Method/function implementations | `-methodName`, `func methodName()` |
+| **initializer** | Init methods | `-init`, `init()`, `-initWith*` |
+| **deinitializer** | Dealloc/deinit | `-dealloc`, `deinit` |
+| **constants** | Constants/enums/macros | `static let`, `enum`, `#define` |
+| **pragma** | Pragma marks and organization | `#pragma mark`, `// MARK:` |
+| **other** | Code that doesn't fit above categories | Global variables, file-level code |
+
+### Change Status
+
+Each segment is marked with its change status:
+- **added** - New code (all lines are `+` in diff)
+- **removed** - Deleted code (all lines are `-` in diff)
+- **modified** - Changed code (mix of `+` and `-` lines)
+
+### Segmentation Rules
+
+1. **Method boundaries**: A method segment starts at the method signature and ends at the closing brace
+2. **Contiguous changes**: If multiple adjacent lines change within a method, they form one segment
+3. **Context preservation**: Include enough context (2-3 lines) around changes to understand the segment
+4. **No orphan lines**: Every changed line must belong to a segment
+
+## Review Summary Format
+
+The `review-summary-<id>.md` file uses checkboxes that subagents check off as they complete their review. Each file contains segments, and each segment has checkboxes for applicable rules.
+
+**See [template.md](template.md) for the complete output format template.**
+
+The `<id>` in the filename is:
+- For PRs: the PR number (e.g., `review-summary-18500.md`)
+- For commits: the short commit SHA (e.g., `review-summary-abc1234.md`)
+
+```markdown
+# Review Summary: <PR title or commit range>
+
+## Overview
+Brief description of what this change does overall.
+
+**Files Changed:** 3
+**Total Segments:** 8
+**Applicable Rules:** 2
+
+---
+
+## File: `path/to/MyService.swift`
+
+### Segment: Method `fetchUserData()` (modified)
+
+```swift
+func fetchUserData() async {
++   let result = await networkClient.fetch(userID)
++   self.userData = result
+}
+```
+
+#### Rule Reviews
+- [ ] **error-handling** | Score: ? | Details: ?
+- [ ] **thread-safety** | Score: ? | Details: ?
+
+---
+
+### Segment: Method `handleResponse(_:)` (added)
+
+```swift
++func handleResponse(_ response: Response) {
++    guard let data = response.data else { return }
++    process(data)
++}
+```
+
+#### Rule Reviews
+- [ ] **error-handling** | Score: ? | Details: ?
+- [ ] **thread-safety** | Score: ? | Details: ?
+
+---
+
+## File: `path/to/FFLayerManager.h`
+
+### Segment: Interface declaration (modified)
+
+```objective-c
+ @interface FFLayerManager : NSObject
++@property (nonatomic, strong) NSArray *layers;
+ @end
+```
+
+#### Rule Reviews
+- [ ] **nullability/nullability_h_files** | Score: ? | Details: ?
+
+---
+
+## File: `path/to/config.json`
+
+### Segment: Root object (modified)
+
+```json
+ {
++  "newKey": "value"
+ }
+```
+
+#### Rule Reviews
+*No applicable rules for this file type.*
+
+---
+```
+
+### After Subagent Review
+
+When a subagent completes its review, it updates the checkbox, score, and details. For violations (score >= 5), include the diff line number and code snippets showing the specific problematic code:
+
+```markdown
+#### Rule Reviews
+- [x] **error-handling** | Score: 8 | Line: 42 | Details: Missing error handling for network timeout
+  ```swift
+  let result = await networkClient.fetch(userID)  // ← No error handling
+  ```
+- [x] **thread-safety** | Score: 1 | Details: No threading concerns - all code runs on main actor
+```
+
+## Scoring
+
+The score measures **how clearly the code violates the rule**, not the risk or severity of the violation.
+
+- **Score 1-2**: No violation - code follows this rule well
+- **Score 3-4**: Unlikely violation - minor ambiguity but probably fine
+- **Score 5-6**: Unclear - could be interpreted as a violation depending on context
+- **Score 7-8**: Likely violation - code appears to break the rule
+- **Score 9-10**: Clear violation - code definitively breaks the rule
+
+## Review Rules
+
+Rules are defined in the `rules/` folder (in the same directory as this skill). Rules can be:
+- A `.md` file directly in `rules/` (e.g., `rules/core-data.md`)
+- A `.md` file in a subfolder (e.g., `rules/nullability/nullability_h_files.md`)
+
+The rule name is the path relative to `rules/` without the `.md` extension (e.g., `nullability/nullability_h_files`).
+
+### Rule Frontmatter
+
+Rules can have YAML frontmatter to describe the rule and specify when it applies:
+
+```yaml
+---
+description: Brief description of what this rule checks for.
+documentation: https://github.com/org/repo/path/to/docs/RuleName.md
+applies_to:
+  file_extensions: [".h"]
+---
+```
+
+- **`description`**: Brief summary of the rule's purpose
+- **`documentation`**: Link to detailed documentation for this rule. **This link MUST be included in the summary** — in both the "Violations by Rule" table and the "Violation Details" section headers for any rule with violations.
+- **`applies_to.file_extensions`**: Only run this rule if the diff contains files matching these extensions. If omitted, the rule applies to all files.
+
+### GitHub Comment Section
+
+Rules can include a `## GitHub Comment` section that provides a template for PR comments. When posting violations to GitHub, use this template as a guide for formatting the comment. The template shows the expected style including:
+- Explanation of the issue
+- Recommended fix with code snippet
+- Link to documentation
+
+### Skipped Rules
+
+If a rule file starts with `> **SKIPPED:**`, skip that rule entirely during review. Only process rules that do not have this marker.
+
+## Review Execution
+
+After generating the review plan:
+
+**IMPORTANT**: For PR reviews, the changed files may not exist locally — they only exist in the PR diff. You MUST pass the actual segment diff content to subagents. Do NOT instruct subagents to read files from the filesystem.
+
+1. **For each Segment** in `review-summary-<id>.md`:
+   - **For each Rule** checkbox under that segment:
+     - Spawn a subagent using the Task tool with `subagent_type: "general-purpose"`
+     - The subagent prompt **MUST include**:
+       - The rule name
+       - **Instruction to read the rule file** at `.claude/skills/code-review/rules/{rule_name}.md` (use full path from repo root)
+       - The file path and segment identifier (e.g., "Method `fetchUserData()`")
+       - The segment type (method, interface, properties, etc.)
+       - **The actual segment diff content** (copy/paste the segment's diff into the prompt)
+       - Instructions to score 1-10 and provide details
+     - The subagent updates `review-summary-<id>.md`:
+       - Checks the box: `- [ ]` → `- [x]`
+       - Fills in the score: `Score: ?` → `Score: 3`
+       - Fills in details: `Details: ?` → `Details: <explanation>`
+
+2. **Run segment reviews in parallel** where possible (multiple subagents can review different segments/rules concurrently)
+
+3. **After all reviews complete**, add a summary section at the end of `review-summary-<id>.md`. **Important**: The documentation links in the summary come from each rule's frontmatter `documentation` field:
+
+```markdown
+---
+
+## Summary
+
+### Violations by Rule
+
+| Rule | Violations | Documentation |
+|------|------------|---------------|
+| nullability/nullability_h_files | 3 | [Nullability Guide](https://github.com/org/repo/path/to/Nullability.md) |
+| error-handling | 2 | [Error Handling Guide](https://github.com/org/repo/path/to/ErrorHandling.md) |
+
+### Results by File
+
+| File | Segments | Highest Score | Primary Concern |
+|------|----------|---------------|-----------------|
+| MyService.swift | 2 | 8 | error-handling |
+| FFLayerManager.h | 2 | 9 | nullability/nullability_h_files |
+| config.json | 1 | - | No applicable rules |
+
+### Violation Details
+
+#### error-handling (2 segments) — [Documentation](https://github.com/org/repo/path/to/ErrorHandling.md)
+
+**MyService.swift → Method `fetchUserData()`** (Score: 8, Line: 42)
+Missing error handling for network request.
+```swift
+let result = await networkClient.fetch(userID)  // ← No error handling
+```
+
+**MyService.swift → Method `handleResponse(_:)`** (Score: 6, Line: 58)
+Guard statement silently returns on nil data without logging.
+
+#### nullability/nullability_h_files (3 segments) — [Documentation](https://github.com/org/repo/path/to/Nullability.md)
+
+**FFLayerManager.h → Interface declaration** (Score: 9, Line: 15)
+Uses NS_ASSUME_NONNULL_BEGIN/END which is prohibited.
+```objective-c
+NS_ASSUME_NONNULL_BEGIN  // ← Prohibited
+@interface FFLayerManager : NSObject
+```
+
+**FFLayerManager.h → Properties** (Score: 7, Line: 23)
+Property `layers` missing explicit nullability annotation.
+
+### Recommended Actions
+
+1. Add error handling for network request in `fetchUserData()`
+2. Add logging in `handleResponse(_:)` guard clause
+3. Remove `NS_ASSUME_NONNULL_BEGIN/END` and add explicit annotations
+```
+
+## Subagent Prompt Template
+
+When spawning a segment-review subagent, use this prompt structure.
+
+**CRITICAL**: You MUST include the actual segment diff content in the prompt. The subagent cannot access PR files directly — they only exist in the diff. Copy the segment's diff into the prompt.
+
+```
+You are reviewing a code segment for the "{rule_name}" rule.
+
+Your task:
+1. First, read the rule documentation at: .claude/skills/code-review/rules/{rule_name}.md
+2. Review the segment diff content provided below (DO NOT try to read files from filesystem - they may not exist locally)
+3. Evaluate whether this segment violates the rule
+4. Score from 1-10 based on how clearly the code violates the rule:
+   - 1-2: No violation - code follows this rule well
+   - 3-4: Unlikely violation - minor ambiguity but probably fine
+   - 5-6: Unclear - could be interpreted as a violation depending on context
+   - 7-8: Likely violation - code appears to break the rule
+   - 9-10: Clear violation - code definitively breaks the rule
+5. Provide brief, specific details explaining the score
+6. For any violation (score >= 5), note the diff line number where the violation occurs and include a code snippet showing the problematic code
+
+File: {file_path}
+Segment: {segment_name} ({segment_type})
+Change Status: {added|modified|removed}
+
+## Segment Diff Content
+
+The following is the actual diff content for this segment. Analyze this directly:
+
+```diff
+{PASTE THE SEGMENT'S DIFF HERE - this is required!}
+```
+
+After your analysis, update `review-summary-<id>.md`:
+1. Find the section for file "{file_path}", segment "{segment_name}", rule "{rule_name}"
+2. Change `- [ ]` to `- [x]`
+3. Change `Score: ?` to `Score: {your_score}`
+4. For violations (score >= 5), add `| Line: {diff_line_number}` after the score (e.g., `Score: 8 | Line: 42`)
+5. Change `Details: ?` to `Details: {your_explanation}`
+
+Keep details concise (1-2 sentences). The line number should reference where the violation occurs in the diff.
+```
+
+## Instructions
+
+### Detecting Input Type
+
+Determine what type of input was provided:
+- **PR link**: Contains `github.com` and `/pull/` (e.g., `https://github.com/owner/repo/pull/123`)
+- **PR number**: Starts with `#` or is a plain number (e.g., `#123` or `123`)
+- **Commit SHA**: Alphanumeric string (e.g., `abc1234` or full 40-char SHA)
+
+### When invoked with a PR link or number:
+
+1. Extract the PR number from the input:
+   - From URL: Parse the number after `/pull/`
+   - From `#123` format: Strip the `#` prefix
+   - From plain number: Use directly
+2. Run `gh pr view <number> --json title,body,baseRefName,headRefName` to get PR metadata
+3. Run `gh pr diff <number>` to get the full diff — **IMPORTANT: Save this diff content, you will need to pass it to subagents**
+4. Run `gh pr view <number> --json files --jq '.files[].path'` to list changed files
+5. Read all files in `rules/` folder to get the list of rules (skip any that start with `> **SKIPPED:**`)
+6. **Segment each file's diff** into logical code units (see Code Segmentation section)
+7. Generate `review-summary-<pr_number>.md` with segments organized by file, each segment having checkboxes for applicable rules
+8. Execute the review by spawning subagents for each segment/rule combination, **passing the segment's diff in each subagent prompt**
+9. After all subagents complete, add the summary section with violations by rule and results by segment
+
+### When invoked with a commit SHA:
+
+1. Run `git log --oneline <commit>^..HEAD` to see the commits being reviewed
+2. Run `git diff <commit>^..HEAD --stat` to get a high-level view of files changed
+3. Run `git diff <commit>^..HEAD` to get the full diff — **IMPORTANT: Save this diff content, you will need to pass it to subagents**
+4. Read all files in `rules/` folder to get the list of rules (skip any that start with `> **SKIPPED:**`)
+5. **Segment each file's diff** into logical code units (see Code Segmentation section)
+6. Generate `review-summary-<commit_sha>.md` with segments organized by file, each segment having checkboxes for applicable rules
+7. Execute the review by spawning subagents for each segment/rule combination, **passing the segment's diff in each subagent prompt**
+8. After all subagents complete, add the summary section with violations by rule and results by segment
+
+## Examples
+
+```
+/code-review abc1234
+```
+Reviews all changes from commit `abc1234` through the current HEAD.
+
+```
+/code-review https://github.com/foreflight/ios/pull/18500
+```
+Reviews all changes in PR #18500.
+
+```
+/code-review #18500
+```
+Reviews all changes in PR #18500 (shorthand).
+
+```
+/code-review 18500
+```
+Reviews all changes in PR #18500 (number only).
