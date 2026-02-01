@@ -59,8 +59,8 @@ jobs:
     # For workflow_dispatch and workflow_call, always run (controlled at workflow trigger level)
     if: >-
       github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'pr-review') ||
-      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'pr-review'))
+      (github.event.action == 'labeled' && github.event.label.name == 'code-review') ||
+      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'code-review'))
 
     runs-on: ubuntu-latest
     permissions:
