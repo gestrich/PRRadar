@@ -19,6 +19,29 @@ on:
   pull_request_review:
     types: [submitted]
 
+env:
+  # JSON schema for structured output from Claude Code
+  REVIEW_SCHEMA: |
+    {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the review was completed successfully"
+        },
+        "summary_file": {
+          "type": "string",
+          "description": "Path to the markdown summary file that was created (e.g., review-output/review-summary.md)"
+        },
+        "error_message": {
+          "type": "string",
+          "description": "Error message if the review failed (only present when success is false)"
+        }
+      },
+      "required": ["success", "summary_file"],
+      "additionalProperties": false
+    }
+
 jobs:
   code-review:
     if: |
@@ -61,18 +84,72 @@ jobs:
             1. Read the code-review skill at .claude/skills/code-review/skill.md
             2. Read the GitHub request handling guide at .claude/skills/code-review/github-request.md
             3. Follow the instructions in github-request.md to handle the user's request
-            4. **IMPORTANT**: Save your review summary to `review-output/review-summary.md` using the Write tool (create the directory with mkdir first). The workflow will automatically upload this as an artifact and post it to the GitHub job summary - you don't need to handle that.
+            4. **IMPORTANT OUTPUT REQUIREMENTS:**
+               - Create a directory: `mkdir -p review-output`
+               - Write your complete review summary to `review-output/review-summary.md` using the Write tool
+               - The workflow will automatically upload this as an artifact and post it to the GitHub job summary
             5. When complete, post your response as a comment on the PR using `gh pr comment`
+            6. Your structured output MUST include:
+               - success: true if review completed, false if it failed
+               - summary_file: "review-output/review-summary.md"
 
-          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh api:*),Bash(gh run list:*),Bash(gh run download:*),Bash(cat:*),Bash(mkdir:*),Bash(cp:*),Bash(tee:*),Write"'
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh api:*),Bash(gh run list:*),Bash(gh run download:*),Bash(cat:*),Bash(mkdir:*),Bash(cp:*),Bash(tee:*),Write" --json-schema ${{ toJSON(env.REVIEW_SCHEMA) }}'
+
+      - name: Parse structured output
+        id: parse-output
+        if: always() && steps.claude-review.outputs.execution_file != ''
+        run: |
+          EXEC_FILE="${{ steps.claude-review.outputs.execution_file }}"
+          echo "Parsing execution file: $EXEC_FILE"
+
+          # Extract structured_output from the execution file
+          # The structured output can be in different locations depending on the format
+          SUMMARY_FILE=$(jq -r '
+            # Try array format (verbose mode)
+            if type == "array" then
+              .[-1].result.structured_output.summary_file // empty
+            # Try direct object format
+            elif .structured_output then
+              .structured_output.summary_file
+            elif .result.structured_output then
+              .result.structured_output.summary_file
+            else
+              empty
+            end
+          ' "$EXEC_FILE" 2>/dev/null || echo "")
+
+          SUCCESS=$(jq -r '
+            if type == "array" then
+              .[-1].result.structured_output.success // false
+            elif .structured_output then
+              .structured_output.success
+            elif .result.structured_output then
+              .result.structured_output.success
+            else
+              false
+            end
+          ' "$EXEC_FILE" 2>/dev/null || echo "false")
+
+          echo "summary_file=$SUMMARY_FILE" >> $GITHUB_OUTPUT
+          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
+          echo "Parsed summary_file: $SUMMARY_FILE"
+          echo "Parsed success: $SUCCESS"
 
       - name: Write review to job summary
         if: always()
         run: |
-          if [ -f "review-output/review-summary.md" ]; then
-            cat review-output/review-summary.md >> $GITHUB_STEP_SUMMARY
+          SUMMARY_FILE="${{ steps.parse-output.outputs.summary_file }}"
+          # Fallback to default path if structured output parsing failed
+          if [ -z "$SUMMARY_FILE" ]; then
+            SUMMARY_FILE="review-output/review-summary.md"
+          fi
+
+          if [ -f "$SUMMARY_FILE" ]; then
+            echo "## Code Review Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
           else
-            echo "No review summary generated" >> $GITHUB_STEP_SUMMARY
+            echo "No review summary generated at $SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload review artifact
