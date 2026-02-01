@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Analyzes git diffs and generates structured markdown summaries of code changes. Use when reviewing commits, understanding what changed in a branch, creating change documentation, reviewing pull requests, or posting review comments to GitHub.
+description: Analyzes git diffs and generates structured markdown summaries of code changes. Use when reviewing commits, understanding what changed in a branch, creating change documentation, or reviewing pull requests.
 user-invocable: true
 model-invocable: false
 ---
@@ -62,14 +62,6 @@ Analyzes code changes from a specified commit or pull request, segments each fil
 /code-review <pr-link>
 /code-review <pr-number>
 ```
-
-### GitHub @code-review Mentions
-
-Users can mention `@code-review` in PR comments to trigger a review. When invoked this way, follow the request handling guide in [github-request.md](github-request.md) to interpret and respond to different types of requests (full review, specific rules, file-focused review, or rule explanations).
-
-### Posting Comments to GitHub
-
-After completing a review, you can post violations as comments directly to the PR. When the user asks to "post comments", "post review", "submit feedback", or "add comments to PR", follow the workflow in [posting-comments.md](posting-comments.md).
 
 The skill accepts:
 - **Commit SHA**: Analyzes changes from the specified commit through HEAD
@@ -251,13 +243,6 @@ applies_to:
 - **`description`**: Brief summary of the rule's purpose
 - **`documentation`**: Link to detailed documentation for this rule. **This link MUST be included in the summary** — in both the "Violations by Rule" table and the "Violation Details" section headers for any rule with violations.
 - **`applies_to.file_extensions`**: Only run this rule if the diff contains files matching these extensions. If omitted, the rule applies to all files.
-
-### GitHub Comment Section
-
-Rules can include a `## GitHub Comment` section that provides a template for PR comments. When posting violations to GitHub, use this template as a guide for formatting the comment. The template shows the expected style including:
-- Explanation of the issue
-- Recommended fix with code snippet
-- Link to documentation
 
 ### Skipped Rules
 

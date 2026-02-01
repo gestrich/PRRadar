@@ -103,7 +103,17 @@ The skill should still support:
 
 ## Phases
 
-- [ ] Phase 1: Refactor SKILL.md to focus on code review only
+- [x] Phase 1: Refactor SKILL.md to focus on code review only
+
+### Technical Notes
+
+Completed on 2025-02-01. Changes made:
+1. Removed "GitHub @code-review Mentions" section (was lines 66-68)
+2. Removed "Posting Comments to GitHub" section (was lines 70-72)
+3. Removed "GitHub Comment Section" from rule documentation (was lines 255-261)
+4. Updated skill description in frontmatter to remove "posting review comments to GitHub"
+
+Files `github-request.md` and `posting-comments.md` still exist and should be removed in Phase 4 as planned.
 
 ### Changes to Make
 
