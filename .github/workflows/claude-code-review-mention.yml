@@ -20,11 +20,11 @@ on:
     types: [submitted]
 
 env:
-  # JSON schema for structured output from Claude Code (compact single-line format required)
-  REVIEW_SCHEMA: '{"type":"object","properties":{"success":{"type":"boolean","description":"Whether the review was completed successfully"},"summary_file":{"type":"string","description":"Path to the markdown summary file that was created"},"error_message":{"type":"string","description":"Error message if the review failed"}},"required":["success","summary_file"],"additionalProperties":false}'
+  # JSON schema for action-based routing from Claude's interpretation
+  ACTION_SCHEMA: '{"type":"object","properties":{"action":{"type":"string","enum":["postComment","replyToComment","replaceComment","postSummary","performReview"],"description":"The action to take"},"body":{"type":"string","description":"Comment body for postComment/replyToComment/replaceComment/postSummary"},"commentId":{"type":"integer","description":"Comment ID for replyToComment/replaceComment"},"additionalInstructions":{"type":"string","description":"Additional instructions for performReview"},"filterFiles":{"type":"array","items":{"type":"string"},"description":"File glob patterns for performReview"},"filterRules":{"type":"array","items":{"type":"string"},"description":"Rule names for performReview"}},"required":["action"]}'
 
 jobs:
-  code-review:
+  interpret-request:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@code-review')) ||
@@ -33,11 +33,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
       issues: read
-      checks: write
-      actions: read
       id-token: write
+    outputs:
+      action: ${{ steps.parse-action.outputs.action }}
+      execution_file: ${{ steps.interpret.outputs.execution_file }}
+      additional_instructions: ${{ steps.parse-action.outputs.additional_instructions }}
+      filter_files: ${{ steps.parse-action.outputs.filter_files }}
+      filter_rules: ${{ steps.parse-action.outputs.filter_rules }}
 
     steps:
       - name: Checkout repository
@@ -45,8 +49,8 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code Review
-        id: claude-review
+      - name: Interpret comment request
+        id: interpret
         uses: anthropics/claude-code-action@v1
         env:
           PR_NUMBER: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
@@ -58,87 +62,123 @@ jobs:
 
             PR URL: https://github.com/${{ github.repository }}/pull/${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
             PR Number: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
+            Comment ID: ${{ github.event.comment.id || 'N/A' }}
+            Comment Location: ${{ github.event_name == 'pull_request_review_comment' && 'review_thread' || 'pr_conversation' }}
 
             User's request:
             ${{ inputs.request || github.event.comment.body || github.event.review.body }}
 
             Instructions:
-            1. Read the code-review skill at .claude/skills/code-review/skill.md
-            2. Read the GitHub request handling guide at .claude/skills/code-review/github-request.md
-            3. Follow the instructions in github-request.md to handle the user's request
-            4. **IMPORTANT OUTPUT REQUIREMENTS:**
-               - Create a directory: `mkdir -p review-output`
-               - Write your complete review summary to `review-output/review-summary.md` using the Write tool
-               - The workflow will automatically upload this as an artifact and post it to the GitHub job summary
-            5. When complete, post your response as a comment on the PR using `gh pr comment`
-            6. Your structured output MUST include:
-               - success: true if review completed, false if it failed
-               - summary_file: "review-output/review-summary.md"
+            1. Read the interpret-request guide at .claude/skills/code-review/interpret-request.md
+            2. Analyze the user's request and determine the appropriate action
+            3. Return a structured JSON action as specified in the guide
 
-          claude_args: --allowedTools Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh api:*),Bash(gh run list:*),Bash(gh run download:*),Bash(cat:*),Bash(mkdir:*),Bash(cp:*),Bash(tee:*),Write --json-schema ${{ toJSON(env.REVIEW_SCHEMA) }}
+            Your output MUST be valid JSON matching the action schema.
 
-      - name: Parse structured output
-        id: parse-output
-        if: always() && steps.claude-review.outputs.execution_file != ''
+          claude_args: --allowedTools Read,Glob,Grep --json-schema ${{ toJSON(env.ACTION_SCHEMA) }}
+
+      - name: Parse action output
+        id: parse-action
+        if: always() && steps.interpret.outputs.execution_file != ''
         run: |
-          EXEC_FILE="${{ steps.claude-review.outputs.execution_file }}"
+          EXEC_FILE="${{ steps.interpret.outputs.execution_file }}"
           echo "Parsing execution file: $EXEC_FILE"
 
-          # Extract structured_output from the execution file
-          # The structured output can be in different locations depending on the format
-          SUMMARY_FILE=$(jq -r '
-            # Try array format (verbose mode)
+          # Extract action from structured output
+          ACTION=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.summary_file // empty
-            # Try direct object format
+              .[-1].result.structured_output.action // "unknown"
             elif .structured_output then
-              .structured_output.summary_file
+              .structured_output.action
             elif .result.structured_output then
-              .result.structured_output.summary_file
+              .result.structured_output.action
             else
-              empty
+              "unknown"
+            end
+          ' "$EXEC_FILE" 2>/dev/null || echo "unknown")
+
+          ADDITIONAL_INSTRUCTIONS=$(jq -r '
+            if type == "array" then
+              .[-1].result.structured_output.additionalInstructions // ""
+            elif .structured_output then
+              .structured_output.additionalInstructions // ""
+            elif .result.structured_output then
+              .result.structured_output.additionalInstructions // ""
+            else
+              ""
             end
           ' "$EXEC_FILE" 2>/dev/null || echo "")
 
-          SUCCESS=$(jq -r '
+          FILTER_FILES=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.success // false
+              .[-1].result.structured_output.filterFiles // [] | @json
             elif .structured_output then
-              .structured_output.success
+              .structured_output.filterFiles // [] | @json
             elif .result.structured_output then
-              .result.structured_output.success
+              .result.structured_output.filterFiles // [] | @json
             else
-              false
+              "[]"
             end
-          ' "$EXEC_FILE" 2>/dev/null || echo "false")
+          ' "$EXEC_FILE" 2>/dev/null || echo "[]")
 
-          echo "summary_file=$SUMMARY_FILE" >> $GITHUB_OUTPUT
-          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
-          echo "Parsed summary_file: $SUMMARY_FILE"
-          echo "Parsed success: $SUCCESS"
+          FILTER_RULES=$(jq -r '
+            if type == "array" then
+              .[-1].result.structured_output.filterRules // [] | @json
+            elif .structured_output then
+              .structured_output.filterRules // [] | @json
+            elif .result.structured_output then
+              .result.structured_output.filterRules // [] | @json
+            else
+              "[]"
+            end
+          ' "$EXEC_FILE" 2>/dev/null || echo "[]")
 
-      - name: Write review to job summary
-        if: always()
-        run: |
-          SUMMARY_FILE="${{ steps.parse-output.outputs.summary_file }}"
-          # Fallback to default path if structured output parsing failed
-          if [ -z "$SUMMARY_FILE" ]; then
-            SUMMARY_FILE="review-output/review-summary.md"
-          fi
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "additional_instructions=$ADDITIONAL_INSTRUCTIONS" >> $GITHUB_OUTPUT
+          echo "filter_files=$FILTER_FILES" >> $GITHUB_OUTPUT
+          echo "filter_rules=$FILTER_RULES" >> $GITHUB_OUTPUT
 
-          if [ -f "$SUMMARY_FILE" ]; then
-            echo "## Code Review Summary" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No review summary generated at $SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "Parsed action: $ACTION"
+          echo "Additional instructions: $ADDITIONAL_INSTRUCTIONS"
+          echo "Filter files: $FILTER_FILES"
+          echo "Filter rules: $FILTER_RULES"
 
-      - name: Upload review artifact
-        if: always()
-        uses: actions/upload-artifact@v4
+  handle-comment-action:
+    needs: interpret-request
+    if: needs.interpret-request.outputs.action != 'performReview' && needs.interpret-request.outputs.action != 'unknown'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          name: code-review-pr-${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
-          path: review-output/
-          if-no-files-found: ignore
-          retention-days: 90
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Handle comment action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/handle_comment_action.py \
+            --action-file "${{ needs.interpret-request.outputs.execution_file }}" \
+            --pr-number "${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}"
+
+  trigger-review:
+    needs: interpret-request
+    if: needs.interpret-request.outputs.action == 'performReview'
+    uses: ./.github/workflows/claude-code-review.yml
+    with:
+      pr_number: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
+      additional_instructions: ${{ needs.interpret-request.outputs.additional_instructions }}
+      filter_files: ${{ needs.interpret-request.outputs.filter_files }}
+      filter_rules: ${{ needs.interpret-request.outputs.filter_rules }}
+    secrets: inherit

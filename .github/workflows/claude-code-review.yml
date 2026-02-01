@@ -7,6 +7,39 @@ on:
         description: 'PR number to review'
         required: true
         type: string
+      additional_instructions:
+        description: 'Additional instructions for the review (optional)'
+        required: false
+        type: string
+      filter_files:
+        description: 'JSON array of file glob patterns to filter (optional)'
+        required: false
+        type: string
+      filter_rules:
+        description: 'JSON array of rule names to filter (optional)'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
+      additional_instructions:
+        description: 'Additional instructions for the review (optional)'
+        required: false
+        type: string
+      filter_files:
+        description: 'JSON array of file glob patterns to filter (optional)'
+        required: false
+        type: string
+      filter_rules:
+        description: 'JSON array of rule names to filter (optional)'
+        required: false
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
   pull_request:
     types: [labeled, synchronize]
     # Optional: Only run on specific file changes
@@ -53,6 +86,10 @@ jobs:
             Please review this pull request using the /code-review skill.
 
             Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+
+            ${{ inputs.additional_instructions && format('ADDITIONAL INSTRUCTIONS:\n{0}\n', inputs.additional_instructions) || '' }}
+            ${{ inputs.filter_files && inputs.filter_files != '[]' && format('FILE FILTERS (only review files matching these patterns):\n{0}\n', inputs.filter_files) || '' }}
+            ${{ inputs.filter_rules && inputs.filter_rules != '[]' && format('RULE FILTERS (only check these rules):\n{0}\n', inputs.filter_rules) || '' }}
 
             **IMPORTANT OUTPUT REQUIREMENTS:**
             1. Create a directory called `review-output` using `mkdir -p review-output`

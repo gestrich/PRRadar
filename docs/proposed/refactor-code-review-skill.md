@@ -346,7 +346,41 @@ class ReviewOutput:
 
 ---
 
-- [ ] Phase 4: Comment workflow with action-based routing
+- [x] Phase 4: Comment workflow with action-based routing
+
+### Technical Notes
+
+Completed on 2026-02-01. Changes made:
+
+1. Created `scripts/handle_comment_action.py` with:
+   - Dataclass models for all action types: `PostCommentAction`, `ReplyToCommentAction`, `ReplaceCommentAction`, `PostSummaryAction`, `PerformReviewAction`
+   - `parse_action()` function to parse JSON into typed action objects
+   - `extract_structured_output()` function to handle Claude's execution file format
+   - Handler functions for each action type using `gh api` commands
+   - CLI interface with `--action-file`, `--pr-number`, `--repo`, `--dry-run` options
+
+2. Created `.claude/skills/code-review/interpret-request.md` with:
+   - Decision flow for determining action type from user comments
+   - Output format specifications for each action type
+   - Rule name mapping table (user mentions → rule identifiers)
+   - Examples for each action type
+   - Error handling guidance for ambiguous requests
+
+3. Updated `.github/workflows/claude-code-review-mention.yml`:
+   - Two-job structure: `interpret-request` → `handle-comment-action` or `trigger-review`
+   - Added `ACTION_SCHEMA` for structured JSON output
+   - Added outputs for action routing: `action`, `additional_instructions`, `filter_files`, `filter_rules`
+   - Comment actions handled by Python script
+   - `performReview` actions call the review workflow via `workflow_call`
+
+4. Updated `.github/workflows/claude-code-review.yml`:
+   - Added `workflow_call` trigger for reusable workflow invocation
+   - Added inputs: `additional_instructions`, `filter_files`, `filter_rules`
+   - Updated prompt to include additional instructions and filters when provided
+
+5. Removed obsolete files:
+   - `.claude/skills/code-review/github-request.md` (replaced by `interpret-request.md`)
+   - `.claude/skills/code-review/posting-comments.md` (functionality moved to Python scripts)
 
 ### Overview
 
