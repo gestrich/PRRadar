@@ -75,7 +75,7 @@ jobs:
 
             Your output MUST be valid JSON matching the action schema.
 
-          claude_args: --allowedTools Read,Glob,Grep --json-schema '${{ env.ACTION_SCHEMA }}'
+          claude_args: --allowedTools Read,Glob,Grep --json-schema ${{ toJSON(env.ACTION_SCHEMA) }}
 
       - name: Parse action output
         id: parse-action
