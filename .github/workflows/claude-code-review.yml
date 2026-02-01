@@ -189,6 +189,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
+      - name: Verify structured output parsed successfully
+        if: steps.parse-output.outputs.success != 'true'
+        run: |
+          echo "ERROR: Failed to parse structured JSON output from Claude"
+          echo "Check the execution.json artifact for debugging"
+          exit 1
+
       - name: Setup Python
         if: steps.parse-output.outputs.success == 'true'
         uses: actions/setup-python@v5
