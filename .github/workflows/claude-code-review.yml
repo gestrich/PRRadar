@@ -128,9 +128,9 @@ jobs:
           # Extract structured_output from the execution file
           # The structured output can be in different locations depending on the format
           SUMMARY_FILE=$(jq -r '
-            # Try array format (verbose mode)
+            # Try array format (verbose mode) - check both direct and nested in result
             if type == "array" then
-              .[-1].result.structured_output.summary.summaryFile // empty
+              .[-1].structured_output.summary.summaryFile // .[-1].result.structured_output.summary.summaryFile // empty
             # Try direct object format
             elif .structured_output then
               .structured_output.summary.summaryFile
@@ -143,7 +143,7 @@ jobs:
 
           SUCCESS=$(jq -r '
             if type == "array" then
-              .[-1].result.structured_output.success // false
+              .[-1].structured_output.success // .[-1].result.structured_output.success // false
             elif .structured_output then
               .structured_output.success
             elif .result.structured_output then
