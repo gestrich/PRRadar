@@ -593,7 +593,43 @@ Create a real PR containing code with a single, clear rule violation. The PR sho
 
 ---
 
-- [ ] Phase 6: Validation - Review workflow and artifacts
+- [x] Phase 6: Validation - Review workflow and artifacts
+
+### Technical Notes
+
+Completed on 2026-02-01. Validation results:
+
+**Prerequisites Fixed:**
+- Local commits (Phases 1-5) were not pushed to origin/main, causing the first workflow run to use an outdated schema. Fixed by pushing changes with `git push origin main`.
+
+**Workflow Runs:**
+1. Run 21569864837 (workflow_dispatch from main, old schema) - Produced comprehensive review
+2. Run 21569942210 (workflow_dispatch from main, new rich schema) - Produced focused review
+
+**Validation Results:**
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| Workflow status is "success" | ✅ | Both runs completed successfully |
+| Artifact `code-review-pr-4` exists | ✅ | Artifact ID 5335857125 (run 2) |
+| `review-summary.md` contains test file | ✅ | FFDataFormatter.h reviewed |
+| At least one feedback item has `score >= 5` | ✅ | Nullability score 10, Generics score 9 |
+| Feedback identifies nullability violation | ✅ | Both properties and methods flagged |
+| Summary includes violation count > 0 | ✅ | 3 violations identified |
+
+**Violations Detected:**
+1. `apis-apple/nullability-objc/nullability-h-objc` - Score 10 (properties)
+2. `apis-apple/nullability-objc/nullability-h-objc` - Score 10 (methods)
+3. `apis-apple/generics-objc` - Score 9 (untyped NSArray)
+
+**JSON Structured Output:**
+The structured output parsing shows `success: false` because Claude doesn't output the JSON format required by `--json-schema`. However, the review content is correctly generated and posted. The Python comment posting step was skipped due to this.
+
+**Review Posted:**
+A comprehensive review summary was posted as a PR comment via `gh pr comment` (from the claude-code-action default behavior).
+
+**Known Limitation:**
+The rich JSON schema for structured output (`feedback[]`, `summary.categories`) requires additional work to integrate with Claude's output format. The current implementation relies on the summary file and `gh pr comment` instead of the Python posting script.
 
 ### Overview
 
@@ -621,20 +657,20 @@ cat review-output/review-summary.md
 ```
 
 **Expected Results:**
-- [ ] Workflow status is "success"
-- [ ] Artifact `code-review-pr-<pr_number>` exists
-- [ ] `review-summary.md` contains the test file
-- [ ] At least one feedback item has `score >= 5`
-- [ ] Feedback identifies the nullability violation
-- [ ] Summary includes violation count > 0
+- [x] Workflow status is "success"
+- [x] Artifact `code-review-pr-<pr_number>` exists
+- [x] `review-summary.md` contains the test file
+- [x] At least one feedback item has `score >= 5`
+- [x] Feedback identifies the nullability violation
+- [x] Summary includes violation count > 0
 
 ### JSON Output Verification
 
 Parse the structured output to verify:
-- [ ] `success: true`
-- [ ] `feedback[]` contains entry for test file
-- [ ] `summary.totalViolations >= 1`
-- [ ] `summary.categories` has non-zero scores
+- [ ] `success: true` *(see known limitation above)*
+- [ ] `feedback[]` contains entry for test file *(see known limitation above)*
+- [ ] `summary.totalViolations >= 1` *(see known limitation above)*
+- [ ] `summary.categories` has non-zero scores *(see known limitation above)*
 
 ---
 
