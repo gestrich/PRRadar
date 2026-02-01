@@ -80,36 +80,7 @@ The skill accepts:
 
 ## Code Segmentation
 
-Each file's diff is parsed into logical **segments**. Every line of changed code must belong to exactly one segment. Segments are classified by type and change status.
-
-### Segment Types
-
-| Type | Description | Examples |
-|------|-------------|----------|
-| **imports** | Import/include statements | `#import`, `import`, `@import` |
-| **interface** | Class/protocol/struct declarations | `@interface`, `@protocol`, `class`, `struct` |
-| **extension** | Extensions/categories | `@interface Foo ()`, `extension Foo` |
-| **properties** | Property declarations | `@property`, `var`, `let` at class level |
-| **method** | Method/function implementations | `-methodName`, `func methodName()` |
-| **initializer** | Init methods | `-init`, `init()`, `-initWith*` |
-| **deinitializer** | Dealloc/deinit | `-dealloc`, `deinit` |
-| **constants** | Constants/enums/macros | `static let`, `enum`, `#define` |
-| **pragma** | Pragma marks and organization | `#pragma mark`, `// MARK:` |
-| **other** | Code that doesn't fit above categories | Global variables, file-level code |
-
-### Change Status
-
-Each segment is marked with its change status:
-- **added** - New code (all lines are `+` in diff)
-- **removed** - Deleted code (all lines are `-` in diff)
-- **modified** - Changed code (mix of `+` and `-` lines)
-
-### Segmentation Rules
-
-1. **Method boundaries**: A method segment starts at the method signature and ends at the closing brace
-2. **Contiguous changes**: If multiple adjacent lines change within a method, they form one segment
-3. **Context preservation**: Include enough context (2-3 lines) around changes to understand the segment
-4. **No orphan lines**: Every changed line must belong to a segment
+Each file's diff is parsed into logical **segments**. See [code-segmentation.md](code-segmentation.md) for detailed instructions on segment types, change status definitions, and segmentation rules.
 
 ## Review Summary Format
 
@@ -374,35 +345,21 @@ Keep details concise (1-2 sentences). The line number should reference where the
 ### Detecting Input Type
 
 Determine what type of input was provided:
-- **PR link**: Contains `github.com` and `/pull/` (e.g., `https://github.com/owner/repo/pull/123`)
-- **PR number**: Starts with `#` or is a plain number (e.g., `#123` or `123`)
-- **Commit SHA**: Alphanumeric string (e.g., `abc1234` or full 40-char SHA)
+- **PR link/number**: Follow instructions in [reviewing-pr-diff.md](reviewing-pr-diff.md)
+- **Commit SHA**: Follow instructions in [reviewing-local-diff.md](reviewing-local-diff.md)
 
-### When invoked with a PR link or number:
+### Segmenting the Diff
 
-1. Extract the PR number from the input:
-   - From URL: Parse the number after `/pull/`
-   - From `#123` format: Strip the `#` prefix
-   - From plain number: Use directly
-2. Run `gh pr view <number> --json title,body,baseRefName,headRefName` to get PR metadata
-3. Run `gh pr diff <number>` to get the full diff — **IMPORTANT: Save this diff content, you will need to pass it to subagents**
-4. Run `gh pr view <number> --json files --jq '.files[].path'` to list changed files
-5. Read all files in `rules/` folder to get the list of rules (skip any that start with `> **SKIPPED:**`)
-6. **Segment each file's diff** into logical code units (see Code Segmentation section)
-7. Generate `review-summary-<pr_number>.md` with segments organized by file, each segment having checkboxes for applicable rules
-8. Execute the review by spawning subagents for each segment/rule combination, **passing the segment's diff in each subagent prompt**
-9. After all subagents complete, add the summary section with violations by rule and results by segment
+After retrieving the diff, segment it into logical units. See [code-segmentation.md](code-segmentation.md) for detailed instructions.
 
-### When invoked with a commit SHA:
+### Executing the Review
 
-1. Run `git log --oneline <commit>^..HEAD` to see the commits being reviewed
-2. Run `git diff <commit>^..HEAD --stat` to get a high-level view of files changed
-3. Run `git diff <commit>^..HEAD` to get the full diff — **IMPORTANT: Save this diff content, you will need to pass it to subagents**
-4. Read all files in `rules/` folder to get the list of rules (skip any that start with `> **SKIPPED:**`)
-5. **Segment each file's diff** into logical code units (see Code Segmentation section)
-6. Generate `review-summary-<commit_sha>.md` with segments organized by file, each segment having checkboxes for applicable rules
-7. Execute the review by spawning subagents for each segment/rule combination, **passing the segment's diff in each subagent prompt**
-8. After all subagents complete, add the summary section with violations by rule and results by segment
+After retrieving the diff and segmenting it:
+
+1. Read all files in `rules/` folder to get the list of rules (skip any that start with `> **SKIPPED:**`)
+2. Generate `review-summary-<id>.md` with segments organized by file, each segment having checkboxes for applicable rules
+3. Execute the review by spawning subagents for each segment/rule combination, **passing the segment's diff in each subagent prompt**
+4. After all subagents complete, add the summary section with violations by rule and results by segment
 
 ## Examples
 

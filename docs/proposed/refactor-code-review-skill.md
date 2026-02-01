@@ -165,73 +165,41 @@ Files `github-request.md` and `posting-comments.md` still exist and should be re
 
 ---
 
-- [ ] Phase 2: Extract diff retrieval and segmentation into separate files
+- [x] Phase 2: Extract diff retrieval and segmentation into separate files
 
-### Overview
+### Technical Notes
 
-Extract reusable logic from SKILL.md into separate markdown files:
-- **Diff retrieval** - differs by input type (PR vs commit)
-- **Code segmentation** - parsing diffs into logical units
+Completed on 2026-02-01. Changes made:
 
-SKILL.md references these files as needed.
+1. Created `reviewing-pr-diff.md` with:
+   - Input detection for PR links, #numbers, and plain numbers
+   - PR number extraction examples
+   - `gh` CLI commands for metadata, diff, and file list
+   - Output file naming convention
 
-### Files to Create
+2. Created `reviewing-local-diff.md` with:
+   - Input detection for commit SHAs
+   - `git` commands for commit range, stats, and full diff
+   - Commit range syntax explanation
+   - Output file naming convention
 
-1. **`.claude/skills/code-review/reviewing-pr-diff.md`**
-   - Instructions for retrieving PR diffs using `gh` CLI
-   - Commands: `gh pr view`, `gh pr diff`, `gh pr view --json files`
-   - Handling PR metadata (title, body, base/head branches)
-   - Output file naming: `review-summary-<pr_number>.md`
-
-2. **`.claude/skills/code-review/reviewing-local-diff.md`**
-   - Instructions for retrieving commit diffs using `git`
-   - Commands: `git log`, `git diff <commit>^..HEAD`
-   - Handling commit ranges
-   - Output file naming: `review-summary-<commit_sha>.md`
-
-3. **`.claude/skills/code-review/code-segmentation.md`**
-   - Segment types: imports, interface, extension, properties, method, initializer, deinitializer, constants, pragma, other
-   - Change status: added, removed, modified
+3. Created `code-segmentation.md` with:
+   - Segment types table (imports, interface, extension, properties, method, etc.)
+   - Change status definitions (added, removed, modified)
    - Segmentation rules (method boundaries, contiguous changes, context preservation)
-   - Examples of segmented diffs
+   - Examples for Swift, Objective-C, and config files
+   - Segment naming conventions
 
-### Changes to SKILL.md
+4. Updated SKILL.md:
+   - Replaced detailed "Code Segmentation" section with reference to `code-segmentation.md`
+   - Replaced "When invoked with a PR link or number" section with reference to `reviewing-pr-diff.md`
+   - Replaced "When invoked with a commit SHA" section with reference to `reviewing-local-diff.md`
+   - Added "Segmenting the Diff" and "Executing the Review" sections for clarity
 
-Update the "Instructions" section to reference these files:
-
-```markdown
-### Detecting Input Type
-
-Determine what type of input was provided:
-- **PR link/number**: Follow instructions in [reviewing-pr-diff.md](reviewing-pr-diff.md)
-- **Commit SHA**: Follow instructions in [reviewing-local-diff.md](reviewing-local-diff.md)
-
-### Segmenting the Diff
-
-After retrieving the diff, segment it into logical units.
-See [code-segmentation.md](code-segmentation.md) for detailed instructions.
-```
-
-Remove the detailed "When invoked with a PR link or number" and "When invoked with a commit SHA" sections (lines ~388-420), replacing them with references to the new files.
-
-### Content to Extract
-
-**From SKILL.md lines 396-409 → reviewing-pr-diff.md:**
-- Extract PR number from input
-- Run `gh pr view` for metadata
-- Run `gh pr diff` for the diff
-- Run `gh pr view --json files` for file list
-
-**From SKILL.md lines 411-420 → reviewing-local-diff.md:**
-- Run `git log --oneline <commit>^..HEAD`
-- Run `git diff <commit>^..HEAD --stat`
-- Run `git diff <commit>^..HEAD` for full diff
-
-**From SKILL.md lines 89-121 → code-segmentation.md:**
-- Segment types table (imports, interface, method, etc.)
-- Change status definitions (added, removed, modified)
-- Segmentation rules (method boundaries, contiguous changes, context)
-- Examples showing how to segment different file types
+Files created:
+- `.claude/skills/code-review/reviewing-pr-diff.md`
+- `.claude/skills/code-review/reviewing-local-diff.md`
+- `.claude/skills/code-review/code-segmentation.md`
 
 ---
 
