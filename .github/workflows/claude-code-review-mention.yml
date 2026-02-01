@@ -19,6 +19,14 @@ on:
   pull_request_review:
     types: [submitted]
 
+# Workflow-level permissions needed for workflow_call to claude-code-review.yml
+# The called workflow inherits these permissions
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
 env:
   # JSON schema for action-based routing from Claude's interpretation
   ACTION_SCHEMA: '{"type":"object","properties":{"action":{"type":"string","enum":["postComment","replyToComment","replaceComment","postSummary","performReview"],"description":"The action to take"},"body":{"type":"string","description":"Comment body for postComment/replyToComment/replaceComment/postSummary"},"commentId":{"type":"integer","description":"Comment ID for replyToComment/replaceComment"},"additionalInstructions":{"type":"string","description":"Additional instructions for performReview"},"filterFiles":{"type":"array","items":{"type":"string"},"description":"File glob patterns for performReview"},"filterRules":{"type":"array","items":{"type":"string"},"description":"Rule names for performReview"}},"required":["action"]}'
