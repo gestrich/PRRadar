@@ -187,6 +187,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
+      contents: read
     steps:
       - name: Trigger code review workflow
         env:
