@@ -175,6 +175,11 @@ jobs:
             echo "No review summary generated at $SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Save execution file for debugging
+        if: always() && steps.claude-review.outputs.execution_file != ''
+        run: |
+          cp "${{ steps.claude-review.outputs.execution_file }}" review-output/execution.json
+
       - name: Upload review artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -183,6 +188,13 @@ jobs:
           path: review-output/
           if-no-files-found: ignore
           retention-days: 90
+
+      - name: Verify structured output parsed successfully
+        if: steps.parse-output.outputs.success != 'true'
+        run: |
+          echo "ERROR: Failed to parse structured JSON output from Claude"
+          echo "Check the execution.json artifact for debugging"
+          exit 1
 
       - name: Setup Python
         if: steps.parse-output.outputs.success == 'true'
