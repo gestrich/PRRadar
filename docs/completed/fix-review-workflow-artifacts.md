@@ -27,7 +27,7 @@ The core issue is that Claude's `--json-schema` output is either not being gener
 
 ## Phases
 
-- [ ] Phase 1: Add execution file to artifacts for debugging
+- [x] Phase 1: Add execution file to artifacts for debugging
 
 **Changes:**
 - Add step to copy execution file to `review-output/` before artifact upload
@@ -45,39 +45,28 @@ The core issue is that Claude's `--json-schema` output is either not being gener
 
 ---
 
-- [ ] Phase 2: Fix JSON schema parsing
+- [x] Phase 2: Fix JSON schema parsing
 
 **Reference:** https://github.com/gestrich/claude-chain has a working `--json-schema` implementation.
 
-**Investigation needed:**
-1. Compare how claude-chain handles the execution file format
-2. Check if the jq paths in `parse-output` step match the actual structure
-3. Update the workflow to correctly extract structured output
+**Investigation findings:**
+- The execution file is an array format
+- The structured_output is at `.[-1].structured_output` (NOT `.[-1].result.structured_output`)
+- Claude IS producing the JSON correctly
 
-**Possible issues to check:**
-- Array vs object format in execution file
-- Path to `structured_output` field (`.[-1].structured_output` vs `.[-1].result.structured_output`)
-- Whether Claude is actually producing the JSON or just the markdown
-
-**Fail workflow on JSON parse failure:**
-When JSON parsing fails (`success != true`), the workflow should **fail explicitly** rather than silently skipping the comment posting step. This makes it clear that something went wrong.
-
-```yaml
-- name: Verify structured output parsed successfully
-  if: steps.parse-output.outputs.success != 'true'
-  run: |
-    echo "ERROR: Failed to parse structured JSON output from Claude"
-    echo "Check the execution.json artifact for debugging"
-    exit 1
-```
+**Changes made:**
+1. Fixed jq paths in workflow to check `.[-1].structured_output` first, then fall back to `.[-1].result.structured_output`
+2. Added verification step that fails workflow explicitly when parsing fails
+3. Fixed Python script `extract_structured_output()` to also check direct `structured_output` path
 
 **File:** `.github/workflows/claude-code-review.yml` (parse-output step)
+**File:** `scripts/post_review_comments.py` (extract_structured_output function)
 
 ---
 
-- [ ] Phase 3: Fix --allowedTools syntax
+- [x] Phase 3: Fix --allowedTools syntax
 
-**Status:** Already committed locally, needs to be pushed to main.
+**Status:** Completed in commit `5a0fa09`.
 
 **Change:** Convert comma-separated to space-separated quoted format:
 ```yaml
@@ -90,20 +79,25 @@ claude_args: --allowedTools "Bash(gh...)" "Write" --json-schema ...
 
 ---
 
-- [ ] Phase 4: Validation
+- [x] Phase 4: Validation
 
 **Push all changes to main and re-test on PR #5:**
 
-1. Remove and re-add `claude_review` label (or use workflow_dispatch)
+1. ~~Remove and re-add `claude_review` label (or use workflow_dispatch)~~ Using workflow_dispatch
 2. Wait for workflow to complete
 
+**Validation runs:**
+- Run 21570957449: Failed at verification step (jq parsing wrong path) - execution.json artifact confirmed format
+- Run 21571050220: Failed at Python script (same path issue in Python)
+- Run 21571143015: ✅ **SUCCESS**
+
 **Expected results:**
-- [ ] `review-output/execution.json` exists in artifact (for debugging)
-- [ ] `review-output/review-summary.md` exists in artifact
-- [ ] JSON structured output correctly parsed (`success: true`)
-- [ ] Summary comment posted to PR #5 conversation
-- [ ] Inline review comments posted on `FFNetworkClient.h` for violations
-- [ ] No Write permission errors
+- [x] `review-output/execution.json` exists in artifact (for debugging)
+- [x] `review-output/review-summary.md` exists in artifact
+- [x] JSON structured output correctly parsed (`success: true`)
+- [x] Summary comment posted to PR #5 conversation
+- [x] Inline review comments posted on `FFNetworkClient.h` for violations
+- [x] No Write permission errors
 
 **Verification commands:**
 ```bash
