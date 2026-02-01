@@ -17,27 +17,8 @@ on:
     #   - "src/**/*.jsx"
 
 env:
-  # JSON schema for structured output from Claude Code
-  REVIEW_SCHEMA: |
-    {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "description": "Whether the review was completed successfully"
-        },
-        "summary_file": {
-          "type": "string",
-          "description": "Path to the markdown summary file that was created (e.g., review-output/review-summary.md)"
-        },
-        "error_message": {
-          "type": "string",
-          "description": "Error message if the review failed (only present when success is false)"
-        }
-      },
-      "required": ["success", "summary_file"],
-      "additionalProperties": false
-    }
+  # JSON schema for structured output from Claude Code (compact single-line format required)
+  REVIEW_SCHEMA: '{"type":"object","properties":{"success":{"type":"boolean","description":"Whether the review was completed successfully"},"summary_file":{"type":"string","description":"Path to the markdown summary file that was created"},"error_message":{"type":"string","description":"Error message if the review failed"}},"required":["success","summary_file"],"additionalProperties":false}'
 
 jobs:
   claude-review:
