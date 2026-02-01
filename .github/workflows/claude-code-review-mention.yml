@@ -101,10 +101,14 @@ jobs:
           # Debug: show file structure
           echo "=== File type and structure ==="
           jq 'type' "$EXEC_FILE" || echo "Failed to get type"
-          echo "=== Keys at top level ==="
-          jq 'keys' "$EXEC_FILE" 2>/dev/null || echo "Not an object or no keys"
-          echo "=== structured_output content ==="
-          jq '.structured_output // "not found"' "$EXEC_FILE" || echo "Failed to get structured_output"
+          echo "=== Last element keys ==="
+          jq '.[-1] | keys' "$EXEC_FILE" 2>/dev/null || echo "No keys"
+          echo "=== Last element result keys ==="
+          jq '.[-1].result | keys' "$EXEC_FILE" 2>/dev/null || echo "No result.keys"
+          echo "=== Last element result.structured_output ==="
+          jq '.[-1].result.structured_output // "not found in result"' "$EXEC_FILE" 2>/dev/null || echo "Failed"
+          echo "=== Direct structured_output on last element ==="
+          jq '.[-1].structured_output // "not found directly"' "$EXEC_FILE" 2>/dev/null || echo "Failed"
 
           # Extract action from structured output
           ACTION=$(jq -r '
