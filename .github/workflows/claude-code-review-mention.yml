@@ -247,24 +247,16 @@ jobs:
 
           echo "Action completed successfully"
 
-  # performReview action - triggers full code review via workflow dispatch
-  trigger-review:
+  # performReview action - calls the main code review workflow directly
+  # Uses workflow_call instead of workflow_dispatch to avoid GITHUB_TOKEN limitations
+  run-review:
     needs: interpret-request
     if: needs.interpret-request.outputs.action == 'performReview'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Trigger code review workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "Triggering code review workflow for PR #${{ needs.interpret-request.outputs.pr_number }}"
-          gh workflow run claude-code-review.yml \
-            -f pr_number="${{ needs.interpret-request.outputs.pr_number }}" \
-            -f additional_instructions="${{ needs.interpret-request.outputs.additional_instructions }}" \
-            -f filter_files="${{ needs.interpret-request.outputs.filter_files }}" \
-            -f filter_rules="${{ needs.interpret-request.outputs.filter_rules }}" \
-            --repo "${{ github.repository }}"
-          echo "Review workflow triggered successfully"
+    uses: ./.github/workflows/claude-code-review.yml
+    with:
+      pr_number: ${{ needs.interpret-request.outputs.pr_number }}
+      additional_instructions: ${{ needs.interpret-request.outputs.additional_instructions }}
+      filter_files: ${{ needs.interpret-request.outputs.filter_files }}
+      filter_rules: ${{ needs.interpret-request.outputs.filter_rules }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
