@@ -98,6 +98,14 @@ jobs:
           EXEC_FILE="${{ steps.interpret.outputs.execution_file }}"
           echo "Parsing execution file: $EXEC_FILE"
 
+          # Debug: show file structure
+          echo "=== File type and structure ==="
+          jq 'type' "$EXEC_FILE" || echo "Failed to get type"
+          echo "=== Keys at top level ==="
+          jq 'keys' "$EXEC_FILE" 2>/dev/null || echo "Not an object or no keys"
+          echo "=== structured_output content ==="
+          jq '.structured_output // "not found"' "$EXEC_FILE" || echo "Failed to get structured_output"
+
           # Extract action from structured output
           ACTION=$(jq -r '
             if type == "array" then
