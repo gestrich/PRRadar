@@ -32,7 +32,7 @@ Adapt from `/Users/bill/Developer/work/ffm-static-analyzer/repo_tools/hunk.py` a
 - Added `get_unique_files()` helper method
 - Exported from `scripts/domain/__init__.py`
 
-- [ ] Phase 2: Add infrastructure for diff input
+- [x] Phase 2: Add infrastructure for diff input
 
 Create `scripts/infrastructure/diff_parser.py`:
 - Function to read diff from stdin or file
@@ -40,6 +40,12 @@ Create `scripts/infrastructure/diff_parser.py`:
 - Handle edge cases (empty diff, binary files, rename operations)
 
 Update `scripts/infrastructure/__init__.py` to export new functions.
+
+**Completed:** Added `scripts/infrastructure/diff_parser.py` with:
+- `read_diff()`, `read_diff_from_stdin()`, `read_diff_from_file()` for input handling
+- `format_diff_as_json()` and `format_diff_as_text()` for output formatting
+- Edge case helpers: `has_content()`, `is_binary_file_marker()`, `is_rename_operation()`
+- All functions exported from `scripts/infrastructure/__init__.py`
 
 - [ ] Phase 3: Add parse-diff command
 
