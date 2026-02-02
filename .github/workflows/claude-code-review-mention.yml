@@ -32,7 +32,7 @@ env:
   ACTION_SCHEMA: '{"type":"object","properties":{"action":{"type":"string","enum":["postComment","replyToComment","replaceComment","postSummary","performReview"],"description":"The action to take"},"body":{"type":"string","description":"Comment body for postComment/replyToComment/replaceComment/postSummary"},"commentId":{"type":"integer","description":"Comment ID for replyToComment/replaceComment"},"additionalInstructions":{"type":"string","description":"Additional instructions for performReview"},"filterFiles":{"type":"array","items":{"type":"string"},"description":"File glob patterns for performReview"},"filterRules":{"type":"array","items":{"type":"string"},"description":"Rule names for performReview"}},"required":["action"]}'
 
 jobs:
-  interpret-request:
+  process-mention:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@code-review')) ||
@@ -41,45 +41,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
     outputs:
-      action: ${{ steps.parse-action.outputs.action }}
-      additional_instructions: ${{ steps.parse-action.outputs.additional_instructions }}
-      filter_files: ${{ steps.parse-action.outputs.filter_files }}
-      filter_rules: ${{ steps.parse-action.outputs.filter_rules }}
-      body: ${{ steps.parse-action.outputs.body }}
-      comment_id: ${{ steps.parse-action.outputs.comment_id }}
-      pr_number: ${{ steps.set-pr-number.outputs.pr_number }}
-      comment_type: ${{ steps.set-comment-type.outputs.comment_type }}
+      action: ${{ steps.handle.outputs.action }}
+      pr_number: ${{ steps.handle.outputs.pr_number }}
+      additional_instructions: ${{ steps.handle.outputs.additional_instructions }}
+      filter_files: ${{ steps.handle.outputs.filter_files }}
+      filter_rules: ${{ steps.handle.outputs.filter_rules }}
 
     steps:
-      - name: Set PR number
-        id: set-pr-number
-        run: |
-          PR_NUM="${{ inputs.pr_number }}"
-          if [ -z "$PR_NUM" ]; then
-            PR_NUM="${{ github.event.issue.number }}"
-          fi
-          if [ -z "$PR_NUM" ]; then
-            PR_NUM="${{ github.event.pull_request.number }}"
-          fi
-          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
-          echo "PR number resolved to: $PR_NUM"
-
-      - name: Set comment type
-        id: set-comment-type
-        run: |
-          # Determine if comment is from PR conversation (issue_comment) or inline review (pull_request_review_comment)
-          if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
-            COMMENT_TYPE="review_comment"
-          else
-            COMMENT_TYPE="issue_comment"
-          fi
-          echo "comment_type=$COMMENT_TYPE" >> $GITHUB_OUTPUT
-          echo "Comment type: $COMMENT_TYPE"
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -113,158 +85,36 @@ jobs:
 
           claude_args: --allowedTools Read,Glob,Grep --json-schema ${{ toJSON(env.ACTION_SCHEMA) }}
 
-      - name: Parse action output
-        id: parse-action
-        if: always() && steps.interpret.outputs.execution_file != ''
-        run: |
-          EXEC_FILE="${{ steps.interpret.outputs.execution_file }}"
-          echo "Parsing execution file: $EXEC_FILE"
+      - name: Setup Python
+        if: steps.interpret.outputs.execution_file != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-          # Extract action from structured output
-          # Array format: .[-1].structured_output (not .[-1].result.structured_output)
-          # Object format: .structured_output
-          ACTION=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.action // "unknown"
-            elif .structured_output then
-              .structured_output.action
-            else
-              "unknown"
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "unknown")
-
-          ADDITIONAL_INSTRUCTIONS=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.additionalInstructions // ""
-            elif .structured_output then
-              .structured_output.additionalInstructions // ""
-            else
-              ""
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "")
-
-          FILTER_FILES=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.filterFiles // [] | @json
-            elif .structured_output then
-              .structured_output.filterFiles // [] | @json
-            else
-              "[]"
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "[]")
-
-          FILTER_RULES=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.filterRules // [] | @json
-            elif .structured_output then
-              .structured_output.filterRules // [] | @json
-            else
-              "[]"
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "[]")
-
-          # Extract body for postComment/replyToComment/replaceComment/postSummary
-          BODY=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.body // ""
-            elif .structured_output then
-              .structured_output.body // ""
-            else
-              ""
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "")
-
-          # Extract commentId for replyToComment/replaceComment
-          COMMENT_ID=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.commentId // ""
-            elif .structured_output then
-              .structured_output.commentId // ""
-            else
-              ""
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "")
-
-          echo "action=$ACTION" >> $GITHUB_OUTPUT
-          echo "additional_instructions=$ADDITIONAL_INSTRUCTIONS" >> $GITHUB_OUTPUT
-          echo "filter_files=$FILTER_FILES" >> $GITHUB_OUTPUT
-          echo "filter_rules=$FILTER_RULES" >> $GITHUB_OUTPUT
-
-          # Use heredoc for multiline body to preserve formatting
-          {
-            echo 'body<<EOF_BODY'
-            echo "$BODY"
-            echo 'EOF_BODY'
-          } >> $GITHUB_OUTPUT
-
-          echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
-
-          echo "Parsed action: $ACTION"
-          echo "Body length: ${#BODY}"
-          echo "Comment ID: $COMMENT_ID"
-
-  handle-comment-action:
-    needs: interpret-request
-    if: needs.interpret-request.outputs.action != 'performReview' && needs.interpret-request.outputs.action != 'unknown'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-
-    steps:
-      - name: Handle comment action
+      - name: Handle mention
+        id: handle
+        if: steps.interpret.outputs.execution_file != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          ACTION: ${{ needs.interpret-request.outputs.action }}
-          BODY: ${{ needs.interpret-request.outputs.body }}
-          COMMENT_ID: ${{ needs.interpret-request.outputs.comment_id }}
-          PR_NUMBER: ${{ needs.interpret-request.outputs.pr_number }}
-          COMMENT_TYPE: ${{ needs.interpret-request.outputs.comment_type }}
-          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
+          COMMENT_TYPE: ${{ github.event_name == 'pull_request_review_comment' && 'review_comment' || 'issue_comment' }}
+          PYTHONPATH: .claude/skills/code-review
         run: |
-          echo "Handling action: $ACTION"
-          echo "PR: $PR_NUMBER"
-          echo "Comment type: $COMMENT_TYPE"
-          echo "Body length: ${#BODY}"
+          python -m scripts handle-mention \
+            --execution-file "${{ steps.interpret.outputs.execution_file }}" \
+            --pr-number "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --comment-type "$COMMENT_TYPE"
 
-          case "$ACTION" in
-            postComment|postSummary)
-              echo "Posting comment to PR #$PR_NUMBER"
-              gh api "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$BODY"
-              ;;
-            replyToComment)
-              # GitHub only supports threaded replies on PR review comments, not issue comments
-              if [ "$COMMENT_TYPE" == "review_comment" ]; then
-                echo "Replying to review comment $COMMENT_ID"
-                gh api "repos/$REPO/pulls/comments/$COMMENT_ID/replies" -f body="$BODY"
-              else
-                echo "Cannot reply to issue comment - posting new comment instead"
-                gh api "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$BODY"
-              fi
-              ;;
-            replaceComment)
-              echo "Replacing comment $COMMENT_ID"
-              gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH -f body="$BODY"
-              ;;
-            *)
-              echo "Unknown action: $ACTION"
-              exit 1
-              ;;
-          esac
-
-          echo "Action completed successfully"
-
-  # performReview action - calls the main code review workflow directly
-  # Uses workflow_call instead of workflow_dispatch to avoid GITHUB_TOKEN limitations
+  # performReview action - calls the main code review workflow
   run-review:
-    needs: interpret-request
-    if: needs.interpret-request.outputs.action == 'performReview'
+    needs: process-mention
+    if: needs.process-mention.outputs.action == 'performReview'
     uses: ./.github/workflows/claude-code-review.yml
     with:
-      pr_number: ${{ needs.interpret-request.outputs.pr_number }}
-      additional_instructions: ${{ needs.interpret-request.outputs.additional_instructions }}
-      filter_files: ${{ needs.interpret-request.outputs.filter_files }}
-      filter_rules: ${{ needs.interpret-request.outputs.filter_rules }}
+      pr_number: ${{ needs.process-mention.outputs.pr_number }}
+      additional_instructions: ${{ needs.process-mention.outputs.additional_instructions }}
+      filter_files: ${{ needs.process-mention.outputs.filter_files }}
+      filter_rules: ${{ needs.process-mention.outputs.filter_rules }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -118,67 +118,29 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: --allowedTools "Bash(gh issue view:*)" "Bash(gh search:*)" "Bash(gh issue list:*)" "Bash(gh pr comment:*)" "Bash(gh pr diff:*)" "Bash(gh pr view:*)" "Bash(gh pr list:*)" "Bash(mkdir:*)" "Write" --json-schema ${{ toJSON(env.REVIEW_SCHEMA) }}
 
-      - name: Parse structured output
-        id: parse-output
-        if: always() && steps.claude-review.outputs.execution_file != ''
-        run: |
-          EXEC_FILE="${{ steps.claude-review.outputs.execution_file }}"
-          echo "Parsing execution file: $EXEC_FILE"
-
-          # Extract structured_output from the execution file
-          # The structured output can be in different locations depending on the format
-          SUMMARY_FILE=$(jq -r '
-            # Try array format (verbose mode) - check both direct and nested in result
-            if type == "array" then
-              .[-1].structured_output.summary.summaryFile // .[-1].result.structured_output.summary.summaryFile // empty
-            # Try direct object format
-            elif .structured_output then
-              .structured_output.summary.summaryFile
-            elif .result.structured_output then
-              .result.structured_output.summary.summaryFile
-            else
-              empty
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "")
-
-          SUCCESS=$(jq -r '
-            if type == "array" then
-              .[-1].structured_output.success // .[-1].result.structured_output.success // false
-            elif .structured_output then
-              .structured_output.success
-            elif .result.structured_output then
-              .result.structured_output.success
-            else
-              false
-            end
-          ' "$EXEC_FILE" 2>/dev/null || echo "false")
-
-          echo "summary_file=$SUMMARY_FILE" >> $GITHUB_OUTPUT
-          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
-          echo "Parsed summary_file: $SUMMARY_FILE"
-          echo "Parsed success: $SUCCESS"
-
-      - name: Write review to job summary
-        if: always()
-        run: |
-          SUMMARY_FILE="${{ steps.parse-output.outputs.summary_file }}"
-          # Fallback to default path if structured output parsing failed
-          if [ -z "$SUMMARY_FILE" ]; then
-            SUMMARY_FILE="review-output/review-summary.md"
-          fi
-
-          if [ -f "$SUMMARY_FILE" ]; then
-            echo "## Code Review Summary" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No review summary generated at $SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
-          fi
-
       - name: Save execution file for debugging
         if: always() && steps.claude-review.outputs.execution_file != ''
         run: |
           cp "${{ steps.claude-review.outputs.execution_file }}" review-output/execution.json
+
+      - name: Setup Python
+        if: steps.claude-review.outputs.execution_file != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Post review comments
+        if: steps.claude-review.outputs.execution_file != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: .claude/skills/code-review
+        run: |
+          python -m scripts post-review \
+            --execution-file "${{ steps.claude-review.outputs.execution_file }}" \
+            --pr-number "${{ inputs.pr_number || github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --post-summary \
+            --write-job-summary
 
       - name: Upload review artifact
         if: always()
@@ -188,28 +150,4 @@ jobs:
           path: review-output/
           if-no-files-found: ignore
           retention-days: 90
-
-      - name: Verify structured output parsed successfully
-        if: steps.parse-output.outputs.success != 'true'
-        run: |
-          echo "ERROR: Failed to parse structured JSON output from Claude"
-          echo "Check the execution.json artifact for debugging"
-          exit 1
-
-      - name: Setup Python
-        if: steps.parse-output.outputs.success == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Post review comments
-        if: steps.parse-output.outputs.success == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python scripts/post_review_comments.py \
-            --execution-file "${{ steps.claude-review.outputs.execution_file }}" \
-            --pr-number "${{ inputs.pr_number || github.event.pull_request.number }}" \
-            --repo "${{ github.repository }}" \
-            --post-summary
 
