@@ -1,0 +1,153 @@
+name: PR Radar
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
+      additional_instructions:
+        description: 'Additional instructions for the review (optional)'
+        required: false
+        type: string
+      filter_files:
+        description: 'JSON array of file glob patterns to filter (optional)'
+        required: false
+        type: string
+      filter_rules:
+        description: 'JSON array of rule names to filter (optional)'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
+      additional_instructions:
+        description: 'Additional instructions for the review (optional)'
+        required: false
+        type: string
+      filter_files:
+        description: 'JSON array of file glob patterns to filter (optional)'
+        required: false
+        type: string
+      filter_rules:
+        description: 'JSON array of rule names to filter (optional)'
+        required: false
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+  pull_request:
+    types: [labeled, synchronize]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+    #   - "src/**/*.js"
+    #   - "src/**/*.jsx"
+
+env:
+  # Rich JSON schema for structured output from Claude Code (compact single-line format required)
+  REVIEW_SCHEMA: '{"type":"object","properties":{"success":{"type":"boolean","description":"Whether the review was completed successfully"},"feedback":{"type":"array","items":{"type":"object","properties":{"file":{"type":"string","description":"Path to the file being reviewed"},"segment":{"type":"string","description":"Name of the code segment (e.g., Method fetchUserData())"},"rule":{"type":"string","description":"Name of the rule that was violated"},"score":{"type":"integer","description":"Violation score from 1-10"},"lineNumber":{"type":"integer","description":"Line number in the diff where the violation occurs"},"githubComment":{"type":"string","description":"Comment to post on GitHub for this violation"},"details":{"type":"string","description":"Detailed explanation of the violation"}},"required":["file","segment","rule","score","lineNumber","githubComment","details"]}},"summary":{"type":"object","properties":{"summaryFile":{"type":"string","description":"Path to the markdown summary file"},"totalSegments":{"type":"integer","description":"Total number of segments reviewed"},"totalViolations":{"type":"integer","description":"Number of violations found (score >= 5)"},"categories":{"type":"object","additionalProperties":{"type":"object","properties":{"aggregateScore":{"type":"integer","description":"Highest score in this category"},"summary":{"type":"string","description":"Brief summary of findings in this category"}}}}},"required":["summaryFile","totalSegments","totalViolations","categories"]}},"required":["success","feedback","summary"]}'
+
+jobs:
+  claude-review:
+    # For pull_request events, only run on label or synchronize with label
+    # For workflow_dispatch and workflow_call, always run (controlled at workflow trigger level)
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'code-review') ||
+      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'code-review'))
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
+
+            Please review this pull request using the /code-review skill.
+
+            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+
+            ${{ inputs.additional_instructions && format('ADDITIONAL INSTRUCTIONS:\n{0}\n', inputs.additional_instructions) || '' }}
+            ${{ inputs.filter_files && inputs.filter_files != '[]' && format('FILE FILTERS (only review files matching these patterns):\n{0}\n', inputs.filter_files) || '' }}
+            ${{ inputs.filter_rules && inputs.filter_rules != '[]' && format('RULE FILTERS (only check these rules):\n{0}\n', inputs.filter_rules) || '' }}
+
+            **IMPORTANT OUTPUT REQUIREMENTS:**
+            1. Create a directory called `review-output` using `mkdir -p review-output`
+            2. Write your complete review summary to `review-output/review-summary.md` using the Write tool
+            3. Your structured output MUST include the rich JSON format with:
+               - success: true if review completed, false if it failed
+               - feedback: array of violation objects, each with:
+                 - file: path to the file
+                 - segment: name of the code segment
+                 - rule: name of the violated rule
+                 - score: violation score (1-10)
+                 - lineNumber: line number in the diff
+                 - githubComment: concise comment for GitHub
+                 - details: detailed explanation
+               - summary: object with:
+                 - summaryFile: "review-output/review-summary.md"
+                 - totalSegments: number of segments reviewed
+                 - totalViolations: count of violations (score >= 5)
+                 - categories: object mapping category names to {aggregateScore, summary}
+
+            Only include items in the feedback array that have score >= 5 (violations).
+
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+          claude_args: --allowedTools "Bash(gh issue view:*)" "Bash(gh search:*)" "Bash(gh issue list:*)" "Bash(gh pr comment:*)" "Bash(gh pr diff:*)" "Bash(gh pr view:*)" "Bash(gh pr list:*)" "Bash(mkdir:*)" "Write" --json-schema ${{ toJSON(env.REVIEW_SCHEMA) }}
+
+      - name: Save execution file for debugging
+        if: always() && steps.claude-review.outputs.execution_file != ''
+        run: |
+          cp "${{ steps.claude-review.outputs.execution_file }}" review-output/execution.json
+
+      - name: Setup Python
+        if: steps.claude-review.outputs.execution_file != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Post review comments
+        if: steps.claude-review.outputs.execution_file != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: plugin/skills/pr-review
+        run: |
+          python -m scripts post-review \
+            --execution-file "${{ steps.claude-review.outputs.execution_file }}" \
+            --pr-number "${{ inputs.pr_number || github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --post-summary \
+            --write-job-summary
+
+      - name: Upload review artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-review-pr-${{ inputs.pr_number || github.event.pull_request.number }}
+          path: review-output/
+          if-no-files-found: ignore
+          retention-days: 90
+
