@@ -107,7 +107,7 @@ Update `.claude/skills/code-review/SKILL.md`:
 - Explained that `new_start` is the anchor point for line number calculations
 - Build verified: `python3 -m scripts --help` and `python3 -m scripts parse-diff --help` succeed
 
-- [ ] Phase 6: Validation
+- [x] Phase 6: Validation
 
 **Automated testing:**
 - Create `scripts/tests/test_diff_parser.py` with:
@@ -120,3 +120,15 @@ Update `.claude/skills/code-review/SKILL.md`:
 - Run `gh pr diff 7 --repo gestrich/PRRadar | python -m scripts parse-diff`
 - Verify FFLogger.h shows `new_start: 1` (not 2407)
 - Verify output JSON is valid and contains all files from diff
+
+**Completed:** Created comprehensive test suite in `scripts/tests/test_diff_parser.py` with 23 tests:
+- `TestHunkParsing`: 7 tests covering new file hunks, modified file hunks, single-line hunks, empty paths, to_dict serialization, and property accessors
+- `TestGitDiffParsing`: 10 tests covering multi-file diffs, multiple hunks per file, empty diffs, commit hash preservation, to_dict serialization, get_unique_files, get_hunks_by_extension, and get_hunks_by_file
+- `TestInfrastructureFunctions`: 3 tests for binary file detection, rename operations, and content validation
+- `TestOutputFormatting`: 3 tests for JSON and text output formats
+- `TestQuotedFilePaths`: 1 test for file paths with spaces
+
+Manual validation confirmed:
+- FFLogger.h correctly shows `new_start: 1` (not 2407)
+- JSON output is valid with all 20 files from PR #7 diff
+- Build verified with `python3 -m scripts --help` and `python3 -m scripts parse-diff --help`
