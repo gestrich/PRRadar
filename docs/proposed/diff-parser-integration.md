@@ -93,13 +93,19 @@ Update `scripts/__main__.py`:
 - Wired routing to call `cmd_parse_diff(input_file, output_format)`
 - Fixed Python 3.9 compatibility: replaced `Self` type annotations with class names in `diff.py`, `mention.py`, and `review.py` (since `Self` requires Python 3.11+)
 
-- [ ] Phase 5: Update SKILL.md with usage instructions
+- [x] Phase 5: Update SKILL.md with usage instructions
 
 Update `.claude/skills/code-review/SKILL.md`:
 - Add section on using `parse-diff` command before review
 - Show example workflow: `gh pr diff 7 | python -m scripts parse-diff`
 - Update "Calculating Line Numbers" section to reference the tool
 - Add note that `new_start` from JSON output is the anchor for line calculations
+
+**Completed:** Updated `SKILL.md` with new "Using the parse-diff Tool" subsection under "Calculating Line Numbers from Diffs":
+- Added command examples for stdin, file input, and text debugging output
+- Documented JSON output format showing `new_start`, `new_length`, etc.
+- Explained that `new_start` is the anchor point for line number calculations
+- Build verified: `python3 -m scripts --help` and `python3 -m scripts parse-diff --help` succeed
 
 - [ ] Phase 6: Validation
 

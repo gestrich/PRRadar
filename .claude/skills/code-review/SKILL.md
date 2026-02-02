@@ -316,7 +316,7 @@ Your task:
    - 7-8: Likely violation - code appears to break the rule
    - 9-10: Clear violation - code definitively breaks the rule
 5. Provide brief, specific details explaining the score
-6. For any violation (score >= 5), note the diff line number where the violation occurs and include a code snippet showing the problematic code
+6. For any violation (score >= 5), note the **target file line number** (from the diff hunk header, NOT a cumulative count) and include a code snippet showing the problematic code
 
 File: {file_path}
 Segment: {segment_name} ({segment_type})
@@ -334,10 +334,10 @@ After your analysis, update `review-summary-<id>.md`:
 1. Find the section for file "{file_path}", segment "{segment_name}", rule "{rule_name}"
 2. Change `- [ ]` to `- [x]`
 3. Change `Score: ?` to `Score: {your_score}`
-4. For violations (score >= 5), add `| Line: {diff_line_number}` after the score (e.g., `Score: 8 | Line: 42`)
+4. For violations (score >= 5), add `| Line: {target_file_line_number}` after the score (e.g., `Score: 8 | Line: 42`)
 5. Change `Details: ?` to `Details: {your_explanation}`
 
-Keep details concise (1-2 sentences). The line number should reference where the violation occurs in the diff.
+Keep details concise (1-2 sentences). The line number must be the **target file line number** calculated from the diff hunk header (e.g., `@@ -0,0 +1,10 @@` means lines 1-10), NOT a cumulative count of lines in the diff output. See "Calculating Line Numbers from Diffs" section for details.
 ```
 
 ## Instructions
@@ -400,9 +400,131 @@ When running in GitHub Actions with a JSON schema, the structured output must in
 **Important:**
 - Only include items in `feedback` array that have `score >= 5` (violations)
 - The `githubComment` should be a concise, actionable comment suitable for posting on GitHub
-- The `lineNumber` should reference the line in the diff where the violation occurs
+- The `lineNumber` must be the **target file line number** (see [Calculating Line Numbers](#calculating-line-numbers-from-diffs) below)
 - Categories in `summary.categories` should match the rule category names (folder names in `rules/`)
 - The `aggregateScore` is the highest score found in that category
+
+## Calculating Line Numbers from Diffs
+
+The `lineNumber` field must contain the **target file line number** where the violation occurs — NOT a cumulative count of lines in the diff output. GitHub's PR comment API only accepts line numbers that exist in the target file.
+
+### Using the parse-diff Tool
+
+The `parse-diff` command deterministically parses diff hunk headers and provides structured JSON output with correct `new_start` line numbers for each file section. **Use this tool before reviewing** to get reliable anchor points for line calculations.
+
+```bash
+# Parse PR diff and get structured JSON with line numbers
+gh pr diff 7 | python -m scripts parse-diff
+
+# Parse from a saved diff file
+python -m scripts parse-diff --input-file diff.txt
+
+# Debug output in text format
+gh pr diff 7 | python -m scripts parse-diff --format text
+```
+
+**Output format:**
+```json
+{
+  "hunks": [
+    {
+      "file_path": "test-files/FFLogger.h",
+      "new_start": 1,
+      "new_length": 10,
+      "old_start": 0,
+      "old_length": 0,
+      "content": "+#import <Foundation/Foundation.h>\n..."
+    }
+  ]
+}
+```
+
+The `new_start` value from each hunk is the **anchor point** for calculating target file line numbers. For example, if `new_start` is 1 and a violation appears on the 5th added/context line in that hunk, report `lineNumber: 5`.
+
+### Reading the Hunk Header
+
+Each diff section starts with a hunk header in this format:
+
+```
+@@ -old_start,old_count +new_start,new_count @@ optional context
+```
+
+- `-old_start,old_count`: Lines from the original file (before changes)
+- `+new_start,new_count`: Lines in the target file (after changes)
+
+**The `lineNumber` you report must be a line number in the target file (the `+new_start` side).**
+
+### Example 1: New File
+
+For a new file like `test-files/FFLogger.h`:
+
+```diff
+diff --git a/test-files/FFLogger.h b/test-files/FFLogger.h
+new file mode 100644
+index 0000000..f961bc5
+--- /dev/null
++++ b/test-files/FFLogger.h
+@@ -0,0 +1,10 @@
++#import <Foundation/Foundation.h>
++
++@interface FFLogger : NSObject
++
++@property (nonatomic, strong) NSString *logLevel;
++
++- (instancetype)initWithLevel:(NSString *)level;
++- (void)log:(NSString *)message;
++
++@end
+```
+
+The hunk header `@@ -0,0 +1,10 @@` means:
+- `-0,0`: No lines from old file (it didn't exist)
+- `+1,10`: New file starts at line 1, has 10 lines
+
+**Counting target file lines:**
+| Diff Line | Content | Target File Line |
+|-----------|---------|------------------|
+| `+#import <Foundation/Foundation.h>` | import | **1** |
+| `+` | blank | **2** |
+| `+@interface FFLogger : NSObject` | interface | **3** |
+| `+` | blank | **4** |
+| `+@property ... *logLevel;` | property | **5** |
+| `+` | blank | **6** |
+| `+- (instancetype)initWithLevel:...` | method | **7** |
+| `+- (void)log:...` | method | **8** |
+| `+` | blank | **9** |
+| `+@end` | end | **10** |
+
+If the `logLevel` property violates a rule, report `lineNumber: 5` (not the position in the overall diff output).
+
+### Example 2: Modified File
+
+For a modified file with hunk header `@@ -118,98 +118,36 @@ jobs:`:
+- `-118,98`: Old file section starts at line 118, spans 98 lines
+- `+118,36`: Target file section starts at line 118, spans 36 lines
+
+**Line counting rules:**
+- **Context lines** (space prefix ` `): Count them — they exist in target file
+- **Added lines** (`+` prefix): Count them — they're new in target file
+- **Removed lines** (`-` prefix): **Skip them** — they don't exist in target file
+
+```diff
+@@ -118,98 +118,36 @@ jobs:
+           claude_args: --allowedTools...      ← Line 119 (context)
+                                               ← Line 120 (blank context)
+-      - name: Parse structured output         ← SKIP (removed line)
+-        id: parse-output                      ← SKIP (removed line)
+       - name: Save execution file             ← Line 121 (context)
++      - name: Setup Python                    ← Line 126 (added line)
+```
+
+### Common Mistake
+
+**WRONG:** Counting cumulative lines through the entire diff output
+- If a diff has 2416 total lines and the violation appears near the end, do NOT report `lineNumber: 2411`
+
+**RIGHT:** Reading the hunk header and counting target file lines
+- Read `@@ -0,0 +1,10 @@`, count added/context lines from line 1, report `lineNumber: 5`
 
 ## Examples
 
