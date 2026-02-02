@@ -47,7 +47,7 @@ Update `scripts/infrastructure/__init__.py` to export new functions.
 - Edge case helpers: `has_content()`, `is_binary_file_marker()`, `is_rename_operation()`
 - All functions exported from `scripts/infrastructure/__init__.py`
 
-- [ ] Phase 3: Add parse-diff command
+- [x] Phase 3: Add parse-diff command
 
 Create `scripts/commands/parse_diff.py`:
 - `cmd_parse_diff(input_file: str | None, output_format: str)` function
@@ -70,6 +70,13 @@ Output format:
   ]
 }
 ```
+
+**Completed:** Added `scripts/commands/parse_diff.py` with:
+- `cmd_parse_diff(input_file, output_format)` orchestrator function
+- Follows thin command pattern - delegates to infrastructure for I/O and domain for parsing
+- Returns exit code 0 on success, 1 on failure
+- Exported from `scripts/commands/__init__.py`
+- Note: CLI dispatcher wiring is Phase 4
 
 - [ ] Phase 4: Register command in CLI dispatcher
 
