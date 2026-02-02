@@ -7,12 +7,14 @@ Usage:
 Commands:
     post-review     Post review comments to a GitHub PR
     handle-mention  Handle @code-review mentions in PR comments
+    parse-diff      Parse git diff and output structured hunk information
 """
 
 import argparse
 import sys
 
 from scripts.commands.handle_mention import cmd_handle_mention
+from scripts.commands.parse_diff import cmd_parse_diff
 from scripts.commands.post_review import cmd_post_review
 
 
@@ -24,10 +26,13 @@ def main() -> int:
 Commands:
   post-review     Post review comments to a GitHub PR based on Claude's output
   handle-mention  Handle @code-review mentions in PR comments
+  parse-diff      Parse git diff and output structured hunk information
 
 Examples:
   python -m scripts post-review --execution-file output.json --pr-number 123 --repo owner/repo
   python -m scripts handle-mention --execution-file output.json --pr-number 123 --repo owner/repo
+  gh pr diff 7 | python -m scripts parse-diff
+  python -m scripts parse-diff --input-file diff.txt --format text
         """,
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -103,6 +108,22 @@ Examples:
         help="Type of comment that triggered the mention",
     )
 
+    # parse-diff command
+    parser_parse_diff = subparsers.add_parser(
+        "parse-diff",
+        help="Parse git diff and output structured hunk information",
+    )
+    parser_parse_diff.add_argument(
+        "--input-file",
+        help="Path to diff file. If not provided, reads from stdin",
+    )
+    parser_parse_diff.add_argument(
+        "--format",
+        choices=["json", "text"],
+        default="json",
+        help="Output format (default: json)",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -127,6 +148,12 @@ Examples:
             pr_number=args.pr_number,
             repo=args.repo,
             comment_type=args.comment_type,
+        )
+
+    elif args.command == "parse-diff":
+        return cmd_parse_diff(
+            input_file=args.input_file,
+            output_format=args.format,
         )
 
     else:

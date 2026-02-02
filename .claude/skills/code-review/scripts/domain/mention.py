@@ -6,7 +6,7 @@ Parse-once pattern: Raw JSON is parsed into type-safe models at the boundary.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Self
+from typing import Literal
 
 ActionType = Literal[
     "postComment",
@@ -38,7 +38,7 @@ class MentionAction:
     # --------------------------------------------------------
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> MentionAction:
         """Parse mention action from JSON dictionary.
 
         Args:

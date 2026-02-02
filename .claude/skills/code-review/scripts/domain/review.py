@@ -7,7 +7,6 @@ Services use the clean, typed API - no dictionary access or parsing logic.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Self
 
 
 # ============================================================
@@ -32,7 +31,7 @@ class Feedback:
     # --------------------------------------------------------
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> Feedback:
         """Parse feedback from JSON dictionary.
 
         Args:
@@ -76,7 +75,7 @@ class CategorySummary:
     summary: str
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> CategorySummary:
         """Parse category summary from JSON dictionary."""
         return cls(
             aggregate_score=data.get("aggregateScore", 0),
@@ -94,7 +93,7 @@ class ReviewSummary:
     categories: dict[str, CategorySummary] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> ReviewSummary:
         """Parse review summary from JSON dictionary."""
         categories = {}
         for name, cat_data in data.get("categories", {}).items():
@@ -125,7 +124,7 @@ class ReviewOutput:
     # --------------------------------------------------------
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> ReviewOutput:
         """Parse complete review output from JSON dictionary.
 
         This is the primary entry point for parsing Claude's structured output.

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Self
 
 
 # ============================================================
@@ -42,7 +41,7 @@ class Hunk:
         file_header: list[str],
         hunk_lines: list[str],
         file_path: str,
-    ) -> Self | None:
+    ) -> Hunk | None:
         """Parse a hunk from its component lines.
 
         Args:
@@ -129,7 +128,7 @@ class GitDiff:
     # --------------------------------------------------------
 
     @classmethod
-    def from_diff_content(cls, diff_content: str, commit_hash: str = "") -> Self:
+    def from_diff_content(cls, diff_content: str, commit_hash: str = "") -> GitDiff:
         """Parse raw diff content into structured hunks.
 
         Args:

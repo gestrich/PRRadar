@@ -78,7 +78,7 @@ Output format:
 - Exported from `scripts/commands/__init__.py`
 - Note: CLI dispatcher wiring is Phase 4
 
-- [ ] Phase 4: Register command in CLI dispatcher
+- [x] Phase 4: Register command in CLI dispatcher
 
 Update `scripts/__main__.py`:
 - Import `cmd_parse_diff` from commands
@@ -86,6 +86,12 @@ Update `scripts/__main__.py`:
   - `--input-file` (optional, default stdin)
   - `--format` (json/text, default json)
 - Wire up to command function
+
+**Completed:** Updated `scripts/__main__.py` to register the `parse-diff` command:
+- Added import for `cmd_parse_diff` from commands
+- Added subparser with `--input-file` and `--format` arguments
+- Wired routing to call `cmd_parse_diff(input_file, output_format)`
+- Fixed Python 3.9 compatibility: replaced `Self` type annotations with class names in `diff.py`, `mention.py`, and `review.py` (since `Self` requires Python 3.11+)
 
 - [ ] Phase 5: Update SKILL.md with usage instructions
 
