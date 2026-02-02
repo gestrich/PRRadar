@@ -410,20 +410,52 @@ The `lineNumber` field must contain the **target file line number** where the vi
 
 ### Using the parse-diff Tool
 
-The `parse-diff` command deterministically parses diff hunk headers and provides structured JSON output with correct `new_start` line numbers for each file section. **Use this tool before reviewing** to get reliable anchor points for line calculations.
+The `parse-diff` command deterministically parses diff hunk headers and provides structured JSON output with correct `new_start` line numbers for each file section.
 
 ```bash
 # Parse PR diff and get structured JSON with line numbers
-gh pr diff 7 | python -m scripts parse-diff
+gh pr diff 7 | .claude/skills/code-review/scripts/parse-diff
 
 # Parse from a saved diff file
-python -m scripts parse-diff --input-file diff.txt
+.claude/skills/code-review/scripts/parse-diff --input-file diff.txt
 
 # Debug output in text format
-gh pr diff 7 | python -m scripts parse-diff --format text
+gh pr diff 7 | .claude/skills/code-review/scripts/parse-diff --format text
 ```
 
-**Output format:**
+### Using --annotate-lines (Recommended for Subagents)
+
+**IMPORTANT**: When passing diff content to subagents, use `--annotate-lines` to prepend explicit line numbers to each diff line. This removes ambiguity and prevents line number calculation errors.
+
+```bash
+# Parse with line numbers annotated in the content
+gh pr diff 7 | .claude/skills/code-review/scripts/parse-diff --annotate-lines
+```
+
+**Output with `--annotate-lines`:**
+```json
+{
+  "hunks": [
+    {
+      "file_path": "test-files/FFLogger.h",
+      "new_start": 1,
+      "new_length": 10,
+      "old_start": 0,
+      "old_length": 0,
+      "content": "...\n@@ -0,0 +1,10 @@\n   1: +#import <Foundation/Foundation.h>\n   2: +\n   3: +@interface FFLogger : NSObject\n   4: +\n   5: +@property (nonatomic, strong) NSString *logLevel;\n..."
+    }
+  ]
+}
+```
+
+**Annotation format:**
+- Added lines (`+`) and context lines (` `) show their target file line number: `  5: +code`
+- Deleted lines (`-`) show no line number: `   -: -deleted code`
+- Header lines are preserved as-is
+
+This makes it explicit that `@property ... logLevel` is at **line 5** in the target file, removing ambiguity for subagents.
+
+**Output without `--annotate-lines`:**
 ```json
 {
   "hunks": [
@@ -439,7 +471,7 @@ gh pr diff 7 | python -m scripts parse-diff --format text
 }
 ```
 
-The `new_start` value from each hunk is the **anchor point** for calculating target file line numbers. For example, if `new_start` is 1 and a violation appears on the 5th added/context line in that hunk, report `lineNumber: 5`.
+Without annotation, subagents must manually calculate line numbers using `new_start` as the anchor point, which is error-prone.
 
 ### Reading the Hunk Header
 

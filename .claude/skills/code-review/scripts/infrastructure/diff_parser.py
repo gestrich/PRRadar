@@ -61,16 +61,17 @@ def read_diff(input_file: str | None = None) -> str:
 # ============================================================
 
 
-def format_diff_as_json(diff: GitDiff) -> str:
+def format_diff_as_json(diff: GitDiff, annotate_lines: bool = False) -> str:
     """Format a GitDiff as JSON.
 
     Args:
         diff: Parsed GitDiff instance
+        annotate_lines: If True, hunk content will have line numbers prepended
 
     Returns:
         JSON string representation of the diff
     """
-    return json.dumps(diff.to_dict(), indent=2)
+    return json.dumps(diff.to_dict(annotate_lines=annotate_lines), indent=2)
 
 
 def format_diff_as_text(diff: GitDiff) -> str:

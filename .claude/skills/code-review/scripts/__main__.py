@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """CLI entry point for PRRadar GitHub Actions tools.
 
-Usage:
-    python -m scripts <command> [options]
+Usage (from repo root):
+    .claude/skills/code-review/scripts/<command> [options]
 
 Commands:
     post-review     Post review comments to a GitHub PR
@@ -28,11 +28,11 @@ Commands:
   handle-mention  Handle @code-review mentions in PR comments
   parse-diff      Parse git diff and output structured hunk information
 
-Examples:
-  python -m scripts post-review --execution-file output.json --pr-number 123 --repo owner/repo
-  python -m scripts handle-mention --execution-file output.json --pr-number 123 --repo owner/repo
-  gh pr diff 7 | python -m scripts parse-diff
-  python -m scripts parse-diff --input-file diff.txt --format text
+Examples (run from repo root):
+  .claude/skills/code-review/scripts/post-review --execution-file output.json --pr-number 123 --repo owner/repo
+  .claude/skills/code-review/scripts/handle-mention --execution-file output.json --pr-number 123 --repo owner/repo
+  gh pr diff 7 | .claude/skills/code-review/scripts/parse-diff
+  .claude/skills/code-review/scripts/parse-diff --input-file diff.txt --format text
         """,
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -123,6 +123,11 @@ Examples:
         default="json",
         help="Output format (default: json)",
     )
+    parser_parse_diff.add_argument(
+        "--annotate-lines",
+        action="store_true",
+        help="Prepend target file line numbers to each diff line (e.g., '  5: +code')",
+    )
 
     args = parser.parse_args()
 
@@ -154,6 +159,7 @@ Examples:
         return cmd_parse_diff(
             input_file=args.input_file,
             output_format=args.format,
+            annotate_lines=args.annotate_lines,
         )
 
     else:

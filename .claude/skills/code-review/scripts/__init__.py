@@ -6,8 +6,8 @@ A well-structured CLI package following:
 - Services Pattern: Core services with dependency injection
 - Python Code Style: Organized methods, section headers, modern annotations
 
-Usage:
-    python -m scripts <command> [options]
+Usage (from repo root):
+    .claude/skills/code-review/scripts/<command> [options]
 
 Structure:
     scripts/

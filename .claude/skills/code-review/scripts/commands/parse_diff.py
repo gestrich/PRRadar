@@ -19,6 +19,7 @@ from scripts.infrastructure.diff_parser import (
 def cmd_parse_diff(
     input_file: str | None = None,
     output_format: str = "json",
+    annotate_lines: bool = False,
 ) -> int:
     """Parse a git diff and output structured hunk information.
 
@@ -30,6 +31,7 @@ def cmd_parse_diff(
     Args:
         input_file: Optional path to read diff from. If None, reads from stdin.
         output_format: Output format - 'json' (default) or 'text' for debugging
+        annotate_lines: If True, prepend target file line numbers to each diff line
 
     Returns:
         Exit code (0 for success, 1 for failure)
@@ -57,6 +59,6 @@ def cmd_parse_diff(
     if output_format == "text":
         print(format_diff_as_text(diff))
     else:
-        print(format_diff_as_json(diff))
+        print(format_diff_as_json(diff, annotate_lines=annotate_lines))
 
     return 0

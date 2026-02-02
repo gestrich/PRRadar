@@ -80,19 +80,23 @@ class Hunk:
             new_length=new_length,
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self, annotate_lines: bool = False) -> dict:
         """Convert hunk to dictionary for JSON serialization.
+
+        Args:
+            annotate_lines: If True, content will have line numbers prepended
 
         Returns:
             Dictionary with hunk data suitable for JSON output
         """
+        content = self.get_annotated_content() if annotate_lines else self.content
         return {
             "file_path": self.file_path,
             "new_start": self.new_start,
             "new_length": self.new_length,
             "old_start": self.old_start,
             "old_length": self.old_length,
-            "content": self.content,
+            "content": content,
         }
 
     # --------------------------------------------------------
@@ -110,6 +114,54 @@ class Hunk:
         if "." in self.filename:
             return self.filename.rsplit(".", 1)[-1]
         return ""
+
+    def get_annotated_content(self) -> str:
+        """Return hunk content with target file line numbers prepended.
+
+        Each line in the diff content after the @@ header is annotated with
+        its target file line number. This makes it explicit which line number
+        each change corresponds to, removing ambiguity for reviewers.
+
+        Format:
+        - Added lines (+) and context lines ( ) get: "  5: +code here"
+        - Deleted lines (-) get: "   -: -deleted code" (no line number)
+        - Header lines are preserved as-is
+
+        Returns:
+            Content string with line numbers prepended to each diff line
+        """
+        lines = self.content.split("\n")
+        annotated: list[str] = []
+        new_line = self.new_start
+        in_hunk_body = False
+
+        for line in lines:
+            if line.startswith("@@"):
+                annotated.append(line)
+                in_hunk_body = True
+            elif not in_hunk_body:
+                # Header lines (diff --git, index, ---, +++)
+                annotated.append(line)
+            elif line.startswith("-"):
+                # Deleted line - doesn't exist in target file
+                annotated.append(f"   -: {line}")
+            elif line.startswith("+"):
+                # Added line - exists in target file
+                annotated.append(f"{new_line:4d}: {line}")
+                new_line += 1
+            elif line.startswith(" ") or line == "":
+                # Context line - exists in target file
+                if line:
+                    annotated.append(f"{new_line:4d}: {line}")
+                    new_line += 1
+                else:
+                    # Empty line at end of hunk
+                    annotated.append(line)
+            else:
+                # Other lines (shouldn't happen in normal diffs)
+                annotated.append(line)
+
+        return "\n".join(annotated)
 
 
 @dataclass
@@ -195,15 +247,18 @@ class GitDiff:
 
         return cls(raw_content=diff_content, hunks=hunks, commit_hash=commit_hash)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, annotate_lines: bool = False) -> dict:
         """Convert diff to dictionary for JSON serialization.
+
+        Args:
+            annotate_lines: If True, hunk content will have line numbers prepended
 
         Returns:
             Dictionary with hunks suitable for JSON output
         """
         return {
             "commit_hash": self.commit_hash,
-            "hunks": [hunk.to_dict() for hunk in self.hunks],
+            "hunks": [hunk.to_dict(annotate_lines=annotate_lines) for hunk in self.hunks],
         }
 
     # --------------------------------------------------------
