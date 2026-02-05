@@ -119,13 +119,15 @@ async def run_batch_evaluation(
 - Service handles directory creation (`evaluations/`) and per-task JSON file writes
 - Summary file writing remains in `cmd_evaluate()` as it's command-specific
 
-## - [ ] Phase 3: Create ViolationService
+## - [x] Phase 3: Create ViolationService
 
 Extract violation creation and filtering logic.
 
+**Status:** ✅ Completed
+
 **Service type:** Core service (single responsibility: transform evaluation results to violations)
 
-**Files to create:**
+**Files created:**
 - `services/violation_service.py`
 
 **Service API:**
@@ -159,10 +161,14 @@ class ViolationService:
 - No constructor needed - this service has no dependencies (could be module-level functions, but class groups related operations)
 - **Decision guide**: "Does this service do ONE thing?" → Yes (data transformation) → Core service
 
-**Logic to extract from:**
-- `analyze.py` lines 171-182 (violation creation in interactive mode)
-- `analyze.py` lines 377-396 (violation creation in batch mode)
-- `comment.py` `load_violations()` (loads from files, different use case - keep separate)
+**Files modified:**
+- `commands/agent/analyze.py` - Now uses `ViolationService.create_violation()` and `ViolationService.filter_by_score()`
+
+**Technical notes:**
+- `create_violation()` is used in interactive mode after each individual evaluation
+- `filter_by_score()` is used in batch mode to filter and convert all results at once
+- `comment.py` `load_violations()` remains separate as it loads from files (different use case - reconstructs violations from persisted evaluation results)
+- Removed `CommentableViolation` import from analyze.py (now accessed via ViolationService)
 
 **Expected outcome:** Single place for EvaluationResult → CommentableViolation conversion.
 

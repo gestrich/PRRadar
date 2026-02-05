@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.commands.agent.comment import (
-    CommentableViolation,
     post_violations,
     prompt_for_comment,
 )
@@ -30,6 +29,7 @@ from scripts.services.evaluation_service import (
 from scripts.commands.agent.rules import cmd_rules
 from scripts.domain.evaluation_task import EvaluationTask
 from scripts.services.task_loader_service import TaskLoaderService
+from scripts.services.violation_service import ViolationService
 from scripts.utils.interactive import print_separator, prompt_yes_skip_quit
 
 
@@ -167,21 +167,8 @@ async def run_interactive_evaluation(
             print(f"  ⚠️  Violation found (score: {result.evaluation.score})")
             print(f"  {result.evaluation.explanation[:100]}...")
 
-            # Get documentation link from task
-            documentation_link = task.rule.documentation_link
-
             # Create violation for commenting
-            violation = CommentableViolation(
-                task_id=task.task_id,
-                rule_name=task.rule.name,
-                file_path=result.file_path,
-                line_number=result.evaluation.line_number,
-                score=result.evaluation.score,
-                explanation=result.evaluation.explanation,
-                suggestion=result.evaluation.suggestion,
-                documentation_link=documentation_link,
-                cost_usd=result.cost_usd,
-            )
+            violation = ViolationService.create_violation(result, task)
 
             # Prompt to post comment
             comment_response = prompt_for_comment(violation, 1, 1)
@@ -359,27 +346,8 @@ def cmd_analyze(
             print("Phase 4: Posting comments")
             print("=" * 60)
 
-            # Build violations from results
-            violations: list[CommentableViolation] = []
-            for result in results:
-                if result.evaluation.violates_rule and result.evaluation.score >= min_score:
-                    # Find the task to get documentation_link
-                    task = next((t for t in tasks if t.task_id == result.task_id), None)
-                    documentation_link = task.rule.documentation_link if task else None
-
-                    violations.append(
-                        CommentableViolation(
-                            task_id=result.task_id,
-                            rule_name=result.rule_name,
-                            file_path=result.file_path,
-                            line_number=result.evaluation.line_number,
-                            score=result.evaluation.score,
-                            explanation=result.evaluation.explanation,
-                            suggestion=result.evaluation.suggestion,
-                            documentation_link=documentation_link,
-                            cost_usd=result.cost_usd,
-                        )
-                    )
+            # Build violations from results using ViolationService
+            violations = ViolationService.filter_by_score(results, tasks, min_score)
 
             if violations:
                 print(f"  Posting {len(violations)} comment(s)...")
