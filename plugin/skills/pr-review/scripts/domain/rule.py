@@ -190,6 +190,7 @@ class Rule:
     model: str | None = None
     documentation_link: str | None = None
     relevant_claude_skill: str | None = None
+    rule_url: str | None = None
 
     # --------------------------------------------------------
     # Factory Methods
@@ -245,6 +246,7 @@ class Rule:
             model=data.get("model"),
             documentation_link=data.get("documentation_link"),
             relevant_claude_skill=data.get("relevant_claude_skill"),
+            rule_url=data.get("rule_url"),
         )
 
     # --------------------------------------------------------

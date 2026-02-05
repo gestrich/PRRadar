@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.domain.rule import Rule
+from scripts.infrastructure.git_utils import GitError, GitFileInfo, get_git_file_info
 
 
 @dataclass
@@ -24,9 +25,11 @@ class RuleLoaderService:
 
     Attributes:
         rules_dir: Path to the directory containing rule markdown files
+        git_info: Git repository information for the rules directory
     """
 
     rules_dir: Path
+    git_info: GitFileInfo
 
     # ============================================================
     # Factory Methods
@@ -43,7 +46,8 @@ class RuleLoaderService:
             Configured RuleLoaderService instance
 
         Raises:
-            ValueError: If directory does not exist
+            ValueError: If directory does not exist or is not in a valid
+                git repository with a GitHub remote
         """
         path = Path(rules_dir)
         if not path.exists():
@@ -51,7 +55,20 @@ class RuleLoaderService:
         if not path.is_dir():
             raise ValueError(f"Rules path is not a directory: {rules_dir}")
 
-        return cls(rules_dir=path)
+        try:
+            git_info = get_git_file_info(str(path))
+        except GitError as e:
+            raise ValueError(
+                f"Rules directory must be in a git repository with a valid remote: {e}"
+            )
+
+        if "github.com" not in git_info.repo_url:
+            raise ValueError(
+                f"Rules directory must be in a GitHub repository. "
+                f"Found remote: {git_info.repo_url}"
+            )
+
+        return cls(rules_dir=path, git_info=git_info)
 
     # ============================================================
     # Public API
@@ -64,7 +81,7 @@ class RuleLoaderService:
         Files that fail to parse are skipped with a warning.
 
         Returns:
-            List of parsed Rule instances
+            List of parsed Rule instances with rule_url populated
         """
         rules: list[Rule] = []
         md_files = sorted(self.rules_dir.rglob("*.md"))
@@ -72,11 +89,26 @@ class RuleLoaderService:
         for md_file in md_files:
             try:
                 rule = Rule.from_file(md_file)
+                rule.rule_url = self._build_rule_url(md_file)
                 rules.append(rule)
             except Exception as e:
                 print(f"Warning: Failed to parse rule {md_file}: {e}")
 
         return rules
+
+    def _build_rule_url(self, rule_file: Path) -> str:
+        """Build the GitHub URL for a rule file.
+
+        Uses the git_info from the rules directory to construct the URL.
+
+        Args:
+            rule_file: Path to the rule markdown file
+
+        Returns:
+            GitHub URL to view the rule file
+        """
+        file_info = get_git_file_info(str(rule_file))
+        return file_info.to_github_url()
 
     def filter_rules_for_file(
         self,

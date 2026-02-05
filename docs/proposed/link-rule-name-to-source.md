@@ -43,7 +43,7 @@ class GitFileInfo:
 - Handles both SSH (`git@github.com:owner/repo.git`) and HTTPS URL formats
 - `GitError` exception raised when file is not in a git repo or commands fail
 
-## - [ ] Phase 2: Add rule_url to Rule model
+## - [x] Phase 2: Add rule_url to Rule model
 
 Extend the `Rule` model to include an optional `rule_url` field that gets populated during rule loading. This keeps URL generation close to where the file path is known.
 
@@ -59,6 +59,16 @@ Files to modify:
    - The remote URL isn't a GitHub URL
 
 This ensures misconfiguration is caught early rather than silently producing comments without links.
+
+**Implementation Notes:**
+- Added `rule_url: str | None = None` field to `Rule` dataclass
+- Updated `Rule.from_dict()` to deserialize `rule_url`
+- Modified `RuleLoaderService` to require `GitFileInfo` - now stores git info at construction time
+- `RuleLoaderService.create()` now validates:
+  - Directory is in a git repository (raises `ValueError` with clear message if not)
+  - Remote URL contains `github.com` (validates it's a GitHub repo)
+- `load_all_rules()` calls `_build_rule_url()` to populate `rule_url` for each loaded rule
+- Note: `to_dict()` serialization will be added in Phase 3 when threading through to violations
 
 ## - [ ] Phase 3: Thread rule_url through to CommentableViolation
 
