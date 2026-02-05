@@ -84,7 +84,7 @@ PRRadar addresses a fundamental limitation of existing AI code review tools: the
 2. **rules-directory** (optional): Path to the directory containing review rules
    - **Default**: `code-review-rules` at the repository root
    - Can be absolute or relative path
-   - Directory should contain `.md` files defining review rules
+   - PRRadar recursively traverses all subdirectories to collect every `.md` file as a rule
    - Example: `./rules` or `/path/to/custom/rules`
 
 ### Examples
@@ -108,7 +108,11 @@ PRRadar addresses a fundamental limitation of existing AI code review tools: the
 
 ## Rules Directory Structure
 
-Rules are markdown files that define what to check for. Each rule:
+Rules are markdown files (`.md`) that define what to check for. PRRadar **recursively traverses all subdirectories** within the rules directory to collect every rule file, regardless of subdirectory names. After collecting all rules, it determines which apply to the current diff based on frontmatter filters.
+
+**Important**: Do not skip directories based on their names. Traverse the entire directory tree and collect all `.md` files as potential rules.
+
+Each rule:
 - Has a single responsibility (checks one specific thing)
 - Includes YAML frontmatter with metadata
 - Contains the review criteria in markdown
@@ -137,17 +141,21 @@ examples of violations, and how to fix them.
 
 ### Example Rules Directory
 
+Rules can be organized in any directory structure. All `.md` files are collected recursively:
+
 ```
 rules/
-├── error-handling.md
-├── thread-safety.md
-├── nullability/
-│   ├── nullability_h_files.md
-│   └── nullability_m_files.md
-└── architecture/
-    ├── layer-violations.md
+├── error-handling.md          # collected as "error-handling"
+├── thread-safety.md           # collected as "thread-safety"
+├── nullability/               # subdirectory - traversed regardless of name
+│   ├── nullability_h_files.md # collected as "nullability/nullability_h_files"
+│   └── nullability_m_files.md # collected as "nullability/nullability_m_files"
+└── architecture/              # another subdirectory
+    ├── layer-violations.md    # collected as "architecture/layer-violations"
     └── dependency-injection.md
 ```
+
+The rule name is the relative path from the rules directory without the `.md` extension.
 
 ## How PRRadar Works
 
@@ -169,8 +177,8 @@ Each segment is analyzed independently for focused review.
 
 ### Phase 3: Rule Filtering
 
-For each segment, PRRadar determines which rules apply based on:
-- File extension matching
+First, PRRadar **collects all rules** by recursively traversing the rules directory and gathering every `.md` file. Then, for each segment, it determines which rules apply based on:
+- File extension matching (from `applies_to.file_extensions` frontmatter)
 - Code pattern detection (grep-based)
 - Rule metadata
 
