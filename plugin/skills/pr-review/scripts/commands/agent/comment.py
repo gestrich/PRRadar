@@ -10,6 +10,7 @@ Requires:
 Features:
     - Individual inline comments per violation
     - Dry-run mode to preview without posting
+    - Interactive mode to approve each comment before posting
     - Score threshold filtering (default: score >= 5)
     - Programmatic documentation link appending
 """
@@ -158,12 +159,50 @@ def load_violations(
 # ============================================================
 
 
+def _prompt_for_comment(
+    violation: CommentableViolation,
+    index: int,
+    total: int,
+) -> str | None:
+    """Prompt user to approve, skip, or quit for a comment.
+
+    Args:
+        violation: The violation to prompt for
+        index: Current index (1-based)
+        total: Total number of violations
+
+    Returns:
+        'y' to post, 'n' to skip, 'q' to quit, None on EOF
+    """
+    print(f"\n{'─' * 60}")
+    print(f"Comment {index}/{total}: {violation.file_path}:{violation.line_number or '?'}")
+    print(f"{'─' * 60}")
+    print(violation.compose_comment())
+    print(f"{'─' * 60}")
+
+    while True:
+        try:
+            response = input("Post this comment? [y]es / [n]o / [q]uit: ").strip().lower()
+        except EOFError:
+            return None
+
+        if response in ("y", "yes"):
+            return "y"
+        elif response in ("n", "no"):
+            return "n"
+        elif response in ("q", "quit"):
+            return "q"
+        else:
+            print("  Please enter 'y', 'n', or 'q'")
+
+
 def post_violations(
     violations: list[CommentableViolation],
     pr_number: int,
     repo: str,
     dry_run: bool,
-) -> tuple[int, int]:
+    interactive: bool = False,
+) -> tuple[int, int, int]:
     """Post violations as inline comments to GitHub.
 
     Args:
@@ -171,9 +210,10 @@ def post_violations(
         pr_number: PR number to post comments to
         repo: Repository in owner/repo format
         dry_run: If True, preview without posting
+        interactive: If True, prompt for each comment
 
     Returns:
-        Tuple of (successful_count, failed_count)
+        Tuple of (successful_count, failed_count, skipped_count)
     """
     if dry_run:
         print("\n[DRY RUN] Would post the following comments:\n")
@@ -183,7 +223,7 @@ def post_violations(
             print(f"{'─' * 60}")
             print(v.compose_comment())
             print()
-        return len(violations), 0
+        return len(violations), 0, 0
 
     gh = GhCommandRunner(dry_run=False)
     comment_service = GitHubCommentService(repo=repo, gh=gh)
@@ -192,12 +232,27 @@ def post_violations(
     commit_sha = comment_service.get_pr_head_sha(pr_number)
     if not commit_sha:
         print("  Error: Could not get PR HEAD commit SHA")
-        return 0, len(violations)
+        return 0, len(violations), 0
 
     successful = 0
     failed = 0
+    skipped = 0
+    total = len(violations)
 
-    for v in violations:
+    for i, v in enumerate(violations, 1):
+        # Interactive mode: prompt before posting
+        if interactive:
+            response = _prompt_for_comment(v, i, total)
+            if response is None or response == "q":
+                remaining = total - i + 1
+                skipped += remaining
+                print(f"\n  Quit. Skipped {remaining} remaining comment(s).")
+                break
+            elif response == "n":
+                print("  Skipped.")
+                skipped += 1
+                continue
+
         comment_body = v.compose_comment()
 
         if v.line_number:
@@ -229,7 +284,7 @@ def post_violations(
                 print(f"  ✗ Failed to post general comment for {v.rule_name}")
                 failed += 1
 
-    return successful, failed
+    return successful, failed, skipped
 
 
 # ============================================================
@@ -243,6 +298,7 @@ def cmd_comment(
     repo: str,
     min_score: int = 5,
     dry_run: bool = False,
+    interactive: bool = False,
 ) -> int:
     """Execute the comment command.
 
@@ -252,11 +308,17 @@ def cmd_comment(
         repo: Repository in owner/repo format
         min_score: Minimum score threshold for posting (default: 5)
         dry_run: If True, preview without posting
+        interactive: If True, prompt for each comment before posting
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    mode = "dry-run" if dry_run else "live"
+    if dry_run:
+        mode = "dry-run"
+    elif interactive:
+        mode = "interactive"
+    else:
+        mode = "live"
     print(f"[comment] Posting comments for PR #{pr_number} ({mode})...")
     print(f"  Minimum score: {min_score}")
 
@@ -283,12 +345,16 @@ def cmd_comment(
     print(f"  Found {len(violations)} violation(s) to post")
 
     # Post violations
-    successful, failed = post_violations(violations, pr_number, repo, dry_run)
+    successful, failed, skipped = post_violations(
+        violations, pr_number, repo, dry_run, interactive
+    )
 
     # Print summary
     print()
     print("Comment Summary:")
     print(f"  Posted: {successful}")
+    if skipped > 0:
+        print(f"  Skipped: {skipped}")
     if failed > 0:
         print(f"  Failed: {failed}")
 

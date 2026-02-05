@@ -334,9 +334,9 @@ Post review comments to GitHub from evaluation results.
   ```
 - Use existing `GitHubCommentService` infrastructure
 - Support modes:
-  - Individual inline comments per violation
-  - Single summary comment with all violations
-  - Dry-run mode to preview without posting
+  - Interactive mode (default): approve each comment before posting
+  - Non-interactive mode: post all comments automatically
+  - Dry-run mode: preview without posting (non-interactive only)
 - Handle rate limiting and error recovery
 
 **Comment composition logic:**
@@ -353,8 +353,10 @@ Post review comments to GitHub from evaluation results.
 - `infrastructure/gh_runner.py` - GitHub API interactions
 
 **Expected outcomes:**
-- `python3 -m scripts agent comment 123` posts review comments
-- `--dry-run` shows what would be posted without posting
+- `python3 -m scripts agent comment 123` runs in interactive mode (default)
+- Interactive mode prompts for each comment (y/n/q)
+- `--no-interactive` / `-n` posts all comments without prompting
+- `--dry-run` previews comments (requires `--no-interactive`)
 - `--min-score` filters which violations to post
 - Documentation links are consistently appended (not reliant on model output)
 - Rate limiting is handled gracefully

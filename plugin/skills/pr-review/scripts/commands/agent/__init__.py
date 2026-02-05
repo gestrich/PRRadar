@@ -128,9 +128,15 @@ inspected and debugged independently.
         help="Minimum score threshold for posting (default: 5)",
     )
     comment_parser.add_argument(
+        "-n",
+        "--no-interactive",
+        action="store_true",
+        help="Post all comments without prompting (default: interactive)",
+    )
+    comment_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Preview comments without posting",
+        help="Preview comments without posting (requires --no-interactive)",
     )
 
     # analyze command (full pipeline)
@@ -229,6 +235,12 @@ def cmd_agent(args: argparse.Namespace) -> int:
     elif args.agent_command == "comment":
         from scripts.commands.agent.comment import cmd_comment
 
+        # Validate: dry-run requires non-interactive mode
+        interactive = not args.no_interactive
+        if args.dry_run and interactive:
+            print("  Error: --dry-run requires --no-interactive (-n)")
+            return 1
+
         # Get repo from args or auto-detect
         repo = args.repo
         if not repo:
@@ -248,6 +260,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             repo=repo,
             min_score=args.min_score,
             dry_run=args.dry_run,
+            interactive=interactive,
         )
 
     elif args.agent_command == "analyze":
