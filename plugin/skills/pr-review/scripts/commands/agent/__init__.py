@@ -182,9 +182,9 @@ def cmd_agent(args: argparse.Namespace) -> int:
     print(f"Output directory: {pr_dir}")
 
     if args.agent_command == "diff":
-        print(f"[diff] Fetching diff for PR #{pr_number}...")
-        print("  Not implemented yet - see Phase 3")
-        return 0
+        from scripts.commands.agent.diff import cmd_diff
+
+        return cmd_diff(pr_number=pr_number, output_dir=pr_dir)
 
     elif args.agent_command == "rules":
         rules_dir = args.rules_dir

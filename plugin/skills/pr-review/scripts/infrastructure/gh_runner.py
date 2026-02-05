@@ -11,6 +11,35 @@ import sys
 from dataclasses import dataclass
 from typing import Protocol
 
+from scripts.domain.github import PullRequest, PullRequestComments, Repository
+
+# Fields fetched for PR metadata
+_PR_FIELDS = [
+    "number",
+    "title",
+    "body",
+    "author",
+    "baseRefName",
+    "headRefName",
+    "state",
+    "isDraft",
+    "url",
+    "createdAt",
+    "updatedAt",
+    "additions",
+    "deletions",
+    "changedFiles",
+    "commits",
+    "labels",
+    "files",
+]
+
+# Fields fetched for PR comments
+_PR_COMMENT_FIELDS = ["comments", "reviews"]
+
+# Fields fetched for repository metadata
+_REPO_FIELDS = ["name", "owner", "url", "defaultBranchRef"]
+
 
 class CommandRunner(Protocol):
     """Protocol for running shell commands."""
@@ -120,3 +149,59 @@ class GhCommandRunner:
         for key, value in fields.items():
             cmd.extend(["-f", f"{key}={value}"])
         return self.run(cmd)
+
+    def pr_diff(self, pr_number: int) -> tuple[bool, str]:
+        """Get the diff for a pull request.
+
+        Args:
+            pr_number: PR number
+
+        Returns:
+            Tuple of (success, diff_content_or_error)
+        """
+        return self.run(["gh", "pr", "diff", str(pr_number)])
+
+    def get_pull_request(self, pr_number: int) -> tuple[bool, PullRequest | str]:
+        """Get PR metadata as a typed model.
+
+        Args:
+            pr_number: PR number
+
+        Returns:
+            Tuple of (success, PullRequest or error string)
+        """
+        success, result = self.run(
+            ["gh", "pr", "view", str(pr_number), "--json", ",".join(_PR_FIELDS)]
+        )
+        if not success:
+            return False, result
+        return True, PullRequest.from_json(result)
+
+    def get_pull_request_comments(self, pr_number: int) -> tuple[bool, PullRequestComments | str]:
+        """Get PR comments and reviews as a typed model.
+
+        Args:
+            pr_number: PR number
+
+        Returns:
+            Tuple of (success, PullRequestComments or error string)
+        """
+        success, result = self.run(
+            ["gh", "pr", "view", str(pr_number), "--json", ",".join(_PR_COMMENT_FIELDS)]
+        )
+        if not success:
+            return False, result
+        return True, PullRequestComments.from_json(result)
+
+    def get_repository(self) -> tuple[bool, Repository | str]:
+        """Get current repository metadata as a typed model.
+
+        Returns:
+            Tuple of (success, Repository or error string)
+        """
+        success, result = self.run(
+            ["gh", "repo", "view", "--json", ",".join(_REPO_FIELDS)]
+        )
+        if not success:
+            return False, result
+        return True, Repository.from_json(result)

@@ -144,7 +144,7 @@ class RuleApplicability:
 - Models can parse SDK responses into typed objects
 - Direct SDK usage without abstraction layer
 
-## [ ] Phase 3: PR Data Acquisition Command (`agent diff`)
+## [x] Phase 3: PR Data Acquisition Command (`agent diff`)
 
 Implement the `agent diff` command that fetches and stores PR diff, summary, and comments.
 
@@ -158,24 +158,24 @@ Implement the `agent diff` command that fetches and stores PR diff, summary, and
 - Fetch PR summary using `gh pr view <pr-number> --json title,body,author,baseRefName,headRefName`
 - Fetch PR comments using `gh pr view <pr-number> --json comments,reviews`
 - Parse diff into structured `GitDiff` domain model (existing code in `domain/diff.py`)
+- **Raw GitHub JSON** for PR metadata, comments, and repo (no wrapper models needed)
 - Store artifacts:
   - `<output-dir>/<pr-number>/diff/raw.diff` - Original diff text
-  - `<output-dir>/<pr-number>/diff/parsed.json` - Structured diff with hunks
-  - `<output-dir>/<pr-number>/pr.json` - PR metadata (title, body, author, branches)
-  - `<output-dir>/<pr-number>/comments.json` - PR comments and review comments
-  - `<output-dir>/<pr-number>/metadata.json` - Fetch metadata (timestamp, repo)
+  - `<output-dir>/<pr-number>/diff/parsed.json` - Structured diff with hunks (line-annotated)
+  - `<output-dir>/<pr-number>/pr.json` - Raw GitHub PR JSON
+  - `<output-dir>/<pr-number>/comments.json` - Raw GitHub comments JSON
+  - `<output-dir>/<pr-number>/repo.json` - Raw GitHub repo JSON
 
-**Files to create:**
+**Files created:**
 - `plugin/skills/pr-review/scripts/commands/agent/diff.py` - Diff command implementation
 
-**Reuse existing code:**
-- `infrastructure/gh_runner.py` - For `gh pr diff` execution
+**Reused existing code:**
 - `domain/diff.py` - `GitDiff` and `Hunk` models for parsing
 
 **Expected outcomes:**
-- `python3 -m scripts agent diff 123` fetches and stores PR diff
-- Artifacts are human-readable and inspectable
-- Command is idempotent (re-running overwrites cleanly)
+- ✅ `python3 -m scripts agent diff 123` fetches and stores PR diff
+- ✅ Artifacts are human-readable and inspectable (raw GitHub JSON)
+- ✅ Command is idempotent (re-running overwrites cleanly)
 
 ## [ ] Phase 4: Rule Collection and Filtering Command (`agent rules`)
 
