@@ -9,7 +9,7 @@ PRRadar addresses a fundamental limitation of existing AI code review tools: the
 1. **Chunking PRs into smaller pieces** - Breaking down changes into focused, reviewable segments
 2. **Rule-based reviews** - Each rule checks one specific thing with dedicated focus
 3. **Intelligent rule application** - Determines which rules apply to which code changes
-4. **Dedicated AI agents** - Each rule gets its own AI context for focused analysis
+4. **Dedicated AI subagents** - Each rule gets its own sonnet-model subagent for focused analysis (mandatory, even for small diffs)
 5. **Scored reporting** - Violations are prioritized by severity
 
 ## Architecture
@@ -63,13 +63,16 @@ claude --plugin-dir ~/path/to/PRRadar/plugin
 Once installed, use PRRadar with:
 
 ```
-/pr-review [rules-directory] [pr-number-or-commit]
+/pr-review [pr-number-or-commit] [rules-directory]
 ```
+
+The rules directory is **optional** - if not specified, PRRadar will look for a `code-review-rules` directory at the repository root.
 
 For example:
 ```
-/pr-review ./rules 123
-/pr-review ./rules https://github.com/owner/repo/pull/456
+/pr-review 123                              # Uses default code-review-rules/
+/pr-review 123 ./my-rules                   # Uses custom rules directory
+/pr-review https://github.com/owner/repo/pull/456
 ```
 
 #### Direct Installation

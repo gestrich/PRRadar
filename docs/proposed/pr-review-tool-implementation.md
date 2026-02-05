@@ -55,7 +55,7 @@ Create the foundational Claude Code plugin structure:
 
 **Expected outcomes:**
 - ✅ Plugin can be invoked from Claude Code in any repository
-- ✅ Clean interface for passing rules directory and other parameters (`/pr-review [rules-dir] [pr-or-commit]`)
+- ✅ Clean interface for passing parameters (`/pr-review [pr-or-commit] [rules-dir]` where rules-dir defaults to `code-review-rules/`)
 - ✅ Foundation is in place for pipeline-based processing
 - ✅ Plugin follows Claude Code plugin best practices (based on python-architecture example)
 
@@ -156,7 +156,8 @@ Implement the core review logic that applies rules to code chunks using AI agent
 
 **Technical approach:**
 - For each chunk, iterate through applicable rules serially
-- Spawn separate AI agent for each rule check (dedicated context)
+- **CRITICAL**: Spawn a separate AI subagent for each rule check using `model: "sonnet"` (latest sonnet model)
+- **Subagent requirement is mandatory** — do NOT skip subagents regardless of diff size. Even small diffs require dedicated subagent analysis per rule to catch subtle violations. This is non-negotiable.
 - Each agent evaluates:
   - Does this rule actually apply? (AI may determine it doesn't after deeper analysis)
   - If applicable, does the code violate the rule?

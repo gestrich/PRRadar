@@ -2,7 +2,7 @@
 name: pr-review
 description: AI-powered pull request review tool that analyzes code changes using customizable rules. Breaks down PRs into chunks, applies focused review rules, and generates prioritized feedback.
 user-invocable: true
-argument-hint: "[rules-directory] [pr-number-or-commit]"
+argument-hint: "[pr-number-or-commit] [rules-directory]"
 ---
 
 # PRRadar: PR Review Tool
@@ -26,6 +26,10 @@ PRRadar addresses a fundamental limitation of existing AI code review tools: the
 3. **Intelligent rule application** - Determines which rules apply to which code changes
 4. **Dedicated AI agents** - Each rule gets its own AI context for focused analysis
 5. **Scored reporting** - Violations are prioritized by severity
+
+> **⚠️ IMPORTANT: Subagent Requirement**
+>
+> PRRadar MUST use subagents (Task tool with `model: "sonnet"`) for each rule evaluation. **Do NOT skip subagents** regardless of diff size. Even small diffs require dedicated subagent analysis per rule to catch subtle violations. This is non-negotiable - the quality of review depends on focused, isolated rule evaluation.
 
 ## Architecture
 
@@ -67,35 +71,39 @@ PRRadar addresses a fundamental limitation of existing AI code review tools: the
 ## Usage
 
 ```
-/pr-review [rules-directory] [pr-number-or-commit]
+/pr-review [pr-number-or-commit] [rules-directory]
 ```
 
 ### Arguments
 
-1. **rules-directory** (required): Path to the directory containing review rules
-   - Can be absolute or relative path
-   - Directory should contain `.md` files defining review rules
-   - Example: `./rules` or `/path/to/custom/rules`
-
-2. **pr-number-or-commit** (required): What to review
+1. **pr-number-or-commit** (required): What to review
    - PR number: `123` or `#123`
    - PR URL: `https://github.com/owner/repo/pull/123`
    - Commit SHA: `abc1234` (reviews from commit to HEAD)
 
+2. **rules-directory** (optional): Path to the directory containing review rules
+   - **Default**: `code-review-rules` at the repository root
+   - Can be absolute or relative path
+   - Directory should contain `.md` files defining review rules
+   - Example: `./rules` or `/path/to/custom/rules`
+
 ### Examples
 
 ```bash
-# Review PR #123 using rules in ./rules directory
-/pr-review ./rules 123
+# Review PR #123 using default rules (code-review-rules/)
+/pr-review 123
 
-# Review PR using full URL
-/pr-review ./rules https://github.com/gestrich/PRRadar/pull/5
+# Review PR #123 with custom rules directory
+/pr-review 123 ./my-rules
+
+# Review PR using full URL (default rules)
+/pr-review https://github.com/gestrich/PRRadar/pull/5
 
 # Review commits from abc1234 to HEAD
-/pr-review ./rules abc1234
+/pr-review abc1234
 
 # Review using absolute path to rules
-/pr-review /Users/bill/my-project/review-rules #456
+/pr-review #456 /Users/bill/my-project/review-rules
 ```
 
 ## Rules Directory Structure
@@ -170,12 +178,20 @@ This pre-filtering keeps review focused and costs manageable.
 
 ### Phase 4: Dedicated Review Agents
 
+**CRITICAL: You MUST use subagents for rule evaluation.** Even if the diff is small or appears simple, do NOT skip subagents or reason that the diff is "small enough" to review inline. Each rule requires dedicated, focused attention that only a subagent can provide.
+
 For each segment + rule combination:
-- Spawn a dedicated AI agent
-- Agent reads the rule and segment
-- Agent evaluates: Does this violate the rule?
-- Agent scores the violation (1-10 scale)
-- Agent provides specific feedback
+- **MUST** spawn a dedicated subagent using the Task tool with `model: "sonnet"` (latest sonnet model)
+- Subagent reads the rule and segment
+- Subagent evaluates: Does this violate the rule?
+- Subagent scores the violation (1-10 scale)
+- Subagent provides specific feedback
+
+**Why subagents are mandatory:**
+- Each rule requires fresh, focused context to catch violations
+- Reviewing multiple rules in a single context causes attention dilution
+- Small diffs often have subtle issues that require dedicated analysis
+- The cost of subagents is acceptable ($1-5 per thorough review)
 
 ### Phase 5: Report Generation
 

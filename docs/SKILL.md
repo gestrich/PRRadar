@@ -225,9 +225,11 @@ After generating the review plan:
 
 **IMPORTANT**: For PR reviews, the changed files may not exist locally — they only exist in the PR diff. You MUST pass the actual segment diff content to subagents. Do NOT instruct subagents to read files from the filesystem.
 
+**CRITICAL: Subagent Requirement** — You MUST use subagents for each rule evaluation, regardless of diff size. Even if the diff appears small or simple, do NOT skip subagents or reason that you can review it inline. Each rule requires dedicated, focused attention that only a subagent can provide. The quality of review depends on isolated, focused rule evaluation.
+
 1. **For each Segment** in `review-summary-<id>.md`:
    - **For each Rule** checkbox under that segment:
-     - Spawn a subagent using the Task tool with `subagent_type: "general-purpose"`
+     - Spawn a subagent using the Task tool with `subagent_type: "general-purpose"` and `model: "sonnet"` (latest sonnet model)
      - The subagent prompt **MUST include**:
        - The rule name
        - **Instruction to read the rule file** at `plugin/skills/pr-review/rules/{rule_name}.md` (use full path from repo root)
