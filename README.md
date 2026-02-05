@@ -206,6 +206,8 @@ my-rules/
     └── async-patterns.md
 ```
 
+See [docs/rule-examples/](docs/rule-examples/) for complete example rules.
+
 ## Output Artifacts
 
 Reviews produce artifacts in a structured directory:
