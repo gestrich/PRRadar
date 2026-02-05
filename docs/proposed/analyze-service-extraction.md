@@ -228,20 +228,23 @@ Update `cmd_analyze()` to use the new services.
 - `ViolationService` has only static methods, so no instance is created (called as `ViolationService.create_violation()`)
 - The phase flow (diff → rules → evaluate → comment) uses `stop_after` and `skip_to` for partial execution
 
-## - [ ] Phase 6: Refactor evaluate.py to Use Services
+## - [x] Phase 6: Refactor evaluate.py to Use Services
 
 Update `cmd_evaluate()` to use the shared services.
 
-**Files to modify:**
+**Status:** ✅ Completed
+
+**Files modified:**
 - `commands/agent/evaluate.py`
 
-**Changes:**
-1. Replace inline task loading with `TaskLoaderService` (with optional filter)
-2. Replace `run_evaluations()` with `EvaluationService.run_batch_evaluation()`
-3. Import `EvaluationSummary` from domain
-4. Move all `print()` statements to command layer (remove from any shared code)
+**Changes applied:**
+1. ✅ Uses `TaskLoaderService` for task loading (with filter support)
+2. ✅ Uses `run_batch_evaluation()` from evaluation_service directly
+3. ✅ Imports `EvaluationSummary` from domain layer
+4. ✅ All `print()` statements are in the command layer
+5. ✅ Removed intermediate `run_evaluations()` wrapper - simplified to inline callback
 
-**Target structure:**
+**Final structure:**
 ```python
 def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | None = None) -> int:
     # 1. Initialize services
@@ -250,25 +253,49 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
     # 2. Load tasks (service returns data, command prints)
     if rules_filter:
         tasks = task_loader.load_filtered(rules_filter)
-        print(f"  Filtered to {len(tasks)} tasks")
+        print(f"  Filtering by rules: {', '.join(rules_filter)}")
+        print(f"  Matched {len(tasks)} tasks")
     else:
         tasks = task_loader.load_all()
         print(f"  Loaded {len(tasks)} tasks")
 
-    # 3. Run evaluations with progress callback
-    def on_result(i, total, result):
+    # 3. Handle no tasks case (unified error handling)
+    if not tasks:
+        ...  # Error messages for missing dir or no matches
+
+    # 4. Run evaluations with progress callback
+    total_cost = 0.0
+    total_duration = 0
+    violations_count = 0
+
+    def on_result(index: int, total: int, result: EvaluationResult) -> None:
+        nonlocal total_cost, total_duration, violations_count
         status = "⚠️ Violation" if result.evaluation.violates_rule else "✓ OK"
-        print(f"  [{i}/{total}] {result.rule_name}: {status}")
+        print(f"  [{index}/{total}] {result.rule_name}: {status}")
+        # Track running totals...
 
-    results = asyncio.run(
-        evaluation_service.run_batch_evaluation(tasks, output_dir, on_result)
-    )
+    results = asyncio.run(run_batch_evaluation(tasks, output_dir, on_result))
 
-    # 4. Print summary (command layer responsibility)
-    print(f"  Total cost: ${sum(r.cost_usd or 0 for r in results):.4f}")
+    # 5. Build and save summary
+    summary = EvaluationSummary(...)
+    summary_path.write_text(json.dumps(summary.to_dict(), indent=2))
+
+    # 6. Print summary (command layer responsibility)
+    print(f"  Tasks evaluated: {summary.total_tasks}")
+    ...
 ```
 
-**Expected outcome:** `evaluate.py` becomes ~50 lines of orchestration.
+**Technical notes:**
+- File reduced from 155 lines to 116 lines (~25% reduction)
+- Removed `run_evaluations()` wrapper function - callback pattern is sufficient
+- Running totals tracked via `nonlocal` in callback for summary building
+- Unified "no tasks" error handling (was duplicated in if/else branches)
+
+**Skill patterns applied:**
+- **Entry point instantiates services**: `cmd_evaluate()` creates `TaskLoaderService`
+- **Command handles output**: All `print()` statements stay in command
+- **Callback for UI concerns**: Progress display delegated to callback
+- **Service returns data**: Summary built from service results in command layer
 
 ## - [ ] Phase 7: Validation
 
