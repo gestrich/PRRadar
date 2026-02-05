@@ -21,9 +21,8 @@ from pathlib import Path
 
 from scripts.domain.evaluation_task import EvaluationTask
 from scripts.services.evaluation_service import (
-    DEFAULT_MODEL,
     EvaluationResult,
-    evaluate_task,
+    run_batch_evaluation,
 )
 from scripts.services.task_loader_service import TaskLoaderService
 
@@ -65,6 +64,9 @@ class EvaluationSummary:
 async def run_evaluations(tasks: list[EvaluationTask], output_dir: Path) -> EvaluationSummary:
     """Run evaluations for all tasks sequentially.
 
+    Thin wrapper around the evaluation service that handles progress display
+    and builds the EvaluationSummary (command layer concerns).
+
     Args:
         tasks: List of evaluation tasks to process
         output_dir: Directory for evaluation outputs
@@ -72,21 +74,16 @@ async def run_evaluations(tasks: list[EvaluationTask], output_dir: Path) -> Eval
     Returns:
         EvaluationSummary with all results
     """
-    evaluations_dir = output_dir / "evaluations"
-    evaluations_dir.mkdir(parents=True, exist_ok=True)
-
-    results: list[EvaluationResult] = []
     total_cost = 0.0
     total_duration = 0
     violations_count = 0
 
-    for i, task in enumerate(tasks, 1):
-        print(f"  [{i}/{len(tasks)}] Evaluating {task.rule.name} on {task.segment.file_path}...")
+    def on_result(index: int, total: int, result: EvaluationResult) -> None:
+        """Progress callback - handles printing and running totals."""
+        nonlocal total_cost, total_duration, violations_count
 
-        result = await evaluate_task(task)
-        results.append(result)
+        print(f"  [{index}/{total}] Evaluating {result.rule_name} on {result.file_path}...")
 
-        # Update totals
         total_duration += result.duration_ms
         if result.cost_usd:
             total_cost += result.cost_usd
@@ -96,11 +93,8 @@ async def run_evaluations(tasks: list[EvaluationTask], output_dir: Path) -> Eval
         else:
             print(f"    ✓  No violation")
 
-        # Write individual result
-        result_path = evaluations_dir / f"{task.task_id}.json"
-        result_path.write_text(json.dumps(result.to_dict(), indent=2))
+    results = await run_batch_evaluation(tasks, output_dir, on_result=on_result)
 
-    # Create summary
     # Extract PR number from output_dir path (assumes format like .../18696/...)
     pr_number = 0
     try:
@@ -108,7 +102,7 @@ async def run_evaluations(tasks: list[EvaluationTask], output_dir: Path) -> Eval
     except ValueError:
         pass
 
-    summary = EvaluationSummary(
+    return EvaluationSummary(
         pr_number=pr_number,
         evaluated_at=datetime.now(timezone.utc),
         total_tasks=len(tasks),
@@ -117,8 +111,6 @@ async def run_evaluations(tasks: list[EvaluationTask], output_dir: Path) -> Eval
         total_duration_ms=total_duration,
         results=results,
     )
-
-    return summary
 
 
 # ============================================================

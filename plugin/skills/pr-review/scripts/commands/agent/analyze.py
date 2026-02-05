@@ -25,6 +25,7 @@ from scripts.commands.agent.diff import cmd_diff
 from scripts.services.evaluation_service import (
     EvaluationResult,
     evaluate_task,
+    run_batch_evaluation,
 )
 from scripts.commands.agent.rules import cmd_rules
 from scripts.domain.evaluation_task import EvaluationTask
@@ -198,12 +199,15 @@ async def run_interactive_evaluation(
             print(f"  ✓ No violation")
 
 
-async def run_batch_evaluation(
+async def run_analyze_batch_evaluation(
     tasks: list[EvaluationTask],
     output_dir: Path,
     stats: AnalyzeStats,
 ) -> list[EvaluationResult]:
     """Run all evaluations without interaction.
+
+    Thin wrapper around the evaluation service that handles progress display
+    and statistics tracking (UI concerns that belong in the command layer).
 
     Args:
         tasks: List of evaluation tasks
@@ -213,24 +217,14 @@ async def run_batch_evaluation(
     Returns:
         List of evaluation results
     """
-    evaluations_dir = output_dir / "evaluations"
-    evaluations_dir.mkdir(parents=True, exist_ok=True)
 
-    results: list[EvaluationResult] = []
-
-    for i, task in enumerate(tasks, 1):
-        print(f"  [{i}/{len(tasks)}] Evaluating {task.rule.name} on {task.segment.file_path}...")
-
-        result = await evaluate_task(task)
-        results.append(result)
+    def on_result(index: int, total: int, result: EvaluationResult) -> None:
+        """Progress callback - handles printing and stats updates."""
+        print(f"  [{index}/{total}] Evaluating {result.rule_name} on {result.file_path}...")
         stats.tasks_evaluated += 1
 
         if result.cost_usd:
             stats.total_cost_usd += result.cost_usd
-
-        # Save evaluation result
-        result_path = evaluations_dir / f"{task.task_id}.json"
-        result_path.write_text(json.dumps(result.to_dict(), indent=2))
 
         if result.evaluation.violates_rule:
             stats.violations_found += 1
@@ -238,7 +232,7 @@ async def run_batch_evaluation(
         else:
             print(f"    ✓  No violation")
 
-    return results
+    return await run_batch_evaluation(tasks, output_dir, on_result=on_result)
 
 
 # ============================================================
@@ -350,7 +344,7 @@ def cmd_analyze(
         )
     else:
         # Batch mode: evaluate all tasks
-        results = asyncio.run(run_batch_evaluation(tasks, output_dir, stats))
+        results = asyncio.run(run_analyze_batch_evaluation(tasks, output_dir, stats))
 
         if stop_after == "evaluate":
             print()

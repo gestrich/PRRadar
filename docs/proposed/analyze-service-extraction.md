@@ -70,44 +70,54 @@ class TaskLoaderService:
 - Both commands maintain original user-facing output
 - `_parse_task_file` returns `None` on parse failure rather than raising—callers silently skip bad files
 
-## - [ ] Phase 2: Consolidate Batch Evaluation in EvaluationService
+## - [x] Phase 2: Consolidate Batch Evaluation in EvaluationService
 
 Move batch evaluation loop into the existing evaluation service.
 
+**Status:** ✅ Completed
+
 **Service type:** Core service (direct API access to Claude SDK)
 
-**Files to modify:**
-- `services/evaluation_service.py` - add batch evaluation function
+**Files modified:**
+- `services/evaluation_service.py` - added `run_batch_evaluation()` function
 
 **Service API additions:**
 ```python
 async def run_batch_evaluation(
     tasks: list[EvaluationTask],
     output_dir: Path,
-    on_result: Callable[[EvaluationResult], None] | None = None,
+    on_result: Callable[[int, int, EvaluationResult], None] | None = None,
 ) -> list[EvaluationResult]:
     """Run evaluations for all tasks.
 
     Args:
         tasks: Tasks to evaluate
-        output_dir: Where to save results
-        on_result: Optional callback for progress (CLI layer handles printing)
+        output_dir: Where to save results (creates 'evaluations' subdirectory)
+        on_result: Optional callback for progress reporting. Called with
+                   (index, total, result) after each evaluation completes.
+                   Index is 1-based. Service does NOT print progress - caller
+                   handles display via this callback.
 
     Returns:
-        List of results. Service does NOT print progress - caller does via callback.
+        List of all evaluation results
     """
 ```
 
 **Skill patterns applied:**
-- **No print() in service**: Current code has `print(f"  [{i}/{len(tasks)}]...")` - this moves to callback
-- **Callback for UI concerns**: `on_result` lets CLI layer handle progress display without service knowing about it
+- **No print() in service**: All progress display moved to callback
+- **Callback for UI concerns**: `on_result` receives `(index, total, result)` so CLI layer can format progress without service knowing about it
 - Service returns data; command layer decides how to display it
+- File I/O (saving results to JSON) stays in service (not a UI concern)
 
-**Logic to consolidate from:**
-- `analyze.py` `run_batch_evaluation()` (lines 200-240)
-- `evaluate.py` `run_evaluations()` (lines 64-120)
+**Files updated to use service:**
+- `commands/agent/analyze.py` - `run_analyze_batch_evaluation()` wraps service, adds stats tracking
+- `commands/agent/evaluate.py` - `run_evaluations()` wraps service, builds `EvaluationSummary`
 
-**Expected outcome:** Single batch evaluation implementation. Commands pass callbacks for progress display.
+**Technical notes:**
+- Callback signature includes `(index, total, result)` rather than just `result` since callers need index for progress display
+- Both command wrappers use `nonlocal` or mutable objects to track running totals in callbacks
+- Service handles directory creation (`evaluations/`) and per-task JSON file writes
+- Summary file writing remains in `cmd_evaluate()` as it's command-specific
 
 ## - [ ] Phase 3: Create ViolationService
 

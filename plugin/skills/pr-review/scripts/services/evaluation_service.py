@@ -10,7 +10,10 @@ Used by:
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
@@ -172,3 +175,45 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
         duration_ms=duration_ms,
         cost_usd=cost_usd,
     )
+
+
+async def run_batch_evaluation(
+    tasks: list[EvaluationTask],
+    output_dir: Path,
+    on_result: Callable[[int, int, EvaluationResult], None] | None = None,
+) -> list[EvaluationResult]:
+    """Run evaluations for all tasks.
+
+    Core service method - handles evaluation and file I/O but no printing.
+    Progress display is delegated to the caller via callback.
+
+    Args:
+        tasks: Tasks to evaluate
+        output_dir: Where to save results (creates 'evaluations' subdirectory)
+        on_result: Optional callback for progress reporting. Called with
+                   (index, total, result) after each evaluation completes.
+                   Index is 1-based. Service does NOT print progress - caller
+                   handles display via this callback.
+
+    Returns:
+        List of all evaluation results
+    """
+    evaluations_dir = output_dir / "evaluations"
+    evaluations_dir.mkdir(parents=True, exist_ok=True)
+
+    results: list[EvaluationResult] = []
+    total = len(tasks)
+
+    for i, task in enumerate(tasks, 1):
+        result = await evaluate_task(task)
+        results.append(result)
+
+        # Save evaluation result to file
+        result_path = evaluations_dir / f"{task.task_id}.json"
+        result_path.write_text(json.dumps(result.to_dict(), indent=2))
+
+        # Notify caller of progress (UI layer handles printing)
+        if on_result:
+            on_result(i, total, result)
+
+    return results
