@@ -203,6 +203,10 @@ async def run_interactive_evaluation(
             result_path = evaluations_dir / f"{task.task_id}.json"
             result_path.write_text(json.dumps(result.to_dict(), indent=2))
 
+            # Print result path and cost
+            cost_str = f", cost: ${result.cost_usd:.4f}" if result.cost_usd else ""
+            print(f"    → {result_path}{cost_str}")
+
             if result.evaluation.violates_rule:
                 stats.violations_found += 1
                 print(f"    ⚠️  Violation (score: {result.evaluation.score})")

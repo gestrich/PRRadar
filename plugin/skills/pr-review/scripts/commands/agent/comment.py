@@ -63,7 +63,7 @@ class CommentableViolation:
             Formatted markdown comment body
         """
         lines = [
-            f"**{self.rule_name}** (score: {self.score})",
+            f"**{self.rule_name}**",
             "",
             self.comment,
         ]
