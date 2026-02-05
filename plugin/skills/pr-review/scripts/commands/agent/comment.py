@@ -24,6 +24,7 @@ from pathlib import Path
 from scripts.domain.agent_outputs import RuleEvaluation
 from scripts.infrastructure.gh_runner import GhCommandRunner
 from scripts.services.github_comment import GitHubCommentService
+from scripts.utils.interactive import print_separator, prompt_yes_no_quit
 
 
 # ============================================================
@@ -46,6 +47,7 @@ class CommentableViolation:
     explanation: str
     suggestion: str
     documentation_link: str | None
+    cost_usd: float | None = None
 
     # --------------------------------------------------------
     # Public API
@@ -71,6 +73,9 @@ class CommentableViolation:
 
         if self.documentation_link:
             lines.extend(["", f"📖 [Learn more]({self.documentation_link})"])
+
+        cost_str = f" (cost ${self.cost_usd:.4f})" if self.cost_usd else ""
+        lines.extend(["", f"*Assisted by [PR Radar](https://github.com/gestrich/PRRadar){cost_str}*"])
 
         return "\n".join(lines)
 
@@ -144,6 +149,7 @@ def load_violations(
                     explanation=evaluation.explanation,
                     suggestion=evaluation.suggestion,
                     documentation_link=documentation_link,
+                    cost_usd=data.get("cost_usd"),
                 )
             )
 
@@ -159,7 +165,7 @@ def load_violations(
 # ============================================================
 
 
-def _prompt_for_comment(
+def prompt_for_comment(
     violation: CommentableViolation,
     index: int,
     total: int,
@@ -174,26 +180,14 @@ def _prompt_for_comment(
     Returns:
         'y' to post, 'n' to skip, 'q' to quit, None on EOF
     """
-    print(f"\n{'─' * 60}")
+    print()
+    print_separator()
     print(f"Comment {index}/{total}: {violation.file_path}:{violation.line_number or '?'}")
-    print(f"{'─' * 60}")
+    print_separator()
     print(violation.compose_comment())
-    print(f"{'─' * 60}")
+    print_separator()
 
-    while True:
-        try:
-            response = input("Post this comment? [y]es / [n]o / [q]uit: ").strip().lower()
-        except EOFError:
-            return None
-
-        if response in ("y", "yes"):
-            return "y"
-        elif response in ("n", "no"):
-            return "n"
-        elif response in ("q", "quit"):
-            return "q"
-        else:
-            print("  Please enter 'y', 'n', or 'q'")
+    return prompt_yes_no_quit("Post this comment?")
 
 
 def post_violations(
@@ -242,7 +236,7 @@ def post_violations(
     for i, v in enumerate(violations, 1):
         # Interactive mode: prompt before posting
         if interactive:
-            response = _prompt_for_comment(v, i, total)
+            response = prompt_for_comment(v, i, total)
             if response is None or response == "q":
                 remaining = total - i + 1
                 skipped += remaining

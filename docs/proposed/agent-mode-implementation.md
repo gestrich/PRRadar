@@ -361,7 +361,59 @@ Post review comments to GitHub from evaluation results.
 - Documentation links are consistently appended (not reliant on model output)
 - Rate limiting is handled gracefully
 
-## [ ] Phase 7: Report Generation Command (`agent report`)
+## [ ] Phase 7: Full Pipeline Command (`agent analyze`)
+
+Create a convenience command that runs the full pipeline.
+
+**Best practices:** Apply skills from [gestrich/python-architecture](https://github.com/gestrich/python-architecture):
+- `cli-architecture` - Command dispatcher, explicit parameter flow
+- `creating-services` - Composite service orchestrating pipeline
+- `python-code-style` - Type annotations, method ordering
+
+**Technical approach:**
+- Chain: diff → rules → evaluate → comment
+- Interactive mode (default): prompt before each task evaluation
+  - Show task info (rule, file, line range, diff preview)
+  - Prompt: evaluate? (y=yes, s=skip, q=quit)
+  - If violation found and not dry-run, prompt to comment
+- Dry-run mode (default): preview comments without posting
+- Support `--stop-after <phase>` for partial execution
+- Support `--skip-to <phase>` to resume from artifacts
+- Display progress summary after each phase
+
+**Files to create:**
+- `plugin/skills/pr-review/scripts/commands/agent/analyze.py` - Full pipeline command
+- `plugin/skills/pr-review/scripts/utils/interactive.py` - Shared interactive prompts
+
+**CLI interface:**
+```bash
+# Default: interactive + dry-run (safest mode)
+python3 -m scripts agent analyze 123 --rules-dir ./rules
+
+# Non-interactive batch mode (still dry-run)
+python3 -m scripts agent analyze 123 --rules-dir ./rules -n
+
+# Actually post comments (requires explicit opt-in)
+python3 -m scripts agent analyze 123 --rules-dir ./rules --no-dry-run
+
+# Non-interactive with actual posting
+python3 -m scripts agent analyze 123 --rules-dir ./rules -n --no-dry-run
+
+# Stop after rules phase
+python3 -m scripts agent analyze 123 --stop-after rules
+
+# Resume from existing artifacts
+python3 -m scripts agent analyze 123 --skip-to evaluate
+```
+
+**Expected outcomes:**
+- Default mode is safe: interactive + dry-run
+- Interactive mode allows skipping task evaluations
+- `--no-dry-run` required to actually post comments
+- Pipeline can be stopped and resumed
+- Progress and cost summary displayed
+
+## [ ] Phase 8: Report Generation Command (`agent report`)
 
 Generate a summary report from evaluation results for human review.
 
@@ -411,41 +463,6 @@ Generate a summary report from evaluation results for human review.
 - `python3 -m scripts agent report 123 --min-score 5` generates filtered report
 - Reports are ready for human review
 - Markdown format is suitable for sharing or archiving
-
-## [ ] Phase 8: Full Pipeline Command (`agent analyze`)
-
-Create a convenience command that runs the full pipeline.
-
-**Best practices:** Apply skills from [gestrich/python-architecture](https://github.com/gestrich/python-architecture):
-- `cli-architecture` - Command dispatcher, explicit parameter flow
-- `creating-services` - Composite service orchestrating pipeline
-- `python-code-style` - Type annotations, method ordering
-
-**Technical approach:**
-- Chain: diff → rules → evaluate → report
-- Support `--stop-after <phase>` for partial execution
-- Support `--skip-to <phase>` to resume from artifacts
-- Display progress summary after each phase
-
-**Files to create:**
-- `plugin/skills/pr-review/scripts/commands/agent/analyze.py` - Full pipeline command
-
-**CLI interface:**
-```bash
-# Full pipeline
-python3 -m scripts agent analyze 123 --rules-dir ./rules
-
-# Stop after rules phase
-python3 -m scripts agent analyze 123 --stop-after rules
-
-# Resume from existing artifacts
-python3 -m scripts agent analyze 123 --skip-to evaluate
-```
-
-**Expected outcomes:**
-- Single command runs entire review pipeline
-- Pipeline can be stopped and resumed
-- Progress is clearly displayed
 
 ## [ ] Phase 9: Validation and Testing
 

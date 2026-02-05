@@ -157,13 +157,30 @@ inspected and debugged independently.
     )
     analyze_parser.add_argument(
         "--stop-after",
-        choices=["diff", "rules", "evaluate", "report"],
+        choices=["diff", "rules", "evaluate"],
         help="Stop after specified phase",
     )
     analyze_parser.add_argument(
         "--skip-to",
-        choices=["rules", "evaluate", "report", "comment"],
+        choices=["rules", "evaluate"],
         help="Skip to specified phase (uses existing artifacts)",
+    )
+    analyze_parser.add_argument(
+        "-n",
+        "--no-interactive",
+        action="store_true",
+        help="Run all evaluations without prompting (default: interactive)",
+    )
+    analyze_parser.add_argument(
+        "--no-dry-run",
+        action="store_true",
+        help="Actually post comments to GitHub (default: dry-run)",
+    )
+    analyze_parser.add_argument(
+        "--min-score",
+        type=int,
+        default=5,
+        help="Minimum score threshold for posting comments (default: 5)",
     )
 
 
@@ -264,17 +281,30 @@ def cmd_agent(args: argparse.Namespace) -> int:
         )
 
     elif args.agent_command == "analyze":
-        rules_dir = args.rules_dir
-        stop_after = args.stop_after
-        skip_to = args.skip_to
-        print(f"[analyze] Running full pipeline for PR #{pr_number}...")
-        print(f"  Rules directory: {rules_dir}")
-        if stop_after:
-            print(f"  Stopping after: {stop_after}")
-        if skip_to:
-            print(f"  Skipping to: {skip_to}")
-        print("  Not implemented yet")
-        return 0
+        from scripts.commands.agent.analyze import cmd_analyze
+
+        # Auto-detect repo
+        from scripts.infrastructure.gh_runner import GhCommandRunner
+
+        gh = GhCommandRunner()
+        success, result = gh.get_repository()
+        if success:
+            repo = f"{result.owner}/{result.name}"
+        else:
+            print("  Error: Could not detect repository.")
+            return 1
+
+        return cmd_analyze(
+            pr_number=pr_number,
+            output_dir=pr_dir,
+            rules_dir=args.rules_dir,
+            repo=repo,
+            interactive=not args.no_interactive,
+            dry_run=not args.no_dry_run,
+            stop_after=args.stop_after,
+            skip_to=args.skip_to,
+            min_score=args.min_score,
+        )
 
     else:
         print(f"Error: Unknown agent command '{args.agent_command}'")

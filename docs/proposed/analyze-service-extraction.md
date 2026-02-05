@@ -1,0 +1,309 @@
+# Analyze Command Service Extraction
+
+## Background
+
+The `analyze.py` command currently contains business logic that duplicates code in other commands (`evaluate.py`, `comment.py`). Following the Service Layer pattern from python-architecture, the analyze command should orchestrate high-level operations by calling services, not implement low-level details itself.
+
+**Reference:** This refactor follows the **creating-services** skill from `gestrich/python-architecture`. Key patterns we'll apply:
+- **Core vs Composite services**: Core services do ONE thing (TaskLoader, Violation), Composite services orchestrate workflows
+- **Constructor injection**: All dependencies via constructor, no defaults, no env var reading in services
+- **Static vs instance methods**: Pure functions (filters, transformations) should be `@staticmethod`
+- **No CLI output in services**: Services return data; commands handle `print()` statements
+
+**Current problems:**
+1. Task loading logic is duplicated between `analyze.py` and `evaluate.py`
+2. Batch evaluation loops exist in both files with similar patterns
+3. `CommentableViolation` creation is done inline in multiple places
+4. Evaluation result file I/O is scattered across commands
+5. Statistics tracking uses different structures (`AnalyzeStats` vs `EvaluationSummary`)
+
+**Goal:** Make `cmd_analyze()` a thin orchestration layer that calls service APIs, with all business logic in services.
+
+## - [ ] Phase 1: Create TaskLoaderService
+
+Extract task loading logic into a dedicated service.
+
+**Service type:** Core service (single responsibility: load tasks from filesystem)
+
+**Files to create:**
+- `services/task_loader_service.py`
+
+**Service API:**
+```python
+class TaskLoaderService:
+    """Load evaluation tasks from JSON files.
+
+    Core service - single responsibility, direct filesystem access.
+    """
+
+    def __init__(self, tasks_dir: Path):
+        """Constructor injection - dependency passed in, not created internally."""
+        self.tasks_dir = tasks_dir
+
+    def load_all(self) -> list[EvaluationTask]:
+        """Load all tasks. Returns empty list if none found (not exceptional)."""
+        ...
+
+    def load_filtered(self, rules_filter: list[str]) -> list[EvaluationTask]:
+        """Load tasks matching rule names."""
+        ...
+
+    @staticmethod
+    def _parse_task_file(file_path: Path) -> EvaluationTask | None:
+        """Static - pure function, no state dependency."""
+        ...
+```
+
+**Skill patterns applied:**
+- Constructor takes `tasks_dir` dependency (no hardcoded paths)
+- Returns empty list for "no tasks" (normal case), raises exception for parse errors (abnormal)
+- `_parse_task_file` is static because it's a pure transformation
+
+**Logic to extract from:**
+- `analyze.py` lines 325-346 (task loading)
+- `evaluate.py` lines 141-166 (task loading + filtering)
+
+**Expected outcome:** Both commands call `TaskLoaderService` instead of duplicating JSON parsing.
+
+## - [ ] Phase 2: Consolidate Batch Evaluation in EvaluationService
+
+Move batch evaluation loop into the existing evaluation service.
+
+**Service type:** Core service (direct API access to Claude SDK)
+
+**Files to modify:**
+- `services/evaluation_service.py` - add batch evaluation function
+
+**Service API additions:**
+```python
+async def run_batch_evaluation(
+    tasks: list[EvaluationTask],
+    output_dir: Path,
+    on_result: Callable[[EvaluationResult], None] | None = None,
+) -> list[EvaluationResult]:
+    """Run evaluations for all tasks.
+
+    Args:
+        tasks: Tasks to evaluate
+        output_dir: Where to save results
+        on_result: Optional callback for progress (CLI layer handles printing)
+
+    Returns:
+        List of results. Service does NOT print progress - caller does via callback.
+    """
+```
+
+**Skill patterns applied:**
+- **No print() in service**: Current code has `print(f"  [{i}/{len(tasks)}]...")` - this moves to callback
+- **Callback for UI concerns**: `on_result` lets CLI layer handle progress display without service knowing about it
+- Service returns data; command layer decides how to display it
+
+**Logic to consolidate from:**
+- `analyze.py` `run_batch_evaluation()` (lines 200-240)
+- `evaluate.py` `run_evaluations()` (lines 64-120)
+
+**Expected outcome:** Single batch evaluation implementation. Commands pass callbacks for progress display.
+
+## - [ ] Phase 3: Create ViolationService
+
+Extract violation creation and filtering logic.
+
+**Service type:** Core service (single responsibility: transform evaluation results to violations)
+
+**Files to create:**
+- `services/violation_service.py`
+
+**Service API:**
+```python
+class ViolationService:
+    """Transform evaluation results into commentable violations.
+
+    Core service - focused on data transformation, no I/O.
+    """
+
+    @staticmethod
+    def create_violation(
+        result: EvaluationResult,
+        task: EvaluationTask,
+    ) -> CommentableViolation:
+        """Static - pure transformation, no state needed."""
+        ...
+
+    @staticmethod
+    def filter_by_score(
+        results: list[EvaluationResult],
+        tasks: list[EvaluationTask],
+        min_score: int,
+    ) -> list[CommentableViolation]:
+        """Static - pure filter function."""
+        ...
+```
+
+**Skill patterns applied:**
+- **All static methods**: These are pure transformations with no state dependency
+- No constructor needed - this service has no dependencies (could be module-level functions, but class groups related operations)
+- **Decision guide**: "Does this service do ONE thing?" → Yes (data transformation) → Core service
+
+**Logic to extract from:**
+- `analyze.py` lines 171-182 (violation creation in interactive mode)
+- `analyze.py` lines 377-396 (violation creation in batch mode)
+- `comment.py` `load_violations()` (loads from files, different use case - keep separate)
+
+**Expected outcome:** Single place for EvaluationResult → CommentableViolation conversion.
+
+## - [ ] Phase 4: Move EvaluationSummary to Domain
+
+The `EvaluationSummary` dataclass is a domain model, not command-specific.
+
+**Related skill:** See **domain-modeling** skill for domain model patterns.
+
+**Files to modify:**
+- Create `domain/evaluation_summary.py` or add to `domain/agent_outputs.py`
+- Update `evaluate.py` to import from domain
+
+**Move:**
+- `EvaluationSummary` dataclass from `evaluate.py`
+
+**Consider `AnalyzeStats`:** This has `print_summary()` which is UI concern. Options:
+1. Keep in command layer (current) - acceptable since it's presentation logic
+2. Split: domain model for data, command layer adds `print_summary(stats)` function
+3. Remove `print_summary()` method, have command format output
+
+**Skill guidance:** "Services return data, commands handle output" - same applies to domain models. Lean toward option 2 or 3.
+
+## - [ ] Phase 5: Refactor analyze.py to Use Services
+
+Update `cmd_analyze()` to use the new services.
+
+**Related skill:** See **cli-architecture** skill for command structure patterns.
+
+**Files to modify:**
+- `commands/agent/analyze.py`
+
+**Changes:**
+1. Replace inline task loading with `TaskLoaderService.load_all()`
+2. Replace `run_batch_evaluation()` with `EvaluationService.run_batch_evaluation()`
+3. Replace inline violation creation with `ViolationService.filter_by_score()`
+4. Keep `run_interactive_evaluation()` in analyze.py (interactive UI logic is command-specific)
+5. Keep `AnalyzeStats` and `prompt_for_task()` (UI concerns belong in command layer)
+
+**Skill patterns applied:**
+- **Entry point instantiates services**: `cmd_analyze()` creates services with dependencies
+- **Command handles output**: All `print()` statements stay in command, not services
+- **Services are stateless**: Create fresh instances per invocation
+
+**Target structure for cmd_analyze():**
+```python
+def cmd_analyze(...):
+    # 1. Initialize services (entry point responsibility)
+    task_loader = TaskLoaderService(output_dir / "tasks")
+    violation_service = ViolationService()
+
+    # Phase 1: Diff
+    cmd_diff(pr_number, output_dir)
+
+    # Phase 2: Rules
+    cmd_rules(pr_number, output_dir, rules_dir)
+
+    # Phase 3: Evaluate
+    tasks = task_loader.load_all()
+    print(f"  Found {len(tasks)} tasks")  # CLI layer handles output
+
+    if interactive:
+        run_interactive_evaluation(tasks, ...)  # UI logic stays here
+    else:
+        # Callback for progress display (CLI concern)
+        def on_result(result):
+            print(f"  Evaluated: {result.rule_name}")
+
+        results = await evaluation_service.run_batch_evaluation(
+            tasks, output_dir, on_result=on_result
+        )
+        violations = ViolationService.filter_by_score(results, tasks, min_score)
+
+        # Phase 4: Comment
+        post_violations(violations, ...)
+```
+
+## - [ ] Phase 6: Refactor evaluate.py to Use Services
+
+Update `cmd_evaluate()` to use the shared services.
+
+**Files to modify:**
+- `commands/agent/evaluate.py`
+
+**Changes:**
+1. Replace inline task loading with `TaskLoaderService` (with optional filter)
+2. Replace `run_evaluations()` with `EvaluationService.run_batch_evaluation()`
+3. Import `EvaluationSummary` from domain
+4. Move all `print()` statements to command layer (remove from any shared code)
+
+**Target structure:**
+```python
+def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | None = None) -> int:
+    # 1. Initialize services
+    task_loader = TaskLoaderService(output_dir / "tasks")
+
+    # 2. Load tasks (service returns data, command prints)
+    if rules_filter:
+        tasks = task_loader.load_filtered(rules_filter)
+        print(f"  Filtered to {len(tasks)} tasks")
+    else:
+        tasks = task_loader.load_all()
+        print(f"  Loaded {len(tasks)} tasks")
+
+    # 3. Run evaluations with progress callback
+    def on_result(i, total, result):
+        status = "⚠️ Violation" if result.evaluation.violates_rule else "✓ OK"
+        print(f"  [{i}/{total}] {result.rule_name}: {status}")
+
+    results = asyncio.run(
+        evaluation_service.run_batch_evaluation(tasks, output_dir, on_result)
+    )
+
+    # 4. Print summary (command layer responsibility)
+    print(f"  Total cost: ${sum(r.cost_usd or 0 for r in results):.4f}")
+```
+
+**Expected outcome:** `evaluate.py` becomes ~50 lines of orchestration.
+
+## - [ ] Phase 7: Validation
+
+**Related skill:** See **testing-services** skill for service testing patterns.
+
+**Unit tests for new services:**
+```python
+# Test TaskLoaderService
+def test_load_all_returns_empty_list_when_no_files():
+    loader = TaskLoaderService(Path("/empty"))
+    assert loader.load_all() == []  # Normal case, not exception
+
+def test_load_filtered_filters_by_rule_name():
+    # Arrange-Act-Assert pattern
+    ...
+
+# Test ViolationService (static methods, easy to test)
+def test_filter_by_score_excludes_low_scores():
+    results = [mock_result(score=3), mock_result(score=7)]
+    violations = ViolationService.filter_by_score(results, tasks, min_score=5)
+    assert len(violations) == 1
+```
+
+**Integration testing:**
+- Test `./agent.sh analyze` with a real PR
+- Test `./agent.sh evaluate` standalone
+- Verify artifacts are identical before/after refactor
+
+**Manual verification:**
+- Interactive mode still prompts correctly
+- Batch mode still evaluates all tasks
+- Comments are posted correctly
+- Statistics are accurate
+
+**Success criteria:**
+- No duplicate code between analyze.py and evaluate.py
+- `cmd_analyze()` is under 100 lines (orchestration only)
+- `cmd_evaluate()` is under 60 lines
+- All business logic lives in services
+- Services have no `print()` statements
+- All services can be unit tested with mocked dependencies
