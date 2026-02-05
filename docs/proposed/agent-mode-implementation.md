@@ -255,7 +255,7 @@ Each task file contains everything needed to evaluate—no additional file reads
 - Each task JSON file is self-contained for evaluation
 - The evaluate command reads task files and sends directly to Claude
 
-## [ ] Phase 5: Rule Evaluation Command (`agent evaluate`)
+## [x] Phase 5: Rule Evaluation Command (`agent evaluate`)
 
 Implement the core review logic using dedicated subagents per rule.
 

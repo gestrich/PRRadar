@@ -5,6 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$HOME/Desktop/code-reviews"
+VENV_DIR="$SCRIPT_DIR/.venv"
 
 # Source .env if it exists (for ANTHROPIC_API_KEY)
 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -18,11 +19,18 @@ if [ -z "$ANTHROPIC_API_KEY" ]; then
     exit 1
 fi
 
+# Check for virtual environment
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Error: Virtual environment not found at $VENV_DIR"
+    echo "Create it with: python3.11 -m venv $VENV_DIR && $VENV_DIR/bin/pip install -r requirements.txt"
+    exit 1
+fi
+
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"
 
 # Set PYTHONPATH to include the scripts directory
 export PYTHONPATH="$SCRIPT_DIR/plugin/skills/pr-review:$PYTHONPATH"
 
-# Run the agent command with output dir and pass all arguments
-python3 -m scripts agent --output-dir "$OUTPUT_DIR" "$@"
+# Run the agent command with output dir and pass all arguments using venv Python
+"$VENV_DIR/bin/python" -m scripts agent --output-dir "$OUTPUT_DIR" "$@"

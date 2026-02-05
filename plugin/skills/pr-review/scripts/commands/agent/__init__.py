@@ -83,6 +83,11 @@ inspected and debugged independently.
         type=int,
         help="PR number to evaluate",
     )
+    evaluate_parser.add_argument(
+        "--rules",
+        nargs="+",
+        help="Only evaluate specific rules (by name)",
+    )
 
     # report command
     report_parser = agent_subparsers.add_parser(
@@ -196,9 +201,13 @@ def cmd_agent(args: argparse.Namespace) -> int:
         )
 
     elif args.agent_command == "evaluate":
-        print(f"[evaluate] Running evaluations for PR #{pr_number}...")
-        print("  Not implemented yet")
-        return 0
+        from scripts.commands.agent.evaluate import cmd_evaluate
+
+        return cmd_evaluate(
+            pr_number=pr_number,
+            output_dir=pr_dir,
+            rules_filter=args.rules,
+        )
 
     elif args.agent_command == "report":
         min_score = args.min_score

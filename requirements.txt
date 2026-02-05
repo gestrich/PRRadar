@@ -9,6 +9,7 @@
 #
 # External Dependencies (for agent mode):
 claude-agent-sdk
+pyyaml
 
 # Standard library modules also used:
 # - argparse: Command-line argument parsing
