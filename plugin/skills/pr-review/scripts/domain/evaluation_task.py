@@ -134,15 +134,19 @@ class EvaluationTask:
         The output is self-contained—includes full rule content and
         segment text, ready for Claude evaluation.
         """
+        rule_dict = {
+            "name": self.rule.name,
+            "description": self.rule.description,
+            "category": self.rule.category,
+            "model": self.rule.model,
+            "content": self.rule.content,
+        }
+        if self.rule.documentation_link:
+            rule_dict["documentation_link"] = self.rule.documentation_link
+
         return {
             "task_id": self.task_id,
-            "rule": {
-                "name": self.rule.name,
-                "description": self.rule.description,
-                "category": self.rule.category,
-                "model": self.rule.model,
-                "content": self.rule.content,
-            },
+            "rule": rule_dict,
             "segment": self.segment.to_dict(),
         }
 

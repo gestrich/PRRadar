@@ -117,6 +117,17 @@ inspected and debugged independently.
         help="PR number to post comments to",
     )
     comment_parser.add_argument(
+        "--repo",
+        type=str,
+        help="Repository in owner/repo format (auto-detected if not provided)",
+    )
+    comment_parser.add_argument(
+        "--min-score",
+        type=int,
+        default=5,
+        help="Minimum score threshold for posting (default: 5)",
+    )
+    comment_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Preview comments without posting",
@@ -216,11 +227,28 @@ def cmd_agent(args: argparse.Namespace) -> int:
         return 0
 
     elif args.agent_command == "comment":
-        dry_run = args.dry_run
-        mode = "dry-run" if dry_run else "live"
-        print(f"[comment] Posting comments for PR #{pr_number} ({mode})...")
-        print("  Not implemented yet")
-        return 0
+        from scripts.commands.agent.comment import cmd_comment
+
+        # Get repo from args or auto-detect
+        repo = args.repo
+        if not repo:
+            from scripts.infrastructure.gh_runner import GhCommandRunner
+
+            gh = GhCommandRunner()
+            success, result = gh.get_repository()
+            if success:
+                repo = f"{result.owner}/{result.name}"
+            else:
+                print("  Error: Could not detect repository. Use --repo to specify.")
+                return 1
+
+        return cmd_comment(
+            pr_number=pr_number,
+            output_dir=pr_dir,
+            repo=repo,
+            min_score=args.min_score,
+            dry_run=args.dry_run,
+        )
 
     elif args.agent_command == "analyze":
         rules_dir = args.rules_dir

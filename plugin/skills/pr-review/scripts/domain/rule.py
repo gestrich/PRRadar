@@ -161,7 +161,7 @@ class Rule:
     """A code review rule loaded from a markdown file.
 
     Rules consist of:
-    - Metadata from YAML frontmatter (description, category, applies_to, grep, model)
+    - Metadata from YAML frontmatter (description, category, applies_to, grep, model, documentation_link)
     - Content from the markdown body (instructions for evaluation)
     """
 
@@ -173,6 +173,7 @@ class Rule:
     grep: GrepPatterns
     content: str
     model: str | None = None
+    documentation_link: str | None = None
 
     # --------------------------------------------------------
     # Factory Methods
@@ -203,6 +204,7 @@ class Rule:
             grep=GrepPatterns.from_dict(frontmatter.get("grep")),
             content=content.strip(),
             model=frontmatter.get("model"),
+            documentation_link=frontmatter.get("documentation_link"),
         )
 
     @classmethod
@@ -224,6 +226,7 @@ class Rule:
             grep=GrepPatterns.from_dict(data.get("grep")),
             content=data.get("content", ""),
             model=data.get("model"),
+            documentation_link=data.get("documentation_link"),
         )
 
     # --------------------------------------------------------
@@ -242,6 +245,9 @@ class Rule:
 
         if self.model:
             result["model"] = self.model
+
+        if self.documentation_link:
+            result["documentation_link"] = self.documentation_link
 
         if self.applies_to.file_extensions:
             result["applies_to"] = {

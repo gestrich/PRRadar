@@ -179,7 +179,7 @@ Implement the `agent diff` command that fetches and stores PR diff, summary, and
 - ✅ Artifacts are human-readable and inspectable (raw GitHub JSON)
 - ✅ Command is idempotent (re-running overwrites cleanly)
 
-## [ ] Phase 4: Rule Collection and Filtering Command (`agent rules`)
+## [x] Phase 4: Rule Collection and Filtering Command (`agent rules`)
 
 Implement rule collection and deterministic filtering based on file extensions and regex patterns. No AI is involved in this phase—filtering is purely based on rule metadata.
 
@@ -202,6 +202,7 @@ Implement rule collection and deterministic filtering based on file extensions a
 description: Handle errors explicitly
 category: safety
 model: claude-sonnet-4-20250514        # optional - Claude model for evaluation
+documentation_link: https://example.com/rules/error-handling  # optional - link to rule docs
 applies_to:
   file_extensions: [".py", ".js"]     # file extension filter
 grep:
@@ -209,6 +210,10 @@ grep:
   any: ["try", "except", "\\.catch\\("]  # regex patterns - ANY must match
 ---
 ```
+
+**Rule markdown body sections:**
+- Main content: Instructions for evaluation (what to check, examples)
+- `## GitHub Comment`: Template text for PR comments (Claude adapts this to specific violations)
 
 **Filtering logic:**
 - A rule applies to a diff segment if:
@@ -287,12 +292,20 @@ Implement the core review logic using dedicated subagents per rule.
     "score": {"type": "integer", "minimum": 1, "maximum": 10},
     "explanation": {"type": "string"},
     "suggestion": {"type": "string"},
+    "github_comment": {"type": "string"},
     "file_path": {"type": "string"},
     "line_number": {"type": "integer"}
   },
-  "required": ["violates_rule", "score", "explanation"]
+  "required": ["violates_rule", "score", "explanation", "github_comment"]
 }
 ```
+
+**Field semantics:**
+- `explanation`: Internal reasoning about why code violates or complies with the rule
+- `suggestion`: Specific code fix recommendation
+- `github_comment`: The actual comment text to post on GitHub (Claude adapts from rule's `## GitHub Comment` template)
+
+Rule files include a `## GitHub Comment` section with a template that Claude adapts to the specific violation context. The rule's `documentation_link` frontmatter field (if present) is appended programmatically by the comment command—not included in the structured output—to ensure consistent formatting.
 
 **Expected outcomes:**
 - `python3 -m scripts agent evaluate 123` runs all rule evaluations
@@ -300,7 +313,7 @@ Implement the core review logic using dedicated subagents per rule.
 - Progress is displayed during evaluation
 - Individual evaluation results can be inspected
 
-## [ ] Phase 6: GitHub Commenting Command (`agent comment`)
+## [x] Phase 6: GitHub Commenting Command (`agent comment`)
 
 Post review comments to GitHub from evaluation results.
 
@@ -311,13 +324,26 @@ Post review comments to GitHub from evaluation results.
 
 **Technical approach:**
 - Read evaluation results from `evaluations/` directory
+- Read rule metadata from `tasks/` directory (for `documentation_link`)
 - Filter violations by score threshold (default: score >= 5)
+- **Compose final comment**: Combine `github_comment` from evaluation with `documentation_link` from rule
+  ```
+  {github_comment}
+
+  📖 [Learn more]({documentation_link})
+  ```
 - Use existing `GitHubCommentService` infrastructure
 - Support modes:
   - Individual inline comments per violation
   - Single summary comment with all violations
   - Dry-run mode to preview without posting
 - Handle rate limiting and error recovery
+
+**Comment composition logic:**
+1. Get `github_comment` from evaluation result (Claude-generated, adapted from rule template)
+2. Get `documentation_link` from rule metadata (if present)
+3. Programmatically append documentation link to ensure consistent formatting
+4. Post composed comment to GitHub at the specified file/line
 
 **Files to create:**
 - `plugin/skills/pr-review/scripts/commands/agent/comment.py` - Comment command
@@ -330,7 +356,7 @@ Post review comments to GitHub from evaluation results.
 - `python3 -m scripts agent comment 123` posts review comments
 - `--dry-run` shows what would be posted without posting
 - `--min-score` filters which violations to post
-- Comments link to documentation when available
+- Documentation links are consistently appended (not reliant on model output)
 - Rate limiting is handled gracefully
 
 ## [ ] Phase 7: Report Generation Command (`agent report`)
