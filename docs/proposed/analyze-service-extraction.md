@@ -198,59 +198,35 @@ The `EvaluationSummary` dataclass is a domain model, not command-specific.
 - Used `TYPE_CHECKING` import to avoid circular dependencies between domain and service layers
 - `EvaluationResult` could be moved to domain in a future refactoring phase
 
-## - [ ] Phase 5: Refactor analyze.py to Use Services
+## - [x] Phase 5: Refactor analyze.py to Use Services
 
 Update `cmd_analyze()` to use the new services.
 
+**Status:** ✅ Completed
+
 **Related skill:** See **cli-architecture** skill for command structure patterns.
 
-**Files to modify:**
+**Files modified:**
 - `commands/agent/analyze.py`
 
-**Changes:**
-1. Replace inline task loading with `TaskLoaderService.load_all()`
-2. Replace `run_batch_evaluation()` with `EvaluationService.run_batch_evaluation()`
-3. Replace inline violation creation with `ViolationService.filter_by_score()`
-4. Keep `run_interactive_evaluation()` in analyze.py (interactive UI logic is command-specific)
-5. Keep `AnalyzeStats` and `prompt_for_task()` (UI concerns belong in command layer)
+**Changes verified:**
+1. ✅ Uses `TaskLoaderService.load_all()` for task loading (line 308-309)
+2. ✅ Uses `run_batch_evaluation()` from evaluation_service (imported at line 27-28, used via `run_analyze_batch_evaluation`)
+3. ✅ Uses `ViolationService.filter_by_score()` for batch mode violations (line 350)
+4. ✅ Uses `ViolationService.create_violation()` for interactive mode (line 171)
+5. ✅ Keeps `run_interactive_evaluation()` in analyze.py (interactive UI logic)
+6. ✅ Keeps `AnalyzeStats` and `prompt_for_task()` (UI concerns in command layer)
 
 **Skill patterns applied:**
-- **Entry point instantiates services**: `cmd_analyze()` creates services with dependencies
+- **Entry point instantiates services**: `cmd_analyze()` creates `TaskLoaderService` with dependency
 - **Command handles output**: All `print()` statements stay in command, not services
-- **Services are stateless**: Create fresh instances per invocation
+- **Services are stateless**: Fresh `TaskLoaderService` instance per invocation
+- **Callback for UI concerns**: `run_analyze_batch_evaluation` uses callback for progress display
 
-**Target structure for cmd_analyze():**
-```python
-def cmd_analyze(...):
-    # 1. Initialize services (entry point responsibility)
-    task_loader = TaskLoaderService(output_dir / "tasks")
-    violation_service = ViolationService()
-
-    # Phase 1: Diff
-    cmd_diff(pr_number, output_dir)
-
-    # Phase 2: Rules
-    cmd_rules(pr_number, output_dir, rules_dir)
-
-    # Phase 3: Evaluate
-    tasks = task_loader.load_all()
-    print(f"  Found {len(tasks)} tasks")  # CLI layer handles output
-
-    if interactive:
-        run_interactive_evaluation(tasks, ...)  # UI logic stays here
-    else:
-        # Callback for progress display (CLI concern)
-        def on_result(result):
-            print(f"  Evaluated: {result.rule_name}")
-
-        results = await evaluation_service.run_batch_evaluation(
-            tasks, output_dir, on_result=on_result
-        )
-        violations = ViolationService.filter_by_score(results, tasks, min_score)
-
-        # Phase 4: Comment
-        post_violations(violations, ...)
-```
+**Technical notes:**
+- The `run_analyze_batch_evaluation()` wrapper (lines 189-222) serves as the UI adapter between the service's callback interface and the `AnalyzeStats` tracking
+- `ViolationService` has only static methods, so no instance is created (called as `ViolationService.create_violation()`)
+- The phase flow (diff → rules → evaluate → comment) uses `stop_after` and `skip_to` for partial execution
 
 ## - [ ] Phase 6: Refactor evaluate.py to Use Services
 
