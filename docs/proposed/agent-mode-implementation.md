@@ -300,9 +300,42 @@ Implement the core review logic using dedicated subagents per rule.
 - Progress is displayed during evaluation
 - Individual evaluation results can be inspected
 
-## [ ] Phase 6: Report Generation Command (`agent report`)
+## [ ] Phase 6: GitHub Commenting Command (`agent comment`)
 
-Generate the final review report from evaluation results.
+Post review comments to GitHub from evaluation results.
+
+**Best practices:** Apply skills from [gestrich/python-architecture](https://github.com/gestrich/python-architecture):
+- `creating-services` - Reuse existing GitHubCommentService
+- `dependency-injection` - Inject service dependencies
+- `python-code-style` - Type annotations, method ordering
+
+**Technical approach:**
+- Read evaluation results from `evaluations/` directory
+- Filter violations by score threshold (default: score >= 5)
+- Use existing `GitHubCommentService` infrastructure
+- Support modes:
+  - Individual inline comments per violation
+  - Single summary comment with all violations
+  - Dry-run mode to preview without posting
+- Handle rate limiting and error recovery
+
+**Files to create:**
+- `plugin/skills/pr-review/scripts/commands/agent/comment.py` - Comment command
+
+**Reuse existing code:**
+- `services/github_comment.py` - `GitHubCommentService` for posting
+- `infrastructure/gh_runner.py` - GitHub API interactions
+
+**Expected outcomes:**
+- `python3 -m scripts agent comment 123` posts review comments
+- `--dry-run` shows what would be posted without posting
+- `--min-score` filters which violations to post
+- Comments link to documentation when available
+- Rate limiting is handled gracefully
+
+## [ ] Phase 7: Report Generation Command (`agent report`)
+
+Generate a summary report from evaluation results for human review.
 
 **Best practices:** Apply skills from [gestrich/python-architecture](https://github.com/gestrich/python-architecture):
 - `domain-modeling` - Report domain model with factory methods
@@ -349,38 +382,7 @@ Generate the final review report from evaluation results.
 **Expected outcomes:**
 - `python3 -m scripts agent report 123 --min-score 5` generates filtered report
 - Reports are ready for human review
-- Markdown format is suitable for GitHub PR comments
-
-## [ ] Phase 7: GitHub Commenting Command (`agent comment`)
-
-Post review comments to GitHub from the generated report.
-
-**Best practices:** Apply skills from [gestrich/python-architecture](https://github.com/gestrich/python-architecture):
-- `creating-services` - Reuse existing GitHubCommentService
-- `dependency-injection` - Inject service dependencies
-- `python-code-style` - Type annotations, method ordering
-
-**Technical approach:**
-- Read report from previous phase
-- Use existing `GitHubCommentService` infrastructure
-- Support modes:
-  - Individual inline comments per violation
-  - Single summary comment with all violations
-  - Dry-run mode to preview without posting
-- Handle rate limiting and error recovery
-
-**Files to create:**
-- `plugin/skills/pr-review/scripts/commands/agent/comment.py` - Comment command
-
-**Reuse existing code:**
-- `services/github_comment.py` - `GitHubCommentService` for posting
-- `infrastructure/gh_runner.py` - GitHub API interactions
-
-**Expected outcomes:**
-- `python3 -m scripts agent comment 123` posts review comments
-- `--dry-run` shows what would be posted without posting
-- Comments link to documentation when available
-- Rate limiting is handled gracefully
+- Markdown format is suitable for sharing or archiving
 
 ## [ ] Phase 8: Full Pipeline Command (`agent analyze`)
 
