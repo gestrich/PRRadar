@@ -89,7 +89,7 @@ python3 -m scripts agent comment <pr-number> [--dry-run]
 - Help text documents all agent commands
 - Output directory structure is created automatically
 
-## [ ] Phase 2: Domain Models for Structured Outputs
+## [x] Phase 2: Domain Models for Structured Outputs
 
 Define domain models that generate JSON schemas for Claude Agent SDK structured outputs.
 

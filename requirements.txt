@@ -1,8 +1,5 @@
 # Python Dependencies for PRRadar Code Review
 #
-# This project uses only Python standard library modules.
-# No external Python packages are required.
-#
 # Python version: 3.11 or higher (as specified in GitHub Actions)
 #
 # System Dependencies (must be installed separately):
@@ -10,7 +7,10 @@
 # - gh: GitHub CLI for API interactions
 #   Install via: brew install gh (macOS) or see https://cli.github.com/
 #
-# Standard library modules used:
+# External Dependencies (for agent mode):
+claude-agent-sdk
+
+# Standard library modules also used:
 # - argparse: Command-line argument parsing
 # - dataclasses: Data class definitions
 # - json: JSON serialization/deserialization
