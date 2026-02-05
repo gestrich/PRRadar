@@ -21,6 +21,8 @@ from scripts.commands.agent.comment import (
     prompt_for_comment,
 )
 from scripts.commands.agent.diff import cmd_diff
+from scripts.infrastructure.gh_runner import GhCommandRunner
+from scripts.services.github_comment import GitHubCommentService
 from scripts.services.evaluation_service import (
     EvaluationResult,
     evaluate_task,
@@ -30,7 +32,7 @@ from scripts.commands.agent.rules import cmd_rules
 from scripts.domain.evaluation_task import EvaluationTask
 from scripts.services.task_loader_service import TaskLoaderService
 from scripts.services.violation_service import ViolationService
-from scripts.utils.interactive import print_separator, prompt_yes_skip_quit
+from scripts.utils.interactive import print_separator, prompt_yes_no_quit
 
 
 # ============================================================
@@ -77,36 +79,62 @@ class AnalyzeStats:
 # ============================================================
 
 
-def prompt_for_task(task: EvaluationTask, index: int, total: int) -> str | None:
-    """Prompt user to evaluate, skip, or quit for a task.
+def group_tasks_by_segment(
+    tasks: list[EvaluationTask],
+) -> list[tuple[EvaluationTask, list[EvaluationTask]]]:
+    """Group tasks by their code segment.
 
     Args:
-        task: The evaluation task to prompt for
-        index: Current index (1-based)
-        total: Total number of tasks
+        tasks: List of evaluation tasks (already sorted by file/line)
 
     Returns:
-        'y' to evaluate, 's' to skip, 'q' to quit, None on EOF
+        List of (representative_task, all_tasks_for_segment) tuples
+    """
+    from collections import OrderedDict
+
+    # Group by segment content hash (unique identifier for segment)
+    groups: OrderedDict[str, list[EvaluationTask]] = OrderedDict()
+    for task in tasks:
+        key = task.segment.content_hash()
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(task)
+
+    # Return as list of (first_task, all_tasks) for display
+    return [(tasks_list[0], tasks_list) for tasks_list in groups.values()]
+
+
+def prompt_for_segment(
+    task: EvaluationTask,
+    rules: list[str],
+    index: int,
+    total: int,
+) -> str | None:
+    """Prompt user to evaluate a segment with all its rules.
+
+    Args:
+        task: Representative task (for segment info)
+        rules: List of rule names that apply to this segment
+        index: Current index (1-based)
+        total: Total number of segments
+
+    Returns:
+        'y' to evaluate, 'n' to skip, 'q' to quit, None on EOF
     """
     print()
     print_separator("=")
-    print(f"Task {index}/{total}")
+    print(f"Segment {index}/{total}")
     print_separator("=")
-    print(f"  Rule: {task.rule.name}")
-    print(f"  Description: {task.rule.description}")
     print(f"  File: {task.segment.file_path}")
     print(f"  Lines: {task.segment.start_line}-{task.segment.end_line}")
+    print(f"  Rules: {', '.join(rules)}")
     print_separator("-")
-    # Show a preview of the diff content (first few lines)
-    content_lines = task.segment.content.split("\n")
-    preview_lines = content_lines[:10]
-    for line in preview_lines:
+    # Show full diff content
+    for line in task.segment.content.split("\n"):
         print(f"  {line}")
-    if len(content_lines) > 10:
-        print(f"  ... ({len(content_lines) - 10} more lines)")
     print_separator("-")
 
-    return prompt_yes_skip_quit("Evaluate this task?")
+    return prompt_yes_no_quit("Evaluate this segment?")
 
 
 # ============================================================
@@ -121,7 +149,10 @@ async def run_interactive_evaluation(
     repo: str,
     stats: AnalyzeStats,
 ) -> None:
-    """Run evaluations interactively, prompting for each task.
+    """Run evaluations interactively, prompting for each segment.
+
+    Groups tasks by segment and prompts once per segment. When approved,
+    evaluates all rules for that segment.
 
     Args:
         tasks: List of evaluation tasks
@@ -133,57 +164,76 @@ async def run_interactive_evaluation(
     evaluations_dir = output_dir / "evaluations"
     evaluations_dir.mkdir(parents=True, exist_ok=True)
 
-    total = len(tasks)
+    # Group tasks by segment
+    segment_groups = group_tasks_by_segment(tasks)
+    total_segments = len(segment_groups)
 
-    for i, task in enumerate(tasks, 1):
-        # Prompt for this task
-        response = prompt_for_task(task, i, total)
+    for i, (representative, segment_tasks) in enumerate(segment_groups, 1):
+        rules = [t.rule.name for t in segment_tasks]
+
+        # Prompt for this segment
+        response = prompt_for_segment(representative, rules, i, total_segments)
 
         if response is None or response == "q":
-            remaining = total - i + 1
-            stats.tasks_skipped += remaining
-            print(f"\n  Quit. Skipped {remaining} remaining task(s).")
+            # Count remaining tasks across all remaining segments
+            remaining_tasks = sum(
+                len(grp[1]) for grp in segment_groups[i - 1 :]
+            )
+            stats.tasks_skipped += remaining_tasks
+            print(f"\n  Quit. Skipped {remaining_tasks} remaining task(s).")
             break
 
-        if response == "s":
-            print("  Skipped.")
-            stats.tasks_skipped += 1
+        if response == "n":
+            print(f"  Skipped {len(segment_tasks)} rule(s).")
+            stats.tasks_skipped += len(segment_tasks)
             continue
 
-        # Evaluate the task
-        print(f"  Evaluating...")
-        result = await evaluate_task(task)
-        stats.tasks_evaluated += 1
+        # Evaluate all rules for this segment
+        violations_for_segment = []
 
-        if result.cost_usd:
-            stats.total_cost_usd += result.cost_usd
+        for task in segment_tasks:
+            print(f"  Evaluating rule: {task.rule.name}...")
+            result = await evaluate_task(task)
+            stats.tasks_evaluated += 1
 
-        # Save evaluation result
-        result_path = evaluations_dir / f"{task.task_id}.json"
-        result_path.write_text(json.dumps(result.to_dict(), indent=2))
+            if result.cost_usd:
+                stats.total_cost_usd += result.cost_usd
 
-        if result.evaluation.violates_rule:
-            stats.violations_found += 1
-            print(f"  ⚠️  Violation found (score: {result.evaluation.score})")
-            print(f"  {result.evaluation.explanation[:100]}...")
+            # Save evaluation result
+            result_path = evaluations_dir / f"{task.task_id}.json"
+            result_path.write_text(json.dumps(result.to_dict(), indent=2))
 
-            # Create violation for commenting
-            violation = ViolationService.create_violation(result, task)
-
-            # Prompt to post comment
-            comment_response = prompt_for_comment(violation, 1, 1)
-
-            if comment_response == "y":
-                posted, failed, _ = post_violations(
-                    [violation], pr_number, repo, dry_run=False, interactive=False
-                )
-                stats.comments_posted += posted
-                stats.comments_failed += failed
+            if result.evaluation.violates_rule:
+                stats.violations_found += 1
+                print(f"    ⚠️  Violation (score: {result.evaluation.score})")
+                violation = ViolationService.create_violation(result, task)
+                violations_for_segment.append(violation)
             else:
-                print("  Comment skipped.")
-                stats.comments_skipped += 1
-        else:
-            print(f"  ✓ No violation")
+                print(f"    ✓ No violation")
+
+        # Prompt to post comments for any violations found
+        if violations_for_segment:
+            print()
+            for vi, violation in enumerate(violations_for_segment, 1):
+                comment_response = prompt_for_comment(
+                    violation, vi, len(violations_for_segment)
+                )
+
+                if comment_response is None or comment_response == "q":
+                    remaining = len(violations_for_segment) - vi + 1
+                    stats.comments_skipped += remaining
+                    print(f"  Skipped {remaining} remaining comment(s).")
+                    break
+
+                if comment_response == "y":
+                    posted, failed, _ = post_violations(
+                        [violation], pr_number, repo, dry_run=False, interactive=False
+                    )
+                    stats.comments_posted += posted
+                    stats.comments_failed += failed
+                else:
+                    print("  Comment skipped.")
+                    stats.comments_skipped += 1
 
 
 async def run_analyze_batch_evaluation(
@@ -263,9 +313,22 @@ def cmd_analyze(
     mode_str = ", ".join(modes) if modes else "live"
 
     print(f"[analyze] Running full pipeline for PR #{pr_number} ({mode_str})...")
+    print(f"  Repository: {repo}")
     print(f"  Rules directory: {rules_dir}")
     print(f"  Output directory: {output_dir}")
     print()
+
+    # Validate PR exists in repo before starting (interactive mode can post comments)
+    if interactive or not dry_run:
+        gh = GhCommandRunner(dry_run=False)
+        comment_service = GitHubCommentService(repo=repo, gh=gh)
+        commit_sha = comment_service.get_pr_head_sha(pr_number)
+        if not commit_sha:
+            print(f"  Error: PR #{pr_number} not found in {repo}")
+            print("  Check the PR number and --repo argument.")
+            return 1
+        print(f"  PR validated (HEAD: {commit_sha[:8]})")
+        print()
 
     stats = AnalyzeStats()
 
@@ -319,7 +382,8 @@ def cmd_analyze(
         return 0
 
     stats.tasks_total = len(tasks)
-    print(f"  Found {len(tasks)} evaluation tasks")
+    segment_groups = group_tasks_by_segment(tasks)
+    print(f"  Found {len(segment_groups)} segments, {len(tasks)} total evaluations")
     print()
 
     if interactive:

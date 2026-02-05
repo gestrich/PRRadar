@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 class AppliesTo:
     """Criteria for when a rule applies to code."""
 
-    file_extensions: list[str] = field(default_factory=list)
+    file_patterns: list[str] = field(default_factory=list)
+    exclude_patterns: list[str] = field(default_factory=list)
 
     # --------------------------------------------------------
     # Factory Methods
@@ -49,7 +50,8 @@ class AppliesTo:
             return cls()
 
         return cls(
-            file_extensions=data.get("file_extensions", []),
+            file_patterns=data.get("file_patterns", []),
+            exclude_patterns=data.get("exclude_patterns", []),
         )
 
     # --------------------------------------------------------
@@ -63,12 +65,21 @@ class AppliesTo:
             file_path: Path to check (e.g., "src/api/handler.py")
 
         Returns:
-            True if the file matches, or if no criteria are specified
+            True if the file matches and is not excluded
         """
-        if not self.file_extensions:
+        import fnmatch
+
+        # Check exclusions first - if excluded, always return False
+        if self.exclude_patterns:
+            if any(fnmatch.fnmatch(file_path, pattern) for pattern in self.exclude_patterns):
+                return False
+
+        # If no include patterns specified, match everything (that wasn't excluded)
+        if not self.file_patterns:
             return True
 
-        return any(file_path.endswith(ext) for ext in self.file_extensions)
+        # Check file_patterns (glob patterns like "*.swift" or "ffm/**/*.swift")
+        return any(fnmatch.fnmatch(file_path, pattern) for pattern in self.file_patterns)
 
 
 @dataclass
@@ -249,10 +260,13 @@ class Rule:
         if self.documentation_link:
             result["documentation_link"] = self.documentation_link
 
-        if self.applies_to.file_extensions:
-            result["applies_to"] = {
-                "file_extensions": self.applies_to.file_extensions,
-            }
+        if self.applies_to.file_patterns or self.applies_to.exclude_patterns:
+            applies_to_dict: dict = {}
+            if self.applies_to.file_patterns:
+                applies_to_dict["file_patterns"] = self.applies_to.file_patterns
+            if self.applies_to.exclude_patterns:
+                applies_to_dict["exclude_patterns"] = self.applies_to.exclude_patterns
+            result["applies_to"] = applies_to_dict
 
         if self.grep.has_patterns():
             grep_dict: dict = {}

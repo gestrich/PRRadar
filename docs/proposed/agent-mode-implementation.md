@@ -361,7 +361,7 @@ Post review comments to GitHub from evaluation results.
 - Documentation links are consistently appended (not reliant on model output)
 - Rate limiting is handled gracefully
 
-## [ ] Phase 7: Full Pipeline Command (`agent analyze`)
+## [x] Phase 7: Full Pipeline Command (`agent analyze`)
 
 Create a convenience command that runs the full pipeline.
 

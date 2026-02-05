@@ -182,6 +182,11 @@ inspected and debugged independently.
         default=5,
         help="Minimum score threshold for posting comments (default: 5)",
     )
+    analyze_parser.add_argument(
+        "--repo",
+        type=str,
+        help="Repository in owner/repo format (auto-detected if not provided)",
+    )
 
 
 def ensure_output_dir(output_dir: str, pr_number: int) -> Path:
@@ -283,16 +288,18 @@ def cmd_agent(args: argparse.Namespace) -> int:
     elif args.agent_command == "analyze":
         from scripts.commands.agent.analyze import cmd_analyze
 
-        # Auto-detect repo
-        from scripts.infrastructure.gh_runner import GhCommandRunner
+        # Get repo from args or auto-detect
+        repo = args.repo
+        if not repo:
+            from scripts.infrastructure.gh_runner import GhCommandRunner
 
-        gh = GhCommandRunner()
-        success, result = gh.get_repository()
-        if success:
-            repo = f"{result.owner}/{result.name}"
-        else:
-            print("  Error: Could not detect repository.")
-            return 1
+            gh = GhCommandRunner()
+            success, result = gh.get_repository()
+            if success:
+                repo = f"{result.owner}/{result.name}"
+            else:
+                print("  Error: Could not detect repository. Use --repo to specify.")
+                return 1
 
         return cmd_analyze(
             pr_number=pr_number,

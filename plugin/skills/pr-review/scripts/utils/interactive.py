@@ -92,24 +92,6 @@ def prompt_yes_no_quit(message: str, default: str | None = None) -> str | None:
     return prompt_choice(message, choices, default)
 
 
-def prompt_yes_skip_quit(message: str, default: str | None = None) -> str | None:
-    """Prompt user with yes/skip/quit options.
-
-    Args:
-        message: The prompt message to display
-        default: Default choice ('y', 's', or 'q')
-
-    Returns:
-        'y', 's', 'q', or None on EOF
-    """
-    choices = [
-        PromptChoice("y", "yes", "Proceed with action"),
-        PromptChoice("s", "skip", "Skip this item"),
-        PromptChoice("q", "quit", "Stop processing"),
-    ]
-    return prompt_choice(message, choices, default)
-
-
 # ============================================================
 # Display Functions
 # ============================================================

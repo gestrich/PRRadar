@@ -683,48 +683,48 @@ class TestGrepFiltering(unittest.TestCase):
 class TestFilePathFiltering(unittest.TestCase):
     """Tests for file path/extension filtering on rules."""
 
-    def test_objc_extensions_match_header(self):
-        """Test .h extension matches Objective-C rule."""
+    def test_objc_patterns_match_header(self):
+        """Test *.h pattern matches Objective-C rule."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+        applies_to = AppliesTo(file_patterns=["*.h", "*.m", "*.mm"])
 
         self.assertTrue(applies_to.matches_file("src/FFLogger.h"))
         self.assertTrue(applies_to.matches_file("path/to/deep/File.h"))
 
-    def test_objc_extensions_match_implementation(self):
-        """Test .m and .mm extensions match Objective-C rule."""
+    def test_objc_patterns_match_implementation(self):
+        """Test *.m and *.mm patterns match Objective-C rule."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+        applies_to = AppliesTo(file_patterns=["*.h", "*.m", "*.mm"])
 
         self.assertTrue(applies_to.matches_file("src/FFLogger.m"))
         self.assertTrue(applies_to.matches_file("src/FFBridge.mm"))
 
-    def test_objc_extensions_reject_swift(self):
+    def test_objc_patterns_reject_swift(self):
         """Test Swift files don't match Objective-C rule."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+        applies_to = AppliesTo(file_patterns=["*.h", "*.m", "*.mm"])
 
         self.assertFalse(applies_to.matches_file("src/FFLogger.swift"))
         self.assertFalse(applies_to.matches_file("Package.swift"))
 
-    def test_objc_extensions_reject_other_languages(self):
+    def test_objc_patterns_reject_other_languages(self):
         """Test other language files don't match Objective-C rule."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+        applies_to = AppliesTo(file_patterns=["*.h", "*.m", "*.mm"])
 
         self.assertFalse(applies_to.matches_file("src/main.py"))
         self.assertFalse(applies_to.matches_file("src/index.js"))
         self.assertFalse(applies_to.matches_file("src/Handler.java"))
 
-    def test_empty_extensions_matches_all(self):
-        """Test empty file_extensions matches all files."""
+    def test_empty_patterns_matches_all(self):
+        """Test empty file_patterns matches all files."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[])
+        applies_to = AppliesTo(file_patterns=[])
 
         self.assertTrue(applies_to.matches_file("anything.txt"))
         self.assertTrue(applies_to.matches_file("src/code.py"))
@@ -734,20 +734,57 @@ class TestFilePathFiltering(unittest.TestCase):
         """Test files without extensions."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[".py", ".swift"])
+        applies_to = AppliesTo(file_patterns=["*.py", "*.swift"])
 
         self.assertFalse(applies_to.matches_file("Makefile"))
         self.assertFalse(applies_to.matches_file("Dockerfile"))
 
-    def test_case_sensitive_extension(self):
-        """Test extension matching is case-sensitive."""
+    def test_case_sensitive_pattern(self):
+        """Test pattern matching is case-sensitive."""
         from scripts.domain.rule import AppliesTo
 
-        applies_to = AppliesTo(file_extensions=[".swift"])
+        applies_to = AppliesTo(file_patterns=["*.swift"])
 
         self.assertTrue(applies_to.matches_file("App.swift"))
         self.assertFalse(applies_to.matches_file("App.SWIFT"))
         self.assertFalse(applies_to.matches_file("App.Swift"))
+
+    def test_directory_pattern(self):
+        """Test directory-scoped patterns like ffm/**/*.swift."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_patterns=["ffm/**/*.swift"])
+
+        self.assertTrue(applies_to.matches_file("ffm/Source/File.swift"))
+        self.assertTrue(applies_to.matches_file("ffm/libraries/Deep/Path.swift"))
+        self.assertFalse(applies_to.matches_file("FlightsTab/Source/File.swift"))
+        self.assertFalse(applies_to.matches_file("ffm/Source/File.m"))
+
+    def test_exclude_patterns(self):
+        """Test exclude_patterns excludes matching files."""
+        from scripts.domain.rule import AppliesTo
+
+        # Match all Swift files except those under ffm/
+        applies_to = AppliesTo(
+            file_patterns=["*.swift"],
+            exclude_patterns=["ffm/**"],
+        )
+
+        self.assertTrue(applies_to.matches_file("FlightsTab/Source/File.swift"))
+        self.assertTrue(applies_to.matches_file("App.swift"))
+        self.assertFalse(applies_to.matches_file("ffm/Source/File.swift"))
+        self.assertFalse(applies_to.matches_file("ffm/libraries/Deep/Path.swift"))
+
+    def test_exclude_without_include(self):
+        """Test exclude_patterns works without file_patterns (matches all except excluded)."""
+        from scripts.domain.rule import AppliesTo
+
+        # Match everything except ffm/
+        applies_to = AppliesTo(exclude_patterns=["ffm/**"])
+
+        self.assertTrue(applies_to.matches_file("FlightsTab/Source/File.swift"))
+        self.assertTrue(applies_to.matches_file("App.m"))
+        self.assertFalse(applies_to.matches_file("ffm/Source/File.swift"))
 
 
 class TestRuleGrepPatterns(unittest.TestCase):
@@ -826,7 +863,7 @@ class TestRuleEvaluationCombined(unittest.TestCase):
     """Integration tests for Rule.should_evaluate with file and grep filtering."""
 
     def test_rule_matches_file_and_grep(self):
-        """Test rule matches when both file extension and grep pattern match."""
+        """Test rule matches when both file pattern and grep pattern match."""
         from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
 
         rule = Rule(
@@ -834,7 +871,7 @@ class TestRuleEvaluationCombined(unittest.TestCase):
             file_path="test.md",
             description="Test rule",
             category="test",
-            applies_to=AppliesTo(file_extensions=[".m", ".h"]),
+            applies_to=AppliesTo(file_patterns=["*.m", "*.h"]),
             grep=GrepPatterns(any_patterns=["NSArray"]),
             content="Rule content",
         )
@@ -842,8 +879,8 @@ class TestRuleEvaluationCombined(unittest.TestCase):
         # Both match
         self.assertTrue(rule.should_evaluate("src/Handler.m", "NSArray *items;"))
 
-    def test_rule_rejects_wrong_extension(self):
-        """Test rule rejects when file extension doesn't match."""
+    def test_rule_rejects_wrong_pattern(self):
+        """Test rule rejects when file pattern doesn't match."""
         from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
 
         rule = Rule(
@@ -851,12 +888,12 @@ class TestRuleEvaluationCombined(unittest.TestCase):
             file_path="test.md",
             description="Test rule",
             category="test",
-            applies_to=AppliesTo(file_extensions=[".m", ".h"]),
+            applies_to=AppliesTo(file_patterns=["*.m", "*.h"]),
             grep=GrepPatterns(any_patterns=["NSArray"]),
             content="Rule content",
         )
 
-        # Wrong extension even though grep matches
+        # Wrong pattern even though grep matches
         self.assertFalse(rule.should_evaluate("src/Handler.swift", "NSArray *items;"))
 
     def test_rule_rejects_no_grep_match(self):
@@ -868,12 +905,12 @@ class TestRuleEvaluationCombined(unittest.TestCase):
             file_path="test.md",
             description="Test rule",
             category="test",
-            applies_to=AppliesTo(file_extensions=[".m", ".h"]),
+            applies_to=AppliesTo(file_patterns=["*.m", "*.h"]),
             grep=GrepPatterns(any_patterns=["NSArray"]),
             content="Rule content",
         )
 
-        # Right extension but no grep match
+        # Right pattern but no grep match
         self.assertFalse(rule.should_evaluate("src/Handler.m", "NSString *name;"))
 
 

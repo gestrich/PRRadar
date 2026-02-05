@@ -90,7 +90,7 @@ class RuleLoaderService:
             file_path: File path to check against applies_to criteria
 
         Returns:
-            Rules that apply to the file based on file_extensions
+            Rules that apply to the file based on file_patterns
         """
         return [rule for rule in rules if rule.applies_to_file(file_path)]
 
