@@ -16,6 +16,8 @@ This plan introduces a new "agent mode" paradigm to PRRadar that bypasses the SK
 - Built-in tools: `Read`, `Glob`, `Grep`, `Bash` for file operations
 - `AgentDefinition` for subagents (one per rule evaluation)
 
+**Code style note:** Phase numbers are for planning purposes only. Do not reference phase numbers in code comments, docstrings, or user-facing messages. Use descriptive names instead (e.g., "rules command" not "Phase 4").
+
 ## [x] Phase 1: CLI Infrastructure for Agent Mode
 
 Add the `agent` subcommand group to the existing CLI dispatcher and a convenience shell script.
@@ -239,7 +241,7 @@ grep:
 }
 ```
 
-Each task file contains everything needed for Phase 5 to evaluate—no additional file reads required.
+Each task file contains everything needed to evaluate—no additional file reads required.
 
 **Files to create:**
 - `plugin/skills/pr-review/scripts/commands/agent/rules.py` - Rules command
@@ -251,7 +253,7 @@ Each task file contains everything needed for Phase 5 to evaluate—no additiona
 - `python3 -m scripts agent rules 123 --rules-dir ./rules` collects and filters rules
 - Filtering is fast and deterministic (no API calls)
 - Each task JSON file is self-contained for evaluation
-- Phase 5 (evaluate) reads task files and sends directly to Claude
+- The evaluate command reads task files and sends directly to Claude
 
 ## [ ] Phase 5: Rule Evaluation Command (`agent evaluate`)
 
@@ -500,11 +502,11 @@ tmp/                              # Default output directory for direct Python i
     │   └── parsed.json           # Structured diff with hunks
     ├── rules/
     │   └── all-rules.json        # All collected rules with metadata
-    ├── tasks/                    # Evaluation tasks (Phase 4 output)
+    ├── tasks/                    # Evaluation tasks (rules command output)
     │   ├── error-handling-a1b2c3.json  # Task: rule + code segment
     │   ├── thread-safety-d4e5f6.json
     │   └── ...
-    ├── evaluations/              # Evaluation results (Phase 5 output)
+    ├── evaluations/              # Evaluation results (evaluate command output)
     │   ├── error-handling-a1b2c3.json  # Result: violation assessment
     │   ├── thread-safety-d4e5f6.json
     │   └── summary.json          # Aggregated results

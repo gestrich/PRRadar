@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from scripts.domain.diff import GitDiff, Hunk
+from scripts.domain.diff import DiffLine, DiffLineType, GitDiff, Hunk
 from scripts.infrastructure.diff_parser import (
     format_diff_as_json,
     format_diff_as_text,
@@ -401,6 +401,480 @@ index abc..def
 
         self.assertEqual(len(diff.hunks), 1)
         self.assertEqual(diff.hunks[0].file_path, "path with spaces/file.txt")
+
+
+class TestDiffLineExtraction(unittest.TestCase):
+    """Tests for Hunk line extraction methods.
+
+    These tests verify that grep patterns only match against changed lines
+    (added/removed), not context lines.
+    """
+
+    def setUp(self):
+        """Create a sample hunk with mixed line types for testing."""
+        self.sample_diff = """diff --git a/src/handler.py b/src/handler.py
+index abc1234..def5678
+--- a/src/handler.py
++++ b/src/handler.py
+@@ -10,8 +10,9 @@ class Handler:
+     def process(self):
+         # Context line with NSArray
+         existing_code()
+-        old_removed_code()
+-        NSArray *removedArray;
++        new_added_code()
++        NSArray *addedArray;
++        extra_line()
+         more_context()
+"""
+        self.diff = GitDiff.from_diff_content(self.sample_diff)
+        self.hunk = self.diff.hunks[0]
+
+    def test_get_diff_lines_returns_all_line_types(self):
+        """Verify get_diff_lines returns all lines with correct types."""
+        diff_lines = self.hunk.get_diff_lines()
+
+        # Should have header lines, context lines, removed lines, and added lines
+        headers = [l for l in diff_lines if l.line_type == DiffLineType.HEADER]
+        contexts = [l for l in diff_lines if l.line_type == DiffLineType.CONTEXT]
+        added = [l for l in diff_lines if l.line_type == DiffLineType.ADDED]
+        removed = [l for l in diff_lines if l.line_type == DiffLineType.REMOVED]
+
+        self.assertGreater(len(headers), 0, "Should have header lines")
+        self.assertGreater(len(contexts), 0, "Should have context lines")
+        self.assertEqual(len(added), 3, "Should have 3 added lines")
+        self.assertEqual(len(removed), 2, "Should have 2 removed lines")
+
+    def test_get_added_lines_only_returns_additions(self):
+        """Verify get_added_lines returns only lines starting with +."""
+        added = self.hunk.get_added_lines()
+
+        self.assertEqual(len(added), 3)
+        for line in added:
+            self.assertEqual(line.line_type, DiffLineType.ADDED)
+            self.assertTrue(line.raw_line.startswith("+"))
+
+    def test_get_removed_lines_only_returns_deletions(self):
+        """Verify get_removed_lines returns only lines starting with -."""
+        removed = self.hunk.get_removed_lines()
+
+        self.assertEqual(len(removed), 2)
+        for line in removed:
+            self.assertEqual(line.line_type, DiffLineType.REMOVED)
+            self.assertTrue(line.raw_line.startswith("-"))
+
+    def test_get_changed_lines_excludes_context(self):
+        """Verify get_changed_lines returns added+removed but not context."""
+        changed = self.hunk.get_changed_lines()
+
+        # Should have 3 added + 2 removed = 5 changed
+        self.assertEqual(len(changed), 5)
+        for line in changed:
+            self.assertTrue(line.is_changed)
+            self.assertIn(line.line_type, [DiffLineType.ADDED, DiffLineType.REMOVED])
+
+    def test_get_context_lines_only_returns_context(self):
+        """Verify get_context_lines returns only unchanged lines."""
+        context = self.hunk.get_context_lines()
+
+        for line in context:
+            self.assertEqual(line.line_type, DiffLineType.CONTEXT)
+            self.assertTrue(line.raw_line.startswith(" ") or line.raw_line == "")
+
+    def test_added_lines_have_new_line_numbers(self):
+        """Verify added lines have new_line_number but not old_line_number."""
+        added = self.hunk.get_added_lines()
+
+        for line in added:
+            self.assertIsNotNone(line.new_line_number)
+            self.assertIsNone(line.old_line_number)
+
+    def test_removed_lines_have_old_line_numbers(self):
+        """Verify removed lines have old_line_number but not new_line_number."""
+        removed = self.hunk.get_removed_lines()
+
+        for line in removed:
+            self.assertIsNotNone(line.old_line_number)
+            self.assertIsNone(line.new_line_number)
+
+    def test_context_lines_have_both_line_numbers(self):
+        """Verify context lines have both old and new line numbers."""
+        context = self.hunk.get_context_lines()
+
+        for line in context:
+            self.assertIsNotNone(line.new_line_number)
+            self.assertIsNotNone(line.old_line_number)
+
+    def test_get_changed_content_excludes_context(self):
+        """Verify get_changed_content only includes changed lines."""
+        changed_content = self.hunk.get_changed_content()
+
+        # Should contain the changed code
+        self.assertIn("new_added_code", changed_content)
+        self.assertIn("old_removed_code", changed_content)
+        self.assertIn("NSArray *addedArray", changed_content)
+        self.assertIn("NSArray *removedArray", changed_content)
+
+        # Should NOT contain context lines (existing_code is context)
+        self.assertNotIn("existing_code", changed_content)
+        self.assertNotIn("more_context", changed_content)
+
+    def test_extract_changed_content_static_method(self):
+        """Verify static extract_changed_content works without Hunk instance."""
+        diff_text = """diff --git a/test.m b/test.m
+--- a/test.m
++++ b/test.m
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ NSArray *contextArray;
+-NSMutableArray *oldArray;
++NSMutableArray *newArray;
++NSDictionary *addedDict;
+ // end context
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        # Should contain changed lines
+        self.assertIn("NSMutableArray *oldArray", changed)
+        self.assertIn("NSMutableArray *newArray", changed)
+        self.assertIn("NSDictionary *addedDict", changed)
+
+        # Should NOT contain context
+        self.assertNotIn("#import", changed)
+        self.assertNotIn("contextArray", changed)
+        self.assertNotIn("end context", changed)
+
+    def test_extract_changed_content_handles_annotated_format(self):
+        """Verify extract_changed_content works with annotated line numbers.
+
+        When diff content is stored with annotate_lines=True, lines have format:
+        - Added: "123: +    code"
+        - Removed: "   -: -    code"
+        - Context: "123:      code"
+        """
+        annotated_diff = """diff --git a/test.mm b/test.mm
+index abc..def 100644
+--- a/test.mm
++++ b/test.mm
+@@ -364,7 +364,13 @@ -(void)someMethod {
+ 364:      return @[];
+ 365:  }
+ 366:
+   -: -    [self oldMethod:metadata];
+ 367: +    // New comment
+ 368: +    NSArray *items = [metadata componentsSeparatedByString:@"\\t"];
+ 369: +    [self newMethod:items];
+ 370:
+ 371:      return @[];
+ 372:  }
+"""
+        changed = Hunk.extract_changed_content(annotated_diff)
+
+        # Should contain added lines (without the prefix)
+        self.assertIn("// New comment", changed)
+        self.assertIn('componentsSeparatedByString:@"\\t"', changed)
+        self.assertIn("[self newMethod:items]", changed)
+
+        # Should contain removed lines
+        self.assertIn("[self oldMethod:metadata]", changed)
+
+        # Should NOT contain context lines
+        self.assertNotIn("return @[]", changed)
+        self.assertNotIn("364:", changed)  # Line numbers should not appear
+
+
+class TestGrepFiltering(unittest.TestCase):
+    """Tests for grep pattern matching on changed content only.
+
+    Critical: Grep patterns should only match against added/removed lines,
+    not context lines. This prevents false positives from unchanged code
+    that happens to appear in the diff context.
+    """
+
+    def test_grep_matches_added_lines(self):
+        """Pattern should match when found in added lines."""
+        diff_text = """@@ -1,3 +1,4 @@
+ context line
+-removed NSArray
++added NSArray
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        self.assertIn("NSArray", changed)
+
+    def test_grep_matches_removed_lines(self):
+        """Pattern should match when found in removed lines."""
+        diff_text = """@@ -1,3 +1,3 @@
+ context line
+-removed NSMutableDictionary
++added something else
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        self.assertIn("NSMutableDictionary", changed)
+
+    def test_grep_does_not_match_context_only(self):
+        """Pattern should NOT match when only in context lines."""
+        diff_text = """@@ -1,4 +1,4 @@
+ existing NSArray in context
+ another context line
+-removed something unrelated
++added something unrelated
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        # NSArray is only in context, not in changed lines
+        self.assertNotIn("NSArray", changed)
+
+    def test_grep_real_world_objc_example(self):
+        """Test realistic ObjC diff with collection type in context."""
+        diff_text = """@@ -50,8 +50,9 @@ - (void)processData {
+     NSArray<FFAirport *> *airports = self.airports;  // context - already typed
+     for (FFAirport *airport in airports) {
+-        [self handleAirport:airport];
++        [self handleAirport:airport withOptions:options];
++        [self logAirport:airport];
+     }
+ }
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        # Changed lines do NOT contain NSArray - it's only in context
+        self.assertNotIn("NSArray", changed)
+        # But they do contain the actual changes
+        self.assertIn("handleAirport:airport withOptions:options", changed)
+        self.assertIn("logAirport:airport", changed)
+
+    def test_grep_matches_when_pattern_in_both(self):
+        """Pattern should match when in changed lines even if also in context."""
+        diff_text = """@@ -1,4 +1,5 @@
+ NSArray *contextArray;  // context
+-NSArray *oldArray;
++NSArray *newArray;
++NSDictionary *addedDict;
+ NSSet *contextSet;  // context
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        # NSArray is in both context and changed - should still match
+        self.assertIn("NSArray", changed)
+        # Verify we're matching the changed lines, not context
+        self.assertIn("oldArray", changed)
+        self.assertIn("newArray", changed)
+
+    def test_extract_ignores_diff_header_markers(self):
+        """Ensure +++ and --- header lines are not included."""
+        diff_text = """diff --git a/test.m b/test.m
+--- a/test.m
++++ b/test.m
+@@ -1,3 +1,4 @@
+ context
++added line
+"""
+        changed = Hunk.extract_changed_content(diff_text)
+
+        # Should not include the +++ header
+        self.assertNotIn("b/test.m", changed)
+        self.assertNotIn("a/test.m", changed)
+        # Should include the actual added line
+        self.assertIn("added line", changed)
+
+
+class TestFilePathFiltering(unittest.TestCase):
+    """Tests for file path/extension filtering on rules."""
+
+    def test_objc_extensions_match_header(self):
+        """Test .h extension matches Objective-C rule."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+
+        self.assertTrue(applies_to.matches_file("src/FFLogger.h"))
+        self.assertTrue(applies_to.matches_file("path/to/deep/File.h"))
+
+    def test_objc_extensions_match_implementation(self):
+        """Test .m and .mm extensions match Objective-C rule."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+
+        self.assertTrue(applies_to.matches_file("src/FFLogger.m"))
+        self.assertTrue(applies_to.matches_file("src/FFBridge.mm"))
+
+    def test_objc_extensions_reject_swift(self):
+        """Test Swift files don't match Objective-C rule."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+
+        self.assertFalse(applies_to.matches_file("src/FFLogger.swift"))
+        self.assertFalse(applies_to.matches_file("Package.swift"))
+
+    def test_objc_extensions_reject_other_languages(self):
+        """Test other language files don't match Objective-C rule."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[".h", ".m", ".mm"])
+
+        self.assertFalse(applies_to.matches_file("src/main.py"))
+        self.assertFalse(applies_to.matches_file("src/index.js"))
+        self.assertFalse(applies_to.matches_file("src/Handler.java"))
+
+    def test_empty_extensions_matches_all(self):
+        """Test empty file_extensions matches all files."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[])
+
+        self.assertTrue(applies_to.matches_file("anything.txt"))
+        self.assertTrue(applies_to.matches_file("src/code.py"))
+        self.assertTrue(applies_to.matches_file("Makefile"))
+
+    def test_no_extension_file(self):
+        """Test files without extensions."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[".py", ".swift"])
+
+        self.assertFalse(applies_to.matches_file("Makefile"))
+        self.assertFalse(applies_to.matches_file("Dockerfile"))
+
+    def test_case_sensitive_extension(self):
+        """Test extension matching is case-sensitive."""
+        from scripts.domain.rule import AppliesTo
+
+        applies_to = AppliesTo(file_extensions=[".swift"])
+
+        self.assertTrue(applies_to.matches_file("App.swift"))
+        self.assertFalse(applies_to.matches_file("App.SWIFT"))
+        self.assertFalse(applies_to.matches_file("App.Swift"))
+
+
+class TestRuleGrepPatterns(unittest.TestCase):
+    """Tests for Rule grep pattern matching."""
+
+    def test_grep_any_single_pattern_match(self):
+        """Test grep.any with single matching pattern."""
+        from scripts.domain.rule import GrepPatterns
+
+        grep = GrepPatterns(any_patterns=["NSArray", "NSDictionary"])
+        text = "NSArray *items;"
+
+        self.assertTrue(grep.matches(text))
+
+    def test_grep_any_no_patterns_match(self):
+        """Test grep.any when no patterns match."""
+        from scripts.domain.rule import GrepPatterns
+
+        grep = GrepPatterns(any_patterns=["NSArray", "NSDictionary"])
+        text = "NSString *name;"
+
+        self.assertFalse(grep.matches(text))
+
+    def test_grep_all_all_patterns_must_match(self):
+        """Test grep.all requires ALL patterns to match."""
+        from scripts.domain.rule import GrepPatterns
+
+        grep = GrepPatterns(all_patterns=["import", "Foundation"])
+        text_both = "@import Foundation;"
+        text_one = "@import UIKit;"
+
+        self.assertTrue(grep.matches(text_both))
+        self.assertFalse(grep.matches(text_one))
+
+    def test_grep_combined_all_and_any(self):
+        """Test grep with both all and any patterns."""
+        from scripts.domain.rule import GrepPatterns
+
+        grep = GrepPatterns(
+            all_patterns=["def"],
+            any_patterns=["async", "await"],
+        )
+
+        # Must have 'def' AND at least one of 'async'/'await'
+        self.assertTrue(grep.matches("async def foo():"))
+        self.assertFalse(grep.matches("def foo():"))  # missing any pattern
+        self.assertFalse(grep.matches("async function():"))  # missing all pattern
+
+    def test_grep_empty_patterns_matches_all(self):
+        """Test empty patterns matches everything."""
+        from scripts.domain.rule import GrepPatterns
+
+        grep = GrepPatterns()
+
+        self.assertTrue(grep.matches("anything"))
+        self.assertTrue(grep.matches(""))
+
+    def test_grep_regex_patterns(self):
+        """Test grep patterns support regex."""
+        from scripts.domain.rule import GrepPatterns
+
+        # Pattern with \w+ requires one or more word chars between NS and Array
+        grep = GrepPatterns(any_patterns=[r"NS\w+Array"])
+        self.assertTrue(grep.matches("NSMutableArray *items;"))
+        self.assertFalse(grep.matches("NSArray *items;"))  # No chars between NS and Array
+        self.assertFalse(grep.matches("NSString *items;"))
+
+        # Pattern with \w* allows zero or more word chars
+        grep2 = GrepPatterns(any_patterns=[r"NS\w*Array"])
+        self.assertTrue(grep2.matches("NSMutableArray *items;"))
+        self.assertTrue(grep2.matches("NSArray *items;"))
+        self.assertFalse(grep2.matches("NSString *items;"))
+
+
+class TestRuleEvaluationCombined(unittest.TestCase):
+    """Integration tests for Rule.should_evaluate with file and grep filtering."""
+
+    def test_rule_matches_file_and_grep(self):
+        """Test rule matches when both file extension and grep pattern match."""
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test rule",
+            category="test",
+            applies_to=AppliesTo(file_extensions=[".m", ".h"]),
+            grep=GrepPatterns(any_patterns=["NSArray"]),
+            content="Rule content",
+        )
+
+        # Both match
+        self.assertTrue(rule.should_evaluate("src/Handler.m", "NSArray *items;"))
+
+    def test_rule_rejects_wrong_extension(self):
+        """Test rule rejects when file extension doesn't match."""
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test rule",
+            category="test",
+            applies_to=AppliesTo(file_extensions=[".m", ".h"]),
+            grep=GrepPatterns(any_patterns=["NSArray"]),
+            content="Rule content",
+        )
+
+        # Wrong extension even though grep matches
+        self.assertFalse(rule.should_evaluate("src/Handler.swift", "NSArray *items;"))
+
+    def test_rule_rejects_no_grep_match(self):
+        """Test rule rejects when grep pattern doesn't match."""
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test rule",
+            category="test",
+            applies_to=AppliesTo(file_extensions=[".m", ".h"]),
+            grep=GrepPatterns(any_patterns=["NSArray"]),
+            content="Rule content",
+        )
+
+        # Right extension but no grep match
+        self.assertFalse(rule.should_evaluate("src/Handler.m", "NSString *name;"))
 
 
 if __name__ == "__main__":

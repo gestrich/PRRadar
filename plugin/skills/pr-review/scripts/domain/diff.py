@@ -8,11 +8,45 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 
 
 # ============================================================
 # Domain Models
 # ============================================================
+
+
+class DiffLineType(Enum):
+    """Type of line in a diff."""
+
+    ADDED = "added"
+    REMOVED = "removed"
+    CONTEXT = "context"
+    HEADER = "header"
+
+
+@dataclass
+class DiffLine:
+    """A single line from a diff with metadata.
+
+    Attributes:
+        content: The line content (without the +/- prefix)
+        raw_line: The original line including +/- prefix
+        line_type: Whether this is an added, removed, or context line
+        new_line_number: Line number in the new file (None for removed lines)
+        old_line_number: Line number in the old file (None for added lines)
+    """
+
+    content: str
+    raw_line: str
+    line_type: DiffLineType
+    new_line_number: int | None = None
+    old_line_number: int | None = None
+
+    @property
+    def is_changed(self) -> bool:
+        """Check if this line represents a change (added or removed)."""
+        return self.line_type in (DiffLineType.ADDED, DiffLineType.REMOVED)
 
 
 @dataclass
@@ -162,6 +196,172 @@ class Hunk:
                 annotated.append(line)
 
         return "\n".join(annotated)
+
+    def get_diff_lines(self) -> list[DiffLine]:
+        """Parse hunk content into structured DiffLine objects.
+
+        Returns:
+            List of DiffLine objects with line numbers and types
+        """
+        lines = self.content.split("\n")
+        diff_lines: list[DiffLine] = []
+        new_line = self.new_start
+        old_line = self.old_start
+        in_hunk_body = False
+
+        for line in lines:
+            if line.startswith("@@"):
+                in_hunk_body = True
+                diff_lines.append(
+                    DiffLine(
+                        content=line,
+                        raw_line=line,
+                        line_type=DiffLineType.HEADER,
+                    )
+                )
+            elif not in_hunk_body:
+                diff_lines.append(
+                    DiffLine(
+                        content=line,
+                        raw_line=line,
+                        line_type=DiffLineType.HEADER,
+                    )
+                )
+            elif line.startswith("-"):
+                diff_lines.append(
+                    DiffLine(
+                        content=line[1:],
+                        raw_line=line,
+                        line_type=DiffLineType.REMOVED,
+                        old_line_number=old_line,
+                    )
+                )
+                old_line += 1
+            elif line.startswith("+"):
+                diff_lines.append(
+                    DiffLine(
+                        content=line[1:],
+                        raw_line=line,
+                        line_type=DiffLineType.ADDED,
+                        new_line_number=new_line,
+                    )
+                )
+                new_line += 1
+            elif line.startswith(" ") or (line == "" and in_hunk_body):
+                content = line[1:] if line.startswith(" ") else line
+                if line:
+                    diff_lines.append(
+                        DiffLine(
+                            content=content,
+                            raw_line=line,
+                            line_type=DiffLineType.CONTEXT,
+                            new_line_number=new_line,
+                            old_line_number=old_line,
+                        )
+                    )
+                    new_line += 1
+                    old_line += 1
+
+        return diff_lines
+
+    def get_added_lines(self) -> list[DiffLine]:
+        """Get only added lines (lines starting with +).
+
+        Returns:
+            List of DiffLine objects for added lines only
+        """
+        return [
+            line
+            for line in self.get_diff_lines()
+            if line.line_type == DiffLineType.ADDED
+        ]
+
+    def get_removed_lines(self) -> list[DiffLine]:
+        """Get only removed lines (lines starting with -).
+
+        Returns:
+            List of DiffLine objects for removed lines only
+        """
+        return [
+            line
+            for line in self.get_diff_lines()
+            if line.line_type == DiffLineType.REMOVED
+        ]
+
+    def get_changed_lines(self) -> list[DiffLine]:
+        """Get all changed lines (both added and removed).
+
+        This is what grep patterns should match against for rule filtering,
+        as we only care about actual changes, not context lines.
+
+        Returns:
+            List of DiffLine objects for changed lines (added + removed)
+        """
+        return [line for line in self.get_diff_lines() if line.is_changed]
+
+    def get_context_lines(self) -> list[DiffLine]:
+        """Get only context lines (unchanged lines shown for context).
+
+        Returns:
+            List of DiffLine objects for context lines only
+        """
+        return [
+            line
+            for line in self.get_diff_lines()
+            if line.line_type == DiffLineType.CONTEXT
+        ]
+
+    def get_changed_content(self) -> str:
+        """Get the text content of changed lines only.
+
+        Useful for grep pattern matching - only matches against
+        actual changes, not surrounding context.
+
+        Returns:
+            Concatenated content of added and removed lines
+        """
+        return "\n".join(line.content for line in self.get_changed_lines())
+
+    @staticmethod
+    def extract_changed_content(diff_text: str) -> str:
+        """Extract changed content from diff text.
+
+        Static utility for extracting only added/removed lines from diff text
+        without needing a full Hunk object. Useful when loading from JSON.
+
+        Handles both raw diff format and annotated format:
+        - Raw: Lines start with + or -
+        - Annotated: Lines have format "123: +code" or "   -: -code"
+
+        Args:
+            diff_text: Diff content (raw or annotated)
+
+        Returns:
+            Concatenated content of changed lines (without prefixes)
+        """
+        changed_lines: list[str] = []
+        in_hunk_body = False
+
+        for line in diff_text.split("\n"):
+            if line.startswith("@@"):
+                in_hunk_body = True
+            elif in_hunk_body:
+                # Raw format: lines start with + or -
+                if line.startswith("+") and not line.startswith("+++"):
+                    changed_lines.append(line[1:])
+                elif line.startswith("-") and not line.startswith("---"):
+                    changed_lines.append(line[1:])
+                # Annotated format: "123: +code" or "   -: -code"
+                elif ": +" in line:
+                    # Added line in annotated format
+                    idx = line.index(": +")
+                    changed_lines.append(line[idx + 3 :])
+                elif ": -" in line and line.strip().startswith("-:"):
+                    # Removed line in annotated format (line number is "-")
+                    idx = line.index(": -")
+                    changed_lines.append(line[idx + 3 :])
+
+        return "\n".join(changed_lines)
 
 
 @dataclass

@@ -187,27 +187,30 @@ def cmd_agent(args: argparse.Namespace) -> int:
         return cmd_diff(pr_number=pr_number, output_dir=pr_dir)
 
     elif args.agent_command == "rules":
-        rules_dir = args.rules_dir
-        print(f"[rules] Collecting rules from {rules_dir} for PR #{pr_number}...")
-        print("  Not implemented yet - see Phase 4")
-        return 0
+        from scripts.commands.agent.rules import cmd_rules
+
+        return cmd_rules(
+            pr_number=pr_number,
+            output_dir=pr_dir,
+            rules_dir=args.rules_dir,
+        )
 
     elif args.agent_command == "evaluate":
         print(f"[evaluate] Running evaluations for PR #{pr_number}...")
-        print("  Not implemented yet - see Phase 5")
+        print("  Not implemented yet")
         return 0
 
     elif args.agent_command == "report":
         min_score = args.min_score
         print(f"[report] Generating report for PR #{pr_number} (min-score: {min_score})...")
-        print("  Not implemented yet - see Phase 6")
+        print("  Not implemented yet")
         return 0
 
     elif args.agent_command == "comment":
         dry_run = args.dry_run
         mode = "dry-run" if dry_run else "live"
         print(f"[comment] Posting comments for PR #{pr_number} ({mode})...")
-        print("  Not implemented yet - see Phase 7")
+        print("  Not implemented yet")
         return 0
 
     elif args.agent_command == "analyze":
@@ -220,7 +223,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             print(f"  Stopping after: {stop_after}")
         if skip_to:
             print(f"  Skipping to: {skip_to}")
-        print("  Not implemented yet - see Phase 8")
+        print("  Not implemented yet")
         return 0
 
     else:

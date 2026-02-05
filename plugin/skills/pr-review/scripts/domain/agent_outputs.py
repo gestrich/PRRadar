@@ -21,7 +21,7 @@ from dataclasses import dataclass
 class RuleApplicability:
     """Structured output for rule applicability determination.
 
-    Used in Phase 4 (agent rules) to determine if a rule applies to
+    Used by the rules command to determine if a rule applies to
     a given code segment based on file type, content, and context.
     """
 
@@ -99,7 +99,7 @@ class RuleApplicability:
 class RuleEvaluation:
     """Structured output for rule violation evaluation.
 
-    Used in Phase 5 (agent evaluate) to assess whether code violates
+    Used by the evaluate command to assess whether code violates
     a specific rule and provide actionable feedback.
     """
 
