@@ -79,8 +79,7 @@ def make_evaluation(
     return RuleEvaluation(
         violates_rule=violates_rule,
         score=score,
-        explanation="Test explanation",
-        suggestion="Test suggestion",
+        comment="Test comment",
         file_path="src/test.py",
         line_number=line_number,
     )
@@ -262,15 +261,14 @@ class TestViolationService(unittest.TestCase):
         self.assertEqual(violation.documentation_link, "https://docs.example.com/my-rule")
         self.assertEqual(violation.cost_usd, 0.0025)
 
-    def test_create_violation_preserves_evaluation_details(self):
-        """Test that create_violation preserves explanation and suggestion."""
+    def test_create_violation_preserves_comment(self):
+        """Test that create_violation preserves comment."""
         task = make_task()
         result = make_result()
 
         violation = ViolationService.create_violation(result, task)
 
-        self.assertEqual(violation.explanation, "Test explanation")
-        self.assertEqual(violation.suggestion, "Test suggestion")
+        self.assertEqual(violation.comment, "Test comment")
         self.assertEqual(violation.line_number, 15)
 
     def test_filter_by_score_excludes_non_violations(self):

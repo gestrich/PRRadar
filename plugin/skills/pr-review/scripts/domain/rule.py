@@ -172,7 +172,7 @@ class Rule:
     """A code review rule loaded from a markdown file.
 
     Rules consist of:
-    - Metadata from YAML frontmatter (description, category, applies_to, grep, model, documentation_link)
+    - Metadata from YAML frontmatter (description, category, applies_to, grep, model, documentation_link, relevant_claude_skill)
     - Content from the markdown body (instructions for evaluation)
     """
 
@@ -185,6 +185,7 @@ class Rule:
     content: str
     model: str | None = None
     documentation_link: str | None = None
+    relevant_claude_skill: str | None = None
 
     # --------------------------------------------------------
     # Factory Methods
@@ -216,6 +217,7 @@ class Rule:
             content=content.strip(),
             model=frontmatter.get("model"),
             documentation_link=frontmatter.get("documentation_link"),
+            relevant_claude_skill=frontmatter.get("relevantClaudeSkill"),
         )
 
     @classmethod
@@ -238,6 +240,7 @@ class Rule:
             content=data.get("content", ""),
             model=data.get("model"),
             documentation_link=data.get("documentation_link"),
+            relevant_claude_skill=data.get("relevant_claude_skill"),
         )
 
     # --------------------------------------------------------
@@ -259,6 +262,9 @@ class Rule:
 
         if self.documentation_link:
             result["documentation_link"] = self.documentation_link
+
+        if self.relevant_claude_skill:
+            result["relevant_claude_skill"] = self.relevant_claude_skill
 
         if self.applies_to.file_patterns or self.applies_to.exclude_patterns:
             applies_to_dict: dict = {}

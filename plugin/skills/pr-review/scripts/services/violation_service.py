@@ -42,9 +42,9 @@ class ViolationService:
             file_path=result.file_path,
             line_number=result.evaluation.line_number,
             score=result.evaluation.score,
-            explanation=result.evaluation.explanation,
-            suggestion=result.evaluation.suggestion,
+            comment=result.evaluation.comment,
             documentation_link=task.rule.documentation_link,
+            relevant_claude_skill=task.rule.relevant_claude_skill,
             cost_usd=result.cost_usd,
         )
 

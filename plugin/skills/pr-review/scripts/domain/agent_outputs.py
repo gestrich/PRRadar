@@ -110,8 +110,7 @@ class RuleEvaluation:
 
     violates_rule: bool
     score: int
-    explanation: str
-    suggestion: str
+    comment: str
     file_path: str
     line_number: int | None
 
@@ -135,13 +134,9 @@ class RuleEvaluation:
                     "maximum": 10,
                     "description": "Severity score: 1-4 minor, 5-7 moderate, 8-10 severe",
                 },
-                "explanation": {
+                "comment": {
                     "type": "string",
-                    "description": "Detailed explanation of the violation or compliance",
-                },
-                "suggestion": {
-                    "type": "string",
-                    "description": "Specific suggestion for fixing the violation, if any",
+                    "description": "The GitHub comment to post. If the rule includes a 'GitHub Comment' section, use that exact format unless there is critical context-specific information to add. Keep it concise.",
                 },
                 "file_path": {
                     "type": "string",
@@ -152,7 +147,7 @@ class RuleEvaluation:
                     "description": "Specific line number of the violation, if applicable",
                 },
             },
-            "required": ["violates_rule", "score", "explanation"],
+            "required": ["violates_rule", "score", "comment"],
         }
 
     # --------------------------------------------------------
@@ -172,8 +167,7 @@ class RuleEvaluation:
         return cls(
             violates_rule=data["violates_rule"],
             score=data["score"],
-            explanation=data["explanation"],
-            suggestion=data.get("suggestion", ""),
+            comment=data["comment"],
             file_path=data.get("file_path", ""),
             line_number=data.get("line_number"),
         )
@@ -187,8 +181,7 @@ class RuleEvaluation:
         result = {
             "violates_rule": self.violates_rule,
             "score": self.score,
-            "explanation": self.explanation,
-            "suggestion": self.suggestion,
+            "comment": self.comment,
             "file_path": self.file_path,
         }
         if self.line_number is not None:

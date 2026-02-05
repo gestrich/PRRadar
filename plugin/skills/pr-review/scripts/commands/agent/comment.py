@@ -44,9 +44,9 @@ class CommentableViolation:
     file_path: str
     line_number: int | None
     score: int
-    explanation: str
-    suggestion: str
+    comment: str
     documentation_link: str | None
+    relevant_claude_skill: str | None = None
     cost_usd: float | None = None
 
     # --------------------------------------------------------
@@ -56,8 +56,8 @@ class CommentableViolation:
     def compose_comment(self) -> str:
         """Compose the final GitHub comment body.
 
-        Combines the explanation and suggestion with an optional
-        documentation link appended programmatically.
+        Combines the comment with optional documentation link and
+        Claude skill appended programmatically.
 
         Returns:
             Formatted markdown comment body
@@ -65,14 +65,14 @@ class CommentableViolation:
         lines = [
             f"**{self.rule_name}** (score: {self.score})",
             "",
-            self.explanation,
+            self.comment,
         ]
 
-        if self.suggestion:
-            lines.extend(["", "**Suggestion:**", self.suggestion])
+        if self.relevant_claude_skill:
+            lines.extend(["", f"Related Claude Skill: `/{self.relevant_claude_skill}`"])
 
         if self.documentation_link:
-            lines.extend(["", f"📖 [Learn more]({self.documentation_link})"])
+            lines.extend(["", f"Related Documentation: [Docs]({self.documentation_link})"])
 
         cost_str = f" (cost ${self.cost_usd:.4f})" if self.cost_usd else ""
         lines.extend(["", f"*Assisted by [PR Radar](https://github.com/gestrich/PRRadar){cost_str}*"])
@@ -133,11 +133,13 @@ def load_violations(
             rule_name = data.get("rule_name", "")
             file_path = data.get("file_path", "") or evaluation.file_path
 
-            # Get documentation_link from task metadata
+            # Get documentation_link and relevant_claude_skill from task metadata
             documentation_link = None
+            relevant_claude_skill = None
             if task_id in task_metadata:
                 rule_data = task_metadata[task_id].get("rule", {})
                 documentation_link = rule_data.get("documentation_link")
+                relevant_claude_skill = rule_data.get("relevant_claude_skill")
 
             violations.append(
                 CommentableViolation(
@@ -146,9 +148,9 @@ def load_violations(
                     file_path=file_path,
                     line_number=evaluation.line_number,
                     score=evaluation.score,
-                    explanation=evaluation.explanation,
-                    suggestion=evaluation.suggestion,
+                    comment=evaluation.comment,
                     documentation_link=documentation_link,
+                    relevant_claude_skill=relevant_claude_skill,
                     cost_usd=data.get("cost_usd"),
                 )
             )

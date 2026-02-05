@@ -55,7 +55,8 @@ Focus ONLY on the added/changed lines (lines starting with `+`). Context lines (
 Consider:
 1. Does the new or modified code violate the rule?
 2. How severe is the violation (1-10 scale)?
-3. What specific improvement would fix the issue?
+
+For the comment field: If the rule includes a "GitHub Comment" section, use that exact text as your comment unless there is critical context-specific information that must be added. Keep comments concise.
 
 Be precise about the file path and line number where any violation occurs.
 """
@@ -160,8 +161,7 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
         evaluation = RuleEvaluation(
             violates_rule=False,
             score=1,
-            explanation="Evaluation failed - no structured output returned",
-            suggestion="",
+            comment="Evaluation failed - no structured output returned",
             file_path=task.segment.file_path,
             line_number=task.segment.start_line,
         )
