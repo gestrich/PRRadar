@@ -1,8 +1,17 @@
 ---
 description: Handle errors explicitly rather than silently ignoring them
 category: safety
+model: claude-sonnet-4-20250514
 applies_to:
   file_extensions: [".py", ".js", ".ts", ".go", ".swift"]
+grep:
+  any:
+    - "try"
+    - "catch"
+    - "except"
+    - "throw"
+    - "raise"
+    - "\\.catch\\("
 ---
 
 # Explicit Error Handling

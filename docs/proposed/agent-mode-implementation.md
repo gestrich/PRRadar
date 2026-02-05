@@ -179,7 +179,7 @@ Implement the `agent diff` command that fetches and stores PR diff, summary, and
 
 ## [ ] Phase 4: Rule Collection and Filtering Command (`agent rules`)
 
-Implement rule collection with AI-assisted applicability determination.
+Implement rule collection and deterministic filtering based on file extensions and regex patterns. No AI is involved in this phase—filtering is purely based on rule metadata.
 
 **Best practices:** Apply skills from [gestrich/python-architecture](https://github.com/gestrich/python-architecture):
 - `domain-modeling` - Rule domain model with factory methods
@@ -188,37 +188,70 @@ Implement rule collection with AI-assisted applicability determination.
 - `python-code-style` - Type annotations, method ordering
 
 **Technical approach:**
-- Recursively collect all `.md` files from rules directory
-- Parse YAML frontmatter for metadata (`applies_to.file_extensions`, `description`)
-- For each rule + diff combination, use Agent SDK to determine applicability:
-  - Use structured output: `{"applicable": bool, "reason": string, "confidence": float}`
-  - Agent has access to `Read` tool to examine rule content and diff
-- Store artifacts:
-  - `<output-dir>/<pr-number>/rules/all-rules.json` - All collected rules with metadata
-  - `<output-dir>/<pr-number>/rules/applicable.json` - Filtered rules per file/hunk
+1. **Load rules**: Recursively collect all `.md` files from rules directory
+2. **Parse metadata**: Extract YAML frontmatter (`description`, `category`, `model`, `applies_to`, `grep`)
+3. **Filter by file extension** (first pass): For each file in the diff, filter rules by `applies_to.file_extensions`
+4. **Filter by grep patterns** (second pass): For each diff hunk, filter rules by `grep.all` and `grep.any` regex patterns
+5. **Output**: Create mapping of which rules apply to which diff segments
 
-**Files to create:**
-- `plugin/skills/pr-review/scripts/commands/agent/rules.py` - Rules command
-- `plugin/skills/pr-review/scripts/domain/rule.py` - Rule domain model
-- `plugin/skills/pr-review/scripts/services/rule_loader.py` - Rule loading service
+**Rule YAML frontmatter fields:**
+```yaml
+---
+description: Handle errors explicitly
+category: safety
+model: claude-sonnet-4-20250514        # optional - Claude model for evaluation
+applies_to:
+  file_extensions: [".py", ".js"]     # file extension filter
+grep:
+  all: ["async\\s+def"]               # regex patterns - ALL must match
+  any: ["try", "except", "\\.catch\\("]  # regex patterns - ANY must match
+---
+```
 
-**Structured output schema for applicability:**
+**Filtering logic:**
+- A rule applies to a diff segment if:
+  1. File extension matches `applies_to.file_extensions` (or no filter specified)
+  2. AND diff text matches `grep.all` patterns (all must match, or no filter specified)
+  3. AND diff text matches `grep.any` patterns (at least one must match, or no filter specified)
+
+**Store artifacts:**
+- `<output-dir>/<pr-number>/rules/all-rules.json` - All collected rules with metadata
+- `<output-dir>/<pr-number>/tasks/` - Directory of evaluation task JSON files
+
+**Evaluation task JSON format** (one file per rule+segment combination):
 ```json
 {
-  "type": "object",
-  "properties": {
-    "applicable": {"type": "boolean"},
-    "reason": {"type": "string"},
-    "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+  "task_id": "error-handling-a1b2c3",
+  "rule": {
+    "name": "error-handling",
+    "description": "Handle errors explicitly",
+    "category": "safety",
+    "model": "claude-sonnet-4-20250514",
+    "content": "# Error Handling\n\nErrors should be handled explicitly..."
   },
-  "required": ["applicable", "reason", "confidence"]
+  "segment": {
+    "file_path": "src/api/handler.py",
+    "hunk_index": 0,
+    "start_line": 42,
+    "end_line": 58,
+    "content": "@@ -42,10 +42,15 @@\n def fetch_data():\n+    try:\n+        result = api.call()\n+    except:\n+        pass"
+  }
 }
 ```
 
+Each task file contains everything needed for Phase 5 to evaluate—no additional file reads required.
+
+**Files to create:**
+- `plugin/skills/pr-review/scripts/commands/agent/rules.py` - Rules command
+- `plugin/skills/pr-review/scripts/domain/rule.py` - Rule domain model ✅ (already created)
+- `plugin/skills/pr-review/scripts/domain/evaluation_task.py` - EvaluationTask domain model
+- `plugin/skills/pr-review/scripts/services/rule_loader.py` - Rule loading service
+
 **Expected outcomes:**
-- `python3 -m scripts agent rules 123 --rules-dir ./rules` determines applicable rules
-- Each rule's applicability is logged with reasoning
-- Artifacts show which rules will be checked for which code
+- `python3 -m scripts agent rules 123 --rules-dir ./rules` collects and filters rules
+- Filtering is fast and deterministic (no API calls)
+- Each task JSON file is self-contained for evaluation
+- Phase 5 (evaluate) reads task files and sends directly to Claude
 
 ## [ ] Phase 5: Rule Evaluation Command (`agent evaluate`)
 
@@ -438,7 +471,8 @@ repo-root/
     │   └── ... (existing commands)
     ├── domain/
     │   ├── agent_outputs.py          # Structured output models
-    │   ├── rule.py                   # Rule domain model
+    │   ├── rule.py                   # Rule domain model ✅
+    │   ├── evaluation_task.py        # Evaluation task (rule + segment)
     │   ├── evaluation.py             # Evaluation result model
     │   ├── report.py                 # Report domain model
     │   └── ... (existing models)
@@ -465,10 +499,13 @@ tmp/                              # Default output directory for direct Python i
     │   ├── raw.diff              # Original diff
     │   └── parsed.json           # Structured diff with hunks
     ├── rules/
-    │   ├── all-rules.json        # All collected rules
-    │   └── applicable.json       # Filtered rules per file
-    ├── evaluations/
-    │   ├── error-handling-a1b2c3.json  # Individual evaluations
+    │   └── all-rules.json        # All collected rules with metadata
+    ├── tasks/                    # Evaluation tasks (Phase 4 output)
+    │   ├── error-handling-a1b2c3.json  # Task: rule + code segment
+    │   ├── thread-safety-d4e5f6.json
+    │   └── ...
+    ├── evaluations/              # Evaluation results (Phase 5 output)
+    │   ├── error-handling-a1b2c3.json  # Result: violation assessment
     │   ├── thread-safety-d4e5f6.json
     │   └── summary.json          # Aggregated results
     └── report/
