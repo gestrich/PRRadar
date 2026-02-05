@@ -10,6 +10,11 @@ at the boundary using from_dict() factory methods.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from scripts.services.evaluation_service import EvaluationResult
 
 
 # ============================================================
@@ -198,3 +203,41 @@ class RuleEvaluation:
     def is_violation(self) -> bool:
         """Whether this evaluation qualifies as a reportable violation."""
         return self.violates_rule and self.score >= 5
+
+
+# ============================================================
+# Evaluation Summary
+# ============================================================
+
+
+@dataclass
+class EvaluationSummary:
+    """Summary of all evaluations for a PR.
+
+    Domain model for aggregated evaluation results. Created by the
+    evaluate command after running all rule evaluations.
+    """
+
+    pr_number: int
+    evaluated_at: datetime
+    total_tasks: int
+    violations_found: int
+    total_cost_usd: float
+    total_duration_ms: int
+    results: list[EvaluationResult]
+
+    # --------------------------------------------------------
+    # Serialization
+    # --------------------------------------------------------
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "pr_number": self.pr_number,
+            "evaluated_at": self.evaluated_at.isoformat(),
+            "total_tasks": self.total_tasks,
+            "violations_found": self.violations_found,
+            "total_cost_usd": self.total_cost_usd,
+            "total_duration_ms": self.total_duration_ms,
+            "results": [r.to_dict() for r in self.results],
+        }

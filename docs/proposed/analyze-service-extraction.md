@@ -172,25 +172,31 @@ class ViolationService:
 
 **Expected outcome:** Single place for EvaluationResult → CommentableViolation conversion.
 
-## - [ ] Phase 4: Move EvaluationSummary to Domain
+## - [x] Phase 4: Move EvaluationSummary to Domain
 
 The `EvaluationSummary` dataclass is a domain model, not command-specific.
 
+**Status:** ✅ Completed
+
 **Related skill:** See **domain-modeling** skill for domain model patterns.
 
-**Files to modify:**
-- Create `domain/evaluation_summary.py` or add to `domain/agent_outputs.py`
-- Update `evaluate.py` to import from domain
+**Files modified:**
+- `domain/agent_outputs.py` - Added `EvaluationSummary` dataclass
+- `domain/__init__.py` - Added export for `EvaluationSummary`
+- `commands/agent/evaluate.py` - Updated to import `EvaluationSummary` from domain
 
-**Move:**
-- `EvaluationSummary` dataclass from `evaluate.py`
+**Moved:**
+- `EvaluationSummary` dataclass from `evaluate.py` to `domain/agent_outputs.py`
 
-**Consider `AnalyzeStats`:** This has `print_summary()` which is UI concern. Options:
-1. Keep in command layer (current) - acceptable since it's presentation logic
-2. Split: domain model for data, command layer adds `print_summary(stats)` function
-3. Remove `print_summary()` method, have command format output
+**Decision on `AnalyzeStats`:** Kept in command layer (option 1) since:
+- It has `print_summary()` which is presentation logic
+- `AnalyzeStats` is specific to the analyze command's workflow
+- The skill guidance states this is "acceptable since it's presentation logic"
 
-**Skill guidance:** "Services return data, commands handle output" - same applies to domain models. Lean toward option 2 or 3.
+**Technical notes:**
+- `EvaluationSummary` references `EvaluationResult` which remains in `evaluation_service.py`
+- Used `TYPE_CHECKING` import to avoid circular dependencies between domain and service layers
+- `EvaluationResult` could be moved to domain in a future refactoring phase
 
 ## - [ ] Phase 5: Refactor analyze.py to Use Services
 

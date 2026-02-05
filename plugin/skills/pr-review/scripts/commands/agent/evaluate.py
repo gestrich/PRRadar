@@ -15,50 +15,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from scripts.domain.agent_outputs import EvaluationSummary
 from scripts.domain.evaluation_task import EvaluationTask
 from scripts.services.evaluation_service import (
     EvaluationResult,
     run_batch_evaluation,
 )
 from scripts.services.task_loader_service import TaskLoaderService
-
-
-# ============================================================
-# Domain Models
-# ============================================================
-
-
-@dataclass
-class EvaluationSummary:
-    """Summary of all evaluations for a PR."""
-
-    pr_number: int
-    evaluated_at: datetime
-    total_tasks: int
-    violations_found: int
-    total_cost_usd: float
-    total_duration_ms: int
-    results: list[EvaluationResult]
-
-    # --------------------------------------------------------
-    # Serialization
-    # --------------------------------------------------------
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "pr_number": self.pr_number,
-            "evaluated_at": self.evaluated_at.isoformat(),
-            "total_tasks": self.total_tasks,
-            "violations_found": self.violations_found,
-            "total_cost_usd": self.total_cost_usd,
-            "total_duration_ms": self.total_duration_ms,
-            "results": [r.to_dict() for r in self.results],
-        }
 
 
 async def run_evaluations(tasks: list[EvaluationTask], output_dir: Path) -> EvaluationSummary:
