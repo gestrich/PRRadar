@@ -49,6 +49,7 @@ class CommentableViolation:
     relevant_claude_skill: str | None = None
     cost_usd: float | None = None
     diff_context: str | None = None
+    rule_url: str | None = None
 
     # --------------------------------------------------------
     # Public API
@@ -134,13 +135,15 @@ def load_violations(
             rule_name = data.get("rule_name", "")
             file_path = data.get("file_path", "") or evaluation.file_path
 
-            # Get documentation_link and relevant_claude_skill from task metadata
+            # Get rule metadata from task metadata
             documentation_link = None
             relevant_claude_skill = None
+            rule_url = None
             if task_id in task_metadata:
                 rule_data = task_metadata[task_id].get("rule", {})
                 documentation_link = rule_data.get("documentation_link")
                 relevant_claude_skill = rule_data.get("relevant_claude_skill")
+                rule_url = rule_data.get("rule_url")
 
             violations.append(
                 CommentableViolation(
@@ -153,6 +156,7 @@ def load_violations(
                     documentation_link=documentation_link,
                     relevant_claude_skill=relevant_claude_skill,
                     cost_usd=data.get("cost_usd"),
+                    rule_url=rule_url,
                 )
             )
 

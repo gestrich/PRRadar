@@ -53,6 +53,7 @@ class ViolationService:
             relevant_claude_skill=task.rule.relevant_claude_skill,
             cost_usd=result.cost_usd,
             diff_context=diff_context,
+            rule_url=task.rule.rule_url,
         )
 
     @staticmethod

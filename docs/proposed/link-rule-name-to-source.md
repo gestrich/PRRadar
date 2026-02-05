@@ -70,7 +70,7 @@ This ensures misconfiguration is caught early rather than silently producing com
 - `load_all_rules()` calls `_build_rule_url()` to populate `rule_url` for each loaded rule
 - Note: `to_dict()` serialization will be added in Phase 3 when threading through to violations
 
-## - [ ] Phase 3: Thread rule_url through to CommentableViolation
+## - [x] Phase 3: Thread rule_url through to CommentableViolation
 
 Add `rule_url` to the violation so it's available when composing comments.
 
@@ -78,6 +78,12 @@ Files to modify:
 - `scripts/commands/agent/comment.py` - Add `rule_url: str | None` to `CommentableViolation`
 - `scripts/services/violation_service.py` - Pass `rule.rule_url` when creating violations
 - `scripts/domain/rule.py` - Include `rule_url` in `to_dict()` serialization
+
+**Implementation Notes:**
+- Added `rule_url: str | None = None` field to `CommentableViolation` dataclass
+- Updated `ViolationService.create_violation()` to pass `task.rule.rule_url`
+- Added `rule_url` to `Rule.to_dict()` (only included when not None)
+- Updated `load_violations()` to extract `rule_url` from task metadata for JSON-based loading
 
 ## - [ ] Phase 4: Update compose_comment to link rule name
 

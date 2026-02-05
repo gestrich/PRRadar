@@ -272,6 +272,9 @@ class Rule:
         if self.relevant_claude_skill:
             result["relevant_claude_skill"] = self.relevant_claude_skill
 
+        if self.rule_url:
+            result["rule_url"] = self.rule_url
+
         if self.applies_to.file_patterns or self.applies_to.exclude_patterns:
             applies_to_dict: dict = {}
             if self.applies_to.file_patterns:
