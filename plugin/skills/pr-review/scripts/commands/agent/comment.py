@@ -48,6 +48,7 @@ class CommentableViolation:
     documentation_link: str | None
     relevant_claude_skill: str | None = None
     cost_usd: float | None = None
+    diff_context: str | None = None
 
     # --------------------------------------------------------
     # Public API
@@ -183,11 +184,20 @@ def prompt_for_comment(
         'y' to post, 'n' to skip, 'q' to quit, None on EOF
     """
     print()
-    print_separator()
+    print_separator("=")
     print(f"Comment {index}/{total}: {violation.file_path}:{violation.line_number or '?'}")
-    print_separator()
+    print_separator("=")
+
+    # Show diff context if available
+    if violation.diff_context:
+        print("Diff context:")
+        for line in violation.diff_context.split("\n"):
+            print(f"  {line}")
+        print_separator("-")
+
+    print("Comment to post:")
     print(violation.compose_comment())
-    print_separator()
+    print_separator("-")
 
     return prompt_yes_no_quit("Post this comment?")
 

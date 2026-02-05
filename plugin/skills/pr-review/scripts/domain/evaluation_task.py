@@ -77,6 +77,64 @@ class CodeSegment:
         """Generate a short hash of the segment content for unique IDs."""
         return hashlib.sha256(self.content.encode()).hexdigest()[:8]
 
+    def get_context_around_line(
+        self,
+        line_number: int | None,
+        context_lines: int = 3,
+    ) -> str:
+        """Extract diff context centered on a specific line number.
+
+        Returns annotated diff lines (with +/- markers and line numbers)
+        centered on the target line.
+
+        Args:
+            line_number: Target line number in the new file. If None, returns
+                         the first few lines of the diff body.
+            context_lines: Number of lines to show before and after target
+
+        Returns:
+            Formatted diff excerpt with line numbers and +/- markers
+        """
+        lines = self.content.split("\n")
+
+        # Find where the diff body starts (after headers, at @@ line)
+        body_start = 0
+        for i, line in enumerate(lines):
+            if line.startswith("@@"):
+                body_start = i
+                break
+
+        body_lines = lines[body_start:]
+
+        if line_number is None:
+            # No specific line - return first few lines of diff body
+            return "\n".join(body_lines[: 1 + (context_lines * 2)])
+
+        # Find the line matching our target line number
+        # Format is "1234: +code" or "   -: -code"
+        target_idx = None
+        for i, line in enumerate(body_lines):
+            # Skip the @@ header
+            if line.startswith("@@"):
+                continue
+            # Check if this line has our target line number
+            # Format: "1234: +code" where 1234 is right-aligned in 4 chars
+            if ": " in line:
+                line_prefix = line.split(": ")[0].strip()
+                if line_prefix.isdigit() and int(line_prefix) == line_number:
+                    target_idx = i
+                    break
+
+        if target_idx is None:
+            # Line not found - return first few lines
+            return "\n".join(body_lines[: 1 + (context_lines * 2)])
+
+        # Extract context around target
+        start = max(0, target_idx - context_lines)
+        end = min(len(body_lines), target_idx + context_lines + 1)
+
+        return "\n".join(body_lines[start:end])
+
 
 @dataclass
 class EvaluationTask:

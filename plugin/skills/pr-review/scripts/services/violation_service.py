@@ -36,6 +36,12 @@ class ViolationService:
         Returns:
             A CommentableViolation ready for posting to GitHub
         """
+        # Extract diff context around the violation line
+        diff_context = task.segment.get_context_around_line(
+            result.evaluation.line_number,
+            context_lines=3,
+        )
+
         return CommentableViolation(
             task_id=result.task_id,
             rule_name=result.rule_name,
@@ -46,6 +52,7 @@ class ViolationService:
             documentation_link=task.rule.documentation_link,
             relevant_claude_skill=task.rule.relevant_claude_skill,
             cost_usd=result.cost_usd,
+            diff_context=diff_context,
         )
 
     @staticmethod

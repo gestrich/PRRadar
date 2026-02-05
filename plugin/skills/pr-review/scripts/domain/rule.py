@@ -157,14 +157,18 @@ class GrepPatterns:
         if not self.all_patterns:
             return True
 
-        return all(re.search(pattern, text) for pattern in self.all_patterns)
+        return all(
+            re.search(pattern, text, re.MULTILINE) for pattern in self.all_patterns
+        )
 
     def _check_any_patterns(self, text: str) -> bool:
         """Check if ANY pattern matches the text."""
         if not self.any_patterns:
             return True
 
-        return any(re.search(pattern, text) for pattern in self.any_patterns)
+        return any(
+            re.search(pattern, text, re.MULTILINE) for pattern in self.any_patterns
+        )
 
 
 @dataclass
