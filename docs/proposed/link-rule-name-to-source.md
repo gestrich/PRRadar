@@ -14,7 +14,7 @@ Current state:
 
 ## Phases
 
-## - [ ] Phase 1: Add git helper to detect repo URL from file path
+## - [x] Phase 1: Add git helper to detect repo URL from file path
 
 Add a utility function that, given an absolute file path:
 1. Runs `git -C <dir> remote get-url origin` to get the remote URL
@@ -36,6 +36,12 @@ class GitFileInfo:
     def to_github_url(self) -> str:
         return f"{self.repo_url}/blob/{self.branch}/{self.relative_path}"
 ```
+
+**Implementation Notes:**
+- Created `plugin/skills/pr-review/scripts/infrastructure/git_utils.py`
+- Exports: `get_git_file_info()`, `GitFileInfo`, `GitError`
+- Handles both SSH (`git@github.com:owner/repo.git`) and HTTPS URL formats
+- `GitError` exception raised when file is not in a git repo or commands fail
 
 ## - [ ] Phase 2: Add rule_url to Rule model
 

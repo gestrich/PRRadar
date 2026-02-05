@@ -22,12 +22,20 @@ from scripts.infrastructure.execution_parser import (
     load_execution_file,
 )
 from scripts.infrastructure.gh_runner import GhCommandRunner
+from scripts.infrastructure.git_utils import (
+    GitError,
+    GitFileInfo,
+    get_git_file_info,
+)
 from scripts.infrastructure.github_output import (
     write_github_output,
     write_github_step_summary,
 )
 
 __all__ = [
+    "get_git_file_info",
+    "GitError",
+    "GitFileInfo",
     "GhCommandRunner",
     "extract_structured_output",
     "format_diff_as_json",
