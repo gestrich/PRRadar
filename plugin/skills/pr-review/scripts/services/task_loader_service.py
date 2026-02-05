@@ -50,8 +50,8 @@ class TaskLoaderService:
             if task is not None:
                 tasks.append(task)
 
-        # Sort by file path (alphabetic), then by line number within each file
-        tasks.sort(key=lambda t: (t.segment.file_path, t.segment.start_line))
+        # Sort by file path (case-insensitive to match GitHub), then by line number
+        tasks.sort(key=lambda t: (t.segment.file_path.lower(), t.segment.start_line))
 
         return tasks
 

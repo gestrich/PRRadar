@@ -88,6 +88,7 @@ def make_evaluation(
 def make_result(
     task_id: str = "test-rule-abc12345",
     rule_name: str = "test-rule",
+    rule_file_path: str = "rules/test-rule.md",
     file_path: str = "src/test.py",
     violates_rule: bool = True,
     score: int = 7,
@@ -97,6 +98,7 @@ def make_result(
     return EvaluationResult(
         task_id=task_id,
         rule_name=rule_name,
+        rule_file_path=rule_file_path,
         file_path=file_path,
         evaluation=make_evaluation(violates_rule=violates_rule, score=score),
         model_used="claude-sonnet-4-20250514",

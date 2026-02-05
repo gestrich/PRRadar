@@ -73,6 +73,7 @@ class EvaluationResult:
 
     task_id: str
     rule_name: str
+    rule_file_path: str
     file_path: str
     evaluation: RuleEvaluation
     model_used: str
@@ -88,6 +89,7 @@ class EvaluationResult:
         return {
             "task_id": self.task_id,
             "rule_name": self.rule_name,
+            "rule_file_path": self.rule_file_path,
             "file_path": self.file_path,
             "evaluation": self.evaluation.to_dict(),
             "model_used": self.model_used,
@@ -169,6 +171,7 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
     return EvaluationResult(
         task_id=task.task_id,
         rule_name=task.rule.name,
+        rule_file_path=task.rule.file_path,
         file_path=task.segment.file_path,
         evaluation=evaluation,
         model_used=model,
