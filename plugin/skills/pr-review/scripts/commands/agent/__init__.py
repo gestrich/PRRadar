@@ -249,10 +249,13 @@ def cmd_agent(args: argparse.Namespace) -> int:
         )
 
     elif args.agent_command == "report":
-        min_score = args.min_score
-        print(f"[report] Generating report for PR #{pr_number} (min-score: {min_score})...")
-        print("  Not implemented yet")
-        return 0
+        from scripts.commands.agent.report import cmd_report
+
+        return cmd_report(
+            pr_number=pr_number,
+            output_dir=pr_dir,
+            min_score=args.min_score,
+        )
 
     elif args.agent_command == "comment":
         from scripts.commands.agent.comment import cmd_comment

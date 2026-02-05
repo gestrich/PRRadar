@@ -413,7 +413,7 @@ python3 -m scripts agent analyze 123 --skip-to evaluate
 - Pipeline can be stopped and resumed
 - Progress and cost summary displayed
 
-## [ ] Phase 8: Report Generation Command (`agent report`)
+## [x] Phase 8: Report Generation Command (`agent report`)
 
 Generate a summary report from evaluation results for human review.
 
