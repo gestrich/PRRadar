@@ -28,6 +28,7 @@ from scripts.services.evaluation_service import (
 )
 from scripts.commands.agent.rules import cmd_rules
 from scripts.domain.evaluation_task import EvaluationTask
+from scripts.services.task_loader_service import TaskLoaderService
 from scripts.utils.interactive import print_separator, prompt_yes_skip_quit
 
 
@@ -322,28 +323,19 @@ def cmd_analyze(
     print("Phase 3: Evaluating rules")
     print("=" * 60)
 
-    # Load tasks
-    tasks_dir = output_dir / "tasks"
-    if not tasks_dir.exists():
-        print(f"  Error: Tasks directory not found at {tasks_dir}")
-        print("  Run without --skip-to or use --skip-to rules")
-        return 1
+    # Load tasks using TaskLoaderService
+    task_loader = TaskLoaderService(output_dir / "tasks")
+    tasks = task_loader.load_all()
 
-    task_files = sorted(tasks_dir.glob("*.json"))
-    if not task_files:
+    if not tasks:
+        tasks_dir = output_dir / "tasks"
+        if not tasks_dir.exists():
+            print(f"  Error: Tasks directory not found at {tasks_dir}")
+            print("  Run without --skip-to or use --skip-to rules")
+            return 1
         print("  No evaluation tasks found")
         stats.print_summary()
         return 0
-
-    tasks: list[EvaluationTask] = []
-    for task_file in task_files:
-        try:
-            data = json.loads(task_file.read_text())
-            task = EvaluationTask.from_dict(data)
-            tasks.append(task)
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"  Warning: Failed to parse {task_file.name}: {e}")
-            continue
 
     stats.tasks_total = len(tasks)
     print(f"  Found {len(tasks)} evaluation tasks")

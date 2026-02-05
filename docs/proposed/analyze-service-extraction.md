@@ -19,13 +19,15 @@ The `analyze.py` command currently contains business logic that duplicates code 
 
 **Goal:** Make `cmd_analyze()` a thin orchestration layer that calls service APIs, with all business logic in services.
 
-## - [ ] Phase 1: Create TaskLoaderService
+## - [x] Phase 1: Create TaskLoaderService
 
 Extract task loading logic into a dedicated service.
 
+**Status:** ✅ Completed
+
 **Service type:** Core service (single responsibility: load tasks from filesystem)
 
-**Files to create:**
+**Files created:**
 - `services/task_loader_service.py`
 
 **Service API:**
@@ -56,14 +58,17 @@ class TaskLoaderService:
 
 **Skill patterns applied:**
 - Constructor takes `tasks_dir` dependency (no hardcoded paths)
-- Returns empty list for "no tasks" (normal case), raises exception for parse errors (abnormal)
+- Returns empty list for "no tasks" (normal case), silently skips unparseable files (returns None)
 - `_parse_task_file` is static because it's a pure transformation
 
-**Logic to extract from:**
-- `analyze.py` lines 325-346 (task loading)
-- `evaluate.py` lines 141-166 (task loading + filtering)
+**Files modified:**
+- `commands/agent/analyze.py` - Now uses `TaskLoaderService.load_all()` instead of inline JSON parsing
+- `commands/agent/evaluate.py` - Now uses `TaskLoaderService.load_all()` and `load_filtered()` instead of inline parsing
 
-**Expected outcome:** Both commands call `TaskLoaderService` instead of duplicating JSON parsing.
+**Technical notes:**
+- Error messages for missing directories preserved in command layer (UI concern)
+- Both commands maintain original user-facing output
+- `_parse_task_file` returns `None` on parse failure rather than raising—callers silently skip bad files
 
 ## - [ ] Phase 2: Consolidate Batch Evaluation in EvaluationService
 

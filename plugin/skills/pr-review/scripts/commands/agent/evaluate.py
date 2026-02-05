@@ -25,6 +25,7 @@ from scripts.services.evaluation_service import (
     EvaluationResult,
     evaluate_task,
 )
+from scripts.services.task_loader_service import TaskLoaderService
 
 
 # ============================================================
@@ -138,48 +139,39 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
     """
     print(f"[evaluate] Running evaluations for PR #{pr_number}...")
 
-    # Verify tasks directory exists
-    tasks_dir = output_dir / "tasks"
-    if not tasks_dir.exists():
-        print(f"  Error: Tasks directory not found at {tasks_dir}")
-        print("  Run 'agent rules' first to create evaluation tasks")
-        return 1
-
-    # Load all task files
-    task_files = sorted(tasks_dir.glob("*.json"))
-    if not task_files:
-        print("  No evaluation tasks found")
-        print("  Run 'agent rules' to create tasks")
-        return 0
-
-    print(f"  Found {len(task_files)} evaluation tasks")
-
-    # Parse tasks
-    tasks: list[EvaluationTask] = []
-    for task_file in task_files:
-        try:
-            data = json.loads(task_file.read_text())
-            task = EvaluationTask.from_dict(data)
-            tasks.append(task)
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"  Warning: Failed to parse {task_file.name}: {e}")
-            continue
-
-    if not tasks:
-        print("  Error: No valid tasks could be loaded")
-        return 1
+    # Load tasks using TaskLoaderService
+    task_loader = TaskLoaderService(output_dir / "tasks")
 
     # Apply rules filter if specified
     if rules_filter:
-        filtered_tasks = [t for t in tasks if t.rule.name in rules_filter]
+        all_tasks = task_loader.load_all()
+        tasks = task_loader.load_filtered(rules_filter)
+        if not all_tasks:
+            tasks_dir = output_dir / "tasks"
+            if not tasks_dir.exists():
+                print(f"  Error: Tasks directory not found at {tasks_dir}")
+                print("  Run 'agent rules' first to create evaluation tasks")
+                return 1
+            print("  No evaluation tasks found")
+            print("  Run 'agent rules' to create tasks")
+            return 0
         print(f"  Filtering by rules: {', '.join(rules_filter)}")
-        print(f"  Matched {len(filtered_tasks)} of {len(tasks)} tasks")
-        tasks = filtered_tasks
+        print(f"  Matched {len(tasks)} of {len(all_tasks)} tasks")
         if not tasks:
             print("  No tasks match the specified rules")
             return 0
     else:
-        print(f"  Loaded {len(tasks)} valid tasks")
+        tasks = task_loader.load_all()
+        if not tasks:
+            tasks_dir = output_dir / "tasks"
+            if not tasks_dir.exists():
+                print(f"  Error: Tasks directory not found at {tasks_dir}")
+                print("  Run 'agent rules' first to create evaluation tasks")
+                return 1
+            print("  No evaluation tasks found")
+            print("  Run 'agent rules' to create tasks")
+            return 0
+        print(f"  Loaded {len(tasks)} tasks")
 
     print()
 
