@@ -85,7 +85,7 @@ Files to modify:
 - Added `rule_url` to `Rule.to_dict()` (only included when not None)
 - Updated `load_violations()` to extract `rule_url` from task metadata for JSON-based loading
 
-## - [ ] Phase 4: Update compose_comment to link rule name
+## - [x] Phase 4: Update compose_comment to link rule name
 
 Modify `CommentableViolation.compose_comment()` to make the rule name a link when `rule_url` is available.
 
@@ -98,6 +98,11 @@ To:
 ```python
 f"**[{self.rule_name}]({self.rule_url})**" if self.rule_url else f"**{self.rule_name}**"
 ```
+
+**Implementation Notes:**
+- Modified `compose_comment()` in `scripts/commands/agent/comment.py`
+- Creates `rule_header` variable with conditional link formatting
+- Falls back to plain bold text when `rule_url` is None
 
 ## - [ ] Phase 5: Validation
 

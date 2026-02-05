@@ -64,8 +64,13 @@ class CommentableViolation:
         Returns:
             Formatted markdown comment body
         """
+        rule_header = (
+            f"**[{self.rule_name}]({self.rule_url})**"
+            if self.rule_url
+            else f"**{self.rule_name}**"
+        )
         lines = [
-            f"**{self.rule_name}**",
+            rule_header,
             "",
             self.comment,
         ]
