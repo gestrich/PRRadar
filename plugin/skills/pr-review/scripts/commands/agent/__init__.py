@@ -1,0 +1,228 @@
+"""Agent mode commands for PRRadar.
+
+This module provides the CLI infrastructure for agent mode, which uses
+the Claude Agent SDK with structured outputs for deterministic, pipeline-based
+code review.
+
+Commands:
+    diff      - Fetch and store PR diff artifacts
+    rules     - Collect and filter applicable rules
+    evaluate  - Run rule evaluations using agent subprocesses
+    report    - Generate review report from evaluations
+    comment   - Post review comments to GitHub
+    analyze   - Run the full pipeline
+"""
+
+import argparse
+import os
+from pathlib import Path
+
+
+def setup_agent_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Set up the agent subcommand group with nested commands."""
+    agent_parser = subparsers.add_parser(
+        "agent",
+        help="Agent mode commands (Claude Agent SDK)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""
+Agent mode provides a pipeline-based code review system using the
+Claude Agent SDK with structured outputs for consistent, debuggable results.
+
+Each phase produces artifacts in the output directory that can be
+inspected and debugged independently.
+        """,
+    )
+
+    agent_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="code-reviews",
+        help="Directory for storing artifacts (default: code-reviews/)",
+    )
+
+    agent_subparsers = agent_parser.add_subparsers(
+        dest="agent_command",
+        help="Agent command to run",
+    )
+
+    # diff command
+    diff_parser = agent_subparsers.add_parser(
+        "diff",
+        help="Fetch and store PR diff",
+    )
+    diff_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to fetch diff for",
+    )
+
+    # rules command
+    rules_parser = agent_subparsers.add_parser(
+        "rules",
+        help="Collect and filter applicable rules",
+    )
+    rules_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to analyze rules for",
+    )
+    rules_parser.add_argument(
+        "--rules-dir",
+        type=str,
+        default="code-review-rules",
+        help="Directory containing review rules (default: code-review-rules/)",
+    )
+
+    # evaluate command
+    evaluate_parser = agent_subparsers.add_parser(
+        "evaluate",
+        help="Run rule evaluations",
+    )
+    evaluate_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to evaluate",
+    )
+
+    # report command
+    report_parser = agent_subparsers.add_parser(
+        "report",
+        help="Generate review report",
+    )
+    report_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to generate report for",
+    )
+    report_parser.add_argument(
+        "--min-score",
+        type=int,
+        default=5,
+        help="Minimum score threshold for violations (default: 5)",
+    )
+
+    # comment command
+    comment_parser = agent_subparsers.add_parser(
+        "comment",
+        help="Post review comments to GitHub",
+    )
+    comment_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to post comments to",
+    )
+    comment_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview comments without posting",
+    )
+
+    # analyze command (full pipeline)
+    analyze_parser = agent_subparsers.add_parser(
+        "analyze",
+        help="Run full review pipeline",
+    )
+    analyze_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to analyze",
+    )
+    analyze_parser.add_argument(
+        "--rules-dir",
+        type=str,
+        default="code-review-rules",
+        help="Directory containing review rules (default: code-review-rules/)",
+    )
+    analyze_parser.add_argument(
+        "--stop-after",
+        choices=["diff", "rules", "evaluate", "report"],
+        help="Stop after specified phase",
+    )
+    analyze_parser.add_argument(
+        "--skip-to",
+        choices=["rules", "evaluate", "report", "comment"],
+        help="Skip to specified phase (uses existing artifacts)",
+    )
+
+
+def ensure_output_dir(output_dir: str, pr_number: int) -> Path:
+    """Create and return the output directory for a PR.
+
+    Args:
+        output_dir: Base output directory
+        pr_number: PR number
+
+    Returns:
+        Path to the PR-specific output directory
+    """
+    pr_dir = Path(output_dir) / str(pr_number)
+    pr_dir.mkdir(parents=True, exist_ok=True)
+    return pr_dir
+
+
+def cmd_agent(args: argparse.Namespace) -> int:
+    """Handle agent subcommands.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+    """
+    if not args.agent_command:
+        print("Error: No agent command specified")
+        print("Use 'python -m scripts agent --help' for usage information")
+        return 1
+
+    output_dir = args.output_dir
+    pr_number = args.pr_number
+
+    # Ensure output directory exists
+    pr_dir = ensure_output_dir(output_dir, pr_number)
+    print(f"Output directory: {pr_dir}")
+
+    if args.agent_command == "diff":
+        print(f"[diff] Fetching diff for PR #{pr_number}...")
+        print("  Not implemented yet - see Phase 3")
+        return 0
+
+    elif args.agent_command == "rules":
+        rules_dir = args.rules_dir
+        print(f"[rules] Collecting rules from {rules_dir} for PR #{pr_number}...")
+        print("  Not implemented yet - see Phase 4")
+        return 0
+
+    elif args.agent_command == "evaluate":
+        print(f"[evaluate] Running evaluations for PR #{pr_number}...")
+        print("  Not implemented yet - see Phase 5")
+        return 0
+
+    elif args.agent_command == "report":
+        min_score = args.min_score
+        print(f"[report] Generating report for PR #{pr_number} (min-score: {min_score})...")
+        print("  Not implemented yet - see Phase 6")
+        return 0
+
+    elif args.agent_command == "comment":
+        dry_run = args.dry_run
+        mode = "dry-run" if dry_run else "live"
+        print(f"[comment] Posting comments for PR #{pr_number} ({mode})...")
+        print("  Not implemented yet - see Phase 7")
+        return 0
+
+    elif args.agent_command == "analyze":
+        rules_dir = args.rules_dir
+        stop_after = args.stop_after
+        skip_to = args.skip_to
+        print(f"[analyze] Running full pipeline for PR #{pr_number}...")
+        print(f"  Rules directory: {rules_dir}")
+        if stop_after:
+            print(f"  Stopping after: {stop_after}")
+        if skip_to:
+            print(f"  Skipping to: {skip_to}")
+        print("  Not implemented yet - see Phase 8")
+        return 0
+
+    else:
+        print(f"Error: Unknown agent command '{args.agent_command}'")
+        return 1

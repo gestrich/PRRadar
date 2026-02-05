@@ -13,6 +13,7 @@ Commands:
 import argparse
 import sys
 
+from scripts.commands.agent import cmd_agent, setup_agent_parser
 from scripts.commands.handle_mention import cmd_handle_mention
 from scripts.commands.parse_diff import cmd_parse_diff
 from scripts.commands.post_review import cmd_post_review
@@ -27,6 +28,7 @@ Commands:
   post-review     Post review comments to a GitHub PR based on Claude's output
   handle-mention  Handle @code-review mentions in PR comments
   parse-diff      Parse git diff and output structured hunk information
+  agent           Agent mode commands (Claude Agent SDK pipeline)
 
 Examples (run from repo root):
   .claude/skills/code-review/scripts/post-review --execution-file output.json --pr-number 123 --repo owner/repo
@@ -129,6 +131,9 @@ Examples (run from repo root):
         help="Prepend target file line numbers to each diff line (e.g., '  5: +code')",
     )
 
+    # agent command group
+    setup_agent_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -161,6 +166,9 @@ Examples (run from repo root):
             output_format=args.format,
             annotate_lines=args.annotate_lines,
         )
+
+    elif args.command == "agent":
+        return cmd_agent(args)
 
     else:
         parser.print_help()

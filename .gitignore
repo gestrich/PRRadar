@@ -19,3 +19,9 @@ venv/
 
 # Review output (generated during workflow runs)
 review-output/
+
+# Agent mode artifacts
+code-reviews/
+
+# Environment variables (API keys)
+.env
