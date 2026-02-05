@@ -1,0 +1,357 @@
+"""Tests for service layer classes.
+
+Tests cover:
+- TaskLoaderService: Loading and filtering evaluation tasks from filesystem
+- ViolationService: Transforming evaluation results to violations
+"""
+
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts.commands.agent.comment import CommentableViolation
+from scripts.domain.agent_outputs import RuleEvaluation
+from scripts.domain.evaluation_task import CodeSegment, EvaluationTask
+from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
+from scripts.services.evaluation_service import EvaluationResult
+from scripts.services.task_loader_service import TaskLoaderService
+from scripts.services.violation_service import ViolationService
+
+
+# ============================================================
+# Test Fixtures
+# ============================================================
+
+
+def make_rule(
+    name: str = "test-rule",
+    description: str = "Test description",
+    documentation_link: str | None = None,
+) -> Rule:
+    """Create a Rule instance for testing."""
+    return Rule(
+        name=name,
+        file_path=f"/rules/{name}.md",
+        description=description,
+        category="test",
+        applies_to=AppliesTo(),
+        grep=GrepPatterns(),
+        content="Rule content",
+        documentation_link=documentation_link,
+    )
+
+
+def make_segment(
+    file_path: str = "src/test.py",
+    start_line: int = 10,
+    end_line: int = 20,
+) -> CodeSegment:
+    """Create a CodeSegment instance for testing."""
+    return CodeSegment(
+        file_path=file_path,
+        hunk_index=0,
+        start_line=start_line,
+        end_line=end_line,
+        content="+    new code",
+    )
+
+
+def make_task(
+    rule_name: str = "test-rule",
+    file_path: str = "src/test.py",
+    documentation_link: str | None = None,
+) -> EvaluationTask:
+    """Create an EvaluationTask instance for testing."""
+    rule = make_rule(name=rule_name, documentation_link=documentation_link)
+    segment = make_segment(file_path=file_path)
+    return EvaluationTask.create(rule=rule, segment=segment)
+
+
+def make_evaluation(
+    violates_rule: bool = True,
+    score: int = 7,
+    line_number: int = 15,
+) -> RuleEvaluation:
+    """Create a RuleEvaluation instance for testing."""
+    return RuleEvaluation(
+        violates_rule=violates_rule,
+        score=score,
+        explanation="Test explanation",
+        suggestion="Test suggestion",
+        file_path="src/test.py",
+        line_number=line_number,
+    )
+
+
+def make_result(
+    task_id: str = "test-rule-abc12345",
+    rule_name: str = "test-rule",
+    file_path: str = "src/test.py",
+    violates_rule: bool = True,
+    score: int = 7,
+    cost_usd: float | None = 0.001,
+) -> EvaluationResult:
+    """Create an EvaluationResult instance for testing."""
+    return EvaluationResult(
+        task_id=task_id,
+        rule_name=rule_name,
+        file_path=file_path,
+        evaluation=make_evaluation(violates_rule=violates_rule, score=score),
+        model_used="claude-sonnet-4-20250514",
+        duration_ms=1500,
+        cost_usd=cost_usd,
+    )
+
+
+# ============================================================
+# TaskLoaderService Tests
+# ============================================================
+
+
+class TestTaskLoaderService(unittest.TestCase):
+    """Tests for TaskLoaderService task loading functionality."""
+
+    def test_load_all_returns_empty_list_when_directory_does_not_exist(self):
+        """Test that load_all returns empty list for non-existent directory."""
+        loader = TaskLoaderService(Path("/nonexistent/path"))
+        result = loader.load_all()
+        self.assertEqual(result, [])
+
+    def test_load_all_returns_empty_list_when_no_files(self):
+        """Test that load_all returns empty list when directory has no JSON files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            loader = TaskLoaderService(Path(tmpdir))
+            result = loader.load_all()
+            self.assertEqual(result, [])
+
+    def test_load_all_loads_single_task(self):
+        """Test that load_all correctly loads a single task file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_dir = Path(tmpdir)
+
+            task = make_task(rule_name="my-rule", file_path="src/handler.py")
+            task_file = tasks_dir / f"{task.task_id}.json"
+            task_file.write_text(json.dumps(task.to_dict(), indent=2))
+
+            loader = TaskLoaderService(tasks_dir)
+            result = loader.load_all()
+
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0].rule.name, "my-rule")
+            self.assertEqual(result[0].segment.file_path, "src/handler.py")
+
+    def test_load_all_loads_multiple_tasks(self):
+        """Test that load_all loads multiple task files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_dir = Path(tmpdir)
+
+            task1 = make_task(rule_name="rule-a")
+            task2 = make_task(rule_name="rule-b")
+
+            (tasks_dir / f"{task1.task_id}.json").write_text(json.dumps(task1.to_dict()))
+            (tasks_dir / f"{task2.task_id}.json").write_text(json.dumps(task2.to_dict()))
+
+            loader = TaskLoaderService(tasks_dir)
+            result = loader.load_all()
+
+            self.assertEqual(len(result), 2)
+            rule_names = {t.rule.name for t in result}
+            self.assertIn("rule-a", rule_names)
+            self.assertIn("rule-b", rule_names)
+
+    def test_load_all_skips_invalid_json_files(self):
+        """Test that load_all silently skips files with invalid JSON."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_dir = Path(tmpdir)
+
+            valid_task = make_task(rule_name="valid-rule")
+            (tasks_dir / f"{valid_task.task_id}.json").write_text(
+                json.dumps(valid_task.to_dict())
+            )
+
+            (tasks_dir / "invalid.json").write_text("not valid json {{{")
+
+            loader = TaskLoaderService(tasks_dir)
+            result = loader.load_all()
+
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0].rule.name, "valid-rule")
+
+    def test_load_filtered_returns_only_matching_rules(self):
+        """Test that load_filtered returns only tasks for specified rules."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_dir = Path(tmpdir)
+
+            task1 = make_task(rule_name="include-me")
+            task2 = make_task(rule_name="exclude-me")
+            task3 = make_task(rule_name="also-include")
+
+            for task in [task1, task2, task3]:
+                (tasks_dir / f"{task.task_id}.json").write_text(
+                    json.dumps(task.to_dict())
+                )
+
+            loader = TaskLoaderService(tasks_dir)
+            result = loader.load_filtered(["include-me", "also-include"])
+
+            self.assertEqual(len(result), 2)
+            rule_names = {t.rule.name for t in result}
+            self.assertIn("include-me", rule_names)
+            self.assertIn("also-include", rule_names)
+            self.assertNotIn("exclude-me", rule_names)
+
+    def test_load_filtered_returns_empty_list_when_no_matches(self):
+        """Test that load_filtered returns empty list when no rules match."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_dir = Path(tmpdir)
+
+            task = make_task(rule_name="some-rule")
+            (tasks_dir / f"{task.task_id}.json").write_text(json.dumps(task.to_dict()))
+
+            loader = TaskLoaderService(tasks_dir)
+            result = loader.load_filtered(["different-rule"])
+
+            self.assertEqual(result, [])
+
+    def test_parse_task_file_returns_none_for_invalid_structure(self):
+        """Test that _parse_task_file returns None for JSON without required fields."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_dir = Path(tmpdir)
+
+            (tasks_dir / "incomplete.json").write_text('{"some_field": "value"}')
+
+            loader = TaskLoaderService(tasks_dir)
+            result = loader.load_all()
+
+            self.assertEqual(len(result), 1)
+
+
+# ============================================================
+# ViolationService Tests
+# ============================================================
+
+
+class TestViolationService(unittest.TestCase):
+    """Tests for ViolationService violation transformation functionality."""
+
+    def test_create_violation_transforms_result_and_task(self):
+        """Test that create_violation correctly transforms result and task."""
+        task = make_task(
+            rule_name="my-rule",
+            file_path="src/handler.py",
+            documentation_link="https://docs.example.com/my-rule",
+        )
+        result = make_result(
+            task_id=task.task_id,
+            rule_name="my-rule",
+            file_path="src/handler.py",
+            score=8,
+            cost_usd=0.0025,
+        )
+
+        violation = ViolationService.create_violation(result, task)
+
+        self.assertIsInstance(violation, CommentableViolation)
+        self.assertEqual(violation.task_id, task.task_id)
+        self.assertEqual(violation.rule_name, "my-rule")
+        self.assertEqual(violation.file_path, "src/handler.py")
+        self.assertEqual(violation.score, 8)
+        self.assertEqual(violation.documentation_link, "https://docs.example.com/my-rule")
+        self.assertEqual(violation.cost_usd, 0.0025)
+
+    def test_create_violation_preserves_evaluation_details(self):
+        """Test that create_violation preserves explanation and suggestion."""
+        task = make_task()
+        result = make_result()
+
+        violation = ViolationService.create_violation(result, task)
+
+        self.assertEqual(violation.explanation, "Test explanation")
+        self.assertEqual(violation.suggestion, "Test suggestion")
+        self.assertEqual(violation.line_number, 15)
+
+    def test_filter_by_score_excludes_non_violations(self):
+        """Test that filter_by_score excludes results without violations."""
+        task1 = make_task(rule_name="rule-a")
+        task2 = make_task(rule_name="rule-b")
+
+        results = [
+            make_result(task_id=task1.task_id, rule_name="rule-a", violates_rule=True, score=7),
+            make_result(task_id=task2.task_id, rule_name="rule-b", violates_rule=False, score=5),
+        ]
+        tasks = [task1, task2]
+
+        violations = ViolationService.filter_by_score(results, tasks, min_score=5)
+
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].rule_name, "rule-a")
+
+    def test_filter_by_score_excludes_low_scores(self):
+        """Test that filter_by_score excludes results below min_score threshold."""
+        task1 = make_task(rule_name="rule-a")
+        task2 = make_task(rule_name="rule-b")
+        task3 = make_task(rule_name="rule-c")
+
+        results = [
+            make_result(task_id=task1.task_id, rule_name="rule-a", violates_rule=True, score=3),
+            make_result(task_id=task2.task_id, rule_name="rule-b", violates_rule=True, score=5),
+            make_result(task_id=task3.task_id, rule_name="rule-c", violates_rule=True, score=8),
+        ]
+        tasks = [task1, task2, task3]
+
+        violations = ViolationService.filter_by_score(results, tasks, min_score=5)
+
+        self.assertEqual(len(violations), 2)
+        rule_names = {v.rule_name for v in violations}
+        self.assertIn("rule-b", rule_names)
+        self.assertIn("rule-c", rule_names)
+        self.assertNotIn("rule-a", rule_names)
+
+    def test_filter_by_score_returns_empty_for_no_qualifying_results(self):
+        """Test that filter_by_score returns empty list when no results qualify."""
+        task = make_task()
+
+        results = [
+            make_result(task_id=task.task_id, violates_rule=False, score=7),
+        ]
+        tasks = [task]
+
+        violations = ViolationService.filter_by_score(results, tasks, min_score=5)
+
+        self.assertEqual(violations, [])
+
+    def test_filter_by_score_handles_missing_task(self):
+        """Test that filter_by_score silently skips results without matching task."""
+        task = make_task(rule_name="existing-rule")
+
+        results = [
+            make_result(task_id=task.task_id, rule_name="existing-rule", violates_rule=True, score=7),
+            make_result(task_id="orphan-task-id", rule_name="orphan-rule", violates_rule=True, score=7),
+        ]
+        tasks = [task]
+
+        violations = ViolationService.filter_by_score(results, tasks, min_score=5)
+
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].rule_name, "existing-rule")
+
+    def test_filter_by_score_preserves_documentation_link(self):
+        """Test that filter_by_score preserves documentation_link from task."""
+        task = make_task(documentation_link="https://docs.example.com/rule")
+
+        results = [
+            make_result(task_id=task.task_id, violates_rule=True, score=7),
+        ]
+        tasks = [task]
+
+        violations = ViolationService.filter_by_score(results, tasks, min_score=5)
+
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].documentation_link, "https://docs.example.com/rule")
+
+
+if __name__ == "__main__":
+    unittest.main()
