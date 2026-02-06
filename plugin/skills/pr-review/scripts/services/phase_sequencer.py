@@ -5,6 +5,7 @@ Provides single source of truth for phase names and basic validation.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -48,6 +49,41 @@ class PipelinePhase(Enum):
             if phases[i].value not in _FUTURE_PHASES:
                 return phases[i]
         return None
+
+
+@dataclass
+class PhaseStatus:
+    """Detailed status of a pipeline phase.
+
+    Tracks completion state for resumability and progress reporting.
+    """
+
+    phase: PipelinePhase
+    exists: bool
+    is_complete: bool
+    completed_count: int
+    total_count: int
+    missing_items: list[str]
+
+    def completion_percentage(self) -> float:
+        """Get completion percentage (0.0 to 100.0)."""
+        if self.total_count == 0:
+            return 100.0 if self.is_complete else 0.0
+        return (self.completed_count / self.total_count) * 100.0
+
+    def is_partial(self) -> bool:
+        """Check if phase is partially complete."""
+        return self.exists and not self.is_complete and self.completed_count > 0
+
+    def summary(self) -> str:
+        """Get human-readable status summary."""
+        if not self.exists:
+            return "not started"
+        if self.is_complete:
+            return "complete"
+        if self.is_partial():
+            return f"partial ({self.completed_count}/{self.total_count})"
+        return "incomplete"
 
 
 class PhaseSequencer:

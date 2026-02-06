@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 
 from scripts.commands.migrate_to_phases import migrate_all, migrate_pr_directory
-from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
+from scripts.services.phase_sequencer import PhaseSequencer, PhaseStatus, PipelinePhase
 
 
 class TestPipelinePhase(unittest.TestCase):
@@ -188,6 +188,166 @@ class TestPhaseSequencerDependencyValidation(unittest.TestCase):
     def test_validate_can_run_first_phase(self) -> None:
         """validate_can_run returns None for first phase."""
         assert PhaseSequencer.validate_can_run(self.tmp_path, PipelinePhase.DIFF) is None
+
+
+class TestPhaseStatus(unittest.TestCase):
+    """Tests for PhaseStatus dataclass and helper methods."""
+
+    def test_completion_percentage_partial(self) -> None:
+        """Completion percentage calculated correctly for partial progress."""
+        status = PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=True,
+            is_complete=False,
+            completed_count=15,
+            total_count=20,
+            missing_items=["task-1", "task-2", "task-3", "task-4", "task-5"],
+        )
+        assert status.completion_percentage() == 75.0
+
+    def test_completion_percentage_complete(self) -> None:
+        """Completion percentage is 100% when all items done."""
+        status = PhaseStatus(
+            phase=PipelinePhase.DIFF,
+            exists=True,
+            is_complete=True,
+            completed_count=5,
+            total_count=5,
+            missing_items=[],
+        )
+        assert status.completion_percentage() == 100.0
+
+    def test_completion_percentage_zero_total_complete(self) -> None:
+        """Zero total count returns 100% when marked complete."""
+        status = PhaseStatus(
+            phase=PipelinePhase.DIFF,
+            exists=True,
+            is_complete=True,
+            completed_count=0,
+            total_count=0,
+            missing_items=[],
+        )
+        assert status.completion_percentage() == 100.0
+
+    def test_completion_percentage_zero_total_incomplete(self) -> None:
+        """Zero total count returns 0% when not complete."""
+        status = PhaseStatus(
+            phase=PipelinePhase.DIFF,
+            exists=False,
+            is_complete=False,
+            completed_count=0,
+            total_count=0,
+            missing_items=[],
+        )
+        assert status.completion_percentage() == 0.0
+
+    def test_completion_percentage_none_done(self) -> None:
+        """Completion percentage is 0% when nothing done."""
+        status = PhaseStatus(
+            phase=PipelinePhase.TASKS,
+            exists=True,
+            is_complete=False,
+            completed_count=0,
+            total_count=10,
+            missing_items=[],
+        )
+        assert status.completion_percentage() == 0.0
+
+    def test_is_partial_true(self) -> None:
+        """Phase is partial when it exists, is incomplete, and has some progress."""
+        status = PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=True,
+            is_complete=False,
+            completed_count=10,
+            total_count=20,
+            missing_items=[],
+        )
+        assert status.is_partial()
+
+    def test_is_partial_false_when_complete(self) -> None:
+        """Phase is not partial when complete."""
+        status = PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=True,
+            is_complete=True,
+            completed_count=20,
+            total_count=20,
+            missing_items=[],
+        )
+        assert not status.is_partial()
+
+    def test_is_partial_false_when_not_exists(self) -> None:
+        """Phase is not partial when it doesn't exist."""
+        status = PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=False,
+            is_complete=False,
+            completed_count=0,
+            total_count=20,
+            missing_items=[],
+        )
+        assert not status.is_partial()
+
+    def test_is_partial_false_when_zero_completed(self) -> None:
+        """Phase is not partial when nothing completed (exists but empty)."""
+        status = PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=True,
+            is_complete=False,
+            completed_count=0,
+            total_count=20,
+            missing_items=[],
+        )
+        assert not status.is_partial()
+
+    def test_summary_not_started(self) -> None:
+        """Summary shows 'not started' when phase doesn't exist."""
+        status = PhaseStatus(
+            phase=PipelinePhase.REPORT,
+            exists=False,
+            is_complete=False,
+            completed_count=0,
+            total_count=0,
+            missing_items=[],
+        )
+        assert status.summary() == "not started"
+
+    def test_summary_complete(self) -> None:
+        """Summary shows 'complete' when phase is done."""
+        status = PhaseStatus(
+            phase=PipelinePhase.DIFF,
+            exists=True,
+            is_complete=True,
+            completed_count=5,
+            total_count=5,
+            missing_items=[],
+        )
+        assert status.summary() == "complete"
+
+    def test_summary_partial(self) -> None:
+        """Summary shows 'partial (N/M)' when partially complete."""
+        status = PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=True,
+            is_complete=False,
+            completed_count=7,
+            total_count=20,
+            missing_items=[],
+        )
+        assert status.summary() == "partial (7/20)"
+
+    def test_summary_incomplete(self) -> None:
+        """Summary shows 'incomplete' when exists but nothing completed."""
+        status = PhaseStatus(
+            phase=PipelinePhase.TASKS,
+            exists=True,
+            is_complete=False,
+            completed_count=0,
+            total_count=10,
+            missing_items=[],
+        )
+        assert status.summary() == "incomplete"
 
 
 class TestMigrateToPhases(unittest.TestCase):
