@@ -16,15 +16,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scripts.domain.diff_source import DiffSource
+from scripts.infrastructure.diff_provider_factory import create_diff_provider
 from scripts.infrastructure.gh_runner import GhCommandRunner
 
 
-def cmd_diff(pr_number: int, output_dir: Path) -> int:
+def cmd_diff(
+    pr_number: int,
+    output_dir: Path,
+    source: str = "github",
+    local_repo_path: str | None = None,
+) -> int:
     """Execute the diff command.
 
     Args:
         pr_number: PR number to fetch
         output_dir: PR-specific output directory (already includes PR number)
+        source: Diff source ("github" or "local")
+        local_repo_path: Path to local git repo (for local source)
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -34,15 +43,41 @@ def cmd_diff(pr_number: int, output_dir: Path) -> int:
     gh = GhCommandRunner()
     print(f"Fetching PR #{pr_number} data...")
 
+    # Get repository information from GitHub
+    print("  Detecting repository...")
+    success, repo_result = gh.get_repository()
+    if not success:
+        print(f"  Error detecting repository: {repo_result}")
+        return 1
+    assert not isinstance(repo_result, str)
+    repo = repo_result
+
     # Create diff subdirectory
     diff_dir = output_dir / "diff"
     diff_dir.mkdir(parents=True, exist_ok=True)
 
+    # Parse diff source
+    try:
+        diff_source = DiffSource.from_string(source)
+    except ValueError as e:
+        print(f"  Error: {e}")
+        return 1
+
+    # Create appropriate diff provider
+    print(f"  Using diff source: {diff_source.value}")
+    provider_kwargs = {}
+    if local_repo_path:
+        provider_kwargs["local_repo_path"] = local_repo_path
+    provider = create_diff_provider(
+        diff_source, repo.owner, repo.name, **provider_kwargs
+    )
+
     # Fetch and store diff
     print("  Fetching diff...")
-    success, diff_content = gh.pr_diff(pr_number)
-    if not success:
-        print(f"  Error fetching diff: {diff_content}")
+    try:
+        diff_content = provider.get_pr_diff(pr_number)
+    except Exception as e:
+        print(f"  Error fetching diff: {e}")
         return 1
 
     raw_diff_path = diff_dir / "raw.diff"

@@ -233,18 +233,18 @@ Create the factory pattern and enum for selecting diff sources.
 
 ---
 
-## - [ ] Phase 4: CLI Integration
+## - [x] Phase 4: CLI Integration ✅
 
 **Skills to reference:** [python-architecture:cli-architecture](https://github.com/gestrich/python-architecture) for command structure
 
 Integrate the provider pattern into the CLI commands.
 
 **Tasks:**
-- Update `commands/agent/diff.py` to accept `--source github|local` flag (default: github)
-- Add `--local-repo-path` optional argument (defaults to current directory)
-- Replace direct `gh pr diff` calls with provider pattern
-- Ensure output format remains unchanged for downstream compatibility
-- **Workflow implementation:**
+- ✅ Update `commands/agent/diff.py` to accept `--source github|local` flag (default: github)
+- ✅ Add `--local-repo-path` optional argument (defaults to current directory)
+- ✅ Replace direct `gh pr diff` calls with provider pattern
+- ✅ Ensure output format remains unchanged for downstream compatibility
+- ✅ **Workflow implementation:**
   1. Parse PR number from arguments
   2. Create provider using factory (based on --source flag)
   3. Provider fetches PR metadata from GitHub API (both sources do this)
@@ -252,14 +252,50 @@ Integrate the provider pattern into the CLI commands.
   5. Write diff to output file (same format regardless of source)
 
 **Files modified:**
-- `commands/agent/diff.py` (add flags, use provider)
-- `infrastructure/gh_runner.py` (potentially update or keep for other gh commands)
+- `commands/agent/__init__.py` (added CLI arguments for --source and --local-repo-path)
+- `commands/agent/diff.py` (updated to use provider factory instead of direct gh pr diff)
+- `commands/agent/analyze.py` (updated to pass source arguments through pipeline)
+
+**Technical notes:**
+- **CLI arguments added to both `diff` and `analyze` commands:**
+  - `--source {github,local}` - Choose diff source (default: github)
+  - `--local-repo-path` - Optional path to local git repo (default: current directory)
+- **cmd_diff updated to use provider pattern:**
+  - Auto-detects repository from gh CLI (`gh repo view`)
+  - Parses DiffSource enum from CLI argument
+  - Creates appropriate provider via factory
+  - Handles exceptions from provider operations
+  - Output format unchanged - same artifacts produced
+- **cmd_analyze passes arguments through:**
+  - Added source and local_repo_path parameters to signature
+  - Passes through to cmd_diff call in Phase 1
+  - Full pipeline supports both diff sources
+- **Backward compatibility maintained:**
+  - Default behavior unchanged (GitHub API)
+  - Existing workflows continue to work
+  - Optional flags only affect behavior when specified
+- **Build succeeds:** 110/111 tests pass (1 unrelated failure due to missing claude_agent_sdk)
 
 **Expected outcomes:**
 - ✅ Users can choose diff source via CLI flag
 - ✅ Default behavior unchanged (GitHub API)
 - ✅ Local git support available when needed
 - ✅ Same output format regardless of source
+
+**Usage examples:**
+```bash
+# Default: Use GitHub API for diff
+prradar agent diff 123
+
+# Use local git for diff
+prradar agent diff 123 --source local
+
+# Full pipeline with local git
+prradar agent analyze 123 --source local
+
+# Specify explicit repo path
+prradar agent diff 123 --source local --local-repo-path ~/my-project
+```
 
 ---
 

@@ -55,6 +55,18 @@ inspected and debugged independently.
         type=int,
         help="PR number to fetch diff for",
     )
+    diff_parser.add_argument(
+        "--source",
+        type=str,
+        choices=["github", "local"],
+        default="github",
+        help="Diff source (default: github)",
+    )
+    diff_parser.add_argument(
+        "--local-repo-path",
+        type=str,
+        help="Path to local git repository (default: current directory)",
+    )
 
     # rules command
     rules_parser = agent_subparsers.add_parser(
@@ -156,6 +168,18 @@ inspected and debugged independently.
         help="Directory containing review rules (default: code-review-rules/)",
     )
     analyze_parser.add_argument(
+        "--source",
+        type=str,
+        choices=["github", "local"],
+        default="github",
+        help="Diff source (default: github)",
+    )
+    analyze_parser.add_argument(
+        "--local-repo-path",
+        type=str,
+        help="Path to local git repository (default: current directory)",
+    )
+    analyze_parser.add_argument(
         "--stop-after",
         choices=["diff", "rules", "evaluate"],
         help="Stop after specified phase",
@@ -228,7 +252,12 @@ def cmd_agent(args: argparse.Namespace) -> int:
     if args.agent_command == "diff":
         from scripts.commands.agent.diff import cmd_diff
 
-        return cmd_diff(pr_number=pr_number, output_dir=pr_dir)
+        return cmd_diff(
+            pr_number=pr_number,
+            output_dir=pr_dir,
+            source=args.source,
+            local_repo_path=args.local_repo_path,
+        )
 
     elif args.agent_command == "rules":
         from scripts.commands.agent.rules import cmd_rules
@@ -314,6 +343,8 @@ def cmd_agent(args: argparse.Namespace) -> int:
             stop_after=args.stop_after,
             skip_to=args.skip_to,
             min_score=args.min_score,
+            source=args.source,
+            local_repo_path=args.local_repo_path,
         )
 
     else:

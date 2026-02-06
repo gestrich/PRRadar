@@ -12,39 +12,9 @@ This plan details the phased implementation of PRRadar. The tool architecture an
 
 The following phases add local git diff support and focus area capabilities for reviewing large changes.
 
-## - [ ] Phase 1: Diff Source Abstraction
+> **Note:** Diff Source Abstraction has been moved to its own planning document: [diff-source-abstraction.md](diff-source-abstraction.md)
 
-Create an abstraction layer that allows switching between GitHub API and local git for diff acquisition. Both sources must produce identical hunk format to feed into the same downstream pipeline.
-
-**Tasks:**
-- Add `DiffSource` enum to domain: `GITHUB_API`, `LOCAL_GIT`
-- Create `DiffProvider` protocol/interface in `services/` with method `get_diff(pr_number) -> str`
-- Implement `GitHubDiffProvider` wrapping existing `gh pr diff` logic
-- Implement `LocalGitDiffProvider`:
-  - Fetch PR metadata to get head branch name
-  - Checkout/fetch the PR branch locally (or use worktree)
-  - Compute diff against base branch using `git diff <base>...<head>`
-  - Return raw unified diff text (same format as GitHub API)
-- Update `cmd_diff.py` to accept `--source github|local` flag (default: github)
-- Add `--local-repo-path` optional argument (defaults to current directory)
-- Both providers must produce identical output format so downstream parsing remains unchanged
-
-**Key consideration:** Local diff requires the repository to be cloned. The tool should detect if running in a valid git repo and fail gracefully with helpful message if not.
-
-**Files to modify:**
-- New: `domain/diff_source.py` (enum and provider interface)
-- New: `services/diff_provider.py` (implementations)
-- Modify: `commands/agent/diff.py` (add --source flag)
-- Modify: `infrastructure/gh_runner.py` (extract to provider pattern)
-
-**Expected outcomes:**
-- Diff data is fetched and normalized from either local or remote sources
-- Both modes produce consistent output format
-- Ready for diff segmentation and focus area processing
-
----
-
-## - [ ] Phase 2: Focus Area Domain Model
+## - [ ] Phase 1: Focus Area Domain Model
 
 Add the `FocusArea` domain model that represents a scoped portion of a hunk for focused review. When reviewing large files (e.g., 1000+ line new files or big changes), instead of reviewing the entire hunk, break it into "focus areas" by method. This keeps reviews scoped and focused.
 
@@ -69,7 +39,7 @@ Add the `FocusArea` domain model that represents a scoped portion of a hunk for 
 
 ---
 
-## - [ ] Phase 3: Focus Area Generation
+## - [ ] Phase 2: Focus Area Generation
 
 Implement Claude-based analysis to break large hunks into method-level focus areas.
 
@@ -102,7 +72,7 @@ Implement Claude-based analysis to break large hunks into method-level focus are
 
 ---
 
-## - [ ] Phase 4: Update Grep Filtering for Focus Areas
+## - [ ] Phase 3: Update Grep Filtering for Focus Areas
 
 Update the rule filtering logic to respect focus area bounds when checking grep patterns.
 
@@ -123,7 +93,7 @@ Update the rule filtering logic to respect focus area bounds when checking grep 
 
 ---
 
-## - [ ] Phase 5: Rule Scope (Localized vs Global)
+## - [ ] Phase 4: Rule Scope (Localized vs Global)
 
 Add `scope` field to rules to distinguish between localized and global evaluation modes.
 
@@ -160,7 +130,7 @@ applies_to:
 
 # Polish and Distribution
 
-## - [ ] Phase 6: CLI Integration for Focus Areas
+## - [ ] Phase 5: CLI Integration for Focus Areas
 
 Wire focus area and diff source features together in the CLI for smooth user experience.
 
@@ -185,7 +155,7 @@ Wire focus area and diff source features together in the CLI for smooth user exp
 - Modify: `commands/agent/analyze.py`
 - Modify: `services/evaluation_service.py` (prompt updates)
 
-## - [ ] Phase 7: Local Iteration and Rule Development
+## - [ ] Phase 6: Local Iteration and Rule Development
 
 Use the tool on real pull requests to refine rules and gather learnings:
 
@@ -217,7 +187,7 @@ Use the tool on real pull requests to refine rules and gather learnings:
 - Data on cost per PR (actual dollars spent)
 - Documentation of common patterns and edge cases
 
-## - [ ] Phase 8: Documentation and Packaging
+## - [ ] Phase 7: Documentation and Packaging
 
 Prepare the tool for wider distribution:
 
@@ -245,7 +215,7 @@ Prepare the tool for wider distribution:
 - Professional presentation for stakeholder demos
 - Ready for team evaluation and feedback
 
-## - [ ] Phase 9: CI/CD Integration (Future)
+## - [ ] Phase 8: CI/CD Integration (Future)
 
 Once the tool is proven locally, extend it for automated workflows:
 
@@ -276,14 +246,12 @@ Once the tool is proven locally, extend it for automated workflows:
 
 ## Open Questions
 
-1. **Local diff checkout strategy:** Should we use `git worktree` for isolation, or checkout in place? Worktrees are cleaner but add complexity.
+1. **Focus area generation model:** Which Claude model for focus generation? Haiku for speed/cost since it's structural analysis, or Sonnet for better method boundary detection?
 
-2. **Focus area generation model:** Which Claude model for focus generation? Haiku for speed/cost since it's structural analysis, or Sonnet for better method boundary detection?
-
-3. **Global rule evaluation strategy:** How should global-scoped rules receive context? Options:
+2. **Global rule evaluation strategy:** How should global-scoped rules receive context? Options:
    - Concatenate all segments into one evaluation
    - Provide PR summary + full diff
    - Multiple-pass evaluation
    This is deferred to future work but worth noting.
 
-4. **Full file content acquisition:** For focus generation, we may need the complete new file (not just diff). Should this be fetched from GitHub API or local checkout? Local checkout would make this easier.
+3. **Full file content acquisition:** For focus generation, we may need the complete new file (not just diff). Should this be fetched from GitHub API or local checkout? Local checkout would make this easier (see [diff-source-abstraction.md](diff-source-abstraction.md)).
