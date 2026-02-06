@@ -17,6 +17,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
+
 from scripts.commands.migrate_to_phases import migrate_all, migrate_pr_directory
 from scripts.services.phase_sequencer import (
     DiffPhaseChecker,
@@ -1316,6 +1318,180 @@ class TestCmdStatus(unittest.TestCase):
 
         output = captured.getvalue()
         assert "✓" in output
+
+
+class TestResumeAndStatusIntegration(unittest.TestCase):
+    """End-to-end integration tests for resume capabilities and status reporting.
+
+    These tests simulate realistic pipeline scenarios: partial work,
+    crash recovery, and status reporting at various pipeline states.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_resume_after_crash_skips_completed_evaluations(self) -> None:
+        """Simulates crash recovery: 3 of 5 tasks evaluated, resume skips them."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(5):
+            (tasks_dir / f"task-{i}.json").write_text(
+                json.dumps({"task_id": f"task-{i}"})
+            )
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(3):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, [f"task-{i}" for i in range(5)]
+        )
+
+        assert skipped == 3
+        assert len(remaining) == 2
+        assert "task-3" in remaining
+        assert "task-4" in remaining
+
+    def test_status_reflects_partial_then_complete(self) -> None:
+        """Status transitions from partial to complete as evaluations finish."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(3):
+            (tasks_dir / f"task-{i}.json").write_text(
+                json.dumps({"task_id": f"task-{i}"})
+            )
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "task-0.json").write_text('{"result": "pass"}')
+
+        status = PhaseSequencer.get_phase_status(self.tmp_path, PipelinePhase.EVALUATIONS)
+        assert status.is_partial()
+        assert status.summary() == "partial (1/3)"
+        assert status.completion_percentage() == pytest.approx(33.3, abs=0.1)
+
+        (eval_dir / "task-1.json").write_text('{"result": "pass"}')
+        (eval_dir / "task-2.json").write_text('{"result": "pass"}')
+
+        status = PhaseSequencer.get_phase_status(self.tmp_path, PipelinePhase.EVALUATIONS)
+        assert status.is_complete
+        assert status.summary() == "complete"
+        assert status.completion_percentage() == 100.0
+
+    def test_full_pipeline_status_progression(self) -> None:
+        """Status command shows correct indicators as pipeline progresses."""
+        import io
+        import sys
+
+        # Stage 1: Nothing done
+        statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
+        for status in statuses.values():
+            assert not status.exists
+
+        # Stage 2: Diff complete
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("diff content")
+        (diff_dir / "parsed.json").write_text("[]")
+
+        statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
+        assert statuses[PipelinePhase.DIFF].is_complete
+        assert not statuses[PipelinePhase.FOCUS_AREAS].exists
+
+        # Stage 3: Add partial evaluations
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(4):
+            (tasks_dir / f"task-{i}.json").write_text(
+                json.dumps({"task_id": f"task-{i}"})
+            )
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "task-0.json").write_text("{}")
+        (eval_dir / "task-1.json").write_text("{}")
+
+        # Verify status output captures the mixed state
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "✓" in output  # Diff is complete
+        assert "⚠" in output  # Evaluations are partial
+        assert "2/4" in output  # 2 of 4 evaluations done
+        assert "50%" in output
+
+    def test_resume_returns_all_when_complete(self) -> None:
+        """When phase is fully complete, resume returns all items (no filtering)."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+
+        for i in range(3):
+            (tasks_dir / f"task-{i}.json").write_text(
+                json.dumps({"task_id": f"task-{i}"})
+            )
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        all_items = [f"task-{i}" for i in range(3)]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        # Phase is complete (not partial), so get_remaining_items returns all
+        assert remaining == all_items
+        assert skipped == 0
+
+    def test_status_command_end_to_end(self) -> None:
+        """Status command works end-to-end with realistic pipeline state."""
+        import io
+        import sys
+
+        from scripts.commands.agent.status import cmd_status
+
+        # Set up a realistic pipeline: diff done, focus areas done, rules done,
+        # tasks exist, evaluations partial
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("diff content")
+        (diff_dir / "parsed.json").write_text("[]")
+
+        focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+        (focus_dir / "all.json").write_text("[]")
+
+        rules_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.RULES)
+        (rules_dir / "all-rules.json").write_text("[]")
+
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(10):
+            (tasks_dir / f"task-{i}.json").write_text(
+                json.dumps({"task_id": f"task-{i}"})
+            )
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(7):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            result = cmd_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        assert result == 0
+        output = captured.getvalue()
+
+        # Completed phases get checkmark
+        assert "✓" in output
+        # Partial evaluations get warning
+        assert "⚠" in output
+        # Shows progress for evaluations
+        assert "7/10" in output
+        assert "70%" in output
+        # Report not started (shows 0/2 because it has known required files)
+        assert "phase-6-report" in output
 
 
 class TestNoMagicStrings(unittest.TestCase):

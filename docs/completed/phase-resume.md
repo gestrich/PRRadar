@@ -440,7 +440,7 @@ def cmd_status(output_dir: Path) -> int:
 
 ---
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
 Test resume capabilities and status reporting.
 
@@ -527,6 +527,12 @@ def test_status_command_shows_all_phases(tmp_path, capsys):
 - ✅ Resume logic tested with various scenarios
 - ✅ Status command produces correct output
 - ✅ No regressions in basic functionality
+
+**Implementation notes:**
+- All spec example tests were already implemented in Phases 1-4 (TestPhaseStatus, TestGetRemainingItems, TestCmdStatus classes)
+- Added `TestResumeAndStatusIntegration` class with 5 end-to-end integration tests covering: crash recovery resume, status transitions from partial to complete, full pipeline status progression with mixed indicators, resume behavior when phase is fully complete, and realistic end-to-end status command output
+- Fixed-file phase checkers (DiffPhaseChecker, ReportPhaseChecker) always report `total_count > 0` even when not started, so they show `0/N (0%)` rather than "not started" in status output
+- 328 total tests pass (5 new + 323 existing), no regressions
 
 ---
 
