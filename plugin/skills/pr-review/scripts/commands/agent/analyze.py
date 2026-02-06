@@ -391,6 +391,24 @@ def cmd_analyze(
         return 0
 
     stats.tasks_total = len(tasks)
+
+    # Check for resume (skip already-evaluated tasks)
+    task_ids = [t.task_id for t in tasks]
+    remaining_ids, skipped = PhaseSequencer.get_remaining_items(
+        output_dir, PipelinePhase.EVALUATIONS, task_ids
+    )
+
+    if skipped > 0:
+        print(f"  Resuming: skipping {skipped} already-evaluated tasks")
+        remaining_set = set(remaining_ids)
+        tasks = [t for t in tasks if t.task_id in remaining_set]
+        stats.tasks_skipped += skipped
+
+    if not tasks:
+        print("  All tasks already evaluated")
+        stats.print_summary()
+        return 0
+
     focus_area_groups = group_tasks_by_focus_area(tasks)
     print(f"  Found {len(focus_area_groups)} focus areas, {len(tasks)} total evaluations")
     print()

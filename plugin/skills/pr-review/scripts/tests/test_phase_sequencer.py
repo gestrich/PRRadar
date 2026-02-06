@@ -979,6 +979,119 @@ class TestGetPhaseStatus(unittest.TestCase):
         assert status.summary() == "not started"
 
 
+class TestGetRemainingItems(unittest.TestCase):
+    """Tests for PhaseSequencer.get_remaining_items resume helper."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_nothing_completed_returns_all(self) -> None:
+        """When phase hasn't started, all items are remaining."""
+        all_items = ["task-0", "task-1", "task-2"]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        assert remaining == all_items
+        assert skipped == 0
+
+    def test_everything_completed_returns_none(self) -> None:
+        """When all items are done, remaining is empty."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(3):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(3):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        all_items = ["task-0", "task-1", "task-2"]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        # Phase is complete (not partial), so all items returned
+        assert remaining == all_items
+        assert skipped == 0
+
+    def test_partial_completion_filters_completed(self) -> None:
+        """When some items are done, only remaining are returned."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(5):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(3):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        all_items = [f"task-{i}" for i in range(5)]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        assert skipped == 3
+        assert len(remaining) == 2
+        assert "task-3" in remaining
+        assert "task-4" in remaining
+
+    def test_preserves_order_of_remaining(self) -> None:
+        """Remaining items maintain their original order."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(5):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        # Complete tasks 0 and 2 (not sequential)
+        (eval_dir / "task-0.json").write_text('{}')
+        (eval_dir / "task-2.json").write_text('{}')
+
+        all_items = [f"task-{i}" for i in range(5)]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        assert remaining == ["task-1", "task-3", "task-4"]
+        assert skipped == 2
+
+    def test_summary_json_excluded_from_completed(self) -> None:
+        """summary.json should not count as a completed item."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(2):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "task-0.json").write_text('{}')
+        (eval_dir / "summary.json").write_text('{}')
+
+        all_items = ["task-0", "task-1"]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        assert skipped == 1
+        assert remaining == ["task-1"]
+
+    def test_empty_all_items(self) -> None:
+        """Empty input list returns empty remaining."""
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, []
+        )
+        assert remaining == []
+        assert skipped == 0
+
+    def test_phase_directory_exists_but_empty(self) -> None:
+        """When phase dir exists but is empty, status is not partial so all items returned."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "task-0.json").write_text(json.dumps({"task_id": "task-0"}))
+        PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+
+        all_items = ["task-0"]
+        remaining, skipped = PhaseSequencer.get_remaining_items(
+            self.tmp_path, PipelinePhase.EVALUATIONS, all_items
+        )
+        assert remaining == ["task-0"]
+        assert skipped == 0
+
+
 class TestNoMagicStrings(unittest.TestCase):
     """Verify no hardcoded directory names exist in command and service files."""
 

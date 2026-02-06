@@ -253,7 +253,7 @@ class PhaseSequencer:
 
 ---
 
-## - [ ] Phase 3: Resume Logic in Commands
+## - [x] Phase 3: Resume Logic in Commands
 
 Add ability to skip already-completed work when resuming.
 
@@ -340,6 +340,13 @@ async def cmd_evaluate(
 - ✅ Clear messaging when resuming
 - ✅ Works correctly when nothing completed
 - ✅ Works correctly when everything completed
+
+**Implementation notes:**
+- `get_remaining_items()` relies on `is_partial()` to detect resume scenarios: only filters when phase exists, is incomplete, and has some progress. When phase is complete or not started, returns all items unchanged.
+- Excludes `summary.json` from completed item detection (consistent with `EvaluationsPhaseChecker`)
+- `evaluate.py`: Resume check inserted after task loading but before batch evaluation. Uses a `remaining_set` for O(1) lookup when filtering tasks.
+- `analyze.py`: Resume check inserted after task loading, before `group_tasks_by_focus_area()`. Skipped count added to `stats.tasks_skipped`. Returns early with summary if all tasks already evaluated.
+- 7 new unit tests in `TestGetRemainingItems` class covering: nothing completed, everything completed, partial completion, order preservation, summary.json exclusion, empty input, and empty phase directory. 310 total tests pass.
 
 ---
 

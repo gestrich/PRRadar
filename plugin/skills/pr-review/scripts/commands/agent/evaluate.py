@@ -73,6 +73,21 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
             print("  Run 'agent rules' to create tasks")
         return 0
 
+    # Check for resume (skip already-evaluated tasks)
+    task_ids = [t.task_id for t in tasks]
+    remaining_ids, skipped = PhaseSequencer.get_remaining_items(
+        output_dir, PipelinePhase.EVALUATIONS, task_ids
+    )
+
+    if skipped > 0:
+        print(f"  Resuming: skipping {skipped} already-evaluated tasks")
+        remaining_set = set(remaining_ids)
+        tasks = [t for t in tasks if t.task_id in remaining_set]
+
+    if not tasks:
+        print("  All tasks already evaluated")
+        return 0
+
     print()
 
     # Track running totals for summary

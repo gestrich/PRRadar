@@ -346,6 +346,37 @@ class PhaseSequencer:
         return f"Cannot run {phase.value}: {previous.value} has not completed"
 
     @staticmethod
+    def get_remaining_items(
+        output_dir: Path,
+        phase: PipelinePhase,
+        all_items: list[str],
+    ) -> tuple[list[str], int]:
+        """Get items that still need processing.
+
+        Args:
+            output_dir: PR-specific output directory
+            phase: The phase being processed
+            all_items: All item IDs that should be processed
+
+        Returns:
+            Tuple of (remaining_items, skipped_count)
+        """
+        status = PhaseSequencer.get_phase_status(output_dir, phase)
+
+        if not status.is_partial():
+            return all_items, 0
+
+        phase_dir = PhaseSequencer.get_phase_dir(output_dir, phase)
+        completed = {
+            f.stem for f in phase_dir.glob("*.json") if f.name != "summary.json"
+        }
+
+        remaining = [item_id for item_id in all_items if item_id not in completed]
+        skipped = len(all_items) - len(remaining)
+
+        return remaining, skipped
+
+    @staticmethod
     def get_phase_status(output_dir: Path, phase: PipelinePhase) -> PhaseStatus:
         """Get detailed completion status for a phase.
 
