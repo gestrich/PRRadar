@@ -19,6 +19,7 @@ from pathlib import Path
 from scripts.domain.diff import Hunk
 from scripts.domain.evaluation_task import CodeSegment, EvaluationTask
 from scripts.domain.rule import Rule
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.rule_loader import RuleLoaderService
 
 
@@ -35,6 +36,13 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
     """
     print(f"[rules] Collecting rules for PR #{pr_number}...")
     print(f"  Rules directory: {rules_dir}")
+
+    # Validate dependencies
+    error = PhaseSequencer.validate_can_run(output_dir, PipelinePhase.RULES)
+    if error:
+        print(f"  Error: {error}")
+        print("  Run 'agent diff' first to collect PR data")
+        return 1
 
     # Verify diff artifacts exist
     parsed_diff_path = output_dir / "diff" / "parsed.json"

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.report_generator import ReportGeneratorService
 
 
@@ -41,6 +42,13 @@ def cmd_report(
     """
     print(f"[report] Generating report for PR #{pr_number}...")
     print(f"  Minimum score threshold: {min_score}")
+
+    # Validate dependencies
+    error = PhaseSequencer.validate_can_run(output_dir, PipelinePhase.REPORT)
+    if error:
+        print(f"  Error: {error}")
+        print("  Run 'agent evaluate' first to create evaluation results")
+        return 1
 
     # Verify evaluations directory exists
     evaluations_dir = output_dir / "evaluations"

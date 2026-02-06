@@ -76,85 +76,25 @@ Create the foundational PhaseSequencer service with phase naming and directory m
 
 ---
 
-## - [ ] Phase 2: Basic Dependency Validation
+## - [x] Phase 2: Basic Dependency Validation
 
 Add simple validation that upstream phases are complete before running downstream phases.
 
-**Architecture Skills:**
-- Use `/python-architecture:creating-services` to validate the dependency validation methods
-- Use `/python-architecture:python-code-style` to ensure proper method organization and naming
+**Completed.** Added `can_run_phase()` and `validate_can_run()` to PhaseSequencer, plus `previous_implemented_phase()` to PipelinePhase to skip future/unimplemented phases (FOCUS_AREAS). Added legacy directory name support to `phase_exists()` for transition compatibility until Phase 3 migration. Validation integrated into rules, evaluate, comment, and report commands. 17 new unit tests added (30 total).
 
-**Tasks:**
+**Technical notes:**
+- `previous_implemented_phase()` skips FOCUS_AREAS (future phase) so RULES correctly depends on DIFF
+- `phase_exists()` checks both canonical (`phase-1-diff`) and legacy (`diff`) directory names via `_LEGACY_DIR_NAMES` mapping, ensuring validation works before Phase 3 directory migration
+- Comment command uses `phase_exists()` directly (not `validate_can_run()`) since it's not a sequenced pipeline phase
+- Existing ad-hoc directory checks preserved in commands as secondary validation until Phase 3 replaces all hardcoded paths
 
-### 1. Add Simple Dependency Checking
-
-```python
-class PhaseSequencer:
-    """Manages phase directory paths and sequencing."""
-
-    @staticmethod
-    def can_run_phase(output_dir: Path, phase: PipelinePhase) -> bool:
-        """Check if a phase can run (dependencies satisfied).
-
-        Args:
-            output_dir: PR-specific output directory
-            phase: The pipeline phase to check
-
-        Returns:
-            True if dependencies are satisfied
-        """
-        previous = phase.previous_phase()
-        if not previous:
-            return True
-
-        return PhaseSequencer.phase_exists(output_dir, previous)
-
-    @staticmethod
-    def validate_can_run(output_dir: Path, phase: PipelinePhase) -> str | None:
-        """Validate phase can run, returning error message if not.
-
-        Args:
-            output_dir: PR-specific output directory
-            phase: The pipeline phase to check
-
-        Returns:
-            None if can run, otherwise error message for user
-        """
-        if PhaseSequencer.can_run_phase(output_dir, phase):
-            return None
-
-        previous = phase.previous_phase()
-        if not previous:
-            return None
-
-        return f"Cannot run {phase.value}: {previous.value} has not completed"
-```
-
-### 2. Add Validation to Commands
-
-Update command entry points to validate dependencies:
-
-```python
-# Example for evaluate command
-def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | None = None) -> int:
-    """Execute the evaluate command."""
-
-    # Validate dependencies
-    error = PhaseSequencer.validate_can_run(output_dir, PipelinePhase.EVALUATIONS)
-    if error:
-        print(f"[evaluate] Error: {error}")
-        print("\nRun 'agent rules' first to create evaluation tasks.")
-        return 1
-
-    # ... rest of command logic
-```
-
-**Files to modify:**
-- Modify: `services/phase_sequencer.py` (add validation methods)
-- Modify: `commands/agent/rules.py` (add validation)
-- Modify: `commands/agent/evaluate.py` (add validation)
-- Modify: `commands/agent/comment.py` (add validation)
-- Modify: `commands/agent/report.py` (add validation)
+**Files modified:**
+- `services/phase_sequencer.py` - Added `can_run_phase()`, `validate_can_run()`, `previous_implemented_phase()`, `_FUTURE_PHASES`, `_LEGACY_DIR_NAMES`
+- `commands/agent/rules.py` - Added dependency validation
+- `commands/agent/evaluate.py` - Added dependency validation
+- `commands/agent/comment.py` - Added dependency validation
+- `commands/agent/report.py` - Added dependency validation
+- `tests/test_phase_sequencer.py` - 17 new tests across 3 new test classes
 
 **Acceptance criteria:**
 - ✅ Dependency validation prevents running phases out of order

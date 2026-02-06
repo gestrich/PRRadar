@@ -9,6 +9,19 @@ from enum import Enum
 from pathlib import Path
 
 
+# Phases not yet implemented (skipped during dependency validation)
+_FUTURE_PHASES: set[str] = {"phase-2-focus-areas"}
+
+# Legacy directory names for transition period (remove after Phase 3 migration)
+_LEGACY_DIR_NAMES: dict[str, str] = {
+    "phase-1-diff": "diff",
+    "phase-3-rules": "rules",
+    "phase-4-tasks": "tasks",
+    "phase-5-evaluations": "evaluations",
+    "phase-6-report": "report",
+}
+
+
 class PipelinePhase(Enum):
     """Pipeline phases in execution order.
 
@@ -32,6 +45,18 @@ class PipelinePhase(Enum):
         phases = list(PipelinePhase)
         index = phases.index(self)
         return phases[index - 1] if index > 0 else None
+
+    def previous_implemented_phase(self) -> PipelinePhase | None:
+        """Get the nearest previous phase that is implemented.
+
+        Skips future/unimplemented phases in the chain.
+        """
+        phases = list(PipelinePhase)
+        index = phases.index(self)
+        for i in range(index - 1, -1, -1):
+            if phases[i].value not in _FUTURE_PHASES:
+                return phases[i]
+        return None
 
 
 class PhaseSequencer:
@@ -72,6 +97,10 @@ class PhaseSequencer:
     def phase_exists(output_dir: Path, phase: PipelinePhase) -> bool:
         """Check if a phase directory exists and has content.
 
+        Checks both the canonical phase directory name and the legacy
+        directory name for transition compatibility. The legacy check
+        will be removed after Phase 3 migration.
+
         Args:
             output_dir: PR-specific output directory
             phase: The pipeline phase
@@ -80,6 +109,53 @@ class PhaseSequencer:
             True if phase directory exists and is non-empty
         """
         phase_dir = PhaseSequencer.get_phase_dir(output_dir, phase)
-        if not phase_dir.exists():
-            return False
-        return any(phase_dir.iterdir())
+        if phase_dir.exists() and any(phase_dir.iterdir()):
+            return True
+
+        # Check legacy directory name during transition
+        legacy_name = _LEGACY_DIR_NAMES.get(phase.value)
+        if legacy_name:
+            legacy_dir = output_dir / legacy_name
+            if legacy_dir.exists() and any(legacy_dir.iterdir()):
+                return True
+
+        return False
+
+    @staticmethod
+    def can_run_phase(output_dir: Path, phase: PipelinePhase) -> bool:
+        """Check if a phase can run (dependencies satisfied).
+
+        Skips unimplemented phases when checking dependencies.
+
+        Args:
+            output_dir: PR-specific output directory
+            phase: The pipeline phase to check
+
+        Returns:
+            True if dependencies are satisfied
+        """
+        previous = phase.previous_implemented_phase()
+        if not previous:
+            return True
+
+        return PhaseSequencer.phase_exists(output_dir, previous)
+
+    @staticmethod
+    def validate_can_run(output_dir: Path, phase: PipelinePhase) -> str | None:
+        """Validate phase can run, returning error message if not.
+
+        Args:
+            output_dir: PR-specific output directory
+            phase: The pipeline phase to check
+
+        Returns:
+            None if can run, otherwise error message for user
+        """
+        if PhaseSequencer.can_run_phase(output_dir, phase):
+            return None
+
+        previous = phase.previous_implemented_phase()
+        if not previous:
+            return None
+
+        return f"Cannot run {phase.value}: {previous.value} has not completed"

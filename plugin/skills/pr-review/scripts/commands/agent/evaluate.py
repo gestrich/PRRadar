@@ -23,6 +23,7 @@ from scripts.services.evaluation_service import (
     EvaluationResult,
     run_batch_evaluation,
 )
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.task_loader_service import TaskLoaderService
 
 
@@ -38,6 +39,13 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
         Exit code (0 for success, non-zero for error)
     """
     print(f"[evaluate] Running evaluations for PR #{pr_number}...")
+
+    # Validate dependencies
+    error = PhaseSequencer.validate_can_run(output_dir, PipelinePhase.EVALUATIONS)
+    if error:
+        print(f"  Error: {error}")
+        print("  Run 'agent rules' first to create evaluation tasks")
+        return 1
 
     # Initialize services
     task_loader = TaskLoaderService(output_dir / "tasks")

@@ -24,6 +24,7 @@ from pathlib import Path
 from scripts.domain.agent_outputs import RuleEvaluation
 from scripts.infrastructure.github.runner import GhCommandRunner
 from scripts.services.github_comment import GitHubCommentService
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.utils.interactive import print_separator, prompt_yes_no_quit
 
 
@@ -336,6 +337,12 @@ def cmd_comment(
         mode = "live"
     print(f"[comment] Posting comments for PR #{pr_number} ({mode})...")
     print(f"  Minimum score: {min_score}")
+
+    # Validate dependencies
+    if not PhaseSequencer.phase_exists(output_dir, PipelinePhase.EVALUATIONS):
+        print("  Error: Evaluations phase has not completed")
+        print("  Run 'agent evaluate' first to create evaluation results")
+        return 1
 
     # Verify directories exist
     evaluations_dir = output_dir / "evaluations"
