@@ -6,6 +6,7 @@ from scripts.domain.agent_outputs import (
     RuleEvaluation,
 )
 from scripts.domain.diff import GitDiff, Hunk
+from scripts.domain.diff_source import DiffSource
 from scripts.domain.evaluation_task import CodeSegment, EvaluationTask
 from scripts.domain.mention import MentionAction
 from scripts.domain.review import (
@@ -20,6 +21,7 @@ __all__ = [
     "AppliesTo",
     "CategorySummary",
     "CodeSegment",
+    "DiffSource",
     "EvaluationSummary",
     "EvaluationTask",
     "Feedback",

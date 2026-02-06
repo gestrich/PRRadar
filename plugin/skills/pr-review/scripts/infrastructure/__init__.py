@@ -17,6 +17,7 @@ from .diff_parser import (
     read_diff_from_file,
     read_diff_from_stdin,
 )
+from .diff_provider_factory import create_diff_provider
 from .execution_parser import (
     extract_structured_output,
     load_execution_file,
@@ -38,6 +39,7 @@ from .local_git_repo import LocalGitRepo
 from .repo_source import DiffProvider
 
 __all__ = [
+    "create_diff_provider",
     "get_git_file_info",
     "GitDiff",
     "GitError",

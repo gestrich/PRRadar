@@ -195,43 +195,35 @@ Following python-architecture patterns, **all raw git commands must be put behin
 
 ---
 
-## - [ ] Phase 3: Create Provider Factory and Domain Enum
+## - [x] Phase 3: Create Provider Factory and Domain Enum ✅
 
 **Skills to reference:** [python-architecture:dependency-injection](https://github.com/gestrich/python-architecture) for factory pattern
 
 Create the factory pattern and enum for selecting diff sources.
 
 **Tasks:**
-- Add `DiffSource` enum to domain: `GITHUB_API`, `LOCAL_GIT`
-- Create factory function in `infrastructure/diff_provider_factory.py`:
-  ```python
-  from services.git_operations import GitOperationsService
-
-  def create_diff_provider(source: DiffSource, repo_owner: str, repo_name: str, **kwargs) -> DiffProvider:
-      """
-      Create a diff provider based on source type.
-
-      Args:
-          source: GITHUB_API or LOCAL_GIT
-          repo_owner: GitHub repo owner (needed for both sources)
-          repo_name: GitHub repo name (needed for both sources)
-          **kwargs: Additional args (e.g., local_repo_path for LOCAL_GIT)
-
-      Note: Both providers use GitHub API for PR metadata.
-      LOCAL_GIT only uses local git for diff acquisition.
-      """
-      if source == DiffSource.GITHUB_API:
-          return GithubRepo(repo_owner, repo_name)
-      elif source == DiffSource.LOCAL_GIT:
-          local_path = kwargs.get('local_repo_path', '.')
-          # Initialize GitOperationsService and inject
-          git_service = GitOperationsService(local_path)
-          return LocalGitRepo(repo_owner, repo_name, git_service)
-  ```
+- ✅ Add `DiffSource` enum to domain: `GITHUB_API`, `LOCAL_GIT`
+- ✅ Create factory function in `infrastructure/diff_provider_factory.py`
+- ✅ Update domain/__init__.py to export DiffSource
+- ✅ Update infrastructure/__init__.py to export create_diff_provider
 
 **Files created:**
-- `domain/diff_source.py` (enum)
-- `infrastructure/diff_provider_factory.py` (factory)
+- `domain/diff_source.py` (enum with from_string method)
+- `infrastructure/diff_provider_factory.py` (factory function)
+
+**Technical notes:**
+- **DiffSource enum** provides two values: GITHUB_API and LOCAL_GIT
+- **from_string() class method** for parsing CLI arguments (case-insensitive)
+- **Factory function** follows dependency injection pattern:
+  - GitHub provider: Simple construction with repo_owner/repo_name
+  - Local provider: Creates GitOperationsService and injects into LocalGitRepo
+  - Accepts **kwargs for extensibility (e.g., local_repo_path)
+- **Clean abstractions**:
+  - Factory handles GitOperationsService instantiation
+  - Consumers only work with DiffProvider interface
+  - Easy to add new source types in the future
+- **Build succeeds**: 110/111 tests pass (1 unrelated failure due to missing claude_agent_sdk)
+- All new modules import successfully and are exported correctly
 
 **Expected outcomes:**
 - ✅ Clean dependency injection pattern
