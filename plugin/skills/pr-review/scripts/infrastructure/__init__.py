@@ -7,7 +7,7 @@ This layer handles external system interactions:
 - Diff parsing and input
 """
 
-from scripts.infrastructure.diff_parser import (
+from .diff_parser import (
     format_diff_as_json,
     format_diff_as_text,
     has_content,
@@ -17,26 +17,36 @@ from scripts.infrastructure.diff_parser import (
     read_diff_from_file,
     read_diff_from_stdin,
 )
-from scripts.infrastructure.execution_parser import (
+from .execution_parser import (
     extract_structured_output,
     load_execution_file,
 )
-from scripts.infrastructure.gh_runner import GhCommandRunner
-from scripts.infrastructure.git_utils import (
+from .gh_runner import GhCommandRunner
+from .git_diff import GitDiff
+from .git_utils import (
     GitError,
     GitFileInfo,
     get_git_file_info,
 )
-from scripts.infrastructure.github_output import (
+from .github_output import (
     write_github_output,
     write_github_step_summary,
 )
+from .github_repo import GithubRepo
+from .hunk import Hunk
+from .local_git_repo import LocalGitRepo
+from .repo_source import GitRepoSource
 
 __all__ = [
     "get_git_file_info",
+    "GitDiff",
     "GitError",
     "GitFileInfo",
     "GhCommandRunner",
+    "GithubRepo",
+    "Hunk",
+    "LocalGitRepo",
+    "GitRepoSource",
     "extract_structured_output",
     "format_diff_as_json",
     "format_diff_as_text",
