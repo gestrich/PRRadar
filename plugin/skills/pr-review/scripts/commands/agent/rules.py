@@ -134,10 +134,8 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
     skipped_no_rules = 0
 
     for focus_area in focus_areas:
-        changed_content = Hunk.extract_changed_content(focus_area.hunk_content)
-
-        applicable_rules = rule_loader.filter_rules_for_segment(
-            all_rules, focus_area.file_path, changed_content
+        applicable_rules = rule_loader.filter_rules_for_focus_area(
+            all_rules, focus_area
         )
 
         if not applicable_rules:

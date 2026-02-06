@@ -445,5 +445,300 @@ class TestFocusGenerationResult(unittest.TestCase):
         self.assertEqual(FocusGeneratorService._sanitize_for_id("my method"), "my-method")
 
 
+# ============================================================
+# RuleLoaderService Focus Area Filtering Tests
+# ============================================================
+
+
+def _make_annotated_hunk_content(
+    start_line: int = 10,
+    lines: list[tuple[str, str]] | None = None,
+) -> str:
+    """Build annotated hunk content for testing.
+
+    Args:
+        start_line: Starting line number in new file
+        lines: List of (prefix, content) tuples where prefix is "+" or " "
+               for added/context lines, or "-" for removed lines.
+
+    Returns:
+        Annotated hunk content string matching Hunk.get_annotated_content() format
+    """
+    if lines is None:
+        lines = [
+            (" ", "context line"),
+            ("+", "new code"),
+        ]
+
+    result = ["@@ -10,5 +10,8 @@"]
+    line_num = start_line
+    for prefix, content in lines:
+        if prefix == "-":
+            result.append(f"   -: -{content}")
+        elif prefix == "+":
+            result.append(f"{line_num:4d}: +{content}")
+            line_num += 1
+        else:
+            result.append(f"{line_num:4d}:  {content}")
+            line_num += 1
+
+    return "\n".join(result)
+
+
+class TestRuleLoaderFilterForFocusArea(unittest.TestCase):
+    """Tests for RuleLoaderService.filter_rules_for_focus_area."""
+
+    def _make_service(self) -> "RuleLoaderService":
+        """Create a minimal RuleLoaderService for testing."""
+        from scripts.infrastructure.git.git_utils import GitFileInfo
+        from scripts.services.rule_loader import RuleLoaderService
+
+        return RuleLoaderService(
+            rules_dir=Path("/fake/rules"),
+            git_info=GitFileInfo(
+                repo_url="https://github.com/test/rules",
+                branch="main",
+                relative_path="rules",
+            ),
+        )
+
+    def test_rule_without_grep_matches_by_file_pattern(self):
+        """Rule with file_patterns but no grep should match any focus area in matching file."""
+        service = self._make_service()
+        rule = Rule(
+            name="swift-rule",
+            file_path="/rules/swift-rule.md",
+            description="Swift rule",
+            category="test",
+            applies_to=AppliesTo(file_patterns=["*.swift"]),
+            grep=GrepPatterns(),
+            content="Check Swift code",
+        )
+        focus_area = FocusArea(
+            focus_id="src-handler.swift-0",
+            file_path="src/handler.swift",
+            start_line=10,
+            end_line=20,
+            description="handleRequest()",
+            hunk_index=0,
+            hunk_content=_make_annotated_hunk_content(10, [
+                (" ", "func handleRequest() {"),
+                ("+", "    let result = process()"),
+                ("+", "    return result"),
+                (" ", "}"),
+            ]),
+        )
+
+        result = service.filter_rules_for_focus_area([rule], focus_area)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].name, "swift-rule")
+
+    def test_rule_excluded_by_file_pattern(self):
+        """Rule should not match focus area in non-matching file."""
+        service = self._make_service()
+        rule = Rule(
+            name="swift-rule",
+            file_path="/rules/swift-rule.md",
+            description="Swift rule",
+            category="test",
+            applies_to=AppliesTo(file_patterns=["*.swift"]),
+            grep=GrepPatterns(),
+            content="Check Swift code",
+        )
+        focus_area = FocusArea(
+            focus_id="src-handler.py-0",
+            file_path="src/handler.py",
+            start_line=10,
+            end_line=20,
+            description="handle_request()",
+            hunk_index=0,
+            hunk_content="+code",
+        )
+
+        result = service.filter_rules_for_focus_area([rule], focus_area)
+        self.assertEqual(len(result), 0)
+
+    def test_grep_pattern_matches_within_focus_area(self):
+        """Grep pattern should match when pattern exists in focus area content."""
+        service = self._make_service()
+        rule = Rule(
+            name="error-handling",
+            file_path="/rules/error-handling.md",
+            description="Check error handling",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(any_patterns=["try|catch|except"]),
+            content="Check error handling",
+        )
+        focus_area = FocusArea(
+            focus_id="src-handler.py-0",
+            file_path="src/handler.py",
+            start_line=10,
+            end_line=13,
+            description="handle_request()",
+            hunk_index=0,
+            hunk_content=_make_annotated_hunk_content(10, [
+                (" ", "def handle_request():"),
+                ("+", "    try:"),
+                ("+", "        process()"),
+                ("+", "    except Exception:"),
+            ]),
+        )
+
+        result = service.filter_rules_for_focus_area([rule], focus_area)
+        self.assertEqual(len(result), 1)
+
+    def test_grep_pattern_respects_focus_bounds(self):
+        """Grep patterns should only match within focus area, not entire hunk."""
+        service = self._make_service()
+        rule = Rule(
+            name="error-handling",
+            file_path="/rules/error-handling.md",
+            description="Check error handling",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(any_patterns=["try|catch|except"]),
+            content="Check error handling",
+        )
+        # Hunk has two methods: first has no try/except, second does.
+        # Focus area covers only the first method (lines 10-12).
+        hunk_content = _make_annotated_hunk_content(10, [
+            (" ", "def first_method():"),
+            ("+", "    return 42"),
+            (" ", ""),
+            (" ", "def second_method():"),
+            ("+", "    try:"),
+            ("+", "        process()"),
+            ("+", "    except Exception:"),
+            ("+", "        pass"),
+        ])
+        focus_area = FocusArea(
+            focus_id="src-handler.py-0-first_method",
+            file_path="src/handler.py",
+            start_line=10,
+            end_line=12,
+            description="first_method()",
+            hunk_index=0,
+            hunk_content=hunk_content,
+        )
+
+        result = service.filter_rules_for_focus_area([rule], focus_area)
+        self.assertEqual(len(result), 0)
+
+    def test_grep_pattern_matches_second_focus_area(self):
+        """Grep should match when focus area covers the method with matching content."""
+        service = self._make_service()
+        rule = Rule(
+            name="error-handling",
+            file_path="/rules/error-handling.md",
+            description="Check error handling",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(any_patterns=["try|catch|except"]),
+            content="Check error handling",
+        )
+        hunk_content = _make_annotated_hunk_content(10, [
+            (" ", "def first_method():"),
+            ("+", "    return 42"),
+            (" ", ""),
+            (" ", "def second_method():"),
+            ("+", "    try:"),
+            ("+", "        process()"),
+            ("+", "    except Exception:"),
+            ("+", "        pass"),
+        ])
+        # Focus area covers second method (lines 13-17)
+        focus_area = FocusArea(
+            focus_id="src-handler.py-0-second_method",
+            file_path="src/handler.py",
+            start_line=13,
+            end_line=17,
+            description="second_method()",
+            hunk_index=0,
+            hunk_content=hunk_content,
+        )
+
+        result = service.filter_rules_for_focus_area([rule], focus_area)
+        self.assertEqual(len(result), 1)
+
+    def test_multiple_rules_filtered_independently(self):
+        """Each rule should be filtered independently against the focus area."""
+        service = self._make_service()
+        swift_rule = Rule(
+            name="swift-only",
+            file_path="/rules/swift-only.md",
+            description="Swift rule",
+            category="test",
+            applies_to=AppliesTo(file_patterns=["*.swift"]),
+            grep=GrepPatterns(),
+            content="Check Swift",
+        )
+        general_rule = Rule(
+            name="general",
+            file_path="/rules/general.md",
+            description="General rule",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Check everything",
+        )
+        grep_rule = Rule(
+            name="async-rule",
+            file_path="/rules/async-rule.md",
+            description="Async rule",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(any_patterns=["async|await"]),
+            content="Check async usage",
+        )
+
+        focus_area = FocusArea(
+            focus_id="src-handler.py-0",
+            file_path="src/handler.py",
+            start_line=10,
+            end_line=12,
+            description="handle()",
+            hunk_index=0,
+            hunk_content=_make_annotated_hunk_content(10, [
+                ("+", "def handle():"),
+                ("+", "    return sync_call()"),
+            ]),
+        )
+
+        result = service.filter_rules_for_focus_area(
+            [swift_rule, general_rule, grep_rule], focus_area
+        )
+        # swift_rule: excluded (file is .py not .swift)
+        # general_rule: included (no file patterns, no grep)
+        # grep_rule: excluded (no async/await in focus area)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].name, "general")
+
+    def test_rule_with_no_patterns_matches_all_focus_areas(self):
+        """Rule with no file patterns and no grep should match everything."""
+        service = self._make_service()
+        rule = Rule(
+            name="catch-all",
+            file_path="/rules/catch-all.md",
+            description="Universal rule",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Check everything",
+        )
+        focus_area = FocusArea(
+            focus_id="any-file-0",
+            file_path="anything/here.xyz",
+            start_line=1,
+            end_line=5,
+            description="some function",
+            hunk_index=0,
+            hunk_content="+code",
+        )
+
+        result = service.filter_rules_for_focus_area([rule], focus_area)
+        self.assertEqual(len(result), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

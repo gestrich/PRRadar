@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from scripts.domain.diff import Hunk
+from scripts.domain.focus_area import FocusArea
 from scripts.domain.rule import Rule
 from scripts.infrastructure.git.git_utils import GitError, GitFileInfo, get_git_file_info
 
@@ -145,3 +147,36 @@ class RuleLoaderService:
             Rules that should be evaluated for this segment
         """
         return [rule for rule in rules if rule.should_evaluate(file_path, diff_text)]
+
+    def filter_rules_for_focus_area(
+        self,
+        all_rules: list[Rule],
+        focus_area: FocusArea,
+    ) -> list[Rule]:
+        """Filter rules applicable to a focus area.
+
+        Grep patterns are matched against the focused content only
+        (the lines within the focus area bounds), not the entire hunk.
+
+        Args:
+            all_rules: All loaded rules
+            focus_area: The focus area to filter against
+
+        Returns:
+            List of rules that apply to this focus area
+        """
+        applicable_rules = []
+
+        for rule in all_rules:
+            if not rule.applies_to_file(focus_area.file_path):
+                continue
+
+            if rule.grep.has_patterns():
+                focused_content = focus_area.get_focused_content()
+                changed_content = Hunk.extract_changed_content(focused_content)
+                if not rule.matches_diff_segment(changed_content):
+                    continue
+
+            applicable_rules.append(rule)
+
+        return applicable_rules

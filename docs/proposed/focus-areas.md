@@ -149,124 +149,24 @@ All 229 tests pass.
 
 ---
 
-## - [ ] Phase 3: Update Rule Filtering for Focus Areas
+## - [x] Phase 3: Update Rule Filtering for Focus Areas
 
-Update rule filtering to work with focus areas instead of hunks. Grep patterns should only match against the focused code region, not the entire hunk.
+**Completed.** All three tasks implemented:
 
-**Architecture Skills:**
-- Use `/python-architecture:creating-services` to validate the updated `RuleLoaderService` methods
-- Use `/python-architecture:testing-services` to ensure proper test coverage for focus area filtering
+1. **Added `filter_rules_for_focus_area()` to `RuleLoaderService`** - New method that filters rules against a focus area by checking file patterns and then matching grep patterns against only the focused content (via `FocusArea.get_focused_content()` + `Hunk.extract_changed_content()`), not the entire hunk.
+2. **Updated rules command** - `cmd_rules()` now calls `filter_rules_for_focus_area()` instead of `filter_rules_for_segment()` with whole-hunk content. The `Hunk.extract_changed_content()` call on the full hunk content was replaced with focus-area-scoped filtering.
+3. **Added 7 tests** for focus area filtering including the key boundary test: a hunk with two methods where grep patterns match only the second method verifies the rule is NOT matched when filtering against the first method's focus area.
 
-**Tasks:**
+**Technical notes:**
+- `filter_rules_for_focus_area()` delegates to existing `Rule` methods (`applies_to_file()`, `grep.has_patterns()`, `matches_diff_segment()`) keeping the filtering logic in the domain layer
+- The data flow is: `focus_area.get_focused_content()` → `Hunk.extract_changed_content()` → `rule.matches_diff_segment()` — extracting changed lines only from within the focus area bounds
+- The old `filter_rules_for_segment()` method is preserved for backward compatibility but no longer called from the rules command
+- All 242 tests pass
 
-### 1. Update RuleLoaderService to Filter by Focus Area
-
-Modify `services/rule_loader.py`:
-
-```python
-class RuleLoaderService:
-    """Service for loading and filtering rules."""
-
-    def filter_rules_for_focus_area(
-        self,
-        all_rules: List[Rule],
-        focus_area: FocusArea,
-    ) -> List[Rule]:
-        """Filter rules applicable to a focus area.
-
-        Args:
-            all_rules: All loaded rules
-            focus_area: The focus area to filter against
-
-        Returns:
-            List of rules that apply to this focus area
-        """
-        applicable_rules = []
-
-        for rule in all_rules:
-            # Check file pattern matches
-            if not self._matches_file_patterns(rule, focus_area.file_path):
-                continue
-
-            # Check grep patterns against focused content only
-            if rule.applies_to and rule.applies_to.get("grep_patterns"):
-                focused_content = focus_area.get_focused_content()
-                changed_content = Hunk.extract_changed_content(focused_content)
-
-                if not self._matches_grep_patterns(rule, changed_content):
-                    continue
-
-            applicable_rules.append(rule)
-
-        return applicable_rules
-```
-
-### 2. Update Rules Command to Filter Focus Areas
-
-Modify `commands/agent/rules.py` to pair focus areas with rules:
-
-```python
-async def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
-    # ... (after generating focus areas)
-
-    # Load all rules
-    rule_loader = RuleLoaderService.create(rules_dir)
-    all_rules = rule_loader.load_all_rules()
-
-    # Load focus areas from phase-2-focus-areas/
-    focus_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.FOCUS_AREAS)
-    focus_areas_path = focus_dir / "all.json"
-    focus_areas_data = json.loads(focus_areas_path.read_text())
-    focus_areas = [FocusArea.from_dict(fa) for fa in focus_areas_data["focus_areas"]]
-
-    # Save all rules to phase-3-rules/
-    rules_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.RULES)
-    all_rules_path = rules_dir / "all-rules.json"
-    all_rules_path.write_text(json.dumps([r.to_dict() for r in all_rules], indent=2))
-
-    # Create tasks by pairing focus areas with filtered rules
-    tasks_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.TASKS)
-
-    # Clear existing tasks
-    for existing_task in tasks_dir.glob("*.json"):
-        existing_task.unlink()
-
-    tasks_created = 0
-    for focus_area in focus_areas:
-        # Filter rules for this focus area
-        applicable_rules = rule_loader.filter_rules_for_focus_area(
-            all_rules, focus_area
-        )
-
-        # Create task for each applicable rule
-        for rule in applicable_rules:
-            task = EvaluationTask.create(rule=rule, focus_area=focus_area)
-            task_path = tasks_dir / f"{task.task_id}.json"
-            task_path.write_text(json.dumps(task.to_dict(), indent=2))
-            tasks_created += 1
-
-    print(f"  Evaluation tasks created: {tasks_created}")
-```
-
-### 3. Update Tests
-
-Add tests verifying grep patterns respect focus area boundaries:
-
-```python
-def test_grep_pattern_respects_focus_bounds():
-    """Grep patterns should only match within focus area, not entire hunk."""
-    # Create hunk with two methods
-    # Create focus area for first method only
-    # Rule with grep pattern that matches second method
-    # Verify rule is NOT matched when filtering against first method's focus area
-```
-
-**Rationale:** With focus areas, rules should only trigger if their grep patterns match within the focused method, not in surrounding code within the same hunk.
-
-**Files to modify:**
-- Modify: `services/rule_loader.py` (add `filter_rules_for_focus_area`)
-- Modify: `commands/agent/rules.py` (use focus areas for task creation)
-- Modify: `tests/test_services.py` (add focus area filtering tests)
+**Files modified:**
+- Modified: `services/rule_loader.py` (added `filter_rules_for_focus_area`, added `FocusArea` and `Hunk` imports)
+- Modified: `commands/agent/rules.py` (replaced `filter_rules_for_segment` call with `filter_rules_for_focus_area`)
+- Modified: `tests/test_services.py` (added `TestRuleLoaderFilterForFocusArea` test class with 7 tests)
 
 ---
 
