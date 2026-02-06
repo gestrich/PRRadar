@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts.domain.report import ReportSummary, ReviewReport, ViolationRecord
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.report_generator import ReportGeneratorService
 
 
@@ -356,10 +357,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_generate_report_with_no_evaluations(self):
         """Test generate_report handles empty evaluations directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
 
             service = ReportGeneratorService(evaluations_dir, tasks_dir)
             report = service.generate_report(pr_number=123, min_score=5)
@@ -372,10 +371,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_generate_report_filters_by_min_score(self):
         """Test generate_report filters violations by min_score."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
 
             # Create evaluations with different scores
             for i, score in enumerate([3, 5, 8]):
@@ -412,10 +409,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_generate_report_excludes_non_violations(self):
         """Test generate_report excludes evaluations where violates_rule is False."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
 
             # Create violation
             violation_data = {
@@ -461,10 +456,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_generate_report_calculates_severity_breakdown(self):
         """Test generate_report calculates severity breakdown correctly."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
 
             # Create violations: 1 minor (3), 2 moderate (5, 6), 1 severe (9)
             scores = [3, 5, 6, 9]
@@ -496,10 +489,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_generate_report_accumulates_cost(self):
         """Test generate_report accumulates total cost from evaluations."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
 
             costs = [0.001, 0.002, 0.0015]
             for i, cost in enumerate(costs):
@@ -526,10 +517,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_save_report_creates_files(self):
         """Test save_report creates JSON and markdown files."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
             output_dir = Path(tmpdir)
 
             service = ReportGeneratorService(evaluations_dir, tasks_dir)
@@ -553,10 +542,8 @@ class TestReportGeneratorService(unittest.TestCase):
     def test_generate_report_enriches_from_task_metadata(self):
         """Test generate_report enriches violations with task metadata."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
 
             # Create task with documentation_link
             task_data = {

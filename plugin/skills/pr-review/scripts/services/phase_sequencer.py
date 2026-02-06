@@ -12,15 +12,6 @@ from pathlib import Path
 # Phases not yet implemented (skipped during dependency validation)
 _FUTURE_PHASES: set[str] = {"phase-2-focus-areas"}
 
-# Legacy directory names for transition period (remove after Phase 3 migration)
-_LEGACY_DIR_NAMES: dict[str, str] = {
-    "phase-1-diff": "diff",
-    "phase-3-rules": "rules",
-    "phase-4-tasks": "tasks",
-    "phase-5-evaluations": "evaluations",
-    "phase-6-report": "report",
-}
-
 
 class PipelinePhase(Enum):
     """Pipeline phases in execution order.
@@ -97,10 +88,6 @@ class PhaseSequencer:
     def phase_exists(output_dir: Path, phase: PipelinePhase) -> bool:
         """Check if a phase directory exists and has content.
 
-        Checks both the canonical phase directory name and the legacy
-        directory name for transition compatibility. The legacy check
-        will be removed after Phase 3 migration.
-
         Args:
             output_dir: PR-specific output directory
             phase: The pipeline phase
@@ -109,17 +96,7 @@ class PhaseSequencer:
             True if phase directory exists and is non-empty
         """
         phase_dir = PhaseSequencer.get_phase_dir(output_dir, phase)
-        if phase_dir.exists() and any(phase_dir.iterdir()):
-            return True
-
-        # Check legacy directory name during transition
-        legacy_name = _LEGACY_DIR_NAMES.get(phase.value)
-        if legacy_name:
-            legacy_dir = output_dir / legacy_name
-            if legacy_dir.exists() and any(legacy_dir.iterdir()):
-                return True
-
-        return False
+        return phase_dir.exists() and any(phase_dir.iterdir())
 
     @staticmethod
     def can_run_phase(output_dir: Path, phase: PipelinePhase) -> bool:

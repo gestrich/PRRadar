@@ -4,8 +4,8 @@ Reads evaluation results from the evaluate command and posts inline
 comments to the GitHub PR for violations meeting the score threshold.
 
 Requires:
-    <output-dir>/<pr-number>/evaluations/*.json  - Evaluation result files
-    <output-dir>/<pr-number>/tasks/*.json        - Task files (for documentation_link)
+    <output-dir>/<pr-number>/phase-5-evaluations/*.json  - Evaluation result files
+    <output-dir>/<pr-number>/phase-4-tasks/*.json        - Task files (for documentation_link)
 
 Features:
     - Individual inline comments per violation
@@ -345,8 +345,8 @@ def cmd_comment(
         return 1
 
     # Verify directories exist
-    evaluations_dir = output_dir / "evaluations"
-    tasks_dir = output_dir / "tasks"
+    evaluations_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
+    tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
 
     if not evaluations_dir.exists():
         print(f"  Error: Evaluations directory not found at {evaluations_dir}")

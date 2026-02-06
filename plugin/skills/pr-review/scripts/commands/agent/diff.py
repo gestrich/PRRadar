@@ -4,8 +4,8 @@ Fetches diff, PR metadata, and comments from GitHub and stores them as artifacts
 for subsequent pipeline phases.
 
 Artifact outputs:
-    <output-dir>/<pr-number>/diff/raw.diff     - Original diff text
-    <output-dir>/<pr-number>/diff/parsed.json  - Structured diff with hunks
+    <output-dir>/<pr-number>/phase-1-diff/raw.diff     - Original diff text
+    <output-dir>/<pr-number>/phase-1-diff/parsed.json  - Structured diff with hunks
     <output-dir>/<pr-number>/pr.json           - Raw GitHub PR metadata JSON
     <output-dir>/<pr-number>/comments.json     - Raw GitHub comments JSON
     <output-dir>/<pr-number>/repo.json         - Raw GitHub repository JSON
@@ -19,6 +19,7 @@ from pathlib import Path
 from scripts.domain.diff_source import DiffSource
 from scripts.infrastructure.diff_provider.factory import create_diff_provider
 from scripts.infrastructure.github.runner import GhCommandRunner
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 
 
 def cmd_diff(
@@ -53,8 +54,7 @@ def cmd_diff(
     repo = repo_result
 
     # Create diff subdirectory
-    diff_dir = output_dir / "diff"
-    diff_dir.mkdir(parents=True, exist_ok=True)
+    diff_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.DIFF)
 
     # Create appropriate diff provider
     print(f"  Using diff source: {source.value}")

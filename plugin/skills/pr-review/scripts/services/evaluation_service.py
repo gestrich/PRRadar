@@ -19,6 +19,7 @@ from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
 from scripts.domain.agent_outputs import RuleEvaluation
 from scripts.domain.evaluation_task import EvaluationTask
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 
 
 # ============================================================
@@ -201,8 +202,7 @@ async def run_batch_evaluation(
     Returns:
         List of all evaluation results
     """
-    evaluations_dir = output_dir / "evaluations"
-    evaluations_dir.mkdir(parents=True, exist_ok=True)
+    evaluations_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
 
     results: list[EvaluationResult] = []
     total = len(tasks)

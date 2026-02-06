@@ -31,6 +31,7 @@ from scripts.services.evaluation_service import (
 )
 from scripts.commands.agent.rules import cmd_rules
 from scripts.domain.evaluation_task import EvaluationTask
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.task_loader_service import TaskLoaderService
 from scripts.services.violation_service import ViolationService
 from scripts.utils.interactive import print_separator, prompt_yes_no_quit
@@ -162,8 +163,7 @@ async def run_interactive_evaluation(
         repo: Repository in owner/repo format
         stats: Statistics object to update
     """
-    evaluations_dir = output_dir / "evaluations"
-    evaluations_dir.mkdir(parents=True, exist_ok=True)
+    evaluations_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
 
     # Group tasks by segment
     segment_groups = group_tasks_by_segment(tasks)
@@ -377,11 +377,11 @@ def cmd_analyze(
     print("=" * 60)
 
     # Load tasks using TaskLoaderService
-    task_loader = TaskLoaderService(output_dir / "tasks")
+    task_loader = TaskLoaderService(PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS))
     tasks = task_loader.load_all()
 
     if not tasks:
-        tasks_dir = output_dir / "tasks"
+        tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
         if not tasks_dir.exists():
             print(f"  Error: Tasks directory not found at {tasks_dir}")
             print("  Run without --skip-to or use --skip-to rules")

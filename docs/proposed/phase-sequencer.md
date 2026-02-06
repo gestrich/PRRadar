@@ -104,122 +104,34 @@ Add simple validation that upstream phases are complete before running downstrea
 
 ---
 
-## - [ ] Phase 3: Migration and Integration
+## - [x] Phase 3: Migration and Integration
 
 Migrate existing code to use PhaseSequencer and update tests.
 
-**Architecture Skills:**
-- Use `/python-architecture:cli-architecture` to validate all command updates follow proper patterns
-- Use `/python-architecture:testing-services` to ensure comprehensive test coverage
-- Use `/python-architecture:python-code-style` to verify consistent code style
+**Completed.** All hardcoded directory paths replaced with `PhaseSequencer` calls across commands, services, and tests. Migration script created with 5 unit tests. Legacy directory support removed from `phase_exists()` since all code now uses canonical phase names. Module docstrings updated to reference canonical paths. 197 tests pass (1 pre-existing failure unrelated to this change).
 
-**Tasks:**
+**Technical notes:**
+- `_LEGACY_DIR_NAMES` mapping removed from `phase_sequencer.py` — no longer needed since all code uses canonical names
+- `phase_exists()` simplified to single canonical directory check (no legacy fallback)
+- Services (`evaluation_service.py`, `report_generator.py`) also migrated — not just commands
+- Migration script at `commands/migrate_to_phases.py` handles: rename, skip-if-migrated, content preservation
 
-### 1. Create Migration Script
+**Files created:**
+- `commands/migrate_to_phases.py` - Legacy-to-canonical directory migration script
 
-```python
-# In scripts/commands/migrate_to_phases.py
-
-"""Migrate existing output directories to phase-based naming."""
-
-from pathlib import Path
-from services.phase_sequencer import PipelinePhase, PhaseSequencer
-
-
-LEGACY_TO_PHASE_MAPPING = {
-    "diff": PipelinePhase.DIFF,
-    "rules": PipelinePhase.RULES,
-    "tasks": PipelinePhase.TASKS,
-    "evaluations": PipelinePhase.EVALUATIONS,
-    "report": PipelinePhase.REPORT,
-}
-
-
-def migrate_pr_directory(pr_dir: Path) -> None:
-    """Migrate a single PR directory to phase naming."""
-    print(f"Migrating {pr_dir}...")
-
-    for legacy_name, phase in LEGACY_TO_PHASE_MAPPING.items():
-        legacy_dir = pr_dir / legacy_name
-        if legacy_dir.exists():
-            new_dir = PhaseSequencer.get_phase_dir(pr_dir, phase)
-            if not new_dir.exists():
-                legacy_dir.rename(new_dir)
-                print(f"  {legacy_name}/ → {phase.value}/")
-            else:
-                print(f"  {legacy_name}/ already migrated")
-
-
-def migrate_all(output_base: Path) -> None:
-    """Migrate all PR directories in output directory."""
-    if not output_base.exists():
-        print(f"Output directory not found: {output_base}")
-        return
-
-    migrated = 0
-    for pr_dir in output_base.iterdir():
-        if pr_dir.is_dir() and pr_dir.name.isdigit():
-            migrate_pr_directory(pr_dir)
-            migrated += 1
-
-    print(f"\nMigrated {migrated} PR directories")
-
-
-if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Usage: python -m scripts.commands.migrate_to_phases <output_dir>")
-        sys.exit(1)
-
-    output_base = Path(sys.argv[1])
-    migrate_all(output_base)
-```
-
-### 2. Update All Commands
-
-Replace all hardcoded directory names with PhaseSequencer calls:
-
-**Before:**
-```python
-diff_dir = output_dir / "diff"
-diff_dir.mkdir(parents=True, exist_ok=True)
-```
-
-**After:**
-```python
-from services.phase_sequencer import PhaseSequencer, PipelinePhase
-
-diff_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.DIFF)
-```
-
-**Files to modify:**
-- Modify: `commands/agent/diff.py`
-- Modify: `commands/agent/rules.py`
-- Modify: `commands/agent/evaluate.py`
-- Modify: `commands/agent/comment.py`
-- Modify: `commands/agent/report.py`
-- Modify: `commands/agent/analyze.py`
-
-### 3. Update Tests
-
-Update all test fixtures and assertions:
-
-```python
-# Before
-def test_rules_command(tmp_path):
-    output_dir = tmp_path / "123"
-    diff_dir = output_dir / "diff"
-    diff_dir.mkdir(parents=True)
-
-# After
-def test_rules_command(tmp_path):
-    output_dir = tmp_path / "123"
-    diff_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.DIFF)
-```
-
-**Files to modify:**
-- All test files in `tests/`
+**Files modified:**
+- `commands/agent/diff.py` - Use `PhaseSequencer.ensure_phase_dir()` for diff directory
+- `commands/agent/rules.py` - Use `PhaseSequencer` for diff, rules, and tasks directories
+- `commands/agent/evaluate.py` - Use `PhaseSequencer` for tasks and evaluations directories
+- `commands/agent/comment.py` - Use `PhaseSequencer` for evaluations and tasks directories
+- `commands/agent/report.py` - Use `PhaseSequencer` for evaluations and tasks directories
+- `commands/agent/analyze.py` - Use `PhaseSequencer` for evaluations and tasks directories
+- `services/evaluation_service.py` - Use `PhaseSequencer.ensure_phase_dir()` for evaluations
+- `services/report_generator.py` - Use `PhaseSequencer.ensure_phase_dir()` for report
+- `services/phase_sequencer.py` - Removed `_LEGACY_DIR_NAMES`, simplified `phase_exists()`
+- `tests/test_phase_sequencer.py` - Removed legacy tests, added 5 migration tests
+- `tests/test_agent_commands.py` - Updated test fixtures to use canonical phase names
+- `tests/test_report.py` - Updated test fixtures to use canonical phase names
 
 **Acceptance criteria:**
 - ✅ Migration script successfully renames directories

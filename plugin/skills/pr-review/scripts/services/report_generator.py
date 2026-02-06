@@ -15,6 +15,7 @@ from pathlib import Path
 
 from scripts.domain.agent_outputs import RuleEvaluation
 from scripts.domain.report import ReportSummary, ReviewReport, ViolationRecord
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 
 
 # ============================================================
@@ -80,8 +81,7 @@ class ReportGeneratorService:
         Returns:
             Tuple of (json_path, markdown_path)
         """
-        report_dir = output_dir / "report"
-        report_dir.mkdir(parents=True, exist_ok=True)
+        report_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.REPORT)
 
         # Save JSON
         json_path = report_dir / "summary.json"

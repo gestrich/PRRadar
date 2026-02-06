@@ -4,12 +4,12 @@ Reads evaluation results and generates human-readable reports in
 JSON and markdown formats for review and archiving.
 
 Requires:
-    <output-dir>/<pr-number>/evaluations/*.json  - Evaluation result files
-    <output-dir>/<pr-number>/tasks/*.json        - Task files (for metadata)
+    <output-dir>/<pr-number>/phase-5-evaluations/*.json  - Evaluation result files
+    <output-dir>/<pr-number>/phase-4-tasks/*.json        - Task files (for metadata)
 
 Produces:
-    <output-dir>/<pr-number>/report/summary.json - Structured JSON report
-    <output-dir>/<pr-number>/report/summary.md   - Human-readable markdown
+    <output-dir>/<pr-number>/phase-6-report/summary.json - Structured JSON report
+    <output-dir>/<pr-number>/phase-6-report/summary.md   - Human-readable markdown
 """
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ def cmd_report(
         return 1
 
     # Verify evaluations directory exists
-    evaluations_dir = output_dir / "evaluations"
-    tasks_dir = output_dir / "tasks"
+    evaluations_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
+    tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
 
     if not evaluations_dir.exists():
         print(f"  Error: Evaluations directory not found at {evaluations_dir}")

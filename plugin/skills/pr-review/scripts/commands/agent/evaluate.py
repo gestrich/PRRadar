@@ -4,11 +4,11 @@ Reads evaluation tasks created by the rules command and evaluates each
 rule+segment combination using the Claude Agent SDK with structured outputs.
 
 Requires:
-    <output-dir>/<pr-number>/tasks/*.json  - Evaluation task files
+    <output-dir>/<pr-number>/phase-4-tasks/*.json  - Evaluation task files
 
 Artifact outputs:
-    <output-dir>/<pr-number>/evaluations/*.json     - Per-task evaluation results
-    <output-dir>/<pr-number>/evaluations/summary.json - Aggregated results
+    <output-dir>/<pr-number>/phase-5-evaluations/*.json     - Per-task evaluation results
+    <output-dir>/<pr-number>/phase-5-evaluations/summary.json - Aggregated results
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
         return 1
 
     # Initialize services
-    task_loader = TaskLoaderService(output_dir / "tasks")
+    task_loader = TaskLoaderService(PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS))
 
     # Load tasks (service returns data, command prints)
     if rules_filter:
@@ -61,7 +61,7 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
 
     # Handle no tasks case
     if not tasks:
-        tasks_dir = output_dir / "tasks"
+        tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
         if not tasks_dir.exists():
             print(f"  Error: Tasks directory not found at {tasks_dir}")
             print("  Run 'agent rules' first to create evaluation tasks")
@@ -107,7 +107,7 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
         results=results,
     )
 
-    evaluations_dir = output_dir / "evaluations"
+    evaluations_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
     summary_path = evaluations_dir / "summary.json"
     summary_path.write_text(json.dumps(summary.to_dict(), indent=2))
 

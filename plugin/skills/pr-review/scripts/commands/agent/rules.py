@@ -4,11 +4,11 @@ Loads rules from a directory and filters them against the diff.
 Creates evaluation tasks for each rule+segment combination.
 
 Requires:
-    <output-dir>/<pr-number>/diff/parsed.json  - Structured diff with hunks
+    <output-dir>/<pr-number>/phase-1-diff/parsed.json  - Structured diff with hunks
 
 Artifact outputs:
-    <output-dir>/<pr-number>/rules/all-rules.json  - All collected rules
-    <output-dir>/<pr-number>/tasks/*.json          - Evaluation tasks (rule+segment)
+    <output-dir>/<pr-number>/phase-3-rules/all-rules.json  - All collected rules
+    <output-dir>/<pr-number>/phase-4-tasks/*.json          - Evaluation tasks (rule+segment)
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
         return 1
 
     # Verify diff artifacts exist
-    parsed_diff_path = output_dir / "diff" / "parsed.json"
+    parsed_diff_path = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.DIFF) / "parsed.json"
     if not parsed_diff_path.exists():
         print(f"  Error: Diff not found at {parsed_diff_path}")
         print("  Run 'agent diff' first to collect PR data")
@@ -78,8 +78,7 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
         return 0
 
     # Write all rules to rules/all-rules.json
-    rules_output_dir = output_dir / "rules"
-    rules_output_dir.mkdir(parents=True, exist_ok=True)
+    rules_output_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.RULES)
 
     all_rules_path = rules_output_dir / "all-rules.json"
     all_rules_data = [rule.to_dict() for rule in all_rules]
@@ -87,8 +86,7 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
     print(f"  Wrote {all_rules_path}")
 
     # Create tasks directory
-    tasks_dir = output_dir / "tasks"
-    tasks_dir.mkdir(parents=True, exist_ok=True)
+    tasks_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.TASKS)
 
     # Clear any existing task files
     for existing_task in tasks_dir.glob("*.json"):

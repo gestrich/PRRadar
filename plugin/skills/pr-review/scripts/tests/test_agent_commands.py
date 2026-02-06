@@ -16,6 +16,7 @@ from pathlib import Path
 from scripts.domain.diff import GitDiff
 from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
 from scripts.infrastructure.git.git_utils import GitFileInfo
+from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.rule_loader import RuleLoaderService
 
 
@@ -356,11 +357,9 @@ class TestPipelineIntegration(unittest.TestCase):
     def test_report_phase_can_run_on_empty_evaluations(self):
         """Test report phase handles empty evaluations gracefully."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            evaluations_dir = Path(tmpdir) / "evaluations"
-            evaluations_dir.mkdir()
-            tasks_dir = Path(tmpdir) / "tasks"
-            tasks_dir.mkdir()
             output_dir = Path(tmpdir)
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.TASKS)
 
             from scripts.services.report_generator import ReportGeneratorService
 

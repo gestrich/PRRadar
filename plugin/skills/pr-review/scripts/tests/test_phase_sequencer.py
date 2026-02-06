@@ -1,9 +1,10 @@
-"""Tests for PhaseSequencer service.
+"""Tests for PhaseSequencer service and migration script.
 
 Tests cover:
 - PipelinePhase enum ordering and navigation
 - PhaseSequencer directory management
 - Dependency validation
+- Migration from legacy to canonical directory names
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.commands.migrate_to_phases import migrate_all, migrate_pr_directory
 from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 
 
@@ -174,8 +176,8 @@ class TestPhaseSequencerDependencyValidation(unittest.TestCase):
         assert PhaseSequencer.validate_can_run(self.tmp_path, PipelinePhase.DIFF) is None
 
 
-class TestPhaseSequencerLegacyDirectories(unittest.TestCase):
-    """Tests for legacy directory name support in phase_exists."""
+class TestMigrateToPhases(unittest.TestCase):
+    """Tests for the legacy-to-canonical directory migration script."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -184,45 +186,69 @@ class TestPhaseSequencerLegacyDirectories(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def test_phase_exists_with_legacy_diff_dir(self) -> None:
-        """phase_exists detects legacy 'diff' directory."""
-        legacy_dir = self.tmp_path / "diff"
-        legacy_dir.mkdir()
-        (legacy_dir / "parsed.json").write_text("{}")
-        assert PhaseSequencer.phase_exists(self.tmp_path, PipelinePhase.DIFF)
+    def test_migrate_renames_legacy_directories(self) -> None:
+        """Migration renames legacy directories to canonical phase names."""
+        pr_dir = self.tmp_path / "123"
+        (pr_dir / "diff").mkdir(parents=True)
+        (pr_dir / "diff" / "raw.diff").write_text("content")
+        (pr_dir / "tasks").mkdir()
+        (pr_dir / "tasks" / "task.json").write_text("{}")
 
-    def test_phase_exists_with_legacy_tasks_dir(self) -> None:
-        """phase_exists detects legacy 'tasks' directory."""
-        legacy_dir = self.tmp_path / "tasks"
-        legacy_dir.mkdir()
-        (legacy_dir / "task.json").write_text("{}")
-        assert PhaseSequencer.phase_exists(self.tmp_path, PipelinePhase.TASKS)
+        migrate_pr_directory(pr_dir)
 
-    def test_phase_exists_with_legacy_evaluations_dir(self) -> None:
-        """phase_exists detects legacy 'evaluations' directory."""
-        legacy_dir = self.tmp_path / "evaluations"
-        legacy_dir.mkdir()
-        (legacy_dir / "result.json").write_text("{}")
-        assert PhaseSequencer.phase_exists(self.tmp_path, PipelinePhase.EVALUATIONS)
+        assert not (pr_dir / "diff").exists()
+        assert not (pr_dir / "tasks").exists()
+        assert (pr_dir / "phase-1-diff").exists()
+        assert (pr_dir / "phase-1-diff" / "raw.diff").exists()
+        assert (pr_dir / "phase-4-tasks").exists()
+        assert (pr_dir / "phase-4-tasks" / "task.json").exists()
 
-    def test_phase_exists_empty_legacy_dir_returns_false(self) -> None:
-        """Empty legacy directory should return False."""
-        legacy_dir = self.tmp_path / "diff"
-        legacy_dir.mkdir()
-        assert not PhaseSequencer.phase_exists(self.tmp_path, PipelinePhase.DIFF)
+    def test_migrate_skips_already_migrated(self) -> None:
+        """Migration skips directories that already have canonical names."""
+        pr_dir = self.tmp_path / "123"
+        (pr_dir / "diff").mkdir(parents=True)
+        (pr_dir / "diff" / "raw.diff").write_text("legacy")
+        canonical = pr_dir / "phase-1-diff"
+        canonical.mkdir()
+        (canonical / "raw.diff").write_text("canonical")
 
-    def test_can_run_with_legacy_dependency(self) -> None:
-        """can_run_phase works with legacy directory names."""
-        legacy_dir = self.tmp_path / "tasks"
-        legacy_dir.mkdir()
-        (legacy_dir / "task.json").write_text("{}")
-        assert PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.EVALUATIONS)
+        migrate_pr_directory(pr_dir)
 
-    def test_phase_exists_prefers_canonical_over_legacy(self) -> None:
-        """Canonical phase directory is checked before legacy."""
-        canonical_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
-        (canonical_dir / "raw.diff").write_text("content")
-        assert PhaseSequencer.phase_exists(self.tmp_path, PipelinePhase.DIFF)
+        # Legacy dir should still exist since canonical already exists
+        assert (pr_dir / "diff").exists()
+        assert (canonical / "raw.diff").read_text() == "canonical"
+
+    def test_migrate_all_processes_pr_directories(self) -> None:
+        """migrate_all processes only numeric PR directories."""
+        (self.tmp_path / "42" / "evaluations").mkdir(parents=True)
+        (self.tmp_path / "42" / "evaluations" / "result.json").write_text("{}")
+        (self.tmp_path / "99" / "report").mkdir(parents=True)
+        (self.tmp_path / "99" / "report" / "summary.json").write_text("{}")
+        (self.tmp_path / "not-a-pr").mkdir()
+
+        migrate_all(self.tmp_path)
+
+        assert (self.tmp_path / "42" / "phase-5-evaluations").exists()
+        assert (self.tmp_path / "99" / "phase-6-report").exists()
+        assert not (self.tmp_path / "42" / "evaluations").exists()
+        assert not (self.tmp_path / "99" / "report").exists()
+
+    def test_migrate_nonexistent_directory(self) -> None:
+        """migrate_all handles nonexistent directory gracefully."""
+        migrate_all(self.tmp_path / "does-not-exist")
+
+    def test_migrate_preserves_file_content(self) -> None:
+        """Migration preserves file contents during rename."""
+        pr_dir = self.tmp_path / "100"
+        rules_dir = pr_dir / "rules"
+        rules_dir.mkdir(parents=True)
+        (rules_dir / "all-rules.json").write_text('["rule1", "rule2"]')
+
+        migrate_pr_directory(pr_dir)
+
+        migrated_file = pr_dir / "phase-3-rules" / "all-rules.json"
+        assert migrated_file.exists()
+        assert migrated_file.read_text() == '["rule1", "rule2"]'
 
 
 if __name__ == "__main__":
