@@ -399,3 +399,51 @@ class PhaseSequencer:
             )
 
         return checker.check_status(output_dir)
+
+    @staticmethod
+    def get_all_statuses(output_dir: Path) -> dict[PipelinePhase, PhaseStatus]:
+        """Get status for all phases.
+
+        Args:
+            output_dir: PR-specific output directory
+
+        Returns:
+            Dictionary mapping each phase to its status
+        """
+        return {
+            phase: PhaseSequencer.get_phase_status(output_dir, phase)
+            for phase in PipelinePhase
+        }
+
+    @staticmethod
+    def print_pipeline_status(output_dir: Path) -> None:
+        """Print formatted pipeline status summary.
+
+        Args:
+            output_dir: PR-specific output directory
+        """
+        statuses = PhaseSequencer.get_all_statuses(output_dir)
+
+        print("\nPipeline Status:")
+        print("=" * 60)
+
+        for phase in PipelinePhase:
+            status = statuses[phase]
+
+            if status.is_complete:
+                indicator = "✓"
+            elif status.is_partial():
+                indicator = "⚠"
+            elif status.exists:
+                indicator = "✗"
+            else:
+                indicator = " "
+
+            if status.total_count > 0:
+                progress = f"{status.completed_count}/{status.total_count}"
+                pct = status.completion_percentage()
+                progress += f" ({pct:.0f}%)"
+            else:
+                progress = status.summary()
+
+            print(f"  {indicator} {phase.value:<25} {progress}")

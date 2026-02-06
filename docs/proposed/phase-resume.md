@@ -350,7 +350,7 @@ async def cmd_evaluate(
 
 ---
 
-## - [ ] Phase 4: Status Command
+## - [x] Phase 4: Status Command
 
 Create command to display detailed pipeline status.
 
@@ -429,6 +429,14 @@ def cmd_status(output_dir: Path) -> int:
 - ✅ Visual indicators for complete/partial/incomplete
 - ✅ Percentages shown for countable phases
 - ✅ Human-readable output
+
+**Implementation notes:**
+- `get_all_statuses()` iterates all `PipelinePhase` members and delegates to `get_phase_status()`
+- `print_pipeline_status()` uses 4 visual indicators: `✓` (complete), `⚠` (partial), `✗` (exists but incomplete), space (not started)
+- Phases with `total_count > 0` display progress as `N/M (X%)`, others use the `summary()` text
+- `cmd_status()` in `commands/agent/status.py` validates directory existence before printing
+- Status command registered as `agent status <pr_number>` subparser in `__init__.py`
+- 13 new tests across 3 test classes (TestGetAllStatuses, TestPrintPipelineStatus, TestCmdStatus); 323 total tests pass
 
 ---
 

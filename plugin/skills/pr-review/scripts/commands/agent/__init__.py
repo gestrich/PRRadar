@@ -11,6 +11,7 @@ Commands:
     report    - Generate review report from evaluations
     comment   - Post review comments to GitHub
     analyze   - Run the full pipeline
+    status    - Show pipeline status for a PR
 """
 
 import argparse
@@ -214,6 +215,17 @@ inspected and debugged independently.
         help="Repository in owner/repo format (auto-detected if not provided)",
     )
 
+    # status command
+    status_parser = agent_subparsers.add_parser(
+        "status",
+        help="Show pipeline status for a PR",
+    )
+    status_parser.add_argument(
+        "pr_number",
+        type=int,
+        help="PR number to show status for",
+    )
+
 
 def ensure_output_dir(output_dir: str, pr_number: int) -> Path:
     """Create and return the output directory for a PR.
@@ -325,6 +337,11 @@ def cmd_agent(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             interactive=interactive,
         )
+
+    elif args.agent_command == "status":
+        from scripts.commands.agent.status import cmd_status
+
+        return cmd_status(output_dir=pr_dir)
 
     elif args.agent_command == "analyze":
         from scripts.commands.agent.analyze import cmd_analyze

@@ -1092,6 +1092,232 @@ class TestGetRemainingItems(unittest.TestCase):
         assert skipped == 0
 
 
+class TestGetAllStatuses(unittest.TestCase):
+    """Tests for PhaseSequencer.get_all_statuses."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_returns_status_for_all_phases(self) -> None:
+        """Returns a status entry for every pipeline phase."""
+        statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
+        assert set(statuses.keys()) == set(PipelinePhase)
+
+    def test_empty_directory_all_not_started(self) -> None:
+        """All phases show not started for empty output dir."""
+        statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
+        for phase, status in statuses.items():
+            assert not status.is_complete, f"{phase.name} should not be complete"
+
+    def test_mixed_statuses(self) -> None:
+        """Returns correct statuses when some phases are complete."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+        (diff_dir / "parsed.json").write_text("{}")
+
+        statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
+        assert statuses[PipelinePhase.DIFF].is_complete
+        assert not statuses[PipelinePhase.RULES].is_complete
+
+
+class TestPrintPipelineStatus(unittest.TestCase):
+    """Tests for PhaseSequencer.print_pipeline_status."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_shows_all_phases(self, capsys=None) -> None:
+        """Output includes every phase name."""
+        import io
+        import sys
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        for phase in PipelinePhase:
+            assert phase.value in output, f"{phase.value} not found in output"
+
+    def test_complete_phase_shows_checkmark(self) -> None:
+        """Completed phase shows checkmark indicator."""
+        import io
+        import sys
+
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+        (diff_dir / "parsed.json").write_text("{}")
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "✓" in output
+
+    def test_partial_phase_shows_warning(self) -> None:
+        """Partially complete phase shows warning indicator."""
+        import io
+        import sys
+
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(5):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(3):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "⚠" in output
+
+    def test_not_started_shows_space(self) -> None:
+        """Not-started phase shows space indicator."""
+        import io
+        import sys
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "not started" in output
+
+    def test_shows_percentage_for_countable_phases(self) -> None:
+        """Phases with counts show percentage."""
+        import io
+        import sys
+
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "1/2" in output
+        assert "50%" in output
+
+    def test_shows_header(self) -> None:
+        """Output includes header line."""
+        import io
+        import sys
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            PhaseSequencer.print_pipeline_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "Pipeline Status:" in output
+        assert "=" * 60 in output
+
+
+class TestCmdStatus(unittest.TestCase):
+    """Tests for the status command."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_nonexistent_directory_returns_error(self) -> None:
+        """Returns 1 when output directory doesn't exist."""
+        from scripts.commands.agent.status import cmd_status
+
+        result = cmd_status(self.tmp_path / "nonexistent")
+        assert result == 1
+
+    def test_existing_directory_returns_success(self) -> None:
+        """Returns 0 when output directory exists."""
+        from scripts.commands.agent.status import cmd_status
+
+        result = cmd_status(self.tmp_path)
+        assert result == 0
+
+    def test_shows_all_phases(self) -> None:
+        """Status command output includes all pipeline phases."""
+        import io
+        import sys
+
+        from scripts.commands.agent.status import cmd_status
+
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            cmd_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "phase-1-diff" in output
+        assert "phase-3-rules" in output
+
+    def test_shows_indicators(self) -> None:
+        """Status command shows completion indicators."""
+        import io
+        import sys
+
+        from scripts.commands.agent.status import cmd_status
+
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+        (diff_dir / "parsed.json").write_text("{}")
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            cmd_status(self.tmp_path)
+        finally:
+            sys.stdout = old_stdout
+
+        output = captured.getvalue()
+        assert "✓" in output
+
+
 class TestNoMagicStrings(unittest.TestCase):
     """Verify no hardcoded directory names exist in command and service files."""
 
