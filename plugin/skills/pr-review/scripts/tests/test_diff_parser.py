@@ -914,5 +914,180 @@ class TestRuleEvaluationCombined(unittest.TestCase):
         self.assertFalse(rule.should_evaluate("src/Handler.m", "NSString *name;"))
 
 
+class TestRuleScope(unittest.TestCase):
+    """Tests for RuleScope enum and scope field on Rule."""
+
+    def test_default_scope_is_localized(self):
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Content",
+        )
+        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+
+    def test_scope_can_be_set_to_global(self):
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Content",
+            scope=RuleScope.GLOBAL,
+        )
+        self.assertEqual(rule.scope, RuleScope.GLOBAL)
+
+    def test_to_dict_includes_scope(self):
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Content",
+            scope=RuleScope.GLOBAL,
+        )
+        result = rule.to_dict()
+        self.assertEqual(result["scope"], "global")
+
+    def test_to_dict_default_scope_is_localized(self):
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
+
+        rule = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Content",
+        )
+        result = rule.to_dict()
+        self.assertEqual(result["scope"], "localized")
+
+    def test_from_dict_parses_localized_scope(self):
+        from scripts.domain.rule import Rule, RuleScope
+
+        data = {
+            "name": "test",
+            "file_path": "test.md",
+            "description": "Test",
+            "category": "test",
+            "content": "Content",
+            "scope": "localized",
+        }
+        rule = Rule.from_dict(data)
+        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+
+    def test_from_dict_parses_global_scope(self):
+        from scripts.domain.rule import Rule, RuleScope
+
+        data = {
+            "name": "test",
+            "file_path": "test.md",
+            "description": "Test",
+            "category": "test",
+            "content": "Content",
+            "scope": "global",
+        }
+        rule = Rule.from_dict(data)
+        self.assertEqual(rule.scope, RuleScope.GLOBAL)
+
+    def test_from_dict_defaults_to_localized_when_missing(self):
+        from scripts.domain.rule import Rule, RuleScope
+
+        data = {
+            "name": "test",
+            "file_path": "test.md",
+            "description": "Test",
+            "category": "test",
+            "content": "Content",
+        }
+        rule = Rule.from_dict(data)
+        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+
+    def test_from_dict_defaults_to_localized_for_invalid_scope(self):
+        from scripts.domain.rule import Rule, RuleScope
+
+        data = {
+            "name": "test",
+            "file_path": "test.md",
+            "description": "Test",
+            "category": "test",
+            "content": "Content",
+            "scope": "invalid-scope",
+        }
+        rule = Rule.from_dict(data)
+        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+
+    def test_from_file_parses_scope_from_frontmatter(self):
+        import tempfile
+        from pathlib import Path
+
+        from scripts.domain.rule import Rule, RuleScope
+
+        content = """---
+description: Test rule
+category: test
+scope: global
+---
+Rule content here.
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            f.flush()
+            rule = Rule.from_file(Path(f.name))
+
+        self.assertEqual(rule.scope, RuleScope.GLOBAL)
+
+    def test_from_file_defaults_to_localized_when_scope_missing(self):
+        import tempfile
+        from pathlib import Path
+
+        from scripts.domain.rule import Rule, RuleScope
+
+        content = """---
+description: Test rule
+category: test
+---
+Rule content here.
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            f.flush()
+            rule = Rule.from_file(Path(f.name))
+
+        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+
+    def test_round_trip_serialization(self):
+        from scripts.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+
+        original = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test",
+            category="test",
+            applies_to=AppliesTo(file_patterns=["*.py"]),
+            grep=GrepPatterns(any_patterns=["pattern"]),
+            content="Content",
+            scope=RuleScope.GLOBAL,
+        )
+        restored = Rule.from_dict(original.to_dict())
+        self.assertEqual(restored.scope, RuleScope.GLOBAL)
+        self.assertEqual(restored.name, original.name)
+
+
 if __name__ == "__main__":
     unittest.main()

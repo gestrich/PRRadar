@@ -170,41 +170,31 @@ All 229 tests pass.
 
 ---
 
-## - [ ] Phase 4: Rule Scope (Localized vs Global)
+## - [x] Phase 4: Rule Scope (Localized vs Global)
 
-Add `scope` field to rules to distinguish between localized and global evaluation modes.
+**Completed.** All tasks implemented:
 
-**Architecture Skills:**
-- Use `/python-architecture:domain-modeling` to validate the `RuleScope` enum and `Rule` updates
+1. **Added `RuleScope` enum** - `LOCALIZED` and `GLOBAL` values in `domain/rule.py`, with string values `"localized"` and `"global"` for YAML/JSON serialization.
+2. **Added `scope: RuleScope` field to `Rule`** - Defaults to `RuleScope.LOCALIZED`. Placed before optional fields (`model`, `documentation_link`, etc.) since it has a default value.
+3. **Updated `Rule.from_file()`** - Parses `scope` from YAML frontmatter with fallback to `LOCALIZED` for missing or invalid values.
+4. **Updated `Rule.from_dict()` and `Rule.to_dict()`** - Full round-trip serialization. `to_dict()` always includes `scope` (not conditional like optional fields) since it has semantic meaning even at the default value.
+5. **Added 11 tests** covering: default scope, explicit scope construction, `to_dict` serialization, `from_dict` parsing (localized, global, missing, invalid), `from_file` parsing (with and without scope), and round-trip serialization.
 
-**Tasks:**
-- Add `RuleScope` enum: `LOCALIZED`, `GLOBAL`
-- Add `scope: RuleScope` field to `Rule` dataclass (default: `LOCALIZED`)
-- Update `Rule.from_file()` to parse `scope` from frontmatter
-- Update `Rule.to_dict()` for serialization
-- Document the difference:
-  - `LOCALIZED`: Rule can be evaluated per-segment (method-level). Works with focus areas.
-  - `GLOBAL`: Rule needs broader context. Should receive full diff or multiple segments together.
+**Technical notes:**
+- Invalid scope values in frontmatter or dictionaries gracefully fall back to `LOCALIZED` (no errors thrown)
+- `scope` is always serialized in `to_dict()` output (unlike `model`/`documentation_link` which are conditional on being non-None), ensuring downstream consumers always see the scope
+- No changes needed in `services/rule_loader.py` — scope is purely a domain model concern for now
+- All 253 tests pass
 
 **Downstream impact (future phases):**
 - Localized rules: Evaluated per segment/focus-area as currently done
 - Global rules: Need different evaluation strategy (aggregate segments, provide full diff context)
-- For now, just add the field and parse it. Later phases can implement different evaluation paths for global rules.
+- For now, just the field and parsing. Later phases can implement different evaluation paths for global rules.
 
-**Example rule frontmatter:**
-```yaml
----
-description: Check for proper error handling
-category: error-handling
-scope: localized  # or 'global' for architectural reviews
-applies_to:
-  file_patterns: ["*.swift"]
----
-```
-
-**Files to modify:**
-- Modify: `domain/rule.py` (add RuleScope enum and field)
-- Update: `services/rule_loader.py` (if any filtering changes needed)
+**Files modified:**
+- Modified: `domain/rule.py` (added `RuleScope` enum, `scope` field, parsing in `from_file`/`from_dict`, serialization in `to_dict`)
+- Modified: `domain/__init__.py` (exported `RuleScope`)
+- Modified: `tests/test_diff_parser.py` (added `TestRuleScope` test class with 11 tests)
 
 ---
 

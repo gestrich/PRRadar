@@ -16,7 +16,7 @@ from scripts.domain.review import (
     ReviewOutput,
     ReviewSummary,
 )
-from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
+from scripts.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
 
 __all__ = [
     "AppliesTo",
@@ -33,6 +33,7 @@ __all__ = [
     "ReviewOutput",
     "ReviewSummary",
     "Rule",
+    "RuleScope",
     "RuleApplicability",
     "RuleEvaluation",
 ]

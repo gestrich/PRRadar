@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,19 @@ if TYPE_CHECKING:
 # ============================================================
 # Domain Models
 # ============================================================
+
+
+class RuleScope(Enum):
+    """Scope of a rule's evaluation mode.
+
+    LOCALIZED: Rule is evaluated per focus area (method-level). Works with
+        individual focus areas for targeted, scoped evaluation.
+    GLOBAL: Rule needs broader context. Should receive full diff or multiple
+        segments together for architectural reviews.
+    """
+
+    LOCALIZED = "localized"
+    GLOBAL = "global"
 
 
 @dataclass
@@ -187,6 +201,7 @@ class Rule:
     applies_to: AppliesTo
     grep: GrepPatterns
     content: str
+    scope: RuleScope = RuleScope.LOCALIZED
     model: str | None = None
     documentation_link: str | None = None
     relevant_claude_skill: str | None = None
@@ -212,6 +227,12 @@ class Rule:
         text = file_path.read_text()
         frontmatter, content = cls._parse_frontmatter(text)
 
+        scope_str = frontmatter.get("scope", "localized")
+        try:
+            scope = RuleScope(scope_str)
+        except ValueError:
+            scope = RuleScope.LOCALIZED
+
         return cls(
             name=file_path.stem,
             file_path=str(file_path),
@@ -220,6 +241,7 @@ class Rule:
             applies_to=AppliesTo.from_dict(frontmatter.get("applies_to")),
             grep=GrepPatterns.from_dict(frontmatter.get("grep")),
             content=content.strip(),
+            scope=scope,
             model=frontmatter.get("model"),
             documentation_link=frontmatter.get("documentation_link"),
             relevant_claude_skill=frontmatter.get("relevantClaudeSkill"),
@@ -235,6 +257,12 @@ class Rule:
         Returns:
             Typed Rule instance
         """
+        scope_str = data.get("scope", "localized")
+        try:
+            scope = RuleScope(scope_str)
+        except ValueError:
+            scope = RuleScope.LOCALIZED
+
         return cls(
             name=data.get("name", ""),
             file_path=data.get("file_path", ""),
@@ -243,6 +271,7 @@ class Rule:
             applies_to=AppliesTo.from_dict(data.get("applies_to")),
             grep=GrepPatterns.from_dict(data.get("grep")),
             content=data.get("content", ""),
+            scope=scope,
             model=data.get("model"),
             documentation_link=data.get("documentation_link"),
             relevant_claude_skill=data.get("relevant_claude_skill"),
@@ -260,6 +289,7 @@ class Rule:
             "file_path": self.file_path,
             "description": self.description,
             "category": self.category,
+            "scope": self.scope.value,
             "content": self.content,
         }
 
