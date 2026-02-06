@@ -1,13 +1,16 @@
 """Centralized phase management for PRRadar pipeline.
 
 Provides single source of truth for phase names and basic validation.
+Includes phase completion checkers for resume and status tracking.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Protocol
 
 
 # Phases not yet implemented (skipped during dependency validation)
@@ -86,11 +89,180 @@ class PhaseStatus:
         return "incomplete"
 
 
+# ============================================================
+# Phase Completion Checkers
+# ============================================================
+
+
+class PhaseChecker(Protocol):
+    """Protocol for checking phase completion status."""
+
+    def check_status(self, output_dir: Path) -> PhaseStatus:
+        """Check completion status for this phase."""
+        ...
+
+
+class _FixedFileChecker:
+    """Checker for phases with a known set of required files."""
+
+    def __init__(self, phase: PipelinePhase, required_files: list[str]):
+        self._phase = phase
+        self._required_files = required_files
+
+    def check_status(self, output_dir: Path) -> PhaseStatus:
+        phase_dir = PhaseSequencer.get_phase_dir(output_dir, self._phase)
+
+        if not phase_dir.exists():
+            return PhaseStatus(
+                phase=self._phase,
+                exists=False,
+                is_complete=False,
+                completed_count=0,
+                total_count=len(self._required_files),
+                missing_items=self._required_files.copy(),
+            )
+
+        missing = [f for f in self._required_files if not (phase_dir / f).exists()]
+        completed = len(self._required_files) - len(missing)
+
+        return PhaseStatus(
+            phase=self._phase,
+            exists=True,
+            is_complete=len(missing) == 0,
+            completed_count=completed,
+            total_count=len(self._required_files),
+            missing_items=missing,
+        )
+
+
+class DiffPhaseChecker(_FixedFileChecker):
+    """Checks completion status for phase-1-diff."""
+
+    REQUIRED_FILES = ["raw.diff", "parsed.json"]
+
+    def __init__(self) -> None:
+        super().__init__(PipelinePhase.DIFF, self.REQUIRED_FILES)
+
+
+class FocusAreasPhaseChecker(_FixedFileChecker):
+    """Checks completion status for phase-2-focus-areas."""
+
+    REQUIRED_FILES = ["all.json"]
+
+    def __init__(self) -> None:
+        super().__init__(PipelinePhase.FOCUS_AREAS, self.REQUIRED_FILES)
+
+
+class RulesPhaseChecker(_FixedFileChecker):
+    """Checks completion status for phase-3-rules."""
+
+    REQUIRED_FILES = ["all-rules.json"]
+
+    def __init__(self) -> None:
+        super().__init__(PipelinePhase.RULES, self.REQUIRED_FILES)
+
+
+class ReportPhaseChecker(_FixedFileChecker):
+    """Checks completion status for phase-6-report."""
+
+    REQUIRED_FILES = ["summary.json", "summary.md"]
+
+    def __init__(self) -> None:
+        super().__init__(PipelinePhase.REPORT, self.REQUIRED_FILES)
+
+
+class TasksPhaseChecker:
+    """Checks completion status for phase-4-tasks.
+
+    Tasks are dynamically generated, so completion is based on
+    whether any task files exist in the directory.
+    """
+
+    def check_status(self, output_dir: Path) -> PhaseStatus:
+        tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
+
+        if not tasks_dir.exists():
+            return PhaseStatus(
+                phase=PipelinePhase.TASKS,
+                exists=False,
+                is_complete=False,
+                completed_count=0,
+                total_count=0,
+                missing_items=[],
+            )
+
+        task_files = list(tasks_dir.glob("*.json"))
+        has_tasks = len(task_files) > 0
+
+        return PhaseStatus(
+            phase=PipelinePhase.TASKS,
+            exists=True,
+            is_complete=has_tasks,
+            completed_count=len(task_files),
+            total_count=len(task_files),
+            missing_items=[],
+        )
+
+
+class EvaluationsPhaseChecker:
+    """Checks completion status for phase-5-evaluations.
+
+    Compares evaluation results against expected tasks from phase-4-tasks.
+    """
+
+    def check_status(self, output_dir: Path) -> PhaseStatus:
+        eval_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
+        tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
+
+        if not eval_dir.exists():
+            task_count = len(list(tasks_dir.glob("*.json"))) if tasks_dir.exists() else 0
+            return PhaseStatus(
+                phase=PipelinePhase.EVALUATIONS,
+                exists=False,
+                is_complete=False,
+                completed_count=0,
+                total_count=task_count,
+                missing_items=[],
+            )
+
+        expected_ids = set()
+        if tasks_dir.exists():
+            for task_file in tasks_dir.glob("*.json"):
+                try:
+                    task_data = json.loads(task_file.read_text())
+                    expected_ids.add(task_data["task_id"])
+                except (json.JSONDecodeError, KeyError):
+                    continue
+
+        completed_ids = {
+            f.stem for f in eval_dir.glob("*.json") if f.name != "summary.json"
+        }
+        missing = sorted(expected_ids - completed_ids)
+
+        return PhaseStatus(
+            phase=PipelinePhase.EVALUATIONS,
+            exists=True,
+            is_complete=len(missing) == 0 and len(expected_ids) > 0,
+            completed_count=len(completed_ids),
+            total_count=len(expected_ids),
+            missing_items=missing,
+        )
+
+
 class PhaseSequencer:
     """Manages phase directory paths and sequencing.
 
     All methods are static as they are pure utilities with no state dependency.
     """
+
+    _CHECKERS: dict[PipelinePhase, PhaseChecker] = {
+        PipelinePhase.DIFF: DiffPhaseChecker(),
+        PipelinePhase.FOCUS_AREAS: FocusAreasPhaseChecker(),
+        PipelinePhase.RULES: RulesPhaseChecker(),
+        PipelinePhase.TASKS: TasksPhaseChecker(),
+        PipelinePhase.EVALUATIONS: EvaluationsPhaseChecker(),
+        PipelinePhase.REPORT: ReportPhaseChecker(),
+    }
 
     @staticmethod
     def get_phase_dir(output_dir: Path, phase: PipelinePhase) -> Path:
@@ -172,3 +344,27 @@ class PhaseSequencer:
             return None
 
         return f"Cannot run {phase.value}: {previous.value} has not completed"
+
+    @staticmethod
+    def get_phase_status(output_dir: Path, phase: PipelinePhase) -> PhaseStatus:
+        """Get detailed completion status for a phase.
+
+        Args:
+            output_dir: PR-specific output directory
+            phase: The pipeline phase to check
+
+        Returns:
+            PhaseStatus with completion details
+        """
+        checker = PhaseSequencer._CHECKERS.get(phase)
+        if not checker:
+            return PhaseStatus(
+                phase=phase,
+                exists=False,
+                is_complete=False,
+                completed_count=0,
+                total_count=0,
+                missing_items=[],
+            )
+
+        return checker.check_status(output_dir)

@@ -18,7 +18,17 @@ import unittest
 from pathlib import Path
 
 from scripts.commands.migrate_to_phases import migrate_all, migrate_pr_directory
-from scripts.services.phase_sequencer import PhaseSequencer, PhaseStatus, PipelinePhase
+from scripts.services.phase_sequencer import (
+    DiffPhaseChecker,
+    EvaluationsPhaseChecker,
+    FocusAreasPhaseChecker,
+    PhaseSequencer,
+    PhaseStatus,
+    PipelinePhase,
+    ReportPhaseChecker,
+    RulesPhaseChecker,
+    TasksPhaseChecker,
+)
 
 
 class TestPipelinePhase(unittest.TestCase):
@@ -621,6 +631,352 @@ class TestCommandDependencyValidation(unittest.TestCase):
             dry_run=True,
         )
         assert result == 0
+
+
+class TestDiffPhaseChecker(unittest.TestCase):
+    """Tests for DiffPhaseChecker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.checker = DiffPhaseChecker()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_not_started(self) -> None:
+        """Returns not-started status when directory doesn't exist."""
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert not status.is_complete
+        assert status.completed_count == 0
+        assert status.total_count == 2
+        assert "raw.diff" in status.missing_items
+        assert "parsed.json" in status.missing_items
+
+    def test_partial_completion(self) -> None:
+        """Returns partial status when only some files exist."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.completed_count == 1
+        assert status.total_count == 2
+        assert status.missing_items == ["parsed.json"]
+
+    def test_complete(self) -> None:
+        """Returns complete status when all required files exist."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+        (diff_dir / "parsed.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert status.is_complete
+        assert status.completed_count == 2
+        assert status.total_count == 2
+        assert status.missing_items == []
+
+    def test_empty_directory(self) -> None:
+        """Empty directory exists but has no required files."""
+        PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.completed_count == 0
+
+
+class TestFocusAreasPhaseChecker(unittest.TestCase):
+    """Tests for FocusAreasPhaseChecker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.checker = FocusAreasPhaseChecker()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_not_started(self) -> None:
+        """Returns not-started when directory missing."""
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert status.missing_items == ["all.json"]
+
+    def test_complete(self) -> None:
+        """Returns complete when all.json exists."""
+        focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+        (focus_dir / "all.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.missing_items == []
+
+
+class TestRulesPhaseChecker(unittest.TestCase):
+    """Tests for RulesPhaseChecker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.checker = RulesPhaseChecker()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_not_started(self) -> None:
+        """Returns not-started when directory missing."""
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert status.missing_items == ["all-rules.json"]
+
+    def test_complete(self) -> None:
+        """Returns complete when all-rules.json exists."""
+        rules_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.RULES)
+        (rules_dir / "all-rules.json").write_text("[]")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.missing_items == []
+
+
+class TestReportPhaseChecker(unittest.TestCase):
+    """Tests for ReportPhaseChecker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.checker = ReportPhaseChecker()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_not_started(self) -> None:
+        """Returns not-started when directory missing."""
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert status.total_count == 2
+        assert "summary.json" in status.missing_items
+        assert "summary.md" in status.missing_items
+
+    def test_partial(self) -> None:
+        """Returns partial when only one report file exists."""
+        report_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.REPORT)
+        (report_dir / "summary.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.completed_count == 1
+        assert status.missing_items == ["summary.md"]
+
+    def test_complete(self) -> None:
+        """Returns complete when both report files exist."""
+        report_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.REPORT)
+        (report_dir / "summary.json").write_text("{}")
+        (report_dir / "summary.md").write_text("# Report")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.missing_items == []
+
+
+class TestTasksPhaseChecker(unittest.TestCase):
+    """Tests for TasksPhaseChecker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.checker = TasksPhaseChecker()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_not_started(self) -> None:
+        """Returns not-started when directory missing."""
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert status.total_count == 0
+
+    def test_empty_directory(self) -> None:
+        """Returns incomplete when directory exists but has no tasks."""
+        PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.completed_count == 0
+
+    def test_with_tasks(self) -> None:
+        """Returns complete when task files exist."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "task-001.json").write_text("{}")
+        (tasks_dir / "task-002.json").write_text("{}")
+        (tasks_dir / "task-003.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.completed_count == 3
+        assert status.total_count == 3
+
+    def test_ignores_non_json_files(self) -> None:
+        """Only counts .json files as tasks."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "readme.txt").write_text("not a task")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.completed_count == 0
+
+
+class TestEvaluationsPhaseChecker(unittest.TestCase):
+    """Tests for EvaluationsPhaseChecker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.checker = EvaluationsPhaseChecker()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_not_started_no_tasks(self) -> None:
+        """Returns not-started with zero total when no tasks exist."""
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert status.total_count == 0
+
+    def test_not_started_with_tasks(self) -> None:
+        """Returns not-started with correct total from tasks phase."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "task-001.json").write_text('{"task_id": "task-001"}')
+        (tasks_dir / "task-002.json").write_text('{"task_id": "task-002"}')
+
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.exists
+        assert status.total_count == 2
+        assert status.completed_count == 0
+
+    def test_partial_completion(self) -> None:
+        """Returns partial status when some evaluations are done."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(5):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(3):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.completed_count == 3
+        assert status.total_count == 5
+        assert "task-3" in status.missing_items
+        assert "task-4" in status.missing_items
+
+    def test_complete(self) -> None:
+        """Returns complete when all evaluations are done."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        for i in range(3):
+            (tasks_dir / f"task-{i}.json").write_text(json.dumps({"task_id": f"task-{i}"}))
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        for i in range(3):
+            (eval_dir / f"task-{i}.json").write_text('{"result": "pass"}')
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.missing_items == []
+
+    def test_summary_json_excluded(self) -> None:
+        """summary.json should not count as an evaluation result."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "task-001.json").write_text('{"task_id": "task-001"}')
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "summary.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert not status.is_complete
+        assert status.completed_count == 0
+        assert status.total_count == 1
+        assert status.missing_items == ["task-001"]
+
+    def test_malformed_task_files_skipped(self) -> None:
+        """Malformed task files are skipped when counting expected tasks."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "bad.json").write_text("not json")
+        (tasks_dir / "good.json").write_text('{"task_id": "good"}')
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "good.json").write_text('{"result": "pass"}')
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.total_count == 1
+
+    def test_eval_dir_exists_but_no_tasks_dir(self) -> None:
+        """Handles case where eval dir exists but tasks dir doesn't."""
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "result.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
+        assert status.total_count == 0
+
+
+class TestGetPhaseStatus(unittest.TestCase):
+    """Tests for PhaseSequencer.get_phase_status integration."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_all_phases_have_checkers(self) -> None:
+        """Every PipelinePhase should have a registered checker."""
+        for phase in PipelinePhase:
+            status = PhaseSequencer.get_phase_status(self.tmp_path, phase)
+            assert status.phase == phase
+
+    def test_diff_status_via_sequencer(self) -> None:
+        """get_phase_status delegates to DiffPhaseChecker correctly."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+        (diff_dir / "parsed.json").write_text("{}")
+
+        status = PhaseSequencer.get_phase_status(self.tmp_path, PipelinePhase.DIFF)
+        assert status.is_complete
+
+    def test_evaluations_status_via_sequencer(self) -> None:
+        """get_phase_status delegates to EvaluationsPhaseChecker correctly."""
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "t1.json").write_text('{"task_id": "t1"}')
+        (tasks_dir / "t2.json").write_text('{"task_id": "t2"}')
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "t1.json").write_text("{}")
+
+        status = PhaseSequencer.get_phase_status(self.tmp_path, PipelinePhase.EVALUATIONS)
+        assert not status.is_complete
+        assert status.completed_count == 1
+        assert status.total_count == 2
+        assert status.missing_items == ["t2"]
+
+    def test_not_started_phase(self) -> None:
+        """Status for a phase that hasn't started."""
+        status = PhaseSequencer.get_phase_status(self.tmp_path, PipelinePhase.REPORT)
+        assert not status.exists
+        assert not status.is_complete
+        assert status.summary() == "not started"
 
 
 class TestNoMagicStrings(unittest.TestCase):

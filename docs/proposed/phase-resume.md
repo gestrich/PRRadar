@@ -98,7 +98,7 @@ class PhaseStatus:
 
 ---
 
-## - [ ] Phase 2: Phase Completion Checkers
+## - [x] Phase 2: Phase Completion Checkers
 
 Implement logic to determine completion status for each phase.
 
@@ -241,6 +241,15 @@ class PhaseSequencer:
 - ✅ Checker implemented for each phase
 - ✅ Checkers accurately count completed/missing items
 - ✅ Unit tests for each checker with various states
+
+**Implementation notes:**
+- Introduced `PhaseChecker` Protocol and `_FixedFileChecker` base class for DRY fixed-file checkers
+- Fixed-file checkers: `DiffPhaseChecker` (raw.diff, parsed.json), `FocusAreasPhaseChecker` (all.json), `RulesPhaseChecker` (all-rules.json), `ReportPhaseChecker` (summary.json, summary.md)
+- Adjusted DiffPhaseChecker from spec: only checks files in the phase directory (raw.diff, parsed.json), not pr.json/comments.json/repo.json which live at the output_dir level
+- Variable checkers: `TasksPhaseChecker` (counts *.json files), `EvaluationsPhaseChecker` (cross-references task IDs, excludes summary.json)
+- All 6 checkers registered in `PhaseSequencer._CHECKERS` class variable
+- `PhaseSequencer.get_phase_status()` delegates to registered checkers
+- 28 new tests across 8 test classes (TestDiffPhaseChecker, TestFocusAreasPhaseChecker, TestRulesPhaseChecker, TestReportPhaseChecker, TestTasksPhaseChecker, TestEvaluationsPhaseChecker, TestGetPhaseStatus); 303 total tests pass
 
 ---
 
