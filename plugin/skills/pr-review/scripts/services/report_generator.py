@@ -146,10 +146,13 @@ class ReportGeneratorService:
 
                 documentation_link = None
                 relevant_claude_skill = None
+                method_name = None
                 if task_id in task_metadata:
                     rule_data = task_metadata[task_id].get("rule", {})
                     documentation_link = rule_data.get("documentation_link")
                     relevant_claude_skill = rule_data.get("relevant_claude_skill")
+                    focus_area_data = task_metadata[task_id].get("focus_area", {})
+                    method_name = focus_area_data.get("description")
 
                 violations.append(
                     ViolationRecord(
@@ -158,6 +161,7 @@ class ReportGeneratorService:
                         file_path=file_path,
                         line_number=evaluation.line_number,
                         comment=evaluation.comment,
+                        method_name=method_name,
                         documentation_link=documentation_link,
                         relevant_claude_skill=relevant_claude_skill,
                     )
@@ -230,6 +234,19 @@ class ReportGeneratorService:
         for v in violations:
             by_rule[v.rule_name] = by_rule.get(v.rule_name, 0) + 1
 
+        # Group by file then method
+        by_method: dict[str, dict[str, list[dict]]] = {}
+        for v in violations:
+            if v.file_path not in by_method:
+                by_method[v.file_path] = {}
+            method_key = v.method_name or "(unknown)"
+            if method_key not in by_method[v.file_path]:
+                by_method[v.file_path][method_key] = []
+            by_method[v.file_path][method_key].append({
+                "rule": v.rule_name,
+                "score": v.score,
+            })
+
         return ReportSummary(
             total_tasks_evaluated=total_tasks,
             violations_found=len(violations),
@@ -238,4 +255,5 @@ class ReportGeneratorService:
             by_severity=by_severity,
             by_file=by_file,
             by_rule=by_rule,
+            by_method=by_method,
         )

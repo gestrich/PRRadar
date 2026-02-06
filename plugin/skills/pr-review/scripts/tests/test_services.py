@@ -740,5 +740,45 @@ class TestRuleLoaderFilterForFocusArea(unittest.TestCase):
         self.assertEqual(len(result), 1)
 
 
+# ============================================================
+# Evaluation Service Prompt Tests
+# ============================================================
+
+
+class TestEvaluationPromptTemplate(unittest.TestCase):
+    """Tests for evaluation prompt template format."""
+
+    def test_prompt_template_includes_focus_area_description(self):
+        """Prompt template should include focus area description placeholder."""
+        from scripts.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
+
+        self.assertIn("{focus_area_description}", EVALUATION_PROMPT_TEMPLATE)
+
+    def test_prompt_template_includes_focus_area_boundary_instruction(self):
+        """Prompt should instruct Claude to only evaluate within focus area boundaries."""
+        from scripts.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
+
+        self.assertIn("Only evaluate the code within the focus area boundaries", EVALUATION_PROMPT_TEMPLATE)
+
+    def test_prompt_formats_with_focus_area_fields(self):
+        """Prompt template should format correctly with all focus area fields."""
+        from scripts.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
+
+        formatted = EVALUATION_PROMPT_TEMPLATE.format(
+            rule_name="test-rule",
+            rule_description="Test description",
+            rule_content="Rule content here",
+            focus_area_description="login(username, password)",
+            file_path="src/auth.py",
+            start_line=10,
+            end_line=25,
+            diff_content="+    new code",
+        )
+
+        self.assertIn("Focus Area: login(username, password)", formatted)
+        self.assertIn("File: src/auth.py", formatted)
+        self.assertIn("Lines: 10-25", formatted)
+
+
 if __name__ == "__main__":
     unittest.main()

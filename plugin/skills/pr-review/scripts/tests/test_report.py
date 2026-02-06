@@ -115,6 +115,64 @@ class TestViolationRecord(unittest.TestCase):
         self.assertIsNone(violation.documentation_link)
         self.assertIsNone(violation.relevant_claude_skill)
 
+    def test_to_dict_includes_method_name_when_set(self):
+        """Test to_dict includes method_name when present."""
+        violation = ViolationRecord(
+            rule_name="error-handling",
+            score=7,
+            file_path="src/handler.py",
+            line_number=42,
+            comment="Test comment",
+            method_name="login(username, password)",
+        )
+
+        data = violation.to_dict()
+
+        self.assertEqual(data["method_name"], "login(username, password)")
+
+    def test_to_dict_excludes_method_name_when_none(self):
+        """Test to_dict excludes method_name when None."""
+        violation = ViolationRecord(
+            rule_name="test-rule",
+            score=5,
+            file_path="test.py",
+            line_number=10,
+            comment="Test",
+        )
+
+        data = violation.to_dict()
+
+        self.assertNotIn("method_name", data)
+
+    def test_from_dict_parses_method_name(self):
+        """Test from_dict parses method_name field."""
+        data = {
+            "rule_name": "test-rule",
+            "score": 6,
+            "file_path": "src/api.py",
+            "line_number": 25,
+            "comment": "Issue found",
+            "method_name": "validate_token(token)",
+        }
+
+        violation = ViolationRecord.from_dict(data)
+
+        self.assertEqual(violation.method_name, "validate_token(token)")
+
+    def test_from_dict_handles_missing_method_name(self):
+        """Test from_dict handles missing method_name."""
+        data = {
+            "rule_name": "test-rule",
+            "score": 5,
+            "file_path": "test.py",
+            "line_number": 10,
+            "comment": "Test",
+        }
+
+        violation = ViolationRecord.from_dict(data)
+
+        self.assertIsNone(violation.method_name)
+
     def test_round_trip_serialization(self):
         """Test to_dict/from_dict round-trip preserves data."""
         original = ViolationRecord(
@@ -123,6 +181,7 @@ class TestViolationRecord(unittest.TestCase):
             file_path="src/handler.py",
             line_number=42,
             comment="Critical issue",
+            method_name="handle_request()",
             documentation_link="https://docs.example.com",
         )
 
@@ -133,6 +192,7 @@ class TestViolationRecord(unittest.TestCase):
         self.assertEqual(restored.file_path, original.file_path)
         self.assertEqual(restored.line_number, original.line_number)
         self.assertEqual(restored.comment, original.comment)
+        self.assertEqual(restored.method_name, original.method_name)
         self.assertEqual(restored.documentation_link, original.documentation_link)
 
 
@@ -180,6 +240,36 @@ class TestReportSummary(unittest.TestCase):
         self.assertEqual(data["by_severity"], {})
         self.assertEqual(data["by_file"], {})
         self.assertEqual(data["by_rule"], {})
+        self.assertNotIn("by_method", data)
+
+    def test_to_dict_includes_by_method_when_present(self):
+        """Test to_dict includes by_method when populated."""
+        summary = ReportSummary(
+            total_tasks_evaluated=5,
+            violations_found=2,
+            highest_severity=8,
+            total_cost_usd=0.005,
+            by_method={
+                "src/auth.py": {
+                    "login(username, password)": [
+                        {"rule": "error-handling", "score": 8},
+                    ],
+                    "validate_token(token)": [
+                        {"rule": "hardcoded-secrets", "score": 10},
+                    ],
+                },
+            },
+        )
+
+        data = summary.to_dict()
+
+        self.assertIn("by_method", data)
+        self.assertIn("src/auth.py", data["by_method"])
+        self.assertEqual(len(data["by_method"]["src/auth.py"]), 2)
+        self.assertEqual(
+            data["by_method"]["src/auth.py"]["login(username, password)"][0]["rule"],
+            "error-handling",
+        )
 
 
 # ============================================================
@@ -325,6 +415,35 @@ class TestReviewReport(unittest.TestCase):
         self.assertIn("**Location:** `src/handler.py:42`", md)
         self.assertIn("Silent exception handling detected", md)
         self.assertIn("[Documentation](https://docs.example.com/error-handling)", md)
+
+    def test_to_markdown_includes_method_name_when_present(self):
+        """Test to_markdown includes method name for violations with method info."""
+        violations = [
+            ViolationRecord(
+                rule_name="error-handling",
+                score=8,
+                file_path="src/handler.py",
+                line_number=42,
+                comment="Silent exception handling detected",
+                method_name="handle_request()",
+            ),
+        ]
+        report = ReviewReport(
+            pr_number=123,
+            generated_at=datetime.now(timezone.utc),
+            min_score_threshold=5,
+            summary=ReportSummary(
+                total_tasks_evaluated=5,
+                violations_found=1,
+                highest_severity=8,
+                total_cost_usd=0.005,
+            ),
+            violations=violations,
+        )
+
+        md = report.to_markdown()
+
+        self.assertIn("**Method:** `handle_request()`", md)
 
     def test_to_markdown_handles_no_violations(self):
         """Test to_markdown handles empty violations list."""
@@ -587,6 +706,105 @@ class TestReportGeneratorService(unittest.TestCase):
                 report.violations[0].relevant_claude_skill,
                 "fix-errors",
             )
+
+
+    def test_generate_report_enriches_method_name_from_task_metadata(self):
+        """Test generate_report populates method_name from task focus_area description."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
+
+            # Create task with focus_area description
+            task_data = {
+                "task_id": "task-456",
+                "rule": {
+                    "name": "error-handling",
+                },
+                "focus_area": {
+                    "description": "login(username, password)",
+                    "file_path": "src/auth.py",
+                    "start_line": 10,
+                    "end_line": 25,
+                },
+            }
+            (tasks_dir / "task-456.json").write_text(
+                json.dumps(task_data, indent=2)
+            )
+
+            # Create evaluation referencing the task
+            eval_data = {
+                "task_id": "task-456",
+                "rule_name": "error-handling",
+                "file_path": "src/auth.py",
+                "evaluation": {
+                    "violates_rule": True,
+                    "score": 7,
+                    "comment": "Violation found",
+                    "file_path": "src/auth.py",
+                    "line_number": 15,
+                },
+            }
+            (evaluations_dir / "task-456.json").write_text(
+                json.dumps(eval_data, indent=2)
+            )
+
+            service = ReportGeneratorService(evaluations_dir, tasks_dir)
+            report = service.generate_report(pr_number=456, min_score=5)
+
+            self.assertEqual(len(report.violations), 1)
+            self.assertEqual(report.violations[0].method_name, "login(username, password)")
+
+    def test_generate_report_builds_by_method_grouping(self):
+        """Test generate_report creates by_method grouping in summary."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
+
+            # Create tasks with different methods
+            for task_id, method, file_path in [
+                ("task-a", "login()", "src/auth.py"),
+                ("task-b", "validate_token()", "src/auth.py"),
+                ("task-c", "login()", "src/auth.py"),
+            ]:
+                task_data = {
+                    "task_id": task_id,
+                    "rule": {"name": f"rule-{task_id}"},
+                    "focus_area": {
+                        "description": method,
+                        "file_path": file_path,
+                    },
+                }
+                (tasks_dir / f"{task_id}.json").write_text(json.dumps(task_data))
+
+            # Create evaluations (all violations)
+            for task_id, rule_name, score in [
+                ("task-a", "rule-task-a", 7),
+                ("task-b", "rule-task-b", 8),
+                ("task-c", "rule-task-c", 6),
+            ]:
+                eval_data = {
+                    "task_id": task_id,
+                    "rule_name": rule_name,
+                    "file_path": "src/auth.py",
+                    "evaluation": {
+                        "violates_rule": True,
+                        "score": score,
+                        "comment": "Issue",
+                        "file_path": "src/auth.py",
+                        "line_number": 10,
+                    },
+                }
+                (evaluations_dir / f"{task_id}.json").write_text(json.dumps(eval_data))
+
+            service = ReportGeneratorService(evaluations_dir, tasks_dir)
+            report = service.generate_report(pr_number=789, min_score=5)
+
+            by_method = report.summary.by_method
+            self.assertIn("src/auth.py", by_method)
+            self.assertIn("login()", by_method["src/auth.py"])
+            self.assertIn("validate_token()", by_method["src/auth.py"])
+            self.assertEqual(len(by_method["src/auth.py"]["login()"]), 2)
+            self.assertEqual(len(by_method["src/auth.py"]["validate_token()"]), 1)
 
 
 if __name__ == "__main__":

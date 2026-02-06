@@ -84,8 +84,10 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
     def on_result(index: int, total: int, result: EvaluationResult) -> None:
         nonlocal total_cost, total_duration, violations_count
 
+        task = tasks[index - 1]
+        method_info = task.focus_area.description
         status = "⚠️ Violation" if result.evaluation.violates_rule else "✓ OK"
-        print(f"  [{index}/{total}] {result.rule_name}: {status}")
+        print(f"  [{index}/{total}] {result.file_path}:{method_info} - {result.rule_name}: {status}")
 
         total_duration += result.duration_ms
         if result.cost_usd:

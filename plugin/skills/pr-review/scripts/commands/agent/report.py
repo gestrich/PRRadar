@@ -88,8 +88,22 @@ def cmd_report(
             if level in report.summary.by_severity:
                 print(f"    {level}: {report.summary.by_severity[level]}")
 
-    # Print file breakdown (top 5)
-    if report.summary.by_file:
+    # Print file/method breakdown (top 5 files)
+    if report.summary.by_method:
+        print()
+        print("  By file/method:")
+        sorted_files = sorted(
+            report.summary.by_method.items(),
+            key=lambda x: sum(len(methods) for methods in x[1].values()),
+            reverse=True,
+        )[:5]
+        for file_path, methods in sorted_files:
+            total = sum(len(v) for v in methods.values())
+            print(f"    {file_path}: {total} violation(s)")
+            for method_name, violations in methods.items():
+                rules = ", ".join(v["rule"] for v in violations)
+                print(f"      {method_name}: {rules}")
+    elif report.summary.by_file:
         print()
         print("  By file (top 5):")
         sorted_files = sorted(

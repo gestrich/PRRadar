@@ -198,140 +198,32 @@ All 229 tests pass.
 
 ---
 
-## - [ ] Phase 5: CLI Integration and Evaluation Updates
+## - [x] Phase 5: CLI Integration and Evaluation Updates
 
-Update remaining commands to work with focus areas and display method-level information.
+**Completed.** All five tasks implemented:
 
-**Architecture Skills:**
-- Use `/python-architecture:cli-architecture` to validate all command updates
-- Use `/python-architecture:creating-services` to ensure evaluation service updates follow proper patterns
-- Use `/python-architecture:testing-services` to validate test coverage for all updates
+1. **Updated evaluate command** - Progress callback now shows file path, focus area description, and rule name (e.g., `[1/5] src/auth.py:login() - error-handling: ✓ OK`).
+2. **Updated analyze command** - Interactive prompt now shows `get_focused_content()` instead of full hunk content. Batch mode also shows focus area description in progress.
+3. **Updated evaluation service** - Prompt template now includes `Focus Area: {description}` section and boundary instruction ("Only evaluate the code within the focus area boundaries"). Uses `get_focused_content()` instead of full `hunk_content` to scope Claude's evaluation.
+4. **Updated report generation** - Added `method_name` field to `ViolationRecord`. Report summary now includes `by_method` grouping (file → method → list of {rule, score}). Markdown output includes `**Method:**` line for violations with method info. Report command displays file/method breakdown.
+5. **Verified all phase references** - All commands already use `PhaseSequencer` (diff, rules, evaluate, comment, report, analyze). No additional migration needed.
 
-**Tasks:**
+**Technical notes:**
+- Evaluation prompt sends focused content (`FocusArea.get_focused_content()`) to Claude instead of full hunk content, reducing noise and keeping evaluation scoped
+- `by_method` structure in `ReportSummary`: `dict[str, dict[str, list[dict]]]` mapping `file_path → method_name → [{rule, score}]`
+- `ViolationRecord.method_name` is populated from `task.focus_area.description` in the report generator's `_load_violations()` method
+- `by_method` only appears in JSON output when non-empty (conditional serialization)
+- All 264 tests pass
 
-### 1. Update Evaluate Command
-
-Modify `commands/agent/evaluate.py` to load and display focus area information:
-
-```python
-async def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | None = None) -> int:
-    # Load tasks from phase-4-tasks/
-    tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
-    task_loader = TaskLoaderService(tasks_dir)
-    tasks = task_loader.load_all()
-
-    # Progress callback shows method being evaluated
-    def on_result(index: int, total: int, result: EvaluationResult) -> None:
-        task = tasks[index - 1]
-        method_info = task.focus_area.description
-        status = "⚠️ Violation" if result.evaluation.violates_rule else "✓ OK"
-        print(f"  [{index}/{total}] {result.file_path}:{method_info} - {result.rule_name}: {status}")
-
-    results = await run_batch_evaluation(tasks, output_dir, on_result)
-
-    # Save to phase-5-evaluations/
-    evaluations_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
-    # ... save results
-```
-
-### 2. Update Analyze Command Interactive Flow
-
-Modify `commands/agent/analyze.py` to show focus area info when prompting:
-
-```python
-def prompt_for_focus_area(
-    task: EvaluationTask,
-    rules: list[str],
-    index: int,
-    total: int,
-) -> str | None:
-    """Prompt user to evaluate a focus area with all its rules."""
-    print()
-    print_separator("=")
-    print(f"Focus Area {index}/{total}")
-    print_separator("=")
-    print(f"  File: {task.focus_area.file_path}")
-    print(f"  Method: {task.focus_area.description}")
-    print(f"  Lines: {task.focus_area.start_line}-{task.focus_area.end_line}")
-    print(f"  Rules: {', '.join(rules)}")
-    print_separator("-")
-    # Show focused content only
-    print(task.focus_area.get_focused_content())
-    print_separator("-")
-
-    return prompt_yes_no_quit("Evaluate this focus area?")
-```
-
-### 3. Update Evaluation Service Prompts
-
-Modify `services/evaluation_service.py` to pass focus area context:
-
-```python
-async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
-    """Evaluate a task with focus area context."""
-
-    # Build prompt that emphasizes the focus area
-    prompt = f"""
-You are reviewing code changes for potential rule violations.
-
-**Focus Area:** {task.focus_area.description} (lines {task.focus_area.start_line}-{task.focus_area.end_line})
-
-**Important:** Only evaluate the code within the focus area boundaries shown below.
-Ignore any surrounding code in the diff hunk.
-
-**Code to review:**
-{task.focus_area.get_focused_content()}
-
-**Rule to check:**
-{task.rule.content}
-
-Does the code within the focus area violate this rule?
-"""
-
-    # ... rest of evaluation logic
-```
-
-### 4. Update Report Generation
-
-Modify `commands/agent/report.py` and `services/report_generator.py` to group by method:
-
-```python
-# In report structure
-{
-  "by_file": {
-    "src/auth.py": {
-      "total_violations": 2,
-      "by_method": {
-        "login(username, password)": [
-          {"rule": "error-handling", "score": 8}
-        ],
-        "validate_token(token)": [
-          {"rule": "hardcoded-secrets", "score": 10}
-        ]
-      }
-    }
-  }
-}
-```
-
-### 5. Update All Phase References
-
-Ensure all commands use `PhaseSequencer` for directory access:
-
-- ✅ `commands/agent/diff.py` - Already updated in Phase 0
-- ✅ `commands/agent/rules.py` - Already updated in Phase 2 & 3
-- ✅ `commands/agent/evaluate.py` - Update here
-- ✅ `commands/agent/comment.py` - Update to use `PipelinePhase.EVALUATIONS`
-- ✅ `commands/agent/report.py` - Update to use `PipelinePhase.EVALUATIONS`, `PipelinePhase.REPORT`
-- ✅ `commands/agent/analyze.py` - Update all phase references
-
-**Files to modify:**
-- Modify: `commands/agent/evaluate.py`
-- Modify: `commands/agent/analyze.py`
-- Modify: `commands/agent/comment.py`
-- Modify: `commands/agent/report.py`
-- Modify: `services/evaluation_service.py`
-- Modify: `services/report_generator.py`
+**Files modified:**
+- Modified: `commands/agent/evaluate.py` (focus area info in progress display)
+- Modified: `commands/agent/analyze.py` (focused content display, focus area info in batch mode)
+- Modified: `commands/agent/report.py` (file/method breakdown display)
+- Modified: `services/evaluation_service.py` (focus area prompt template, focused content)
+- Modified: `services/report_generator.py` (method_name enrichment, by_method grouping)
+- Modified: `domain/report.py` (method_name on ViolationRecord, by_method on ReportSummary, method in markdown)
+- Modified: `tests/test_report.py` (added 7 tests for method_name, by_method, markdown method display)
+- Modified: `tests/test_services.py` (added 3 tests for evaluation prompt template)
 
 ---
 

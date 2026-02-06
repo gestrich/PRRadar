@@ -32,6 +32,7 @@ class ViolationRecord:
     file_path: str
     line_number: int | None
     comment: str
+    method_name: str | None = None
     documentation_link: str | None = None
     relevant_claude_skill: str | None = None
 
@@ -48,6 +49,8 @@ class ViolationRecord:
             "line_number": self.line_number,
             "comment": self.comment,
         }
+        if self.method_name:
+            result["method_name"] = self.method_name
         if self.documentation_link:
             result["documentation_link"] = self.documentation_link
         if self.relevant_claude_skill:
@@ -74,6 +77,7 @@ class ViolationRecord:
             file_path=data["file_path"],
             line_number=data.get("line_number"),
             comment=data["comment"],
+            method_name=data.get("method_name"),
             documentation_link=data.get("documentation_link"),
             relevant_claude_skill=data.get("relevant_claude_skill"),
         )
@@ -95,6 +99,7 @@ class ReportSummary:
     by_severity: dict[str, int] = field(default_factory=dict)
     by_file: dict[str, int] = field(default_factory=dict)
     by_rule: dict[str, int] = field(default_factory=dict)
+    by_method: dict[str, dict[str, list[dict]]] = field(default_factory=dict)
 
     # --------------------------------------------------------
     # Serialization
@@ -102,7 +107,7 @@ class ReportSummary:
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "total_tasks_evaluated": self.total_tasks_evaluated,
             "violations_found": self.violations_found,
             "highest_severity": self.highest_severity,
@@ -111,6 +116,9 @@ class ReportSummary:
             "by_file": self.by_file,
             "by_rule": self.by_rule,
         }
+        if self.by_method:
+            result["by_method"] = self.by_method
+        return result
 
 
 # ============================================================
@@ -228,6 +236,8 @@ class ReviewReport:
                 lines.append(f"### {i}. {v.rule_name} (Score: {v.score})")
                 lines.append("")
                 lines.append(f"**Location:** `{location}`")
+                if v.method_name:
+                    lines.append(f"**Method:** `{v.method_name}`")
                 lines.append("")
                 lines.append(v.comment)
                 if v.documentation_link:

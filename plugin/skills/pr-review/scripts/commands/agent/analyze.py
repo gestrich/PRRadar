@@ -130,7 +130,8 @@ def prompt_for_focus_area(
     print(f"  Lines: {task.focus_area.start_line}-{task.focus_area.end_line}")
     print(f"  Rules: {', '.join(rules)}")
     print_separator("-")
-    for line in task.focus_area.hunk_content.split("\n"):
+    focused_content = task.focus_area.get_focused_content()
+    for line in focused_content.split("\n"):
         print(f"  {line}")
     print_separator("-")
 
@@ -259,7 +260,9 @@ async def run_analyze_batch_evaluation(
 
     def on_result(index: int, total: int, result: EvaluationResult) -> None:
         """Progress callback - handles printing and stats updates."""
-        print(f"  [{index}/{total}] Evaluating {result.rule_name} on {result.file_path}...")
+        task = tasks[index - 1]
+        method_info = task.focus_area.description
+        print(f"  [{index}/{total}] {result.file_path}:{method_info} - {result.rule_name}...")
         stats.tasks_evaluated += 1
 
         if result.cost_usd:

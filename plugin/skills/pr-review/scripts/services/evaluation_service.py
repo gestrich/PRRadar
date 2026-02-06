@@ -38,10 +38,15 @@ EVALUATION_PROMPT_TEMPLATE = """You are a code reviewer evaluating whether code 
 
 {rule_content}
 
-## Code to Review
+## Focus Area: {focus_area_description}
 
 File: {file_path}
 Lines: {start_line}-{end_line}
+
+**Important:** Only evaluate the code within the focus area boundaries shown below.
+Ignore any surrounding code in the diff hunk.
+
+**Code to review:**
 
 ```diff
 {diff_content}
@@ -116,15 +121,17 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
     # Determine model to use (from rule or default)
     model = task.model or DEFAULT_MODEL
 
-    # Build prompt from template
+    # Build prompt from template using focused content
+    focused_content = task.focus_area.get_focused_content()
     prompt = EVALUATION_PROMPT_TEMPLATE.format(
         rule_name=task.rule.name,
         rule_description=task.rule.description,
         rule_content=task.rule.content,
+        focus_area_description=task.focus_area.description,
         file_path=task.focus_area.file_path,
         start_line=task.focus_area.start_line,
         end_line=task.focus_area.end_line,
-        diff_content=task.focus_area.hunk_content,
+        diff_content=focused_content,
     )
 
     # Configure structured output
