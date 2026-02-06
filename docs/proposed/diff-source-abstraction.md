@@ -91,7 +91,7 @@ Copy the proven implementation from Bill's existing repo to jumpstart the implem
 
 ---
 
-## - [ ] Phase 2: Adapt Code to PRRadar Structure
+## - [x] Phase 2: Adapt Code to PRRadar Structure ✅
 
 **Skills to reference:**
 - [python-architecture:domain-modeling](https://github.com/gestrich/python-architecture) for adapting domain models
@@ -100,18 +100,18 @@ Copy the proven implementation from Bill's existing repo to jumpstart the implem
 Adapt the copied code to work with PRRadar's architecture and PR-centric workflow.
 
 **Tasks:**
-- Rename `GitRepoSource` → `DiffProvider` (or keep the name, both work)
-- Update method signatures to match PRRadar's needs:
+- ✅ Rename `GitRepoSource` → `DiffProvider`
+- ✅ Update method signatures to match PRRadar's needs:
   - `get_commit_diff(commit_hash)` → `get_pr_diff(pr_number) -> str`
   - Keep `get_file_content(file_path, commit_hash)` for future focus area work
-- **PR-centric workflow changes:**
+- ✅ **PR-centric workflow changes:**
   - Both providers always fetch PR metadata from GitHub first (base/head branches)
   - GitHub provider: Uses diff from API response (via `gh pr diff`)
   - Local provider: Uses branch names to compute `git diff origin/base...origin/head`
-- Update imports to use PRRadar's `domain/diff.py` and `domain/hunk.py` models
-- Replace `requests` library calls with `gh` CLI (for consistency with existing PRRadar code)
-- Add error handling consistent with PRRadar's patterns
-- **Add safety checks to LocalGitRepo:**
+- ✅ Update imports to use PRRadar's `domain/diff.py` and `domain/hunk.py` models
+- ✅ Replace `requests` library calls with `gh` CLI (for consistency with existing PRRadar code)
+- ✅ Add error handling consistent with PRRadar's patterns
+- ✅ **Add safety checks to LocalGitRepo:**
   - Check for uncommitted changes before any git operations (`git status --porcelain`)
   - Abort with clear error if working directory is dirty
   - Detect if running in valid git repository
@@ -121,13 +121,13 @@ Adapt the copied code to work with PRRadar's architecture and PR-centric workflo
 
 Following python-architecture patterns, **all raw git commands must be put behind a service**:
 
-- **Create `GitOperationsService`** in `services/git_operations.py`:
+- ✅ **Create `GitOperationsService`** in `services/git_operations.py`:
   - Encapsulates all `subprocess` calls to git commands
   - Returns domain models (not raw strings) where relevant
   - Reusable across the entire application
   - Single source of truth for git operations
 
-- **DO NOT call git commands directly** from providers:
+- ✅ **DO NOT call git commands directly** from providers:
   ```python
   # ❌ WRONG - Raw git command in provider
   subprocess.run(['git', 'status', '--porcelain'], ...)
@@ -136,7 +136,7 @@ Following python-architecture patterns, **all raw git commands must be put behin
   self.git_service.check_working_directory_clean()
   ```
 
-- **Return domain models** from git service:
+- ✅ **Return domain models** from git service:
   ```python
   class GitOperationsService:
       def get_branch_diff(self, base: str, head: str) -> str:
@@ -156,10 +156,35 @@ Following python-architecture patterns, **all raw git commands must be put behin
   - ✅ Clear separation: Providers orchestrate, GitService executes
 
 **Files modified:**
-- `infrastructure/repo_source.py` (interface definition)
-- `infrastructure/local_git_repo.py` (adapt for PR workflow + use GitOperationsService)
-- `infrastructure/github_repo.py` (adapt to use `gh` CLI)
-- **New:** `services/git_operations.py` (git command service layer)
+- `infrastructure/repo_source.py` (renamed to DiffProvider interface)
+- `infrastructure/local_git_repo.py` (PR workflow + GitOperationsService integration)
+- `infrastructure/github_repo.py` (gh CLI implementation)
+- `services/git_operations.py` (new git command service layer)
+- `services/__init__.py` (export GitOperationsService and exceptions)
+- `infrastructure/__init__.py` (export DiffProvider)
+
+**Technical notes:**
+- **GitOperationsService created** with comprehensive git operations:
+  - `check_working_directory_clean()` - Safety checks for dirty working directory
+  - `fetch_branch()` - Fetch branches from remote
+  - `get_branch_diff()` - Generate diff between branches
+  - `is_git_repository()` - Validate git repository
+  - `get_file_content()` - Retrieve file content at specific commit
+  - All methods include proper error handling with custom exceptions
+- **LocalGitRepo updated** to use PR-centric workflow:
+  - Constructor-based dependency injection of GitOperationsService
+  - Fetches PR metadata from GitHub API using `gh pr view`
+  - Safety checks via GitOperationsService before git operations
+  - Uses local git for diff generation via service layer
+  - No raw subprocess calls in provider code
+- **GithubRepo simplified** to use gh CLI:
+  - Removed requests library dependency
+  - Uses `gh pr diff` for PR diffs
+  - Uses `gh api` for file content retrieval
+  - Consistent with PRRadar's existing patterns
+- **DiffProvider interface** updated with `get_pr_diff()` method
+- **Custom exceptions** added for all git operation error cases
+- **Build succeeds**: 110/111 tests pass (1 unrelated failure due to missing claude_agent_sdk)
 
 **Expected outcomes:**
 - ✅ Code adapted to PRRadar conventions

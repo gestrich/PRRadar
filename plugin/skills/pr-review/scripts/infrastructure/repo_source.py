@@ -1,17 +1,41 @@
 from abc import ABC, abstractmethod
 
-from .git_diff import GitDiff
 
+class DiffProvider(ABC):
+    """Abstract base class for diff providers.
 
-class GitRepoSource(ABC):
-    """Abstract base class for git repository sources."""
+    Provides methods to fetch diffs from various sources (GitHub API, local git).
+    All implementations must return identical diff formats for downstream compatibility.
+    """
 
     @abstractmethod
-    def get_commit_diff(self, commit_hash: str) -> GitDiff:
-        """Get the diff for a specific commit."""
+    def get_pr_diff(self, pr_number: int) -> str:
+        """Fetch unified diff for the given PR.
+
+        Args:
+            pr_number: Pull request number
+
+        Returns:
+            Raw unified diff text in git format
+
+        Note:
+            Both implementations must return identical format.
+            This is the primary method for PR-centric workflow.
+        """
         pass
 
     @abstractmethod
     def get_file_content(self, file_path: str, commit_hash: str) -> str:
-        """Get the content of a file at a specific commit."""
+        """Get full file content at specific commit.
+
+        Args:
+            file_path: Path to file in repository
+            commit_hash: Git commit SHA or branch name
+
+        Returns:
+            File content as string
+
+        Note:
+            Used for focus area generation and full file context.
+        """
         pass

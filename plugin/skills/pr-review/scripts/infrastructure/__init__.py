@@ -35,7 +35,7 @@ from .github_output import (
 from .github_repo import GithubRepo
 from .hunk import Hunk
 from .local_git_repo import LocalGitRepo
-from .repo_source import GitRepoSource
+from .repo_source import DiffProvider
 
 __all__ = [
     "get_git_file_info",
@@ -46,7 +46,7 @@ __all__ = [
     "GithubRepo",
     "Hunk",
     "LocalGitRepo",
-    "GitRepoSource",
+    "DiffProvider",
     "extract_structured_output",
     "format_diff_as_json",
     "format_diff_as_text",
