@@ -1,14 +1,18 @@
-"""Tests for PhaseSequencer service and migration script.
+"""Tests for PhaseSequencer service, migration script, and command integration.
 
 Tests cover:
 - PipelinePhase enum ordering and navigation
 - PhaseSequencer directory management
 - Dependency validation
 - Migration from legacy to canonical directory names
+- Command-level dependency validation integration
+- Full pipeline chain validation
 """
 
 from __future__ import annotations
 
+import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -249,6 +253,221 @@ class TestMigrateToPhases(unittest.TestCase):
         migrated_file = pr_dir / "phase-3-rules" / "all-rules.json"
         assert migrated_file.exists()
         assert migrated_file.read_text() == '["rule1", "rule2"]'
+
+
+class TestPipelinePhaseEdgeCases(unittest.TestCase):
+    """Additional edge case tests for PipelinePhase enum."""
+
+    def test_all_phase_values_match_naming_convention(self) -> None:
+        """All phase values must follow 'phase-N-name' pattern."""
+        pattern = re.compile(r"^phase-\d+-[a-z-]+$")
+        for phase in PipelinePhase:
+            assert pattern.match(phase.value), f"{phase.name} has invalid value: {phase.value}"
+
+    def test_phase_numbers_are_sequential(self) -> None:
+        """Phase numbers should be sequential starting from 1."""
+        numbers = [p.phase_number() for p in PipelinePhase]
+        assert numbers == list(range(1, len(numbers) + 1))
+
+    def test_phase_number_matches_value_prefix(self) -> None:
+        """Phase number in value string matches phase_number()."""
+        for phase in PipelinePhase:
+            number_in_value = int(phase.value.split("-")[1])
+            assert number_in_value == phase.phase_number(), (
+                f"{phase.name}: value has {number_in_value} but phase_number() returns {phase.phase_number()}"
+            )
+
+    def test_focus_areas_is_future_phase(self) -> None:
+        """FOCUS_AREAS should be classified as a future phase."""
+        from scripts.services.phase_sequencer import _FUTURE_PHASES
+
+        assert PipelinePhase.FOCUS_AREAS.value in _FUTURE_PHASES
+
+    def test_previous_implemented_phase_for_focus_areas(self) -> None:
+        """FOCUS_AREAS' previous implemented phase is DIFF."""
+        assert PipelinePhase.FOCUS_AREAS.previous_implemented_phase() == PipelinePhase.DIFF
+
+
+class TestPhaseSequencerFullChain(unittest.TestCase):
+    """Tests for full pipeline dependency chain validation."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_full_chain_all_phases_can_run(self) -> None:
+        """When all implemented phases have content, every phase can run."""
+        implemented = [p for p in PipelinePhase if p != PipelinePhase.FOCUS_AREAS]
+        for phase in implemented:
+            phase_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, phase)
+            (phase_dir / "data.json").write_text("{}")
+
+        for phase in implemented:
+            assert PhaseSequencer.can_run_phase(self.tmp_path, phase), (
+                f"{phase.name} should be able to run when all dependencies exist"
+            )
+
+    def test_empty_dependency_blocks_all_downstream(self) -> None:
+        """If DIFF has empty dir, all downstream phases cannot run."""
+        PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        # DIFF exists but is empty — should block RULES
+        assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.RULES)
+        assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.TASKS)
+        assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.EVALUATIONS)
+        assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.REPORT)
+
+    def test_validate_error_mentions_both_phases(self) -> None:
+        """Error message should mention the missing dependency and the blocked phase."""
+        for phase in [PipelinePhase.RULES, PipelinePhase.TASKS, PipelinePhase.EVALUATIONS, PipelinePhase.REPORT]:
+            error = PhaseSequencer.validate_can_run(self.tmp_path, phase)
+            assert error is not None
+            assert phase.value in error
+            dep = phase.previous_implemented_phase()
+            assert dep is not None
+            assert dep.value in error
+
+
+class TestCommandDependencyValidation(unittest.TestCase):
+    """Integration tests verifying commands reject missing dependencies.
+
+    These tests call the actual command functions with temporary directories
+    that lack the required upstream phase artifacts.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_rules_command_fails_without_diff(self) -> None:
+        """Rules command should return error when diff phase is missing."""
+        from scripts.commands.agent.rules import cmd_rules
+
+        result = cmd_rules(
+            pr_number=123,
+            output_dir=self.tmp_path,
+            rules_dir="/nonexistent",
+        )
+        assert result == 1
+
+    def test_rules_command_fails_with_empty_diff(self) -> None:
+        """Rules command should return error when diff directory is empty."""
+        from scripts.commands.agent.rules import cmd_rules
+
+        PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        result = cmd_rules(
+            pr_number=123,
+            output_dir=self.tmp_path,
+            rules_dir="/nonexistent",
+        )
+        assert result == 1
+
+    def test_evaluate_command_fails_without_tasks(self) -> None:
+        """Evaluate command should return error when tasks phase is missing."""
+        try:
+            from scripts.commands.agent.evaluate import cmd_evaluate
+        except ImportError:
+            self.skipTest("claude_agent_sdk not available")
+
+        result = cmd_evaluate(pr_number=123, output_dir=self.tmp_path)
+        assert result == 1
+
+    def test_report_command_fails_without_evaluations(self) -> None:
+        """Report command should return error when evaluations phase is missing."""
+        from scripts.commands.agent.report import cmd_report
+
+        result = cmd_report(pr_number=123, output_dir=self.tmp_path)
+        assert result == 1
+
+    def test_comment_command_fails_without_evaluations(self) -> None:
+        """Comment command should return error when evaluations phase is missing."""
+        from scripts.commands.agent.comment import cmd_comment
+
+        result = cmd_comment(
+            pr_number=123,
+            output_dir=self.tmp_path,
+            repo="test/repo",
+            dry_run=True,
+        )
+        assert result == 1
+
+    def test_report_command_succeeds_with_dependencies(self) -> None:
+        """Report command should succeed when evaluations phase has content."""
+        from scripts.commands.agent.report import cmd_report
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "result.json").write_text(json.dumps({
+            "task_id": "test-001",
+            "rule_name": "test-rule",
+            "evaluation": {
+                "violates_rule": False,
+                "score": 0,
+                "comment": "OK",
+            },
+        }))
+        tasks_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.TASKS)
+        (tasks_dir / "task.json").write_text("{}")
+
+        result = cmd_report(pr_number=123, output_dir=self.tmp_path)
+        assert result == 0
+
+    def test_comment_command_succeeds_with_dependencies_no_violations(self) -> None:
+        """Comment command should succeed (no violations) when evaluations have content."""
+        from scripts.commands.agent.comment import cmd_comment
+
+        eval_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.EVALUATIONS)
+        (eval_dir / "result.json").write_text(json.dumps({
+            "task_id": "test-001",
+            "rule_name": "test-rule",
+            "evaluation": {
+                "violates_rule": False,
+                "score": 0,
+                "comment": "OK",
+            },
+        }))
+
+        result = cmd_comment(
+            pr_number=123,
+            output_dir=self.tmp_path,
+            repo="test/repo",
+            dry_run=True,
+        )
+        assert result == 0
+
+
+class TestNoMagicStrings(unittest.TestCase):
+    """Verify no hardcoded directory names exist in command and service files."""
+
+    def _get_source_files(self) -> list[Path]:
+        """Collect all Python source files in commands and services."""
+        scripts_root = Path(__file__).parent.parent
+        files = []
+        for subdir in ["commands/agent", "services"]:
+            directory = scripts_root / subdir
+            if directory.exists():
+                files.extend(directory.glob("*.py"))
+        return files
+
+    def test_no_hardcoded_phase_directory_names(self) -> None:
+        """No command or service file should use hardcoded phase directory strings."""
+        legacy_names = ["diff", "rules", "tasks", "evaluations", "report"]
+        pattern = re.compile(
+            r'output_dir\s*/\s*["\'](' + "|".join(legacy_names) + r')["\']'
+        )
+
+        violations = []
+        for source_file in self._get_source_files():
+            content = source_file.read_text()
+            matches = pattern.findall(content)
+            if matches:
+                violations.append(f"{source_file.name}: {matches}")
+
+        assert not violations, f"Hardcoded phase dirs found: {violations}"
 
 
 if __name__ == "__main__":

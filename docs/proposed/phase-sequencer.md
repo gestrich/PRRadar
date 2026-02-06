@@ -141,90 +141,21 @@ Migrate existing code to use PhaseSequencer and update tests.
 
 ---
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
 Comprehensive testing of the phase sequencer implementation.
 
-**Architecture Skills:**
-- Use `/python-architecture:testing-services` to validate test patterns
+**Completed.** Added 16 new tests (45 total in test_phase_sequencer.py) covering edge cases, full pipeline chain validation, command-level integration, and a programmatic "no magic strings" check. 213 tests pass across the full suite (1 pre-existing failure from missing `claude_agent_sdk`, 1 skip for evaluate command import).
 
-**Tasks:**
+**Technical notes:**
+- `TestPipelinePhaseEdgeCases` (5 tests): Validates naming convention regex, sequential numbering, value prefix consistency, future phase classification, and FOCUS_AREAS navigation
+- `TestPhaseSequencerFullChain` (3 tests): Validates all implemented phases can run when chain is populated, empty directory blocks all downstream, and error messages reference both phases
+- `TestCommandDependencyValidation` (7 tests): Integration tests calling actual `cmd_rules`, `cmd_evaluate`, `cmd_report`, and `cmd_comment` with temp directories — verifies commands return exit code 1 on missing dependencies and exit code 0 on satisfied dependencies
+- `TestNoMagicStrings` (1 test): Programmatic scan of all command and service source files for hardcoded phase directory strings — prevents regressions
+- Evaluate command integration test skips gracefully when `claude_agent_sdk` is not installed
 
-### 1. Unit Tests
-
-Test the core PhaseSequencer functionality:
-
-```python
-# tests/test_phase_sequencer.py
-
-def test_phase_enum_order():
-    """Verify phases are in correct execution order."""
-    phases = list(PipelinePhase)
-    assert phases[0] == PipelinePhase.DIFF
-    assert phases[-1] == PipelinePhase.REPORT
-
-def test_previous_phase():
-    """Verify previous_phase() returns correct dependencies."""
-    assert PipelinePhase.DIFF.previous_phase() is None
-    assert PipelinePhase.RULES.previous_phase() == PipelinePhase.DIFF
-    assert PipelinePhase.EVALUATIONS.previous_phase() == PipelinePhase.TASKS
-
-def test_phase_exists_empty_directory(tmp_path):
-    """Empty phase directory should return False."""
-    phase_dir = PhaseSequencer.ensure_phase_dir(tmp_path, PipelinePhase.DIFF)
-    assert not PhaseSequencer.phase_exists(tmp_path, PipelinePhase.DIFF)
-
-def test_phase_exists_with_content(tmp_path):
-    """Phase directory with files should return True."""
-    phase_dir = PhaseSequencer.ensure_phase_dir(tmp_path, PipelinePhase.DIFF)
-    (phase_dir / "raw.diff").write_text("content")
-    assert PhaseSequencer.phase_exists(tmp_path, PipelinePhase.DIFF)
-
-def test_can_run_first_phase(tmp_path):
-    """First phase should always be able to run."""
-    assert PhaseSequencer.can_run_phase(tmp_path, PipelinePhase.DIFF)
-
-def test_cannot_run_without_dependency(tmp_path):
-    """Cannot run phase if previous phase doesn't exist."""
-    assert not PhaseSequencer.can_run_phase(tmp_path, PipelinePhase.RULES)
-
-def test_can_run_with_dependency(tmp_path):
-    """Can run phase if previous phase exists with content."""
-    diff_dir = PhaseSequencer.ensure_phase_dir(tmp_path, PipelinePhase.DIFF)
-    (diff_dir / "raw.diff").write_text("content")
-    assert PhaseSequencer.can_run_phase(tmp_path, PipelinePhase.RULES)
-```
-
-### 2. Integration Tests
-
-Test validation in actual commands:
-
-```python
-def test_evaluate_validates_dependencies(tmp_path):
-    """Evaluate command should fail if tasks phase not complete."""
-    output_dir = tmp_path / "123"
-    result = cmd_evaluate(123, output_dir)
-    assert result == 1  # Exit code indicates error
-```
-
-### 3. Migration Tests
-
-Test migration script:
-
-```python
-def test_migrate_legacy_directories(tmp_path):
-    """Migration script should rename directories correctly."""
-    pr_dir = tmp_path / "123"
-    (pr_dir / "diff").mkdir(parents=True)
-    (pr_dir / "tasks").mkdir(parents=True)
-
-    migrate_pr_directory(pr_dir)
-
-    assert not (pr_dir / "diff").exists()
-    assert not (pr_dir / "tasks").exists()
-    assert (pr_dir / "phase-1-diff").exists()
-    assert (pr_dir / "phase-4-tasks").exists()
-```
+**Files modified:**
+- `tests/test_phase_sequencer.py` - Added 4 new test classes with 16 tests (45 total)
 
 **Acceptance criteria:**
 - ✅ All unit tests pass
