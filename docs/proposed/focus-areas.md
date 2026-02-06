@@ -118,188 +118,34 @@ All 229 tests pass.
 
 ---
 
-## - [ ] Phase 2: Focus Area Generation
+## - [x] Phase 2: Focus Area Generation
 
-Generate focus areas from hunks using Claude-based analysis. Focus areas are saved to `phase-2-focus-areas/all.json` as a standalone pipeline artifact.
+**Completed.** All four tasks implemented:
 
-**Architecture Skills:**
-- Use `/python-architecture:creating-services` to validate the `FocusGeneratorService` structure
-- Use `/python-architecture:domain-modeling` to validate the `FocusGenerationResult` dataclass
-- Use `/python-architecture:identifying-layer-placement` to ensure service is in correct layer
+1. **Created `services/focus_generator.py`** - `FocusGeneratorService` with Claude-based method detection using structured outputs. Uses Haiku model by default for speed/cost. Includes `FocusGenerationResult` dataclass for typed results.
+2. **Claude prompt template** - Structured JSON schema that asks Claude to identify methods/functions with `method_name`, `start_line`, and `end_line`. Falls back to whole-hunk focus areas if Claude returns no methods or generation fails.
+3. **Integrated into rules command** - `cmd_rules()` now generates focus areas before rule filtering. Validates against `PipelinePhase.FOCUS_AREAS` dependency. Saves to `phase-2-focus-areas/all.json`.
+4. **Output format** - `all.json` contains `pr_number`, `generated_at`, `focus_areas[]`, `total_hunks_processed`, and `generation_cost_usd`.
 
-**Tasks:**
+**Technical notes:**
+- `FocusGeneratorService` uses Claude Agent SDK `query()` with structured outputs (JSON schema for methods array)
+- Default model is `claude-haiku-4-5-20251001` for fast structural analysis
+- Fallback creates one focus area per hunk (matching Phase 1 behavior) when Claude fails or returns empty results
+- `_sanitize_for_id()` strips parentheses/params from method names to create safe focus_id values (e.g., `src-handler.py-0-login`)
+- Reconstructs `Hunk` objects from `parsed.json` dictionaries (which contain annotated content from Phase 1)
+- `FOCUS_AREAS` removed from `_FUTURE_PHASES` in phase_sequencer.py - now a fully implemented phase
+- RULES phase dependency chain updated: DIFF → FOCUS_AREAS → RULES (was DIFF → RULES with FOCUS_AREAS skipped)
+- Phase sequencer tests updated to reflect full dependency chain with no future phases
+- All 235 tests pass
 
-### 1. Create FocusGeneratorService
-
-Create `services/focus_generator.py`:
-
-```python
-"""Service for generating focus areas from diff hunks using Claude."""
-
-from dataclasses import dataclass
-from typing import List
-from domain.focus_area import FocusArea
-from domain.diff import Hunk
-
-
-@dataclass
-class FocusGenerationResult:
-    """Result of focus area generation for a PR."""
-
-    pr_number: int
-    focus_areas: List[FocusArea]
-    total_hunks_processed: int
-    generation_cost_usd: float = 0.0
-
-
-class FocusGeneratorService:
-    """Generates focus areas (reviewable units) from diff hunks.
-
-    Uses Claude to identify method-level changes within hunks.
-    Each identified method becomes a FocusArea that references
-    its source hunk.
-    """
-
-    def __init__(self, model: str = "claude-haiku-4-5-20251001"):
-        """Initialize with Claude model for focus generation.
-
-        Args:
-            model: Claude model to use (default: Haiku for speed/cost)
-        """
-        self.model = model
-
-    async def generate_focus_areas_for_hunk(
-        self, hunk: Hunk, hunk_index: int
-    ) -> List[FocusArea]:
-        """Generate focus areas for a single hunk.
-
-        Args:
-            hunk: The hunk to analyze
-            hunk_index: Index of this hunk in the diff
-
-        Returns:
-            List of focus areas found in this hunk
-        """
-        # Use Claude Agent SDK to identify methods
-        # Prompt: "Analyze this diff hunk and identify all methods..."
-        # Return structured output with method boundaries
-        pass
-
-    async def generate_all_focus_areas(
-        self, hunks: List[Hunk], pr_number: int
-    ) -> FocusGenerationResult:
-        """Generate focus areas for all hunks in a diff.
-
-        Args:
-            hunks: List of hunks from parsed diff
-            pr_number: PR number being analyzed
-
-        Returns:
-            FocusGenerationResult with all focus areas
-        """
-        all_focus_areas = []
-        total_cost = 0.0
-
-        for i, hunk in enumerate(hunks):
-            focus_areas = await self.generate_focus_areas_for_hunk(hunk, i)
-            all_focus_areas.extend(focus_areas)
-
-        return FocusGenerationResult(
-            pr_number=pr_number,
-            focus_areas=all_focus_areas,
-            total_hunks_processed=len(hunks),
-            generation_cost_usd=total_cost,
-        )
-```
-
-### 2. Create Claude Prompt Template
-
-Create prompt template for focus generation (structured output):
-
-```python
-# In services/focus_generator.py
-
-FOCUS_GENERATION_PROMPT = """
-Analyze this diff hunk and identify all methods/functions that were added,
-modified, or removed.
-
-Hunk:
-{hunk_content}
-
-For each method you identify, provide:
-1. start_line: First line number in the new file
-2. end_line: Last line number in the new file
-3. description: Method name and signature (e.g., "login(username, password)")
-
-Return a list of all methods found in this hunk.
-"""
-```
-
-### 3. Integrate into Rules Command
-
-Modify `commands/agent/rules.py` to generate focus areas BEFORE filtering rules:
-
-```python
-from services.focus_generator import FocusGeneratorService
-from services.phase_sequencer import PhaseSequencer, PipelinePhase
-
-async def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
-    # Load parsed diff from phase-1-diff/
-    diff_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.DIFF)
-    parsed_diff_path = diff_dir / "parsed.json"
-    parsed_diff = json.loads(parsed_diff_path.read_text())
-    hunks = [Hunk.from_dict(h) for h in parsed_diff.get("hunks", [])]
-
-    # Generate focus areas
-    print("  Generating focus areas...")
-    focus_generator = FocusGeneratorService()
-    focus_result = await focus_generator.generate_all_focus_areas(hunks, pr_number)
-    print(f"  Found {len(focus_result.focus_areas)} methods across {len(hunks)} hunks")
-
-    # Save focus areas to phase-2-focus-areas/
-    focus_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.FOCUS_AREAS)
-    focus_areas_path = focus_dir / "all.json"
-    focus_areas_data = {
-        "pr_number": pr_number,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "focus_areas": [fa.to_dict() for fa in focus_result.focus_areas],
-        "total_hunks_processed": focus_result.total_hunks_processed,
-        "generation_cost_usd": focus_result.generation_cost_usd,
-    }
-    focus_areas_path.write_text(json.dumps(focus_areas_data, indent=2))
-    print(f"  Wrote {focus_areas_path}")
-
-    # Continue with rule loading and task creation...
-    # Now create tasks by pairing focus_areas with filtered rules
-```
-
-### 4. Output Format for phase-2-focus-areas/all.json
-
-```json
-{
-  "pr_number": 123,
-  "generated_at": "2024-02-06T12:34:56Z",
-  "total_hunks_processed": 5,
-  "generation_cost_usd": 0.0023,
-  "focus_areas": [
-    {
-      "focus_id": "src/auth.py-0-login",
-      "file_path": "src/auth.py",
-      "start_line": 45,
-      "end_line": 52,
-      "description": "login(username, password)",
-      "hunk_index": 0,
-      "hunk_content": "@@ -44,8 +44,15 @@\n..."
-    }
-  ]
-}
-```
-
-**Files to create:**
+**Files created:**
 - New: `services/focus_generator.py`
 
-**Files to modify:**
-- Modify: `commands/agent/rules.py` (integrate focus generation)
+**Files modified:**
+- Modified: `commands/agent/rules.py` (focus area generation + dependency validation against FOCUS_AREAS)
+- Modified: `services/phase_sequencer.py` (removed FOCUS_AREAS from `_FUTURE_PHASES`, removed "Future" comment)
+- Modified: `tests/test_phase_sequencer.py` (updated dependency chain tests, removed future phase tests)
+- Modified: `tests/test_services.py` (added FocusGeneratorService fallback and FocusGenerationResult tests)
 
 ---
 

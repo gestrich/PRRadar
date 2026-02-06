@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 # Phases not yet implemented (skipped during dependency validation)
-_FUTURE_PHASES: set[str] = {"phase-2-focus-areas"}
+_FUTURE_PHASES: set[str] = set()
 
 
 class PipelinePhase(Enum):
@@ -21,7 +21,7 @@ class PipelinePhase(Enum):
     """
 
     DIFF = "phase-1-diff"
-    FOCUS_AREAS = "phase-2-focus-areas"  # Future: focus areas feature
+    FOCUS_AREAS = "phase-2-focus-areas"
     RULES = "phase-3-rules"
     TASKS = "phase-4-tasks"
     EVALUATIONS = "phase-5-evaluations"

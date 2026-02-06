@@ -357,5 +357,93 @@ class TestViolationService(unittest.TestCase):
         self.assertEqual(violations[0].documentation_link, "https://docs.example.com/rule")
 
 
+# ============================================================
+# FocusGeneratorService Tests
+# ============================================================
+
+
+class TestFocusGeneratorServiceFallback(unittest.TestCase):
+    """Tests for FocusGeneratorService fallback behavior."""
+
+    def test_fallback_creates_one_focus_area_per_hunk(self):
+        """Fallback should create one focus area covering each hunk."""
+        from scripts.domain.diff import Hunk
+        from scripts.services.focus_generator import FocusGeneratorService
+
+        hunk = Hunk(
+            file_path="src/handler.py",
+            content="@@ -10,5 +10,8 @@\n context\n+new line",
+            new_start=10,
+            new_length=8,
+            old_start=10,
+            old_length=5,
+        )
+
+        focus_areas = FocusGeneratorService._fallback_focus_area(hunk, 0, hunk.get_annotated_content())
+
+        self.assertEqual(len(focus_areas), 1)
+        fa = focus_areas[0]
+        self.assertEqual(fa.file_path, "src/handler.py")
+        self.assertEqual(fa.start_line, 10)
+        self.assertEqual(fa.end_line, 17)
+        self.assertEqual(fa.hunk_index, 0)
+        self.assertEqual(fa.description, "hunk 0")
+        self.assertEqual(fa.focus_id, "src-handler.py-0")
+
+    def test_fallback_sanitizes_file_path_in_focus_id(self):
+        """Focus ID should sanitize slashes in file paths."""
+        from scripts.domain.diff import Hunk
+        from scripts.services.focus_generator import FocusGeneratorService
+
+        hunk = Hunk(
+            file_path="src/deep/nested/file.py",
+            content="@@ -1,3 +1,5 @@\n+new",
+            new_start=1,
+            new_length=5,
+        )
+
+        focus_areas = FocusGeneratorService._fallback_focus_area(hunk, 2, hunk.content)
+        self.assertEqual(focus_areas[0].focus_id, "src-deep-nested-file.py-2")
+
+
+class TestFocusGenerationResult(unittest.TestCase):
+    """Tests for FocusGenerationResult data model."""
+
+    def test_to_dict_serialization(self):
+        """FocusGenerationResult should serialize correctly."""
+        from scripts.services.focus_generator import FocusGenerationResult
+
+        fa = FocusArea(
+            focus_id="src-test.py-0",
+            file_path="src/test.py",
+            start_line=10,
+            end_line=20,
+            description="test_method()",
+            hunk_index=0,
+            hunk_content="+code",
+        )
+        result = FocusGenerationResult(
+            pr_number=42,
+            focus_areas=[fa],
+            total_hunks_processed=1,
+            generation_cost_usd=0.001,
+        )
+
+        data = result.to_dict()
+        self.assertEqual(data["pr_number"], 42)
+        self.assertEqual(len(data["focus_areas"]), 1)
+        self.assertEqual(data["total_hunks_processed"], 1)
+        self.assertAlmostEqual(data["generation_cost_usd"], 0.001)
+
+    def test_sanitize_for_id(self):
+        """_sanitize_for_id should produce safe identifiers."""
+        from scripts.services.focus_generator import FocusGeneratorService
+
+        self.assertEqual(FocusGeneratorService._sanitize_for_id("login(username, password)"), "login")
+        self.assertEqual(FocusGeneratorService._sanitize_for_id("__init__"), "__init__")
+        self.assertEqual(FocusGeneratorService._sanitize_for_id(""), "unknown")
+        self.assertEqual(FocusGeneratorService._sanitize_for_id("my method"), "my-method")
+
+
 if __name__ == "__main__":
     unittest.main()

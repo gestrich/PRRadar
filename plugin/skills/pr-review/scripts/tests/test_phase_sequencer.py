@@ -60,12 +60,10 @@ class TestPipelinePhase(unittest.TestCase):
         """First phase has no previous implemented phase."""
         assert PipelinePhase.DIFF.previous_implemented_phase() is None
 
-    def test_previous_implemented_phase_skips_future(self) -> None:
-        """RULES skips FOCUS_AREAS (future) and returns DIFF."""
-        assert PipelinePhase.RULES.previous_implemented_phase() == PipelinePhase.DIFF
-
-    def test_previous_implemented_phase_normal_chain(self) -> None:
-        """Non-future phases return the immediate predecessor."""
+    def test_previous_implemented_phase_chain(self) -> None:
+        """All phases return their immediate predecessor (no future phases)."""
+        assert PipelinePhase.FOCUS_AREAS.previous_implemented_phase() == PipelinePhase.DIFF
+        assert PipelinePhase.RULES.previous_implemented_phase() == PipelinePhase.FOCUS_AREAS
         assert PipelinePhase.TASKS.previous_implemented_phase() == PipelinePhase.RULES
         assert PipelinePhase.EVALUATIONS.previous_implemented_phase() == PipelinePhase.TASKS
         assert PipelinePhase.REPORT.previous_implemented_phase() == PipelinePhase.EVALUATIONS
@@ -152,20 +150,32 @@ class TestPhaseSequencerDependencyValidation(unittest.TestCase):
         (tasks_dir / "task-001.json").write_text("{}")
         assert PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.EVALUATIONS)
 
-    def test_can_run_rules_skips_focus_areas(self) -> None:
-        """RULES can run if DIFF exists, even though FOCUS_AREAS doesn't."""
-        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
-        (diff_dir / "parsed.json").write_text("{}")
+    def test_can_run_rules_with_focus_areas(self) -> None:
+        """RULES can run if FOCUS_AREAS exists."""
+        focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+        (focus_dir / "all.json").write_text("{}")
         assert PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.RULES)
 
-    def test_cannot_run_rules_without_diff(self) -> None:
-        """RULES cannot run without DIFF even though FOCUS_AREAS is skipped."""
+    def test_cannot_run_rules_without_focus_areas(self) -> None:
+        """RULES cannot run without FOCUS_AREAS."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "parsed.json").write_text("{}")
         assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.RULES)
+
+    def test_can_run_focus_areas_with_diff(self) -> None:
+        """FOCUS_AREAS can run if DIFF exists."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "parsed.json").write_text("{}")
+        assert PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+
+    def test_cannot_run_focus_areas_without_diff(self) -> None:
+        """FOCUS_AREAS cannot run without DIFF."""
+        assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.FOCUS_AREAS)
 
     def test_validate_can_run_returns_none_when_valid(self) -> None:
         """validate_can_run returns None when phase can run."""
-        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
-        (diff_dir / "raw.diff").write_text("content")
+        focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+        (focus_dir / "all.json").write_text("{}")
         assert PhaseSequencer.validate_can_run(self.tmp_path, PipelinePhase.RULES) is None
 
     def test_validate_can_run_returns_error_when_invalid(self) -> None:
@@ -277,11 +287,11 @@ class TestPipelinePhaseEdgeCases(unittest.TestCase):
                 f"{phase.name}: value has {number_in_value} but phase_number() returns {phase.phase_number()}"
             )
 
-    def test_focus_areas_is_future_phase(self) -> None:
-        """FOCUS_AREAS should be classified as a future phase."""
+    def test_no_future_phases(self) -> None:
+        """All phases should be implemented (no future phases)."""
         from scripts.services.phase_sequencer import _FUTURE_PHASES
 
-        assert PipelinePhase.FOCUS_AREAS.value in _FUTURE_PHASES
+        assert len(_FUTURE_PHASES) == 0
 
     def test_previous_implemented_phase_for_focus_areas(self) -> None:
         """FOCUS_AREAS' previous implemented phase is DIFF."""
@@ -299,13 +309,12 @@ class TestPhaseSequencerFullChain(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_full_chain_all_phases_can_run(self) -> None:
-        """When all implemented phases have content, every phase can run."""
-        implemented = [p for p in PipelinePhase if p != PipelinePhase.FOCUS_AREAS]
-        for phase in implemented:
+        """When all phases have content, every phase can run."""
+        for phase in PipelinePhase:
             phase_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, phase)
             (phase_dir / "data.json").write_text("{}")
 
-        for phase in implemented:
+        for phase in PipelinePhase:
             assert PhaseSequencer.can_run_phase(self.tmp_path, phase), (
                 f"{phase.name} should be able to run when all dependencies exist"
             )
@@ -313,7 +322,8 @@ class TestPhaseSequencerFullChain(unittest.TestCase):
     def test_empty_dependency_blocks_all_downstream(self) -> None:
         """If DIFF has empty dir, all downstream phases cannot run."""
         PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
-        # DIFF exists but is empty — should block RULES
+        # DIFF exists but is empty — should block FOCUS_AREAS and everything downstream
+        assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.FOCUS_AREAS)
         assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.RULES)
         assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.TASKS)
         assert not PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.EVALUATIONS)
@@ -321,7 +331,7 @@ class TestPhaseSequencerFullChain(unittest.TestCase):
 
     def test_validate_error_mentions_both_phases(self) -> None:
         """Error message should mention the missing dependency and the blocked phase."""
-        for phase in [PipelinePhase.RULES, PipelinePhase.TASKS, PipelinePhase.EVALUATIONS, PipelinePhase.REPORT]:
+        for phase in [PipelinePhase.FOCUS_AREAS, PipelinePhase.RULES, PipelinePhase.TASKS, PipelinePhase.EVALUATIONS, PipelinePhase.REPORT]:
             error = PhaseSequencer.validate_can_run(self.tmp_path, phase)
             assert error is not None
             assert phase.value in error
@@ -356,10 +366,23 @@ class TestCommandDependencyValidation(unittest.TestCase):
         assert result == 1
 
     def test_rules_command_fails_with_empty_diff(self) -> None:
-        """Rules command should return error when diff directory is empty."""
+        """Rules command should return error when diff directory exists but is empty."""
         from scripts.commands.agent.rules import cmd_rules
 
         PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        result = cmd_rules(
+            pr_number=123,
+            output_dir=self.tmp_path,
+            rules_dir="/nonexistent",
+        )
+        assert result == 1
+
+    def test_rules_command_fails_without_parsed_diff(self) -> None:
+        """Rules command should return error when diff exists but parsed.json is missing."""
+        from scripts.commands.agent.rules import cmd_rules
+
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
         result = cmd_rules(
             pr_number=123,
             output_dir=self.tmp_path,
