@@ -1,14 +1,14 @@
 """Agent rules command - collect and filter applicable rules.
 
 Loads rules from a directory and filters them against the diff.
-Creates evaluation tasks for each rule+segment combination.
+Creates evaluation tasks for each rule+focus_area combination.
 
 Requires:
     <output-dir>/<pr-number>/phase-1-diff/parsed.json  - Structured diff with hunks
 
 Artifact outputs:
     <output-dir>/<pr-number>/phase-3-rules/all-rules.json  - All collected rules
-    <output-dir>/<pr-number>/phase-4-tasks/*.json          - Evaluation tasks (rule+segment)
+    <output-dir>/<pr-number>/phase-4-tasks/*.json          - Evaluation tasks (rule+focus_area)
 """
 
 from __future__ import annotations
@@ -17,7 +17,8 @@ import json
 from pathlib import Path
 
 from scripts.domain.diff import Hunk
-from scripts.domain.evaluation_task import CodeSegment, EvaluationTask
+from scripts.domain.evaluation_task import EvaluationTask
+from scripts.domain.focus_area import FocusArea
 from scripts.domain.rule import Rule
 from scripts.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from scripts.services.rule_loader import RuleLoaderService
@@ -104,7 +105,6 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
         new_length = hunk.get("new_length", 0)
 
         # Extract only changed lines for grep filtering
-        # (context lines should not trigger rule matches)
         changed_content = Hunk.extract_changed_content(content)
 
         # Filter rules for this segment
@@ -116,18 +116,21 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
             skipped_no_rules += 1
             continue
 
-        # Create code segment
-        segment = CodeSegment(
+        # Create focus area for this hunk
+        safe_path = file_path.replace("/", "-").replace("\\", "-")
+        focus_area = FocusArea(
+            focus_id=f"{safe_path}-{hunk_index}",
             file_path=file_path,
-            hunk_index=hunk_index,
             start_line=new_start,
             end_line=new_start + new_length - 1,
-            content=content,
+            description=f"hunk {hunk_index}",
+            hunk_index=hunk_index,
+            hunk_content=content,
         )
 
         # Create evaluation task for each applicable rule
         for rule in applicable_rules:
-            task = EvaluationTask.create(rule=rule, segment=segment)
+            task = EvaluationTask.create(rule=rule, focus_area=focus_area)
             task_path = tasks_dir / task.suggested_filename()
             task_path.write_text(json.dumps(task.to_dict(), indent=2))
             tasks_created += 1

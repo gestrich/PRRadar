@@ -14,7 +14,8 @@ from pathlib import Path
 
 from scripts.commands.agent.comment import CommentableViolation
 from scripts.domain.agent_outputs import RuleEvaluation
-from scripts.domain.evaluation_task import CodeSegment, EvaluationTask
+from scripts.domain.evaluation_task import EvaluationTask
+from scripts.domain.focus_area import FocusArea
 from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
 from scripts.services.evaluation_service import EvaluationResult
 from scripts.services.task_loader_service import TaskLoaderService
@@ -44,18 +45,21 @@ def make_rule(
     )
 
 
-def make_segment(
+def make_focus_area(
     file_path: str = "src/test.py",
     start_line: int = 10,
     end_line: int = 20,
-) -> CodeSegment:
-    """Create a CodeSegment instance for testing."""
-    return CodeSegment(
+) -> FocusArea:
+    """Create a FocusArea instance for testing."""
+    safe_path = file_path.replace("/", "-").replace("\\", "-")
+    return FocusArea(
+        focus_id=f"{safe_path}-0",
         file_path=file_path,
-        hunk_index=0,
         start_line=start_line,
         end_line=end_line,
-        content="+    new code",
+        description="hunk 0",
+        hunk_index=0,
+        hunk_content="+    new code",
     )
 
 
@@ -66,8 +70,8 @@ def make_task(
 ) -> EvaluationTask:
     """Create an EvaluationTask instance for testing."""
     rule = make_rule(name=rule_name, documentation_link=documentation_link)
-    segment = make_segment(file_path=file_path)
-    return EvaluationTask.create(rule=rule, segment=segment)
+    focus_area = make_focus_area(file_path=file_path)
+    return EvaluationTask.create(rule=rule, focus_area=focus_area)
 
 
 def make_evaluation(
@@ -142,7 +146,7 @@ class TestTaskLoaderService(unittest.TestCase):
 
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0].rule.name, "my-rule")
-            self.assertEqual(result[0].segment.file_path, "src/handler.py")
+            self.assertEqual(result[0].focus_area.file_path, "src/handler.py")
 
     def test_load_all_loads_multiple_tasks(self):
         """Test that load_all loads multiple task files."""

@@ -7,7 +7,8 @@ from scripts.domain.agent_outputs import (
 )
 from scripts.domain.diff import GitDiff, Hunk
 from scripts.domain.diff_source import DiffSource
-from scripts.domain.evaluation_task import CodeSegment, EvaluationTask
+from scripts.domain.evaluation_task import EvaluationTask
+from scripts.domain.focus_area import FocusArea
 from scripts.domain.mention import MentionAction
 from scripts.domain.review import (
     CategorySummary,
@@ -20,7 +21,7 @@ from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
 __all__ = [
     "AppliesTo",
     "CategorySummary",
-    "CodeSegment",
+    "FocusArea",
     "DiffSource",
     "EvaluationSummary",
     "EvaluationTask",

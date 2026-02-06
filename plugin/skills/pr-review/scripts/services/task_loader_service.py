@@ -51,7 +51,7 @@ class TaskLoaderService:
                 tasks.append(task)
 
         # Sort by file path (case-insensitive to match GitHub), then by line number
-        tasks.sort(key=lambda t: (t.segment.file_path.lower(), t.segment.start_line))
+        tasks.sort(key=lambda t: (t.focus_area.file_path.lower(), t.focus_area.start_line))
 
         return tasks
 

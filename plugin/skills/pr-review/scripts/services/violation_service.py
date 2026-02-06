@@ -37,7 +37,7 @@ class ViolationService:
             A CommentableViolation ready for posting to GitHub
         """
         # Extract diff context around the violation line
-        diff_context = task.segment.get_context_around_line(
+        diff_context = task.focus_area.get_context_around_line(
             result.evaluation.line_number,
             context_lines=3,
         )

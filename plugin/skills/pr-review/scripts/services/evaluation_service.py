@@ -121,10 +121,10 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
         rule_name=task.rule.name,
         rule_description=task.rule.description,
         rule_content=task.rule.content,
-        file_path=task.segment.file_path,
-        start_line=task.segment.start_line,
-        end_line=task.segment.end_line,
-        diff_content=task.segment.content,
+        file_path=task.focus_area.file_path,
+        start_line=task.focus_area.start_line,
+        end_line=task.focus_area.end_line,
+        diff_content=task.focus_area.hunk_content,
     )
 
     # Configure structured output
@@ -155,9 +155,9 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
     if evaluation_data:
         # Ensure file_path and line_number are populated from task if not in output
         if not evaluation_data.get("file_path"):
-            evaluation_data["file_path"] = task.segment.file_path
+            evaluation_data["file_path"] = task.focus_area.file_path
         if not evaluation_data.get("line_number"):
-            evaluation_data["line_number"] = task.segment.start_line
+            evaluation_data["line_number"] = task.focus_area.start_line
 
         evaluation = RuleEvaluation.from_dict(evaluation_data)
     else:
@@ -165,15 +165,15 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
             violates_rule=False,
             score=1,
             comment="Evaluation failed - no structured output returned",
-            file_path=task.segment.file_path,
-            line_number=task.segment.start_line,
+            file_path=task.focus_area.file_path,
+            line_number=task.focus_area.start_line,
         )
 
     return EvaluationResult(
         task_id=task.task_id,
         rule_name=task.rule.name,
         rule_file_path=task.rule.file_path,
-        file_path=task.segment.file_path,
+        file_path=task.focus_area.file_path,
         evaluation=evaluation,
         model_used=model,
         duration_ms=duration_ms,

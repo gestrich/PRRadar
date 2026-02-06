@@ -257,7 +257,7 @@ class TestArtifactStructure(unittest.TestCase):
     def test_task_json_structure(self):
         """Test task JSON has expected structure."""
         task_data = {
-            "task_id": "error-handling-abc123",
+            "task_id": "error-handling-src/handler.py-0",
             "rule": {
                 "name": "error-handling",
                 "file_path": "rules/error-handling.md",
@@ -266,22 +266,24 @@ class TestArtifactStructure(unittest.TestCase):
                 "documentation_link": "https://docs.example.com/error-handling",
                 "content": "# Error Handling\n...",
             },
-            "segment": {
+            "focus_area": {
+                "focus_id": "src/handler.py-0",
                 "file_path": "src/handler.py",
-                "hunk_index": 0,
                 "start_line": 10,
                 "end_line": 20,
-                "content": "@@ -10,8 +10,12 @@\n...",
+                "description": "hunk 0",
+                "hunk_index": 0,
+                "hunk_content": "@@ -10,8 +10,12 @@\n...",
             },
         }
 
         # Verify required fields exist
         self.assertIn("task_id", task_data)
         self.assertIn("rule", task_data)
-        self.assertIn("segment", task_data)
+        self.assertIn("focus_area", task_data)
         self.assertIn("name", task_data["rule"])
-        self.assertIn("file_path", task_data["segment"])
-        self.assertIn("start_line", task_data["segment"])
+        self.assertIn("file_path", task_data["focus_area"])
+        self.assertIn("start_line", task_data["focus_area"])
 
     def test_report_json_structure(self):
         """Test report JSON has expected structure."""

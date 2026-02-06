@@ -81,62 +81,60 @@ class AnalyzeStats:
 # ============================================================
 
 
-def group_tasks_by_segment(
+def group_tasks_by_focus_area(
     tasks: list[EvaluationTask],
 ) -> list[tuple[EvaluationTask, list[EvaluationTask]]]:
-    """Group tasks by their code segment.
+    """Group tasks by their focus area.
 
     Args:
         tasks: List of evaluation tasks (already sorted by file/line)
 
     Returns:
-        List of (representative_task, all_tasks_for_segment) tuples
+        List of (representative_task, all_tasks_for_focus_area) tuples
     """
     from collections import OrderedDict
 
-    # Group by segment content hash (unique identifier for segment)
     groups: OrderedDict[str, list[EvaluationTask]] = OrderedDict()
     for task in tasks:
-        key = task.segment.content_hash()
+        key = task.focus_area.content_hash()
         if key not in groups:
             groups[key] = []
         groups[key].append(task)
 
-    # Return as list of (first_task, all_tasks) for display
     return [(tasks_list[0], tasks_list) for tasks_list in groups.values()]
 
 
-def prompt_for_segment(
+def prompt_for_focus_area(
     task: EvaluationTask,
     rules: list[str],
     index: int,
     total: int,
 ) -> str | None:
-    """Prompt user to evaluate a segment with all its rules.
+    """Prompt user to evaluate a focus area with all its rules.
 
     Args:
-        task: Representative task (for segment info)
-        rules: List of rule names that apply to this segment
+        task: Representative task (for focus area info)
+        rules: List of rule names that apply to this focus area
         index: Current index (1-based)
-        total: Total number of segments
+        total: Total number of focus areas
 
     Returns:
         'y' to evaluate, 'n' to skip, 'q' to quit, None on EOF
     """
     print()
     print_separator("=")
-    print(f"Segment {index}/{total}")
+    print(f"Focus Area {index}/{total}")
     print_separator("=")
-    print(f"  File: {task.segment.file_path}")
-    print(f"  Lines: {task.segment.start_line}-{task.segment.end_line}")
+    print(f"  File: {task.focus_area.file_path}")
+    print(f"  Method: {task.focus_area.description}")
+    print(f"  Lines: {task.focus_area.start_line}-{task.focus_area.end_line}")
     print(f"  Rules: {', '.join(rules)}")
     print_separator("-")
-    # Show full diff content
-    for line in task.segment.content.split("\n"):
+    for line in task.focus_area.hunk_content.split("\n"):
         print(f"  {line}")
     print_separator("-")
 
-    return prompt_yes_no_quit("Evaluate this segment?")
+    return prompt_yes_no_quit("Evaluate this focus area?")
 
 
 # ============================================================
@@ -165,34 +163,33 @@ async def run_interactive_evaluation(
     """
     evaluations_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
 
-    # Group tasks by segment
-    segment_groups = group_tasks_by_segment(tasks)
-    total_segments = len(segment_groups)
+    # Group tasks by focus area
+    focus_area_groups = group_tasks_by_focus_area(tasks)
+    total_focus_areas = len(focus_area_groups)
 
-    for i, (representative, segment_tasks) in enumerate(segment_groups, 1):
-        rules = [t.rule.name for t in segment_tasks]
+    for i, (representative, focus_area_tasks) in enumerate(focus_area_groups, 1):
+        rules = [t.rule.name for t in focus_area_tasks]
 
-        # Prompt for this segment
-        response = prompt_for_segment(representative, rules, i, total_segments)
+        # Prompt for this focus area
+        response = prompt_for_focus_area(representative, rules, i, total_focus_areas)
 
         if response is None or response == "q":
-            # Count remaining tasks across all remaining segments
             remaining_tasks = sum(
-                len(grp[1]) for grp in segment_groups[i - 1 :]
+                len(grp[1]) for grp in focus_area_groups[i - 1 :]
             )
             stats.tasks_skipped += remaining_tasks
             print(f"\n  Quit. Skipped {remaining_tasks} remaining task(s).")
             break
 
         if response == "n":
-            print(f"  Skipped {len(segment_tasks)} rule(s).")
-            stats.tasks_skipped += len(segment_tasks)
+            print(f"  Skipped {len(focus_area_tasks)} rule(s).")
+            stats.tasks_skipped += len(focus_area_tasks)
             continue
 
-        # Evaluate all rules for this segment
+        # Evaluate all rules for this focus area
         violations_for_segment = []
 
-        for task in segment_tasks:
+        for task in focus_area_tasks:
             print(f"  Evaluating rule: {task.rule.name}...")
             result = await evaluate_task(task)
             stats.tasks_evaluated += 1
@@ -391,8 +388,8 @@ def cmd_analyze(
         return 0
 
     stats.tasks_total = len(tasks)
-    segment_groups = group_tasks_by_segment(tasks)
-    print(f"  Found {len(segment_groups)} segments, {len(tasks)} total evaluations")
+    focus_area_groups = group_tasks_by_focus_area(tasks)
+    print(f"  Found {len(focus_area_groups)} focus areas, {len(tasks)} total evaluations")
     print()
 
     if interactive:
