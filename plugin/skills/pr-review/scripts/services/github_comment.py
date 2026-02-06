@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from scripts.domain.mention import MentionAction
 from scripts.domain.review import Feedback, ReviewOutput
-from scripts.infrastructure.gh_runner import GhCommandRunner
+from scripts.infrastructure.github.runner import GhCommandRunner
 
 
 @dataclass

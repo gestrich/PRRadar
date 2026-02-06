@@ -8,154 +8,13 @@ This plan details the phased implementation of PRRadar. The tool architecture an
 
 ## Phases
 
-# Local Diff and Focus Areas
-
-The following phases add local git diff support and focus area capabilities for reviewing large changes.
-
-> **Note:** Diff Source Abstraction has been moved to its own planning document: [diff-source-abstraction.md](diff-source-abstraction.md)
-
-## - [ ] Phase 1: Focus Area Domain Model
-
-Add the `FocusArea` domain model that represents a scoped portion of a hunk for focused review. When reviewing large files (e.g., 1000+ line new files or big changes), instead of reviewing the entire hunk, break it into "focus areas" by method. This keeps reviews scoped and focused.
-
-**Tasks:**
-- Create `FocusArea` dataclass in `domain/focus_area.py`:
-  ```python
-  @dataclass
-  class FocusArea:
-      start_line: int      # First line of focus (new file line numbers)
-      end_line: int        # Last line of focus
-      description: str     # E.g., "updateUser method" or "lines 20-45"
-      hunk_index: int      # Which hunk this focus belongs to
-  ```
-- Update `CodeSegment` to include optional `focus_area: FocusArea | None`
-- When `focus_area` is present, the segment represents just that portion of the hunk
-- Add `CodeSegment.get_focused_content()` method that extracts only the lines within the focus area bounds
-- Update `CodeSegment.to_dict()` and `from_dict()` for serialization
-
-**Files to modify:**
-- New: `domain/focus_area.py`
-- Modify: `domain/evaluation_task.py` (update CodeSegment)
-
----
-
-## - [ ] Phase 2: Focus Area Generation
-
-Implement Claude-based analysis to break large hunks into method-level focus areas.
-
-**Tasks:**
-- Add configuration for "large hunk" threshold (e.g., >100 changed lines)
-- Create `services/focus_generator.py` with `FocusGeneratorService`:
-  - Input: Hunk content + full file content (when available)
-  - Use Claude to analyze and suggest focus area boundaries
-  - Heuristics to provide Claude:
-    - Break by method/function boundaries
-    - Keep related changes together
-    - Aim for reviewable chunks (50-150 lines)
-  - Output: List of `FocusArea` objects
-- **Extensibility:** While method boundaries are the initial chunking strategy, this approach can evolve to support other specialized reviews (e.g., chunking by class, by logical code block, or by architectural concern).
-- Create prompt template for Claude that receives:
-  - The hunk diff (with line numbers)
-  - The full file content (for context on method boundaries)
-  - Instructions for breaking into logical chunks
-- Add `--generate-focus-areas` flag to `cmd_rules.py` (or make it automatic above threshold)
-- When generating evaluation tasks, if focus areas exist:
-  - Create one segment per (hunk, focus_area) combination
-  - Each segment gets evaluated independently
-
-**Important:** The hunk format stays identical. Focus areas are metadata that tell the evaluator which portion to concentrate on.
-
-**Files to modify:**
-- New: `services/focus_generator.py`
-- New: `prompts/focus_generation.py` (prompt template)
-- Modify: `commands/agent/rules.py` (integrate focus generation)
-
----
-
-## - [ ] Phase 3: Update Grep Filtering for Focus Areas
-
-Update the rule filtering logic to respect focus area bounds when checking grep patterns.
-
-**Tasks:**
-- Modify `rule_loader.filter_rules_for_segment()`:
-  - If segment has `focus_area`, extract only lines within focus bounds for grep matching
-  - Use `CodeSegment.get_focused_content()` instead of full hunk content
-- Update `Hunk.extract_changed_content()` or create variant that accepts line range
-- Ensure grep patterns only match against the focused portion, not the entire hunk
-- Add tests verifying grep patterns respect focus boundaries
-
-**Rationale:** Currently, grep patterns check the entire hunk. With focus areas, a rule should only match if the pattern exists within the focused lines, not elsewhere in the hunk.
-
-**Files to modify:**
-- Modify: `services/rule_loader.py`
-- Modify: `domain/diff.py` (line-range extraction)
-- Modify: `domain/evaluation_task.py` (get_focused_content implementation)
-
----
-
-## - [ ] Phase 4: Rule Scope (Localized vs Global)
-
-Add `scope` field to rules to distinguish between localized and global evaluation modes.
-
-**Tasks:**
-- Add `RuleScope` enum: `LOCALIZED`, `GLOBAL`
-- Add `scope: RuleScope` field to `Rule` dataclass (default: `LOCALIZED`)
-- Update `Rule.from_file()` to parse `scope` from frontmatter
-- Update `Rule.to_dict()` for serialization
-- Document the difference:
-  - `LOCALIZED`: Rule can be evaluated per-segment (method-level). Works with focus areas.
-  - `GLOBAL`: Rule needs broader context. Should receive full diff or multiple segments together.
-
-**Downstream impact (future phases):**
-- Localized rules: Evaluated per segment/focus-area as currently done
-- Global rules: Need different evaluation strategy (aggregate segments, provide full diff context)
-- For now, just add the field and parse it. Later phases can implement different evaluation paths for global rules.
-
-**Example rule frontmatter:**
-```yaml
----
-description: Check for proper error handling
-category: error-handling
-scope: localized  # or 'global' for architectural reviews
-applies_to:
-  file_patterns: ["*.swift"]
----
-```
-
-**Files to modify:**
-- Modify: `domain/rule.py` (add RuleScope enum and field)
-- Update: `services/rule_loader.py` (if any filtering changes needed)
-
----
+> **Note:** The following topics have been moved to separate planning documents:
+> - **Diff Source Abstraction:** [diff-source-abstraction.md](diff-source-abstraction.md)
+> - **Focus Areas:** [focus-areas.md](focus-areas.md)
 
 # Polish and Distribution
 
-## - [ ] Phase 5: CLI Integration for Focus Areas
-
-Wire focus area and diff source features together in the CLI for smooth user experience.
-
-**Tasks:**
-- Update `agent diff` command:
-  - Verify `--source github|local` argument works end-to-end
-  - Verify `--local-repo-path` argument works correctly
-- Update `agent rules` command:
-  - Add `--focus-threshold N` argument (hunks with >N changed lines get focus areas)
-  - Add `--no-focus` flag to disable focus area generation
-- Update `agent evaluate` command:
-  - Handle segments with focus areas (pass focus context to evaluation prompt)
-- Update `agent analyze` interactive flow:
-  - Show focus area info when prompting user
-  - Group tasks by segment+focus for cleaner UX
-- Ensure all artifacts (tasks/*.json, evaluations/*.json) include focus area data
-
-**Files to modify:**
-- Modify: `commands/agent/diff.py`
-- Modify: `commands/agent/rules.py`
-- Modify: `commands/agent/evaluate.py`
-- Modify: `commands/agent/analyze.py`
-- Modify: `services/evaluation_service.py` (prompt updates)
-
-## - [ ] Phase 6: Local Iteration and Rule Development
+## - [ ] Phase 1: Local Iteration and Rule Development
 
 Use the tool on real pull requests to refine rules and gather learnings:
 
@@ -187,7 +46,7 @@ Use the tool on real pull requests to refine rules and gather learnings:
 - Data on cost per PR (actual dollars spent)
 - Documentation of common patterns and edge cases
 
-## - [ ] Phase 7: Documentation and Packaging
+## - [ ] Phase 2: Documentation and Packaging
 
 Prepare the tool for wider distribution:
 
@@ -215,7 +74,7 @@ Prepare the tool for wider distribution:
 - Professional presentation for stakeholder demos
 - Ready for team evaluation and feedback
 
-## - [ ] Phase 8: CI/CD Integration (Future)
+## - [ ] Phase 3: CI/CD Integration (Future)
 
 Once the tool is proven locally, extend it for automated workflows:
 
@@ -231,7 +90,7 @@ Once the tool is proven locally, extend it for automated workflows:
 - Cost controls (limit max rules/chunks per PR)
 
 **Important notes:**
-- Only implement after tool is proven in Phase 7
+- Only implement after tool is proven in Phase 2
 - Requires team buy-in and cultural support
 - Start with advisory mode to build trust
 - Provide escape hatches for urgent merges
@@ -246,12 +105,4 @@ Once the tool is proven locally, extend it for automated workflows:
 
 ## Open Questions
 
-1. **Focus area generation model:** Which Claude model for focus generation? Haiku for speed/cost since it's structural analysis, or Sonnet for better method boundary detection?
-
-2. **Global rule evaluation strategy:** How should global-scoped rules receive context? Options:
-   - Concatenate all segments into one evaluation
-   - Provide PR summary + full diff
-   - Multiple-pass evaluation
-   This is deferred to future work but worth noting.
-
-3. **Full file content acquisition:** For focus generation, we may need the complete new file (not just diff). Should this be fetched from GitHub API or local checkout? Local checkout would make this easier (see [diff-source-abstraction.md](diff-source-abstraction.md)).
+None at this time. Focus area-related questions have been moved to [focus-areas.md](focus-areas.md).

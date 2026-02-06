@@ -13,7 +13,7 @@ import json
 import unittest
 
 from scripts.domain.diff import DiffLine, DiffLineType, GitDiff, Hunk
-from scripts.infrastructure.diff_parser import (
+from scripts.infrastructure.git.diff_parser import (
     format_diff_as_json,
     format_diff_as_text,
     has_content,

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.domain.rule import Rule
-from scripts.infrastructure.git_utils import GitError, GitFileInfo, get_git_file_info
+from scripts.infrastructure.git.git_utils import GitError, GitFileInfo, get_git_file_info
 
 
 @dataclass

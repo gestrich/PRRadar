@@ -4,6 +4,8 @@ This module defines the DiffSource enum used to select between different
 diff acquisition strategies in the provider factory.
 """
 
+from __future__ import annotations
+
 from enum import Enum
 
 
@@ -23,7 +25,7 @@ class DiffSource(Enum):
     LOCAL_GIT = "local"
 
     @classmethod
-    def from_string(cls, value: str) -> "DiffSource":
+    def from_string(cls, value: str) -> DiffSource:
         """Parse DiffSource from string value.
 
         Args:

@@ -17,6 +17,8 @@ import argparse
 import os
 from pathlib import Path
 
+from scripts.domain.diff_source import DiffSource
+
 
 def setup_agent_parser(subparsers: argparse._SubParsersAction) -> None:
     """Set up the agent subcommand group with nested commands."""
@@ -252,10 +254,17 @@ def cmd_agent(args: argparse.Namespace) -> int:
     if args.agent_command == "diff":
         from scripts.commands.agent.diff import cmd_diff
 
+        # Convert string to enum
+        try:
+            diff_source = DiffSource.from_string(args.source)
+        except ValueError as e:
+            print(f"Error: {e}")
+            return 1
+
         return cmd_diff(
             pr_number=pr_number,
             output_dir=pr_dir,
-            source=args.source,
+            source=diff_source,
             local_repo_path=args.local_repo_path,
         )
 
@@ -298,7 +307,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
         # Get repo from args or auto-detect
         repo = args.repo
         if not repo:
-            from scripts.infrastructure.gh_runner import GhCommandRunner
+            from scripts.infrastructure.github.runner import GhCommandRunner
 
             gh = GhCommandRunner()
             success, result = gh.get_repository()
@@ -323,7 +332,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
         # Get repo from args or auto-detect
         repo = args.repo
         if not repo:
-            from scripts.infrastructure.gh_runner import GhCommandRunner
+            from scripts.infrastructure.github.runner import GhCommandRunner
 
             gh = GhCommandRunner()
             success, result = gh.get_repository()
@@ -332,6 +341,13 @@ def cmd_agent(args: argparse.Namespace) -> int:
             else:
                 print("  Error: Could not detect repository. Use --repo to specify.")
                 return 1
+
+        # Convert string to enum
+        try:
+            diff_source = DiffSource.from_string(args.source)
+        except ValueError as e:
+            print(f"Error: {e}")
+            return 1
 
         return cmd_analyze(
             pr_number=pr_number,
@@ -343,7 +359,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             stop_after=args.stop_after,
             skip_to=args.skip_to,
             min_score=args.min_score,
-            source=args.source,
+            source=diff_source,
             local_repo_path=args.local_repo_path,
         )
 

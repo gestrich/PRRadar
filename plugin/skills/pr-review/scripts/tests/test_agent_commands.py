@@ -15,7 +15,7 @@ from pathlib import Path
 
 from scripts.domain.diff import GitDiff
 from scripts.domain.rule import AppliesTo, GrepPatterns, Rule
-from scripts.infrastructure.git_utils import GitFileInfo
+from scripts.infrastructure.git.git_utils import GitFileInfo
 from scripts.services.rule_loader import RuleLoaderService
 
 

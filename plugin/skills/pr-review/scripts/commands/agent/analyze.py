@@ -21,7 +21,8 @@ from scripts.commands.agent.comment import (
     prompt_for_comment,
 )
 from scripts.commands.agent.diff import cmd_diff
-from scripts.infrastructure.gh_runner import GhCommandRunner
+from scripts.domain.diff_source import DiffSource
+from scripts.infrastructure.github.runner import GhCommandRunner
 from scripts.services.github_comment import GitHubCommentService
 from scripts.services.evaluation_service import (
     EvaluationResult,
@@ -291,7 +292,7 @@ def cmd_analyze(
     stop_after: str | None = None,
     skip_to: str | None = None,
     min_score: int = 5,
-    source: str = "github",
+    source: DiffSource = DiffSource.GITHUB_API,
     local_repo_path: str | None = None,
 ) -> int:
     """Execute the analyze command - full review pipeline.
@@ -306,7 +307,7 @@ def cmd_analyze(
         stop_after: Stop after this phase (diff, rules, evaluate)
         skip_to: Skip to this phase (rules, evaluate, comment)
         min_score: Minimum score for posting comments
-        source: Diff source ("github" or "local")
+        source: Diff source (DiffSource.GITHUB_API or DiffSource.LOCAL_GIT)
         local_repo_path: Path to local git repo (for local source)
 
     Returns:

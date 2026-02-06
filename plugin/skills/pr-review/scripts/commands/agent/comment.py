@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.domain.agent_outputs import RuleEvaluation
-from scripts.infrastructure.gh_runner import GhCommandRunner
+from scripts.infrastructure.github.runner import GhCommandRunner
 from scripts.services.github_comment import GitHubCommentService
 from scripts.utils.interactive import print_separator, prompt_yes_no_quit
 

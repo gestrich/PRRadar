@@ -4,16 +4,16 @@ Provides diff acquisition using local git operations via GitOperationsService.
 Always fetches PR metadata from GitHub API, but uses local git for diff generation.
 """
 
-import json
-import subprocess
-import sys
+from __future__ import annotations
 
+from scripts.domain.github import PullRequest
 from scripts.services.git_operations import GitOperationsService
 
-from .repo_source import DiffProvider
+from ..github.runner import GhCommandRunner
+from .base import DiffProvider
 
 
-class LocalGitRepo(DiffProvider):
+class LocalGitDiffProvider(DiffProvider):
     """Implementation for local git repository operations.
 
     PR-centric workflow:
@@ -24,7 +24,11 @@ class LocalGitRepo(DiffProvider):
     """
 
     def __init__(
-        self, repo_owner: str, repo_name: str, git_service: GitOperationsService
+        self,
+        repo_owner: str,
+        repo_name: str,
+        git_service: GitOperationsService,
+        gh_runner: GhCommandRunner,
     ):
         """Initialize with dependencies.
 
@@ -32,10 +36,12 @@ class LocalGitRepo(DiffProvider):
             repo_owner: GitHub repository owner
             repo_name: GitHub repository name
             git_service: Service for git operations (injected)
+            gh_runner: GitHub CLI runner for fetching PR metadata (injected)
         """
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.git_service = git_service
+        self.gh_runner = gh_runner
 
     def get_pr_diff(self, pr_number: int) -> str:
         """Fetch PR diff using local git operations.
@@ -46,14 +52,21 @@ class LocalGitRepo(DiffProvider):
         Returns:
             Raw unified diff text
 
+        Raises:
+            RuntimeError: If PR metadata cannot be fetched from GitHub
+
         Note:
             Always fetches PR metadata from GitHub API first,
             then uses local git for diff generation.
         """
         # Step 1: Get PR metadata from GitHub API
-        pr_details = self._get_pr_metadata_from_github(pr_number)
-        base_branch = pr_details["base_branch"]
-        head_branch = pr_details["head_branch"]
+        success, pr_result = self.gh_runner.get_pull_request(pr_number)
+        if not success:
+            raise RuntimeError(f"Failed to fetch PR metadata: {pr_result}")
+        assert isinstance(pr_result, PullRequest)
+
+        base_branch = pr_result.base_ref_name
+        head_branch = pr_result.head_ref_name
 
         # Step 2: Safety check via GitOperationsService
         self.git_service.check_working_directory_clean()
@@ -76,43 +89,3 @@ class LocalGitRepo(DiffProvider):
             File content as string
         """
         return self.git_service.get_file_content(file_path, commit_hash)
-
-    def _get_pr_metadata_from_github(self, pr_number: int) -> dict:
-        """Fetch PR metadata from GitHub API using gh CLI.
-
-        Args:
-            pr_number: Pull request number
-
-        Returns:
-            Dictionary with base_branch and head_branch
-
-        Raises:
-            SystemExit: If gh CLI command fails
-        """
-        try:
-            result = subprocess.run(
-                [
-                    "gh",
-                    "pr",
-                    "view",
-                    str(pr_number),
-                    "--repo",
-                    f"{self.repo_owner}/{self.repo_name}",
-                    "--json",
-                    "baseRefName,headRefName",
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            data = json.loads(result.stdout)
-            return {
-                "base_branch": data["baseRefName"],
-                "head_branch": data["headRefName"],
-            }
-        except subprocess.CalledProcessError as e:
-            print(f"Error fetching PR metadata from GitHub: {e.stderr}", file=sys.stderr)
-            sys.exit(1)
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"Error parsing PR metadata: {e}", file=sys.stderr)
-            sys.exit(1)

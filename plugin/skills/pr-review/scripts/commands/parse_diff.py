@@ -9,7 +9,7 @@ from __future__ import annotations
 import sys
 
 from scripts.domain.diff import GitDiff
-from scripts.infrastructure.diff_parser import (
+from scripts.infrastructure.git.diff_parser import (
     format_diff_as_json,
     format_diff_as_text,
     read_diff,

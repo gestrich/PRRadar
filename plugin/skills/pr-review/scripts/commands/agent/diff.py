@@ -17,14 +17,14 @@ import json
 from pathlib import Path
 
 from scripts.domain.diff_source import DiffSource
-from scripts.infrastructure.diff_provider_factory import create_diff_provider
-from scripts.infrastructure.gh_runner import GhCommandRunner
+from scripts.infrastructure.diff_provider.factory import create_diff_provider
+from scripts.infrastructure.github.runner import GhCommandRunner
 
 
 def cmd_diff(
     pr_number: int,
     output_dir: Path,
-    source: str = "github",
+    source: DiffSource = DiffSource.GITHUB_API,
     local_repo_path: str | None = None,
 ) -> int:
     """Execute the diff command.
@@ -32,7 +32,7 @@ def cmd_diff(
     Args:
         pr_number: PR number to fetch
         output_dir: PR-specific output directory (already includes PR number)
-        source: Diff source ("github" or "local")
+        source: Diff source (DiffSource.GITHUB_API or DiffSource.LOCAL_GIT)
         local_repo_path: Path to local git repo (for local source)
 
     Returns:
@@ -56,20 +56,13 @@ def cmd_diff(
     diff_dir = output_dir / "diff"
     diff_dir.mkdir(parents=True, exist_ok=True)
 
-    # Parse diff source
-    try:
-        diff_source = DiffSource.from_string(source)
-    except ValueError as e:
-        print(f"  Error: {e}")
-        return 1
-
     # Create appropriate diff provider
-    print(f"  Using diff source: {diff_source.value}")
-    provider_kwargs = {}
-    if local_repo_path:
-        provider_kwargs["local_repo_path"] = local_repo_path
+    print(f"  Using diff source: {source.value}")
     provider = create_diff_provider(
-        diff_source, repo.owner, repo.name, **provider_kwargs
+        source,
+        repo.owner,
+        repo.name,
+        local_repo_path=local_repo_path,
     )
 
     # Fetch and store diff
