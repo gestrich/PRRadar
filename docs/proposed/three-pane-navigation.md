@@ -38,7 +38,7 @@ Files to create/modify:
 - `PRRadarConfigService` now depends on `PRRadarModels` in `Package.swift` since `PRDiscoveryService` returns `[PRMetadata]`
 - `PRMetadata.fallback(number:)` factory method creates a minimal instance for PR directories that lack `gh-pr.json`
 
-## - [ ] Phase 2: Model layer changes
+## - [x] Phase 2: Model layer changes
 
 Update `PRReviewModel` to support the 3-pane selection flow.
 
@@ -61,6 +61,13 @@ Update `PRReviewModel` to support the 3-pane selection flow.
 
 Files to modify:
 - `Sources/apps/MacApp/Models/PRReviewModel.swift`
+
+**Technical notes:**
+- `prNumber` is now a computed property: returns `String(selectedPR.number)` when a PR is selected, falls back to a private `manualPRNumber` for backward-compatible text field binding
+- `selectedPR`'s `didSet` calls `resetAllPhases()` so phase outputs are cleared when switching PRs
+- `selectConfiguration(_:)` now sets `selectedPR = nil` and calls `refreshPRList()` to populate `discoveredPRs`
+- UserDefaults-backed `prNumber` storage removed; manual entry stored in an in-memory `manualPRNumber` property
+- Existing `globalInputBar` text field binding (`$model.prNumber`) still works via the writable computed property — will be removed in Phase 3
 
 ## - [ ] Phase 3: Three-column ContentView refactor
 

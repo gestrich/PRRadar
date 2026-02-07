@@ -17,6 +17,13 @@ final class PRReviewModel {
 
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
     private(set) var settings: AppSettings
+    private(set) var discoveredPRs: [PRMetadata] = []
+
+    var selectedPR: PRMetadata? {
+        didSet {
+            resetAllPhases()
+        }
+    }
 
     // Typed phase outputs
     private(set) var diffFiles: [String]?
@@ -49,9 +56,18 @@ final class PRReviewModel {
     }
 
     var prNumber: String {
-        get { access(keyPath: \.prNumber); return UserDefaults.standard.string(forKey: "prNumber") ?? "" }
-        set { withMutation(keyPath: \.prNumber) { UserDefaults.standard.set(newValue, forKey: "prNumber") } }
+        get {
+            if let pr = selectedPR {
+                return String(pr.number)
+            }
+            return manualPRNumber
+        }
+        set {
+            manualPRNumber = newValue
+        }
     }
+
+    private var manualPRNumber: String = ""
 
     private let venvBinPath: String
     private let environment: [String: String]
@@ -127,7 +143,16 @@ final class PRReviewModel {
 
     func selectConfiguration(_ config: RepoConfiguration) {
         selectedConfiguration = config
-        resetAllPhases()
+        selectedPR = nil
+        refreshPRList()
+    }
+
+    func refreshPRList() {
+        guard let config = selectedConfiguration else {
+            discoveredPRs = []
+            return
+        }
+        discoveredPRs = PRDiscoveryService.discoverPRs(outputDir: config.outputDir)
     }
 
     // MARK: - Phase Execution
