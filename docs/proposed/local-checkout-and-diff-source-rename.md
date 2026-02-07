@@ -43,7 +43,7 @@ Add ~4 tests to `tests/test_git_operations_service.py` for `checkout_commit` (su
 
 **Completed.** Added `GitCheckoutError` exception and `checkout_commit(sha)` method following the same guard/subprocess/raise pattern as existing methods. Added `head_ref_oid` field to `PullRequest` with `from_dict` parsing `headRefOid`. Four tests added: command verification, failure error, not-a-repo error, and detached HEAD (no `-b` flag) verification. All 332 tests pass.
 
-## - [ ] Phase 2: Add checkout flow to LocalGitDiffProvider
+## - [x] Phase 2: Add checkout flow to LocalGitDiffProvider
 
 > Skills: `/python-architecture:creating-services`, `/python-architecture:testing-services`
 
@@ -61,6 +61,8 @@ No branch creation, no switch-back. The repo is left at the PR's head commit.
 
 Update tests in `tests/test_local_git_repo.py`:
 - Workflow order: `check_clean → fetch × 2 → checkout_commit → diff`
+
+**Completed.** Added `checkout_commit(head_sha)` step between fetch and diff in `LocalGitDiffProvider.get_pr_diff()`. Updated all existing tests to supply `head_ref_oid` on mock PRs. Added two new tests: `test_get_pr_diff_checks_out_head_commit` (verifies correct SHA passed) and `test_get_pr_diff_aborts_on_checkout_failure` (verifies `GitCheckoutError` propagates and diff is not attempted). Workflow order test updated to verify `check_clean → fetch × 2 → checkout_commit → diff`. All 334 tests pass.
 
 ## - [ ] Phase 3: Add checkout flow to GitHubDiffProvider
 

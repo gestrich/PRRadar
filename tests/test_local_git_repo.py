@@ -17,6 +17,7 @@ from prradar.infrastructure.github.runner import GhCommandRunner
 from prradar.infrastructure.diff_provider.local_source import LocalGitDiffProvider
 from prradar.services.git_operations import (
     GitDirtyWorkingDirectoryError,
+    GitCheckoutError,
     GitOperationsService,
 )
 
@@ -59,6 +60,7 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         mock_pr = MagicMock(spec=PullRequest)
         mock_pr.base_ref_name = "main"
         mock_pr.head_ref_name = "feature"
+        mock_pr.head_ref_oid = "abc123sha"
         self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
         self.mock_git_service.check_working_directory_clean.return_value = True
         self.mock_git_service.get_branch_diff.return_value = "diff content"
@@ -72,6 +74,7 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         mock_pr = MagicMock(spec=PullRequest)
         mock_pr.base_ref_name = "main"
         mock_pr.head_ref_name = "feature"
+        mock_pr.head_ref_oid = "abc123sha"
         self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
         self.mock_git_service.get_branch_diff.return_value = "diff content"
 
@@ -84,6 +87,7 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         mock_pr = MagicMock(spec=PullRequest)
         mock_pr.base_ref_name = "main"
         mock_pr.head_ref_name = "feature"
+        mock_pr.head_ref_oid = "abc123sha"
         self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
         self.mock_git_service.check_working_directory_clean.side_effect = (
             GitDirtyWorkingDirectoryError("Uncommitted changes")
@@ -92,8 +96,9 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         with self.assertRaises(GitDirtyWorkingDirectoryError):
             self.provider.get_pr_diff(123)
 
-        # Should not proceed to fetch or diff
+        # Should not proceed to fetch, checkout, or diff
         self.mock_git_service.fetch_branch.assert_not_called()
+        self.mock_git_service.checkout_commit.assert_not_called()
         self.mock_git_service.get_branch_diff.assert_not_called()
 
     def test_get_pr_diff_fetches_base_and_head_branches(self):
@@ -101,6 +106,7 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         mock_pr = MagicMock(spec=PullRequest)
         mock_pr.base_ref_name = "main"
         mock_pr.head_ref_name = "feature-x"
+        mock_pr.head_ref_oid = "abc123sha"
         self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
         self.mock_git_service.check_working_directory_clean.return_value = True
         self.mock_git_service.get_branch_diff.return_value = "diff content"
@@ -118,6 +124,7 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         mock_pr = MagicMock(spec=PullRequest)
         mock_pr.base_ref_name = "develop"
         mock_pr.head_ref_name = "bugfix"
+        mock_pr.head_ref_oid = "def456sha"
         self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
         self.mock_git_service.check_working_directory_clean.return_value = True
         expected_diff = "diff --git a/file.py b/file.py\n+new\n"
@@ -147,6 +154,7 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         mock_pr = MagicMock(spec=PullRequest)
         mock_pr.base_ref_name = "main"
         mock_pr.head_ref_name = "feature"
+        mock_pr.head_ref_oid = "abc123sha"
         self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
         self.mock_git_service.check_working_directory_clean.return_value = True
         self.mock_git_service.get_branch_diff.return_value = "diff"
@@ -160,6 +168,9 @@ class TestLocalGitDiffProvider(unittest.TestCase):
         def track_fetch(branch):
             call_order.append(f"fetch_{branch}")
 
+        def track_checkout(sha):
+            call_order.append("checkout_commit")
+
         def track_diff(base, head):
             call_order.append("diff")
             return "diff content"
@@ -168,15 +179,47 @@ class TestLocalGitDiffProvider(unittest.TestCase):
             track_check_clean
         )
         self.mock_git_service.fetch_branch.side_effect = track_fetch
+        self.mock_git_service.checkout_commit.side_effect = track_checkout
         self.mock_git_service.get_branch_diff.side_effect = track_diff
 
         self.provider.get_pr_diff(123)
 
-        # Verify order: check clean → fetch base → fetch head → diff
+        # Verify order: check clean → fetch base → fetch head → checkout → diff
         self.assertEqual(
             call_order,
-            ["check_clean", "fetch_main", "fetch_feature", "diff"],
+            ["check_clean", "fetch_main", "fetch_feature", "checkout_commit", "diff"],
         )
+
+    def test_get_pr_diff_checks_out_head_commit(self):
+        """Test that get_pr_diff checks out the PR's head commit SHA."""
+        mock_pr = MagicMock(spec=PullRequest)
+        mock_pr.base_ref_name = "main"
+        mock_pr.head_ref_name = "feature"
+        mock_pr.head_ref_oid = "deadbeef123"
+        self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
+        self.mock_git_service.check_working_directory_clean.return_value = True
+        self.mock_git_service.get_branch_diff.return_value = "diff content"
+
+        self.provider.get_pr_diff(123)
+
+        self.mock_git_service.checkout_commit.assert_called_once_with("deadbeef123")
+
+    def test_get_pr_diff_aborts_on_checkout_failure(self):
+        """Test that get_pr_diff propagates checkout errors."""
+        mock_pr = MagicMock(spec=PullRequest)
+        mock_pr.base_ref_name = "main"
+        mock_pr.head_ref_name = "feature"
+        mock_pr.head_ref_oid = "badsha"
+        self.mock_gh_runner.get_pull_request.return_value = (True, mock_pr)
+        self.mock_git_service.check_working_directory_clean.return_value = True
+        self.mock_git_service.checkout_commit.side_effect = GitCheckoutError(
+            "Failed to checkout badsha"
+        )
+
+        with self.assertRaises(GitCheckoutError):
+            self.provider.get_pr_diff(123)
+
+        self.mock_git_service.get_branch_diff.assert_not_called()
 
     def test_get_file_content_delegates_to_git_service(self):
         """Test that get_file_content delegates to GitOperationsService."""

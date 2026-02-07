@@ -17,10 +17,11 @@ class LocalGitDiffProvider(DiffProvider):
     """Implementation for local git repository operations.
 
     PR-centric workflow:
-    1. Fetches PR metadata from GitHub API (base/head branches)
+    1. Fetches PR metadata from GitHub API (base/head branches + head SHA)
     2. Safety checks working directory is clean
     3. Fetches branches from remote
-    4. Generates diff using local git
+    4. Checks out PR's head commit (detached HEAD)
+    5. Generates diff using local git
     """
 
     def __init__(
@@ -67,6 +68,7 @@ class LocalGitDiffProvider(DiffProvider):
 
         base_branch = pr_result.base_ref_name
         head_branch = pr_result.head_ref_name
+        head_sha = pr_result.head_ref_oid
 
         # Step 2: Safety check via GitOperationsService
         self.git_service.check_working_directory_clean()
@@ -75,7 +77,10 @@ class LocalGitDiffProvider(DiffProvider):
         self.git_service.fetch_branch(base_branch)
         self.git_service.fetch_branch(head_branch)
 
-        # Step 4: Get diff via GitOperationsService
+        # Step 4: Checkout PR's head commit (detached HEAD)
+        self.git_service.checkout_commit(head_sha)
+
+        # Step 5: Get diff via GitOperationsService
         return self.git_service.get_branch_diff(base_branch, head_branch)
 
     def get_file_content(self, file_path: str, commit_hash: str) -> str:
