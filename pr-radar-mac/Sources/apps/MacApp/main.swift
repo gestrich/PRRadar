@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import PRRadarConfigService
+import SwiftUI
 
 @main
 struct PRRadarMacApp: App {

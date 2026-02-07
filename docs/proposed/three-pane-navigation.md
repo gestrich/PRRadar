@@ -223,7 +223,7 @@ Files to modify:
 - `SettingsView` sheet verified working correctly from the gear button in the config sidebar toolbar — no changes needed
 - Config picker dropdown and `prNumber` UserDefaults were already removed in earlier phases (Phases 2-3)
 
-## - [ ] Phase 8: Architecture Validation
+## - [x] Phase 8: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -238,6 +238,15 @@ Review all commits made during the preceding phases and validate they follow the
 3. For each relevant language, fetch and read ALL skills from the corresponding GitHub repo
 4. Evaluate the changes against each skill's conventions
 5. Fix any violations found
+
+**Technical notes:**
+- Fetched and reviewed all 7 skill documents from `gestrich/swift-app-architecture`: architecture (SKILL.md, principles.md, layers.md, creating-features.md, configuration.md, code-style.md, examples.md) and swiftui (SKILL.md, patterns.md)
+- **Layer placement validated**: `PRMetadata` correctly in Services (shared model), `PRDiscoveryService` correctly in Services (stateful utility, not orchestration), `@Observable` only in Apps layer, dependency flow is downward only
+- **Architecture principles validated**: Use cases called one-per-action, `loadExistingOutputs()` reuses `PhaseOutputParser` (Services) for file parsing which is acceptable since it's reading pre-existing files, not orchestrating operations
+- **SwiftUI patterns validated**: `@MainActor @Observable` on model, root model stored via `@State` in App struct, prerequisite data pattern used (ContentUnavailableView placeholders from parent)
+- **Code style fixes applied**:
+  - `main.swift`: Reordered imports to alphabetical (`AppKit`, `PRRadarConfigService`, `SwiftUI`)
+  - `PRMetadata.swift`: Moved nested `Author` struct to the bottom of the type, after stored properties → init → methods, following the file organization convention
 
 ## - [ ] Phase 9: Validation
 

@@ -10,16 +10,6 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
     public let headRefName: String
     public let createdAt: String
 
-    public struct Author: Codable, Sendable, Hashable {
-        public let login: String
-        public let name: String
-
-        public init(login: String, name: String) {
-            self.login = login
-            self.name = name
-        }
-    }
-
     public init(
         number: Int,
         title: String,
@@ -45,5 +35,15 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
             headRefName: "",
             createdAt: ""
         )
+    }
+
+    public struct Author: Codable, Sendable, Hashable {
+        public let login: String
+        public let name: String
+
+        public init(login: String, name: String) {
+            self.login = login
+            self.name = name
+        }
     }
 }
