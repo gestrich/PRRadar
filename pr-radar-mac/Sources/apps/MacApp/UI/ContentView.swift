@@ -12,18 +12,12 @@ struct ContentView: View {
     var body: some View {
         @Bindable var model = model
 
-        VStack(spacing: 0) {
-            NavigationSplitView {
-                sidebar
-            } detail: {
-                phaseDetail
-            }
-
-            PipelineStatusView()
-                .environment(model)
-        }
-        .toolbar {
-            toolbarContent
+        NavigationSplitView {
+            configSidebar
+        } content: {
+            prListView
+        } detail: {
+            phaseDetailView
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -31,156 +25,192 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Sidebar
+    // MARK: - Column 1: Config Sidebar
 
     @ViewBuilder
-    private var sidebar: some View {
+    private var configSidebar: some View {
         @Bindable var model = model
 
-        List(selection: $model.selectedPhase) {
-            Section("Pipeline") {
-                ForEach(PRRadarPhase.allCases, id: \.self) { phase in
-                    sidebarRow(phase)
-                        .tag(phase)
+        let configBinding = Binding<RepoConfiguration?>(
+            get: { model.selectedConfiguration },
+            set: { newConfig in
+                if let config = newConfig {
+                    model.selectConfiguration(config)
+                }
+            }
+        )
+
+        List(model.settings.configurations, selection: configBinding) { config in
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(config.name)
+                        .font(.body)
+                    if config.isDefault {
+                        Text("Default")
+                            .font(.caption2)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.blue.opacity(0.15))
+                            .foregroundStyle(.blue)
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(URL(fileURLWithPath: config.repoPath).lastPathComponent)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .tag(config)
+        }
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 150, ideal: 180)
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gear")
+                }
+                .help("Manage configurations")
+            }
+        }
+    }
+
+    // MARK: - Column 2: PR List
+
+    @ViewBuilder
+    private var prListView: some View {
+        @Bindable var model = model
+
+        Group {
+            if model.selectedConfiguration == nil {
+                ContentUnavailableView(
+                    "Select a Configuration",
+                    systemImage: "folder",
+                    description: Text("Choose a repo configuration from the sidebar.")
+                )
+            } else if model.discoveredPRs.isEmpty {
+                ContentUnavailableView(
+                    "No Reviews Found",
+                    systemImage: "doc.text.magnifyingglass",
+                    description: Text("No PR review data found in the output directory.")
+                )
+            } else {
+                List(model.discoveredPRs, selection: $model.selectedPR) { pr in
+                    prRow(pr)
+                        .tag(pr)
                 }
             }
         }
-        .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 160, ideal: 200)
+        .navigationSplitViewColumnWidth(min: 200, ideal: 280)
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    model.refreshPRList()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("Refresh PR list")
+            }
+        }
     }
 
     @ViewBuilder
-    private func sidebarRow(_ phase: PRRadarPhase) -> some View {
-        HStack(spacing: 8) {
-            phaseIcon(phase)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(phaseName(phase))
-                    .font(.body)
-                Text(phaseSubtitle(phase))
+    private func prRow(_ pr: PRMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text("#\(pr.number)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.secondary.opacity(0.15))
+                    .clipShape(Capsule())
+
+                stateIndicator(pr.state)
+
+                Spacer()
+            }
+
+            Text(pr.title)
+                .font(.body)
+                .lineLimit(2)
+
+            if !pr.headRefName.isEmpty {
+                Text(pr.headRefName)
+                    .font(.caption)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if !pr.author.login.isEmpty {
+                Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            statusBadge(for: model.stateFor(phase))
         }
         .padding(.vertical, 2)
     }
 
     @ViewBuilder
-    private func phaseIcon(_ phase: PRRadarPhase) -> some View {
-        Image(systemName: phaseIconName(phase))
-            .foregroundStyle(.secondary)
-            .frame(width: 20)
-    }
-
-    private func phaseIconName(_ phase: PRRadarPhase) -> String {
-        switch phase {
-        case .pullRequest: "doc.text.magnifyingglass"
-        case .focusAreas: "scope"
-        case .rules: "list.clipboard"
-        case .tasks: "checklist"
-        case .evaluations: "brain"
-        case .report: "chart.bar.doc.horizontal"
+    private func stateIndicator(_ state: String) -> some View {
+        let uppercased = state.uppercased()
+        switch uppercased {
+        case "OPEN":
+            Circle()
+                .fill(.green)
+                .frame(width: 8, height: 8)
+        case "MERGED":
+            Circle()
+                .fill(.purple)
+                .frame(width: 8, height: 8)
+        case "CLOSED":
+            Circle()
+                .fill(.red)
+                .frame(width: 8, height: 8)
+        default:
+            Circle()
+                .fill(.gray.opacity(0.4))
+                .frame(width: 8, height: 8)
         }
     }
 
-    private func phaseName(_ phase: PRRadarPhase) -> String {
-        switch phase {
-        case .pullRequest: "Diff"
-        case .focusAreas: "Focus Areas"
-        case .rules: "Rules"
-        case .tasks: "Tasks"
-        case .evaluations: "Evaluations"
-        case .report: "Report"
-        }
-    }
-
-    private func phaseSubtitle(_ phase: PRRadarPhase) -> String {
-        switch phase {
-        case .pullRequest: "Phase 1"
-        case .focusAreas: "Phase 2"
-        case .rules: "Phase 3"
-        case .tasks: "Phase 4"
-        case .evaluations: "Phase 5"
-        case .report: "Phase 6"
-        }
-    }
+    // MARK: - Column 3: Phase Detail
 
     @ViewBuilder
-    private func statusBadge(for state: PRReviewModel.PhaseState) -> some View {
-        switch state {
-        case .idle:
-            EmptyView()
-        case .running:
-            ProgressView()
-                .controlSize(.mini)
-        case .completed:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.caption)
-        case .failed:
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.red)
-                .font(.caption)
-        }
-    }
+    private var phaseDetailView: some View {
+        if model.selectedPR != nil {
+            VStack(spacing: 0) {
+                PipelineStatusView()
+                    .environment(model)
 
-    // MARK: - Detail
+                Divider()
 
-    @ViewBuilder
-    private var phaseDetail: some View {
-        VStack(spacing: 0) {
-            globalInputBar
-            Divider()
-            PhaseInputView(phase: model.selectedPhase)
-                .environment(model)
-                .padding()
-            Divider()
-            phaseOutputView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
+                PhaseInputView(phase: model.selectedPhase)
+                    .environment(model)
+                    .padding()
 
-    @ViewBuilder
-    private var globalInputBar: some View {
-        @Bindable var model = model
+                Divider()
 
-        HStack(spacing: 12) {
-            Picker("Config", selection: Binding(
-                get: { model.selectedConfiguration?.id },
-                set: { id in
-                    if let id, let config = model.settings.configurations.first(where: { $0.id == id }) {
-                        model.selectConfiguration(config)
+                phaseOutputView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Button("Run All") {
+                        Task { await model.runAllPhases() }
                     }
-                }
-            )) {
-                if model.settings.configurations.isEmpty {
-                    Text("No configurations").tag(nil as UUID?)
-                }
-                ForEach(model.settings.configurations) { config in
-                    Text(config.name).tag(config.id as UUID?)
+                    .disabled(model.isAnyPhaseRunning || model.selectedConfiguration == nil || model.prNumber.isEmpty)
                 }
             }
-            .frame(maxWidth: 200)
-
-            HStack(spacing: 4) {
-                Text("PR")
-                    .foregroundStyle(.secondary)
-                TextField("#", text: $model.prNumber)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-            }
-
-            Spacer()
-
-            Button("Run All") {
-                Task { await model.runAllPhases() }
-            }
-            .disabled(model.isAnyPhaseRunning || model.selectedConfiguration == nil || model.prNumber.isEmpty)
+        } else {
+            ContentUnavailableView(
+                "Select a Pull Request",
+                systemImage: "arrow.left.circle",
+                description: Text("Choose a PR from the list to view its review data.")
+            )
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.bar)
     }
 
     // MARK: - Phase Output Views
@@ -347,20 +377,6 @@ struct ContentView: View {
                         proxy.scrollTo("logBottom", anchor: .bottom)
                     }
             }
-        }
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gear")
-            }
-            .help("Manage configurations")
         }
     }
 }

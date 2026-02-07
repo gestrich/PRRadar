@@ -69,7 +69,7 @@ Files to modify:
 - UserDefaults-backed `prNumber` storage removed; manual entry stored in an in-memory `manualPRNumber` property
 - Existing `globalInputBar` text field binding (`$model.prNumber`) still works via the writable computed property — will be removed in Phase 3
 
-## - [ ] Phase 3: Three-column ContentView refactor
+## - [x] Phase 3: Three-column ContentView refactor
 
 Refactor `ContentView` from 2-column to 3-column `NavigationSplitView`.
 
@@ -114,6 +114,14 @@ NavigationSplitView {
 
 Files to modify:
 - `Sources/apps/MacApp/UI/ContentView.swift`
+
+**Technical notes:**
+- Config sidebar uses a custom `Binding<RepoConfiguration?>` that calls `model.selectConfiguration(_:)` on set, which triggers PR list refresh
+- PR row displays inline: number badge (capsule), state color indicator (green/purple/red/gray circle), title (2-line limit), branch name (monospaced), and author name
+- `globalInputBar` fully removed — config selection is column 1, PR selection is column 2, "Run All" moved to detail toolbar
+- Old phase sidebar (list of 6 pipeline phases) removed — `PipelineStatusView` horizontal bar serves as the phase selector in the detail column
+- `PipelineStatusView` moved from bottom of the old layout to top of the detail column (above `PhaseInputView`)
+- Gear/settings toolbar button moved to column 1 sidebar toolbar
 
 ## - [ ] Phase 4: PR list row view
 
