@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
 from prradar.domain.diff import Hunk
-from prradar.domain.focus_area import FocusArea
+from prradar.domain.focus_area import FocusArea, FocusType
 
 
 # ============================================================
@@ -178,6 +178,7 @@ class FocusGeneratorService:
                     description=method_name,
                     hunk_index=hunk_index,
                     hunk_content=annotated_content,
+                    focus_type=FocusType.METHOD,
                 )
             )
 
@@ -225,6 +226,7 @@ class FocusGeneratorService:
                 description=f"hunk {hunk_index}",
                 hunk_index=hunk_index,
                 hunk_content=annotated_content,
+                focus_type=FocusType.METHOD,
             )
         ]
 

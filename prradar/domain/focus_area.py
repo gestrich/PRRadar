@@ -3,7 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import ClassVar
+
+
+class FocusType(Enum):
+    """Type of focus area granularity.
+
+    Determines how diff content is grouped for rule evaluation:
+    - FILE: All changes in a file grouped together (architecture, conventions)
+    - METHOD: One focus area per changed method (implementation correctness)
+    """
+
+    FILE = "file"
+    METHOD = "method"
 
 
 @dataclass
@@ -26,6 +39,8 @@ class FocusArea:
     hunk_index: int
     hunk_content: str
 
+    focus_type: FocusType = FocusType.FILE
+
     TYPE: ClassVar[str] = "focus_area"
 
     # --------------------------------------------------------
@@ -42,6 +57,11 @@ class FocusArea:
         Returns:
             Typed FocusArea instance
         """
+        try:
+            focus_type = FocusType(data["focus_type"])
+        except (KeyError, ValueError):
+            focus_type = FocusType.FILE
+
         return cls(
             focus_id=data.get("focus_id", ""),
             file_path=data.get("file_path", ""),
@@ -50,6 +70,7 @@ class FocusArea:
             description=data.get("description", ""),
             hunk_index=data.get("hunk_index", 0),
             hunk_content=data.get("hunk_content", ""),
+            focus_type=focus_type,
         )
 
     # --------------------------------------------------------
@@ -66,6 +87,7 @@ class FocusArea:
             "description": self.description,
             "hunk_index": self.hunk_index,
             "hunk_content": self.hunk_content,
+            "focus_type": self.focus_type.value,
         }
 
     # --------------------------------------------------------

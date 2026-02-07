@@ -8,7 +8,7 @@ from prradar.domain.agent_outputs import (
 from prradar.domain.diff import GitDiff, Hunk
 from prradar.domain.diff_source import DiffSource
 from prradar.domain.evaluation_task import EvaluationTask
-from prradar.domain.focus_area import FocusArea
+from prradar.domain.focus_area import FocusArea, FocusType
 from prradar.domain.mention import MentionAction
 from prradar.domain.review import (
     CategorySummary,
@@ -22,6 +22,7 @@ __all__ = [
     "AppliesTo",
     "CategorySummary",
     "FocusArea",
+    "FocusType",
     "DiffSource",
     "EvaluationSummary",
     "EvaluationTask",

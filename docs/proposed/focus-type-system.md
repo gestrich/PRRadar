@@ -39,7 +39,7 @@ Rules declare their focus type in YAML frontmatter. The system generates focus a
 
 ## Phases
 
-## - [ ] Phase 1: FocusType Enum and Domain Model Updates
+## - [x] Phase 1: FocusType Enum and Domain Model Updates
 
 Add `FocusType` as a first-class concept to the domain layer.
 
@@ -62,10 +62,15 @@ Add `FocusType` as a first-class concept to the domain layer.
 
 6. Update tests: verify serialization, default value, round-trip
 
-**Files to modify:**
-- `prradar/domain/focus_area.py`
-- `prradar/domain/__init__.py`
-- Tests
+**Files modified:**
+- `prradar/domain/focus_area.py` — Added `FocusType` enum and `focus_type` field to `FocusArea`
+- `prradar/domain/__init__.py` — Exported `FocusType`
+- `prradar/services/focus_generator.py` — Tagged all generated focus areas (main + fallback) as `FocusType.METHOD`
+- `tests/test_focus_type.py` — 16 new tests covering enum values, defaults, serialization round-trip, invalid/missing fallback, and generator tagging
+
+**Technical notes:**
+- `from_dict()` uses try/except on `FocusType(data["focus_type"])` to handle both missing keys (`KeyError`) and invalid values (`ValueError`), defaulting to `FocusType.FILE` — consistent with existing enum fallback patterns (e.g., `RuleScope`)
+- All 501 tests pass (485 existing + 16 new)
 
 ---
 
