@@ -177,61 +177,51 @@ Created settings model, persistence service, and configuration management UI:
 
 ---
 
-## - [ ] Phase 4: Use Cases for Phases 2–6 (Features Layer)
+## - [x] Phase 4: Use Cases for Phases 2–6 (Features Layer)
 
 Create use cases in the features layer for each remaining pipeline phase. These follow the same pattern as `FetchDiffUseCase` — execute via `PRRadarCLIRunner`, track progress with an `AsyncThrowingStream`, and parse output files into domain models.
 
-### New files in `Sources/features/PRReviewFeature/`
+### Completed
 
-**Progress model:** `models/PhaseProgress.swift`
-- Generalize the progress enum to work for any phase:
-  ```swift
-  enum PhaseProgress<Output: Sendable>: Sendable {
-      case running(phase: PRRadarPhase)
-      case completed(output: Output)
-      case failed(error: String, logs: String)
-  }
-  ```
+Created 8 new files across 3 targets:
 
-**Use cases:**
+**Progress model:** `Sources/features/PRReviewFeature/models/PhaseProgress.swift`
+- Generic `PhaseProgress<Output: Sendable>` enum with `.running(phase:)`, `.completed(output:)`, `.failed(error:, logs:)` cases
+- Replaces the non-generic `FetchDiffProgress` pattern with a reusable generic
 
-- `usecases/FetchRulesUseCase.swift` — Phase 2 (rules command)
-  - Executes `PRRadar.Agent.Rules` with pr number and rules directory
-  - Parses output: focus areas JSON, all-rules JSON, task JSONs
-  - Returns: `RulesPhaseOutput` (focusAreas: [FocusArea], rules: [ReviewRule], tasks: [EvaluationTaskOutput])
+**Use cases in `Sources/features/PRReviewFeature/usecases/`:**
 
-- `usecases/EvaluateUseCase.swift` — Phase 3 (evaluate command)
-  - Executes `PRRadar.Agent.Evaluate` with pr number
-  - Parses output: evaluation JSONs + summary JSON
-  - Returns: `EvaluationPhaseOutput` (evaluations: [RuleEvaluationResult], summary: EvaluationSummary)
+- `FetchRulesUseCase.swift` — Executes `PRRadar.Agent.Rules`, parses focus area type files from phase-2, all-rules.json from phase-3, and task JSONs from phase-4. Returns `RulesPhaseOutput` (focusAreas, rules, tasks).
 
-- `usecases/GenerateReportUseCase.swift` — Phase 4 (report command)
-  - Executes `PRRadar.Agent.Report` with pr number and min score
-  - Parses output: summary.json and summary.md
-  - Returns: `ReportPhaseOutput` (report: ReviewReport, markdownContent: String)
+- `EvaluateUseCase.swift` — Executes `PRRadar.Agent.Evaluate`, parses individual evaluation JSONs and summary.json from phase-5. Returns `EvaluationPhaseOutput` (evaluations, summary).
 
-- `usecases/PostCommentsUseCase.swift` — Phase 5 (comment command)
-  - Executes `PRRadar.Agent.Comment` with pr number, repo, dry-run flag
-  - In dry-run mode: returns preview of comments to post
-  - In live mode: posts comments and returns results
-  - Returns: `CommentPhaseOutput` (comments: [CommentPreview], posted: Bool)
+- `GenerateReportUseCase.swift` — Executes `PRRadar.Agent.Report`, parses summary.json and summary.md from phase-6. Returns `ReportPhaseOutput` (report, markdownContent).
 
-- `usecases/AnalyzeUseCase.swift` — Phase 6 (full pipeline)
-  - Executes `PRRadar.Agent.Analyze` with all options
-  - Streams progress across all phases
-  - Returns: combined output from all phases
+- `PostCommentsUseCase.swift` — Executes `PRRadar.Agent.Comment` with `-n` (non-interactive) flag. Supports dry-run mode. Returns `CommentPhaseOutput` (cliOutput, posted).
 
-**Output file parsing:** `services/PhaseOutputParser.swift`
-- Add to `PRRadarCLIService` target
-- Generic JSON parsing of phase output directories
-- `parsePhaseOutput<T: Decodable>(config:, prNumber:, phase:, filename:) throws -> T`
-- `listPhaseFiles(config:, prNumber:, phase:) throws -> [String]`
-- `readPhaseFile(config:, prNumber:, phase:, filename:) throws -> Data`
+- `AnalyzeUseCase.swift` — Executes `PRRadar.Agent.Analyze` with all pipeline options (rules-dir, stop-after, skip-to, min-score, etc.). Collects output files from all phases. Returns `AnalyzePhaseOutput` (cliOutput, files by phase).
 
-### Package.swift changes
+**Output file parsing:** `Sources/services/PRRadarCLIService/PhaseOutputParser.swift`
+- `PhaseOutputParser` enum with generic JSON parsing utilities
+- `parsePhaseOutput<T: Decodable>(config:, prNumber:, phase:, filename:)` — single file decode
+- `parseAllPhaseFiles<T: Decodable>(config:, prNumber:, phase:, fileExtension:)` — batch decode all matching files
+- `readPhaseFile(config:, prNumber:, phase:, filename:)` — raw Data access
+- `readPhaseTextFile(config:, prNumber:, phase:, filename:)` — String access
+- `listPhaseFiles(config:, prNumber:, phase:)` — directory listing
+- `PhaseOutputError` enum for fileNotFound and unreadableFile errors
 
-- `PRReviewFeature` target already depends on `PRRadarCLIService` and `PRRadarConfigService`
-- Add dependency on `PRRadarModels` for the output types
+**New model:** `Sources/services/PRRadarModels/FocusAreaTypeOutput.swift`
+- `FocusAreaTypeOutput` struct wrapping the per-type focus area JSON files (method.json, file.json) with their metadata (pr_number, generated_at, focus_type, total_hunks_processed, generation_cost_usd)
+
+### Technical notes
+
+- No Package.swift changes needed — `PRReviewFeature` already had `PRRadarModels` as a dependency
+- All use cases follow the same pattern as `FetchDiffUseCase`: init with config + environment, execute returns `AsyncThrowingStream`
+- `CommentPhaseOutput` returns raw CLI output rather than structured data, since the comment command's output is textual (not JSON)
+- `AnalyzeUseCase` always passes `-n` (noInteractive) since the Mac app can't respond to CLI prompts
+- Focus areas are parsed from per-type files (method.json, file.json) and aggregated into a flat array
+- All-rules.json is a bare JSON array (not wrapped in an object), decoded directly as `[ReviewRule]`
+- Evaluation files exclude summary.json when parsing individual results to avoid double-counting
 
 ---
 
