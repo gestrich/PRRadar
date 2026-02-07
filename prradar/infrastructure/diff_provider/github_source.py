@@ -1,10 +1,13 @@
 """GitHub API diff provider.
 
 Provides diff acquisition using GitHub API via gh CLI.
-This is the default and simplest path - no local repo required.
+Both providers checkout the PR branch locally; this one uses GitHub API for the diff text.
 """
 
 from __future__ import annotations
+
+from prradar.domain.github import PullRequest
+from prradar.services.git_operations import GitOperationsService
 
 from ..github.runner import GhCommandRunner
 from .base import DiffProvider
@@ -13,26 +16,36 @@ from .base import DiffProvider
 class GitHubDiffProvider(DiffProvider):
     """Implementation for GitHub repository operations using gh CLI.
 
-    Uses gh CLI for all GitHub API interactions:
-    - Handles authentication automatically
-    - Simpler than managing API tokens with requests
-    - Consistent with PRRadar's existing patterns
+    PR-centric workflow:
+    1. Fetches PR metadata from GitHub API (base/head branches + head SHA)
+    2. Safety checks working directory is clean
+    3. Fetches branches from remote
+    4. Checks out PR's head commit (detached HEAD)
+    5. Returns diff from gh pr diff (GitHub API)
     """
 
-    def __init__(self, repo_owner: str, repo_name: str, gh_runner: GhCommandRunner):
+    def __init__(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        git_service: GitOperationsService,
+        gh_runner: GhCommandRunner,
+    ):
         """Initialize with dependencies.
 
         Args:
             repo_owner: GitHub repository owner
             repo_name: GitHub repository name
+            git_service: Service for git operations (injected)
             gh_runner: GitHub CLI runner for API operations (injected)
         """
         self.repo_owner = repo_owner
         self.repo_name = repo_name
+        self.git_service = git_service
         self.gh_runner = gh_runner
 
     def get_pr_diff(self, pr_number: int) -> str:
-        """Fetch PR diff from GitHub API via gh CLI.
+        """Fetch PR diff from GitHub API via gh CLI, after checking out the branch.
 
         Args:
             pr_number: Pull request number
@@ -42,11 +55,28 @@ class GitHubDiffProvider(DiffProvider):
 
         Raises:
             RuntimeError: If PR diff cannot be fetched from GitHub
-
-        Note:
-            This is the default and simplest path - no local repo required.
-            Uses gh CLI which handles authentication automatically.
         """
+        # Step 1: Get PR metadata from GitHub API
+        success, pr_result = self.gh_runner.get_pull_request(pr_number)
+        if not success:
+            raise RuntimeError(f"Failed to fetch PR metadata: {pr_result}")
+        assert isinstance(pr_result, PullRequest)
+
+        base_branch = pr_result.base_ref_name
+        head_branch = pr_result.head_ref_name
+        head_sha = pr_result.head_ref_oid
+
+        # Step 2: Safety check via GitOperationsService
+        self.git_service.check_working_directory_clean()
+
+        # Step 3: Fetch branches via GitOperationsService
+        self.git_service.fetch_branch(base_branch)
+        self.git_service.fetch_branch(head_branch)
+
+        # Step 4: Checkout PR's head commit (detached HEAD)
+        self.git_service.checkout_commit(head_sha)
+
+        # Step 5: Return diff from gh pr diff (existing behavior)
         success, result = self.gh_runner.pr_diff(pr_number)
         if not success:
             raise RuntimeError(f"Failed to fetch PR diff: {result}")
@@ -64,9 +94,6 @@ class GitHubDiffProvider(DiffProvider):
 
         Raises:
             RuntimeError: If file content cannot be fetched from GitHub
-
-        Note:
-            Uses gh api to fetch raw file content.
         """
         success, result = self.gh_runner.run(
             [

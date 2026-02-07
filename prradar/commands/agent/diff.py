@@ -72,7 +72,7 @@ def cmd_diff(
         source,
         repo.owner,
         repo.name,
-        local_repo_path=local_repo_path,
+        local_repo_path=local_repo_path or ".",
     )
 
     # Fetch and store diff

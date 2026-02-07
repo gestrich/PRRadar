@@ -2,9 +2,9 @@
 
 Tests cover:
 - Factory creates correct provider types
-- GitHub provider instantiation
+- GitHub provider instantiation with GitOperationsService
 - Local provider instantiation with GitOperationsService injection
-- Default parameters and overrides
+- Both providers receive local_repo_path (required for both)
 """
 
 import unittest
@@ -23,7 +23,8 @@ class TestDiffProviderFactory(unittest.TestCase):
         provider = create_diff_provider(
             source=DiffSource.GITHUB_API,
             repo_owner="testowner",
-            repo_name="testrepo"
+            repo_name="testrepo",
+            local_repo_path=".",
         )
 
         self.assertIsInstance(provider, GitHubDiffProvider)
@@ -34,7 +35,7 @@ class TestDiffProviderFactory(unittest.TestCase):
             source=DiffSource.LOCAL_GIT,
             repo_owner="testowner",
             repo_name="testrepo",
-            local_repo_path="."
+            local_repo_path=".",
         )
 
         self.assertIsInstance(provider, LocalGitDiffProvider)
@@ -44,18 +45,33 @@ class TestDiffProviderFactory(unittest.TestCase):
         provider = create_diff_provider(
             source=DiffSource.GITHUB_API,
             repo_owner="myorg",
-            repo_name="myrepo"
+            repo_name="myrepo",
+            local_repo_path=".",
         )
 
         self.assertEqual(provider.repo_owner, "myorg")
         self.assertEqual(provider.repo_name, "myrepo")
+
+    def test_github_provider_injects_git_service(self):
+        """Test that GitHubDiffProvider receives GitOperationsService dependency."""
+        provider = create_diff_provider(
+            source=DiffSource.GITHUB_API,
+            repo_owner="testowner",
+            repo_name="testrepo",
+            local_repo_path="/some/path",
+        )
+
+        from prradar.services.git_operations import GitOperationsService
+        self.assertIsInstance(provider.git_service, GitOperationsService)
+        self.assertEqual(str(provider.git_service.repo_path), "/some/path")
 
     def test_github_provider_injects_gh_runner(self):
         """Test that GitHubDiffProvider receives GhCommandRunner dependency."""
         provider = create_diff_provider(
             source=DiffSource.GITHUB_API,
             repo_owner="testowner",
-            repo_name="testrepo"
+            repo_name="testrepo",
+            local_repo_path=".",
         )
 
         self.assertIsNotNone(provider.gh_runner)
@@ -68,22 +84,11 @@ class TestDiffProviderFactory(unittest.TestCase):
             source=DiffSource.LOCAL_GIT,
             repo_owner="myorg",
             repo_name="myrepo",
-            local_repo_path="."
+            local_repo_path=".",
         )
 
         self.assertEqual(provider.repo_owner, "myorg")
         self.assertEqual(provider.repo_name, "myrepo")
-
-    def test_local_provider_requires_repo_path(self):
-        """Test that Local provider requires local_repo_path."""
-        with self.assertRaises(ValueError) as ctx:
-            create_diff_provider(
-                source=DiffSource.LOCAL_GIT,
-                repo_owner="testowner",
-                repo_name="testrepo"
-            )
-
-        self.assertIn("local_repo_path is required", str(ctx.exception))
 
     def test_local_provider_accepts_custom_repo_path(self):
         """Test that Local provider accepts custom local_repo_path."""
@@ -91,7 +96,7 @@ class TestDiffProviderFactory(unittest.TestCase):
             source=DiffSource.LOCAL_GIT,
             repo_owner="testowner",
             repo_name="testrepo",
-            local_repo_path="/custom/path"
+            local_repo_path="/custom/path",
         )
 
         self.assertEqual(str(provider.git_service.repo_path), "/custom/path")
@@ -102,24 +107,23 @@ class TestDiffProviderFactory(unittest.TestCase):
             source=DiffSource.LOCAL_GIT,
             repo_owner="testowner",
             repo_name="testrepo",
-            local_repo_path="/some/path"
+            local_repo_path="/some/path",
         )
 
         self.assertIsNotNone(provider.gh_runner)
         from prradar.infrastructure.github.runner import GhCommandRunner
         self.assertIsInstance(provider.gh_runner, GhCommandRunner)
 
-    def test_github_provider_ignores_local_repo_path(self):
-        """Test that GitHub provider ignores local_repo_path argument."""
-        # Should not raise error even if local_repo_path is provided
+    def test_github_provider_uses_repo_path(self):
+        """Test that GitHub provider configures GitOperationsService with the given path."""
         provider = create_diff_provider(
             source=DiffSource.GITHUB_API,
             repo_owner="testowner",
             repo_name="testrepo",
-            local_repo_path="/some/path"
+            local_repo_path="/my/repo",
         )
 
-        self.assertIsInstance(provider, GitHubDiffProvider)
+        self.assertEqual(str(provider.git_service.repo_path), "/my/repo")
 
 
 if __name__ == "__main__":

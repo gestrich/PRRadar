@@ -64,7 +64,7 @@ Update tests in `tests/test_local_git_repo.py`:
 
 **Completed.** Added `checkout_commit(head_sha)` step between fetch and diff in `LocalGitDiffProvider.get_pr_diff()`. Updated all existing tests to supply `head_ref_oid` on mock PRs. Added two new tests: `test_get_pr_diff_checks_out_head_commit` (verifies correct SHA passed) and `test_get_pr_diff_aborts_on_checkout_failure` (verifies `GitCheckoutError` propagates and diff is not attempted). Workflow order test updated to verify `check_clean → fetch × 2 → checkout_commit → diff`. All 334 tests pass.
 
-## - [ ] Phase 3: Add checkout flow to GitHubDiffProvider
+## - [x] Phase 3: Add checkout flow to GitHubDiffProvider
 
 > Skills: `/python-architecture:dependency-injection`, `/python-architecture:creating-services`, `/python-architecture:testing-services`
 
@@ -84,6 +84,8 @@ Update factory in `prradar/infrastructure/diff_provider/factory.py` to inject `G
 Both providers now require `local_repo_path`. Update factory signature accordingly — `local_repo_path` becomes required for both.
 
 Update tests in `tests/test_github_repo.py` and `tests/test_diff_provider_factory.py`.
+
+**Completed.** Injected `GitOperationsService` into `GitHubDiffProvider` constructor (matching `LocalGitDiffProvider`'s signature). `get_pr_diff()` now fetches PR metadata, checks clean working directory, fetches branches, checks out head commit, then fetches diff via `gh pr diff`. Factory's `local_repo_path` parameter is now required (`str`, no longer `str | None`) since both providers need it for checkout. `cmd_diff` defaults `local_repo_path` to `"."` when not provided (pending Phase 4 CLI rename). Tests rewritten with full checkout workflow verification including order test (`check_clean → fetch × 2 → checkout_commit → pr_diff`), dirty directory abort, checkout failure propagation, and `GitOperationsService` injection for both factory paths. All 341 tests pass.
 
 ## - [ ] Phase 4: Rename DiffSource enum and CLI flags
 
