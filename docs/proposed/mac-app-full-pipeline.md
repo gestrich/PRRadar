@@ -89,36 +89,42 @@ Created `Sources/services/PRRadarModels/` with 6 model files:
 
 ---
 
-## - [ ] Phase 2: Copy RefactorApp Git Views and Models
+## - [x] Phase 2: Copy RefactorApp Git Views and Models
 
 Copy the 4 SwiftUI views from RefactorApp's GitUI toolkit and their supporting models into pr-radar-mac. These provide diff viewing, code+blame viewing, and change info display — all needed for reviewing phase outputs.
 
-### Files to copy
+### Completed
 
-**From** `/Users/bill/Developer/personal/RefactorApp/ui-toolkits/GitUI/Sources/GitUI/`:
-- `SimpleDiffView.swift` → `Sources/apps/MacApp/UI/GitViews/SimpleDiffView.swift`
-- `CodeView.swift` → `Sources/apps/MacApp/UI/GitViews/CodeView.swift`
-- `ChangeInfoView.swift` → `Sources/apps/MacApp/UI/GitViews/ChangeInfoView.swift`
-- `CreatePullRequestSheet.swift` → `Sources/apps/MacApp/UI/GitViews/CreatePullRequestSheet.swift`
+Copied 5 model files and 4 view files from RefactorApp:
 
-**From** `/Users/bill/Developer/personal/RefactorApp/sdks/GitClient/Sources/GitClient/`:
-- `DiffParsing/GitDiff.swift` → `Sources/services/PRRadarModels/GitDiffModels/GitDiff.swift`
-- `DiffParsing/Hunk.swift` → `Sources/services/PRRadarModels/GitDiffModels/Hunk.swift`
-- `Models/FileBlameData.swift` → `Sources/services/PRRadarModels/GitDiffModels/FileBlameData.swift`
-- `Models/Ownership.swift` → `Sources/services/PRRadarModels/GitDiffModels/Ownership.swift`
-- `Models/GitAuthor.swift` → `Sources/services/PRRadarModels/GitDiffModels/GitAuthor.swift`
+**Models** → `Sources/services/PRRadarModels/GitDiffModels/`:
+- `GitAuthor.swift` — Author name/email struct
+- `Ownership.swift` — Blame ownership with commit info
+- `FileBlameData.swift` — File content + blame sections
+- `Hunk.swift` — Single diff hunk with line ranges and parsing
+- `GitDiff.swift` — Complete diff with hunks, file sections, changed line tracking; also `DiffSection`, `DiffLine`, `DiffLineType`
 
-### Adaptations needed
+**Views** → `Sources/apps/MacApp/UI/GitViews/`:
+- `SimpleDiffView.swift` — Raw diff text display with copy button
+- `CodeView.swift` — Code viewer with line numbers, blame sidebar, author popovers, line highlighting; includes `CodeLineView` and `AuthorSectionView`
+- `ChangeInfoView.swift` — Card showing who/when/why a line changed, with copy and diff sheet
+- `CreatePullRequestSheet.swift` — PR creation modal (simplified)
 
-- Remove `import GitClient` from views → models are now in `PRRadarModels`
-- Remove `import GithubService` from `CreatePullRequestSheet.swift` → may need to stub or simplify the GitHub service dependency (or skip this view initially since we have our own comment flow)
-- Update any relative package references to use the new target names
-- Verify macOS 15+ API compatibility (should be fine since both target macOS 15)
+### Adaptations made
 
-### Package.swift changes
+- Replaced `import GitClient` with `import PRRadarModels` in all views
+- Removed `import GitUI` self-import from `ChangeInfoView.swift`
+- Simplified `CreatePullRequestSheet.swift` to remove `GithubService`/`OctoKit` dependency — replaced with a callback-based API using `PullRequestDraft` struct and `onCreate` closure, letting the caller handle actual PR submission
+- Removed preview providers that depended on external types (kept views clean)
+- No Package.swift changes needed — model files are auto-included in `PRRadarModels` target, views are auto-included in `MacApp` target
 
-- Add copied model files to `PRRadarModels` target
-- `MacApp` target already depends on models via features layer
+### Technical notes
+
+- All 5 model types are `public`, `Codable`, and `Sendable` — ready for use across the package
+- `GitDiff.fromDiffContent(_:)` provides diff parsing without external dependencies
+- `BlameSection` is not `Equatable` (uses `Binding` in views for selection tracking via `startLine`)
+- `DiffSection` and `DiffLine` use `UUID` for `Identifiable` conformance (not `Codable`)
+- Build verified: `swift build` succeeds with all new files
 
 ---
 
