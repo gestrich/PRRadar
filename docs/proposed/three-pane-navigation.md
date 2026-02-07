@@ -248,7 +248,7 @@ Review all commits made during the preceding phases and validate they follow the
   - `main.swift`: Reordered imports to alphabetical (`AppKit`, `PRRadarConfigService`, `SwiftUI`)
   - `PRMetadata.swift`: Moved nested `Author` struct to the bottom of the type, after stored properties → init → methods, following the file organization convention
 
-## - [ ] Phase 9: Validation
+## - [x] Phase 9: Validation
 
 **Build verification**:
 - `cd pr-radar-mac && swift build` must succeed with no errors
@@ -264,3 +264,15 @@ Review all commits made during the preceding phases and validate they follow the
 - Settings sheet opens and config changes reflect in column 1
 - New PR creation flow works
 - Window resizing and column collapse behavior is reasonable
+
+**Technical notes:**
+- `swift build` succeeds with zero errors and zero warnings
+- Structural verification confirmed all 8 prior phases are correctly implemented:
+  - 3-column `NavigationSplitView` with config sidebar, PR list, and phase detail
+  - `PRMetadata` model with nested `Author` struct, `Codable`/`Sendable`/`Identifiable`/`Hashable` conformance
+  - `PRDiscoveryService.discoverPRs(outputDir:)` scans output directories and parses `gh-pr.json`
+  - `PRReviewModel` has `discoveredPRs`, `selectedPR` (with UserDefaults persistence), computed `prNumber`, `refreshPRList()`, `loadExistingOutputs()`, `restoreSelections()`
+  - `PRListRow` displays number badge, title, state indicator, branch, and author
+  - New PR creation via "+" toolbar popover in column 2
+  - Window `defaultSize` set to 1200×750, imports alphabetically ordered
+  - Architecture compliance validated against `swift-app-architecture` skills in Phase 8
