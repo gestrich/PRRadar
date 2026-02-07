@@ -174,7 +174,7 @@ class TestPhaseSequencerDependencyValidation(unittest.TestCase):
     def test_can_run_rules_with_focus_areas(self) -> None:
         """RULES can run if FOCUS_AREAS exists."""
         focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
-        (focus_dir / "all.json").write_text("{}")
+        (focus_dir / "file.json").write_text("{}")
         assert PhaseSequencer.can_run_phase(self.tmp_path, PipelinePhase.RULES)
 
     def test_cannot_run_rules_without_focus_areas(self) -> None:
@@ -196,7 +196,7 @@ class TestPhaseSequencerDependencyValidation(unittest.TestCase):
     def test_validate_can_run_returns_none_when_valid(self) -> None:
         """validate_can_run returns None when phase can run."""
         focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
-        (focus_dir / "all.json").write_text("{}")
+        (focus_dir / "file.json").write_text("{}")
         assert PhaseSequencer.validate_can_run(self.tmp_path, PipelinePhase.RULES) is None
 
     def test_validate_can_run_returns_error_when_invalid(self) -> None:
@@ -736,16 +736,34 @@ class TestFocusAreasPhaseChecker(unittest.TestCase):
         """Returns not-started when directory missing."""
         status = self.checker.check_status(self.tmp_path)
         assert not status.exists
-        assert status.missing_items == ["all.json"]
+        assert not status.is_complete
 
-    def test_complete(self) -> None:
-        """Returns complete when all.json exists."""
+    def test_complete_with_single_type_file(self) -> None:
+        """Returns complete when a type file exists (e.g., file.json)."""
         focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
-        (focus_dir / "all.json").write_text("{}")
+        (focus_dir / "file.json").write_text("{}")
 
         status = self.checker.check_status(self.tmp_path)
         assert status.is_complete
         assert status.missing_items == []
+
+    def test_complete_with_multiple_type_files(self) -> None:
+        """Returns complete when multiple type files exist."""
+        focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+        (focus_dir / "method.json").write_text("{}")
+        (focus_dir / "file.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.is_complete
+        assert status.completed_count == 2
+
+    def test_empty_directory(self) -> None:
+        """Empty directory exists but has no type files."""
+        PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert not status.is_complete
 
 
 class TestRulesPhaseChecker(unittest.TestCase):
@@ -1529,7 +1547,7 @@ class TestResumeAndStatusIntegration(unittest.TestCase):
         (diff_dir / EFFECTIVE_DIFF_MOVES_FILENAME).write_text("{}")
 
         focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
-        (focus_dir / "all.json").write_text("[]")
+        (focus_dir / "file.json").write_text("[]")
 
         rules_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.RULES)
         (rules_dir / "all-rules.json").write_text("[]")

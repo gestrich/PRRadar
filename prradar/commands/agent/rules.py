@@ -1,16 +1,17 @@
 """Agent rules command - collect and filter applicable rules.
 
-Loads rules from a directory and filters them against the diff.
-Generates focus areas from hunks using Claude, then creates
-evaluation tasks for each rule+focus_area combination.
+Loads rules from a directory, determines needed focus types,
+generates focus areas, and creates evaluation tasks by pairing
+each rule with focus areas of matching type.
 
 Requires:
     <output-dir>/<pr-number>/phase-1-pull-request/diff-parsed.json  - Structured diff with hunks
 
 Artifact outputs:
-    <output-dir>/<pr-number>/phase-2-focus-areas/all.json  - Generated focus areas
-    <output-dir>/<pr-number>/phase-3-rules/all-rules.json  - All collected rules
-    <output-dir>/<pr-number>/phase-4-tasks/*.json           - Evaluation tasks (rule+focus_area)
+    <output-dir>/<pr-number>/phase-2-focus-areas/method.json  - Method-level focus areas (if needed)
+    <output-dir>/<pr-number>/phase-2-focus-areas/file.json    - File-level focus areas (if needed)
+    <output-dir>/<pr-number>/phase-3-rules/all-rules.json     - All collected rules
+    <output-dir>/<pr-number>/phase-4-tasks/*.json              - Evaluation tasks (rule+focus_area)
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from pathlib import Path
 
 from prradar.domain.diff import Hunk
 from prradar.domain.evaluation_task import EvaluationTask
-from prradar.domain.focus_area import FocusArea
+from prradar.domain.focus_area import FocusArea, FocusType
 from prradar.services.focus_generator import FocusGenerationResult, FocusGeneratorService
 from prradar.services.phase_sequencer import DIFF_PARSED_JSON_FILENAME, PhaseSequencer, PipelinePhase
 from prradar.services.rule_loader import RuleLoaderService
@@ -68,11 +69,30 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
 
     hunks = _reconstruct_hunks(hunk_dicts)
 
-    # Generate focus areas using Claude
+    # Load rules first to determine needed focus types
+    try:
+        rule_loader = RuleLoaderService.create(rules_dir)
+    except ValueError as e:
+        print(f"  Error: {e}")
+        return 1
+
+    print("  Loading rules...")
+    all_rules = rule_loader.load_all_rules()
+    print(f"  Loaded {len(all_rules)} rules")
+
+    if not all_rules:
+        print("  Warning: No rules found in rules directory")
+        return 0
+
+    # Determine which focus types are needed based on loaded rules
+    needed_types = {rule.focus_type for rule in all_rules}
+    print(f"  Needed focus types: {', '.join(t.value for t in sorted(needed_types, key=lambda t: t.value))}")
+
+    # Generate focus areas for needed types only
     print("  Generating focus areas...")
     try:
         focus_result = asyncio.run(
-            FocusGeneratorService().generate_all_focus_areas(hunks, pr_number)
+            FocusGeneratorService().generate_all_focus_areas(hunks, pr_number, requested_types=needed_types)
         )
     except Exception as e:
         print(f"  Error generating focus areas: {e}")
@@ -84,34 +104,24 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
     if focus_result.generation_cost_usd > 0:
         print(f"  Generation cost: ${focus_result.generation_cost_usd:.4f}")
 
-    # Save focus areas to phase-2-focus-areas/
+    # Save focus areas to per-type files in phase-2-focus-areas/
     focus_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.FOCUS_AREAS)
-    focus_areas_path = focus_dir / "all.json"
-    focus_areas_data = {
-        "pr_number": pr_number,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "focus_areas": [fa.to_dict() for fa in focus_areas],
-        "total_hunks_processed": focus_result.total_hunks_processed,
-        "generation_cost_usd": focus_result.generation_cost_usd,
-    }
-    focus_areas_path.write_text(json.dumps(focus_areas_data, indent=2))
-    print(f"  Wrote {focus_areas_path}")
+    generated_at = datetime.now(timezone.utc).isoformat()
 
-    # Create rule loader service
-    try:
-        rule_loader = RuleLoaderService.create(rules_dir)
-    except ValueError as e:
-        print(f"  Error: {e}")
-        return 1
-
-    # Load all rules
-    print("  Loading rules...")
-    all_rules = rule_loader.load_all_rules()
-    print(f"  Loaded {len(all_rules)} rules")
-
-    if not all_rules:
-        print("  Warning: No rules found in rules directory")
-        return 0
+    for focus_type in needed_types:
+        typed_areas = [fa for fa in focus_areas if fa.focus_type == focus_type]
+        typed_cost = focus_result.generation_cost_usd if focus_type == FocusType.METHOD else 0.0
+        type_file = focus_dir / f"{focus_type.value}.json"
+        type_data = {
+            "pr_number": pr_number,
+            "generated_at": generated_at,
+            "focus_type": focus_type.value,
+            "focus_areas": [fa.to_dict() for fa in typed_areas],
+            "total_hunks_processed": focus_result.total_hunks_processed,
+            "generation_cost_usd": typed_cost,
+        }
+        type_file.write_text(json.dumps(type_data, indent=2))
+        print(f"  Wrote {type_file} ({len(typed_areas)} focus areas)")
 
     # Write all rules to rules/all-rules.json
     rules_output_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.RULES)
@@ -128,14 +138,15 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
     for existing_task in tasks_dir.glob("*.json"):
         existing_task.unlink()
 
-    # Filter rules and create evaluation tasks per focus area
+    # Pair rules with focus areas of matching type, then filter
     print("  Filtering rules and creating tasks...")
     tasks_created = 0
     skipped_no_rules = 0
 
     for focus_area in focus_areas:
+        matching_rules = [r for r in all_rules if r.focus_type == focus_area.focus_type]
         applicable_rules = rule_loader.filter_rules_for_focus_area(
-            all_rules, focus_area
+            matching_rules, focus_area
         )
 
         if not applicable_rules:
@@ -198,6 +209,8 @@ def _fallback_focus_areas(
     """Create hunk-level focus areas without calling Claude.
 
     Used as a fallback when focus generation fails.
+    Tags all focus areas as METHOD since this replaces the method-level
+    Claude-based generation.
     """
     focus_areas: list[FocusArea] = []
     for hunk_index, hunk in enumerate(hunks):
@@ -211,6 +224,7 @@ def _fallback_focus_areas(
                 description=f"hunk {hunk_index}",
                 hunk_index=hunk_index,
                 hunk_content=hunk.content,
+                focus_type=FocusType.METHOD,
             )
         )
 

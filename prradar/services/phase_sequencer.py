@@ -165,13 +165,37 @@ class DiffPhaseChecker(_FixedFileChecker):
         super().__init__(PipelinePhase.DIFF, self.REQUIRED_FILES)
 
 
-class FocusAreasPhaseChecker(_FixedFileChecker):
-    """Checks completion status for phase-2-focus-areas."""
+class FocusAreasPhaseChecker:
+    """Checks completion status for phase-2-focus-areas.
 
-    REQUIRED_FILES = ["all.json"]
+    Focus areas are saved as per-type files (e.g., method.json, file.json).
+    The phase is complete if at least one type file exists.
+    """
 
-    def __init__(self) -> None:
-        super().__init__(PipelinePhase.FOCUS_AREAS, self.REQUIRED_FILES)
+    def check_status(self, output_dir: Path) -> PhaseStatus:
+        phase_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.FOCUS_AREAS)
+
+        if not phase_dir.exists():
+            return PhaseStatus(
+                phase=PipelinePhase.FOCUS_AREAS,
+                exists=False,
+                is_complete=False,
+                completed_count=0,
+                total_count=1,
+                missing_items=["<type>.json"],
+            )
+
+        type_files = list(phase_dir.glob("*.json"))
+        has_files = len(type_files) > 0
+
+        return PhaseStatus(
+            phase=PipelinePhase.FOCUS_AREAS,
+            exists=True,
+            is_complete=has_files,
+            completed_count=len(type_files),
+            total_count=len(type_files) if has_files else 1,
+            missing_items=[] if has_files else ["<type>.json"],
+        )
 
 
 class RulesPhaseChecker(_FixedFileChecker):

@@ -150,7 +150,7 @@ Add file-level focus area generation alongside the existing method-level generat
 
 ---
 
-## - [ ] Phase 4: Pipeline Updates — Type-Based Generation and Pairing
+## - [x] Phase 4: Pipeline Updates — Type-Based Generation and Pairing
 
 Update the rules command to generate focus areas by type and pair rules with matching focus areas.
 
@@ -178,10 +178,19 @@ Update the rules command to generate focus areas by type and pair rules with mat
 
 6. Update downstream consumers that read focus area files — load from the type-specific file matching the rule's `focus_type`. Remove references to `all.json`.
 
-**Files to modify:**
-- `prradar/commands/agent/rules.py`
-- `prradar/services/rule_loader.py`
-- Tests
+**Files modified:**
+- `prradar/commands/agent/rules.py` — Restructured `cmd_rules()`: rules loaded before focus generation to determine `needed_types`; focus areas saved to per-type files (`method.json`, `file.json`); task pairing filters by `focus_type` before applying file/grep filters; `_fallback_focus_areas()` tags as `FocusType.METHOD`
+- `prradar/services/phase_sequencer.py` — Replaced `FocusAreasPhaseChecker` from `_FixedFileChecker("all.json")` to dynamic checker that looks for any `*.json` type files; phase is complete when at least one type file exists
+- `tests/test_phase_sequencer.py` — Updated `TestFocusAreasPhaseChecker` tests for type-specific files; added `test_complete_with_multiple_type_files` and `test_empty_directory`; updated dependency validation tests (`all.json` → `file.json`)
+- `tests/test_focus_type.py` — Added `TestTypePairingInPipeline` (7 tests: file/method rules pair with matching type only, mixed rules, needed_types derivation, default rules, task creation preserves type), `TestFocusAreaPerTypeFiles` (3 tests: roundtrip, cost metadata, type isolation), `TestFallbackFocusAreasTaggedMethod` (1 test)
+
+**Technical notes:**
+- Rules are loaded before focus area generation (order change from prior implementation) so `needed_types` can be computed from the loaded rules
+- `filter_rules_for_focus_area()` unchanged — type matching happens in the caller via `[r for r in all_rules if r.focus_type == focus_area.focus_type]` before calling `filter_rules_for_focus_area()` for file pattern/grep filtering
+- No downstream consumers read `all.json` directly — focus areas are embedded within `EvaluationTask` objects, so removing `all.json` requires no downstream changes
+- `FocusAreasPhaseChecker` now uses dynamic file detection (`*.json` glob) instead of fixed file list, matching `TasksPhaseChecker` pattern
+- `generation_cost_usd` is attributed to METHOD type file only (FILE generation is free/no AI calls)
+- All 528 tests pass (515 existing + 13 new, 2 existing removed, 2 existing updated)
 
 ---
 
