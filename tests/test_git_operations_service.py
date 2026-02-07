@@ -16,11 +16,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from prradar.services.git_operations import (
+    GitCheckoutError,
     GitDiffError,
     GitDirtyWorkingDirectoryError,
     GitFetchError,
     GitFileNotFoundError,
     GitOperationsService,
+    GitRepositoryError,
 )
 
 
@@ -209,6 +211,59 @@ class TestGitOperationsService(unittest.TestCase):
 
         args = mock_run.call_args
         self.assertEqual(args[0][0], ["git", "show", "feature-branch:file.py"])
+
+    @patch("subprocess.run")
+    def test_checkout_commit_calls_correct_command(self, mock_run):
+        """Test that checkout_commit calls git checkout with the SHA."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        self.service.checkout_commit("abc123def456")
+
+        args = mock_run.call_args
+        self.assertEqual(args[0][0], ["git", "checkout", "abc123def456"])
+        self.assertEqual(str(args[1]["cwd"]), "/test/repo")
+
+    @patch("subprocess.run")
+    def test_checkout_commit_raises_on_failure(self, mock_run):
+        """Test that checkout_commit raises GitCheckoutError on failure."""
+        mock_run.side_effect = [
+            MagicMock(returncode=0),  # is_git_repository
+            subprocess.CalledProcessError(
+                returncode=1,
+                cmd=["git", "checkout"],
+                stderr="error: pathspec 'badsha' did not match any file(s)",
+            ),
+        ]
+
+        with self.assertRaises(GitCheckoutError) as ctx:
+            self.service.checkout_commit("badsha")
+
+        self.assertIn("Failed to checkout", str(ctx.exception))
+        self.assertIn("badsha", str(ctx.exception))
+
+    @patch("subprocess.run")
+    def test_checkout_commit_raises_on_not_a_repo(self, mock_run):
+        """Test that checkout_commit raises GitRepositoryError when not in a repo."""
+        mock_run.side_effect = subprocess.CalledProcessError(
+            returncode=128,
+            cmd=["git", "rev-parse", "--git-dir"],
+        )
+
+        with self.assertRaises(GitRepositoryError):
+            self.service.checkout_commit("abc123")
+
+    @patch("subprocess.run")
+    def test_checkout_commit_uses_detached_head(self, mock_run):
+        """Test that checkout_commit checks out a SHA directly (detached HEAD)."""
+        mock_run.return_value = MagicMock(returncode=0)
+        sha = "a1b2c3d4e5f6"
+
+        self.service.checkout_commit(sha)
+
+        args = mock_run.call_args
+        cmd = args[0][0]
+        self.assertEqual(cmd, ["git", "checkout", sha])
+        self.assertNotIn("-b", cmd)
 
     def test_service_initializes_with_default_path(self):
         """Test that service can be initialized with default repo path."""

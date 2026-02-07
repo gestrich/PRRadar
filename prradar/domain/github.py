@@ -143,6 +143,7 @@ class PullRequest:
     url: str = ""
     base_ref_name: str = ""
     head_ref_name: str = ""
+    head_ref_oid: str = ""
     additions: int = 0
     deletions: int = 0
     changed_files: int = 0
@@ -166,6 +167,7 @@ class PullRequest:
             url=data.get("url", ""),
             base_ref_name=data.get("baseRefName", ""),
             head_ref_name=data.get("headRefName", ""),
+            head_ref_oid=data.get("headRefOid", ""),
             additions=data.get("additions", 0),
             deletions=data.get("deletions", 0),
             changed_files=data.get("changedFiles", 0),

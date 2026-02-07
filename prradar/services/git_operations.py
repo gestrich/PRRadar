@@ -32,6 +32,12 @@ class GitFileNotFoundError(Exception):
     pass
 
 
+class GitCheckoutError(Exception):
+    """Raised when git checkout fails."""
+
+    pass
+
+
 class GitRepositoryError(Exception):
     """Raised when directory is not a git repository."""
 
@@ -117,6 +123,35 @@ class GitOperationsService:
         except subprocess.CalledProcessError as e:
             raise GitFetchError(
                 f"Failed to fetch {remote}/{branch_name}: {e.stderr}"
+            )
+
+    def checkout_commit(self, sha: str) -> None:
+        """Checkout a specific commit (detached HEAD).
+
+        Args:
+            sha: Commit SHA to checkout
+
+        Raises:
+            GitCheckoutError: If checkout fails
+            GitRepositoryError: If not in a git repository
+        """
+        if not self.is_git_repository():
+            raise GitRepositoryError(
+                f"Not a git repository: {self.repo_path}\n"
+                "Make sure you're running from within a git repository."
+            )
+
+        try:
+            subprocess.run(
+                ["git", "checkout", sha],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise GitCheckoutError(
+                f"Failed to checkout {sha}: {e.stderr}"
             )
 
     def get_branch_diff(

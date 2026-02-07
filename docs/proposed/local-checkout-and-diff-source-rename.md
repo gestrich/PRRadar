@@ -25,7 +25,7 @@ This means `--repo-path` (defaults to `.`) is independent from `--github-diff` (
 
 ## Phases
 
-## - [ ] Phase 1: Add checkout_commit to GitOperationsService and head_ref_oid to PullRequest
+## - [x] Phase 1: Add checkout_commit to GitOperationsService and head_ref_oid to PullRequest
 
 > Skills: `/python-architecture:creating-services`, `/python-architecture:testing-services`, `/python-architecture:domain-modeling`
 
@@ -40,6 +40,8 @@ Add to `prradar/domain/github.py` `PullRequest` dataclass:
 - Update `from_dict()` to parse this field
 
 Add ~4 tests to `tests/test_git_operations_service.py` for `checkout_commit` (success, failure, not a repo).
+
+**Completed.** Added `GitCheckoutError` exception and `checkout_commit(sha)` method following the same guard/subprocess/raise pattern as existing methods. Added `head_ref_oid` field to `PullRequest` with `from_dict` parsing `headRefOid`. Four tests added: command verification, failure error, not-a-repo error, and detached HEAD (no `-b` flag) verification. All 332 tests pass.
 
 ## - [ ] Phase 2: Add checkout flow to LocalGitDiffProvider
 
