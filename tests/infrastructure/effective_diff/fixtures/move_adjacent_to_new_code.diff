@@ -1,0 +1,26 @@
+diff --git a/utils.py b/utils.py
+--- a/utils.py
++++ b/utils.py
+@@ -1,5 +1,0 @@
+-def calculate_total(items):
+-    total = 0
+-    for item in items:
+-        total += item.price
+-    return total
+diff --git a/handlers.py b/handlers.py
+--- a/handlers.py
++++ b/handlers.py
+@@ -0,0 +1,13 @@
++def brand_new_function():
++    do_new_stuff()
++    return "new"
++
++def calculate_total(items):
++    total = 0
++    for item in items:
++        total += item.price
++    return total
++
++def another_new_function():
++    do_other_stuff()
++    return "other"

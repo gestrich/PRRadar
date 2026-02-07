@@ -1,0 +1,17 @@
+diff --git a/utils.py b/utils.py
+--- a/utils.py
++++ b/utils.py
+@@ -1,4 +1,0 @@
+-def validate(order):
+-    if not order.items:
+-        raise ValueError()
+-    return True
+diff --git a/helpers.py b/helpers.py
+--- a/helpers.py
++++ b/helpers.py
+@@ -0,0 +1,5 @@
++def validate(order):
++    """Validate order has items."""
++    if not order.items:
++        raise ValueError()
++    return True
