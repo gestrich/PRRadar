@@ -1,15 +1,16 @@
-// Placeholder — real app entry point will be created in Phase 2
+import AppKit
 import SwiftUI
 
 @main
-struct MacAppMain: App {
+struct PRRadarMacApp: App {
     init() {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
+
     var body: some Scene {
         WindowGroup {
-            Text("PRRadar")
+            ContentView()
         }
         .defaultSize(width: 700, height: 600)
     }

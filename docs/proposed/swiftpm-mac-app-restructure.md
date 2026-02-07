@@ -45,7 +45,7 @@ Remove all swift-lambda-sample-specific targets (Lambda, CLI, AWS, Docker, etc.)
 
 **Completed.** Created top-level `Package.swift` with placeholder source files in `Sources/sdks/PRRadarMacSDK/` and `Sources/apps/MacApp/` so the build succeeds. Real source files will be moved in Phase 2.
 
-## - [ ] Phase 2: Create Sources directory structure and move files
+## - [x] Phase 2: Create Sources directory structure and move files
 
 Create the directory tree and move source files:
 
@@ -66,6 +66,8 @@ Create the directory tree and move source files:
    - Keep `NSApplication.shared.setActivationPolicy(.regular)` and `activate(ignoringOtherApps:)` calls
    - Keep `.defaultSize(width: 700, height: 600)`
    - Wire up `ContentView()` in the `WindowGroup`
+
+**Completed.** Replaced Phase 1 placeholders with real source files. `PRRadar.swift` moved to `Sources/sdks/PRRadarMacSDK/`, `ContentView.swift` copied to `Sources/apps/MacApp/UI/`, and `main.swift` updated with `PRRadarMacApp` struct using the reference project's `NSApplication` activation pattern. Note: `ContentView.swift` still has the old `#filePath` depth (3 levels) — Phase 3 will update it to 5 levels for the new location.
 
 ## - [ ] Phase 3: Update ContentView.swift for new file location
 
