@@ -26,6 +26,12 @@ let package = Package(
             path: "Sources/sdks/PRRadarMacSDK"
         ),
 
+        // Services Layer — Domain Models (Foundation-only, no other target deps)
+        .target(
+            name: "PRRadarModels",
+            path: "Sources/services/PRRadarModels"
+        ),
+
         // Services Layer — Configuration (Foundation-only, no other target deps)
         .target(
             name: "PRRadarConfigService",
@@ -38,6 +44,7 @@ let package = Package(
             dependencies: [
                 .target(name: "PRRadarMacSDK"),
                 .target(name: "PRRadarConfigService"),
+                .target(name: "PRRadarModels"),
                 .product(name: "CLISDK", package: "SwiftCLI"),
             ],
             path: "Sources/services/PRRadarCLIService"
@@ -50,6 +57,7 @@ let package = Package(
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarMacSDK"),
+                .target(name: "PRRadarModels"),
             ],
             path: "Sources/features/PRReviewFeature"
         ),
@@ -60,6 +68,7 @@ let package = Package(
             dependencies: [
                 .target(name: "PRReviewFeature"),
                 .target(name: "PRRadarConfigService"),
+                .target(name: "PRRadarModels"),
                 .product(name: "CLISDK", package: "SwiftCLI"),
             ],
             path: "Sources/apps/MacApp",
