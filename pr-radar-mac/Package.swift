@@ -67,6 +67,7 @@ let package = Package(
             name: "MacApp",
             dependencies: [
                 .target(name: "PRReviewFeature"),
+                .target(name: "PRRadarCLIService"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
                 .product(name: "CLISDK", package: "SwiftCLI"),

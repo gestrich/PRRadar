@@ -1,4 +1,5 @@
 import Foundation
+import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
@@ -19,6 +20,9 @@ final class PRReviewModel {
 
     // Typed phase outputs
     private(set) var diffFiles: [String]?
+    private(set) var fullDiff: GitDiff?
+    private(set) var effectiveDiff: GitDiff?
+    private(set) var moveReport: MoveReport?
     private(set) var rulesOutput: RulesPhaseOutput?
     private(set) var evaluationOutput: EvaluationPhaseOutput?
     private(set) var reportOutput: ReportPhaseOutput?
@@ -149,7 +153,11 @@ final class PRReviewModel {
     func resetPhase(_ phase: PRRadarPhase) {
         phaseStates[phase] = .idle
         switch phase {
-        case .pullRequest: diffFiles = nil
+        case .pullRequest:
+            diffFiles = nil
+            fullDiff = nil
+            effectiveDiff = nil
+            moveReport = nil
         case .focusAreas, .rules, .tasks: rulesOutput = nil
         case .evaluations: evaluationOutput = nil
         case .report: reportOutput = nil
@@ -159,6 +167,9 @@ final class PRReviewModel {
     func resetAllPhases() {
         phaseStates.removeAll()
         diffFiles = nil
+        fullDiff = nil
+        effectiveDiff = nil
+        moveReport = nil
         rulesOutput = nil
         evaluationOutput = nil
         reportOutput = nil
@@ -182,6 +193,7 @@ final class PRReviewModel {
                     break
                 case .completed(let files):
                     diffFiles = files
+                    parseDiffOutputs(config: config)
                     let logs = runningLogs(for: .pullRequest)
                     phaseStates[.pullRequest] = .completed(logs: logs)
                 case .failed(let error):
@@ -192,6 +204,29 @@ final class PRReviewModel {
         } catch {
             let logs = runningLogs(for: .pullRequest)
             phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
+        }
+    }
+
+    private func parseDiffOutputs(config: PRRadarConfig) {
+        // Parse full diff from the human-readable markdown file
+        if let diffText = try? PhaseOutputParser.readPhaseTextFile(
+            config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.md"
+        ) {
+            fullDiff = GitDiff.fromDiffContent(diffText)
+        }
+
+        // Parse effective diff from the human-readable markdown file
+        if let effectiveText = try? PhaseOutputParser.readPhaseTextFile(
+            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.md"
+        ) {
+            effectiveDiff = GitDiff.fromDiffContent(effectiveText)
+        }
+
+        // Parse move report
+        if let report: MoveReport = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-moves.json"
+        ) {
+            moveReport = report
         }
     }
 
@@ -308,6 +343,14 @@ final class PRReviewModel {
         } catch {
             phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "")
         }
+    }
+
+    // MARK: - File Access
+
+    func readFileFromRepo(_ relativePath: String) -> String? {
+        guard let selected = selectedConfiguration else { return nil }
+        let fullPath = "\(selected.repoPath)/\(relativePath)"
+        return try? String(contentsOfFile: fullPath, encoding: .utf8)
     }
 
     // MARK: - Helpers

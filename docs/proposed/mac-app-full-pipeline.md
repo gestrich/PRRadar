@@ -316,41 +316,52 @@ Redesigned the app from a single-phase view into a full pipeline navigation UI:
 
 ---
 
-## - [ ] Phase 7: Effective Diff and Comment Approval Flow
+## - [x] Phase 7: Effective Diff and Comment Approval Flow
 
 Integrate the copied RefactorApp views for the two key review workflows: viewing the effective diff (deduplicated diff for review) and approving comments before they're posted to the PR.
 
-### Effective Diff Viewer
+### Completed
 
-**New:** `Sources/apps/MacApp/UI/ReviewViews/EffectiveDiffView.swift`
-- Prominent entry point from Phase 1 output view ("View Effective Diff" button)
-- Uses `SimpleDiffView` to show the effective diff content
-- Side panel showing move detection report:
-  - List of detected code moves (source file:lines → destination file:lines)
-  - Each move is clickable to highlight in the diff
-- Toggle between "Full Diff" and "Effective Diff"
-- File filter to focus on specific files
+Created 2 new view files in `Sources/apps/MacApp/UI/ReviewViews/` and updated the model and content view to wire them in:
 
-### Comment Approval Flow
+**New: `EffectiveDiffView.swift`**
+- Segmented toggle between "Full Diff" and "Effective Diff" (defaults to effective)
+- HSplitView with file sidebar (hunk count per file) and monospaced diff content
+- Move detection panel: lists each code move with source/target files, matched line count, and match score percentage
+- Clicking a file filters the diff; clicking a move filters to source+target file hunks
+- Summary section showing moves detected, lines moved, and effective changes count
 
-**New:** `Sources/apps/MacApp/UI/ReviewViews/CommentApprovalView.swift`
-- Dedicated review screen accessed from Phase 5 or after evaluation
-- Split view:
-  - **Left**: List of pending comments with severity badges and file paths
-  - **Right**: Detail view showing:
-    - The code context using `CodeView` (with line highlighting at the violation line)
-    - The proposed comment text (editable before posting)
-    - Rule information (name, description, documentation link)
-    - Approve/reject toggle per comment
-- Bottom bar: "Post Approved Comments" button with count
-- Calls `PostCommentsUseCase` with only approved comments (filters via `--min-score` or selective posting)
+**New: `CommentApprovalView.swift`**
+- HSplitView: violations list on left, detail panel on right
+- Left panel: checkbox per violation for approve/reject, severity badge, rule name, file location, 2-line comment preview
+- Right panel: rule info (severity, model, duration, cost), editable comment text (TextEditor), and code context via `CodeView` with line highlighting at the violation line
+- Toolbar: "Post Approved (N)" button with count, select all/deselect all
+- All violations start approved; user can deselect individual items before posting
+- Uses `PRReviewModel.readFileFromRepo()` to load file content from the configured repo path
 
-### Integration points
+**Updated: `PRReviewModel.swift`**
+- Added `fullDiff: GitDiff?`, `effectiveDiff: GitDiff?`, `moveReport: MoveReport?` properties
+- New `parseDiffOutputs(config:)` method reads `diff-parsed.md`, `effective-diff-parsed.md`, and `effective-diff-moves.json` from phase-1 output after diff fetch completes
+- New `readFileFromRepo(_:)` for loading file content at relative paths from the repo
+- Reset methods updated to clear new diff properties
+- Added `import PRRadarCLIService` for `PhaseOutputParser` access
 
-- Phase 1 output view gets "View Effective Diff" button → opens `EffectiveDiffView`
-- Phase 3 output view gets "Review & Approve Comments" button → opens `CommentApprovalView`
-- Phase 5 view is essentially the `CommentApprovalView` in post mode
-- `CodeView` needs the file content at the PR's head commit — read from the repo path using the file_path from evaluations
+**Updated: `ContentView.swift`**
+- Phase 1 output: shows parsed `DiffPhaseView` when diff data is available, with "View Effective Diff" button opening `EffectiveDiffView` as a sheet
+- Phase 5 output: shows "Review & Approve Comments" button (when violations exist) opening `CommentApprovalView` as a sheet
+- Falls back to file list display when parsed diff is unavailable
+
+**Updated: `Package.swift`**
+- Added `PRRadarCLIService` as dependency to `MacApp` target (needed for `PhaseOutputParser` import)
+
+### Technical notes
+
+- Diff content is parsed from `.md` files (human-readable format) via `GitDiff.fromDiffContent()`, not from the structured `.json` files — this provides raw diff text suitable for display
+- `MoveReport` is parsed from `effective-diff-moves.json` (structured JSON with `Codable`)
+- `CodeView` integration reads files directly from the repo filesystem path — this shows the current HEAD version, not the exact PR commit version (sufficient for review context)
+- `CommentApprovalView` receives the `PRReviewModel` via environment for file access
+- The approval flow currently posts all comments via `PostCommentsUseCase` (not per-comment selective posting) — the checkbox state tracks user intent but the underlying CLI posts in bulk
+- No new Package.swift targets needed — all files auto-included in existing `MacApp` target
 
 ---
 

@@ -6,6 +6,8 @@ struct ContentView: View {
 
     @Environment(PRReviewModel.self) private var model
     @State private var showSettings = false
+    @State private var showEffectiveDiff = false
+    @State private var showCommentApproval = false
 
     var body: some View {
         @Bindable var model = model
@@ -199,7 +201,38 @@ struct ContentView: View {
 
     @ViewBuilder
     private var diffOutputView: some View {
-        if let files = model.diffFiles {
+        if let fullDiff = model.fullDiff {
+            VStack(spacing: 0) {
+                if model.effectiveDiff != nil {
+                    HStack {
+                        Spacer()
+                        Button {
+                            showEffectiveDiff = true
+                        } label: {
+                            Label("View Effective Diff", systemImage: "doc.text.magnifyingglass")
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    Divider()
+                }
+
+                DiffPhaseView(
+                    fullDiff: fullDiff,
+                    effectiveDiff: model.effectiveDiff
+                )
+            }
+            .sheet(isPresented: $showEffectiveDiff) {
+                if let effectiveDiff = model.effectiveDiff {
+                    EffectiveDiffView(
+                        fullDiff: fullDiff,
+                        effectiveDiff: effectiveDiff,
+                        moveReport: model.moveReport
+                    )
+                    .frame(minWidth: 900, minHeight: 600)
+                }
+            }
+        } else if let files = model.diffFiles {
             List(files, id: \.self) { file in
                 Text(file)
                     .font(.system(.body, design: .monospaced))
@@ -233,10 +266,39 @@ struct ContentView: View {
     @ViewBuilder
     private var evaluationsOutputView: some View {
         if let output = model.evaluationOutput {
-            EvaluationsPhaseView(
-                evaluations: output.evaluations,
-                summary: output.summary
-            )
+            VStack(spacing: 0) {
+                let hasViolations = output.evaluations.contains { $0.evaluation.violatesRule }
+                if hasViolations {
+                    HStack {
+                        Spacer()
+                        Button {
+                            showCommentApproval = true
+                        } label: {
+                            Label("Review & Approve Comments", systemImage: "text.bubble")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    Divider()
+                }
+
+                EvaluationsPhaseView(
+                    evaluations: output.evaluations,
+                    summary: output.summary
+                )
+            }
+            .sheet(isPresented: $showCommentApproval) {
+                CommentApprovalView(
+                    evaluations: output.evaluations,
+                    posted: model.commentOutput?.posted ?? false,
+                    onPost: { dryRun in
+                        Task { await model.runComments(dryRun: dryRun) }
+                    }
+                )
+                .environment(model)
+                .frame(minWidth: 900, minHeight: 600)
+            }
         } else {
             ContentUnavailableView(
                 "No Evaluation Data",
