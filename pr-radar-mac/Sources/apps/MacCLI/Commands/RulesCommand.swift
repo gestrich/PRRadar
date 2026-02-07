@@ -10,36 +10,28 @@ struct RulesCommand: AsyncParsableCommand {
         abstract: "Generate focus areas, load rules, and create evaluation tasks (Phase 2)"
     )
 
-    @Argument(help: "Pull request number")
-    var prNumber: String
+    @OptionGroup var options: CLIOptions
 
     @Option(name: .long, help: "Path to rules directory")
     var rulesDir: String?
 
-    @Option(name: .long, help: "Output directory for phase results")
-    var outputDir: String?
-
-    @Option(name: .long, help: "Path to the repository")
-    var repoPath: String?
-
-    @Flag(name: .long, help: "Output results as JSON")
-    var json: Bool = false
-
     func run() async throws {
-        let config = resolveConfig(repoPath: repoPath, outputDir: outputDir)
+        let resolved = try resolveConfigFromOptions(options)
+        let config = resolved.config
         let environment = resolveEnvironment(config: config)
         let useCase = FetchRulesUseCase(config: config, environment: environment)
+        let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
-        if !json {
-            print("Running rules phase for PR #\(prNumber)...")
+        if !options.json {
+            print("Running rules phase for PR #\(options.prNumber)...")
         }
 
         var result: RulesPhaseOutput?
 
-        for try await progress in useCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: effectiveRulesDir) {
             switch progress {
             case .running(let phase):
-                if !json {
+                if !options.json {
                     print("  Running \(phase.rawValue)...")
                 }
             case .completed(let output):
@@ -56,7 +48,7 @@ struct RulesCommand: AsyncParsableCommand {
             throw CLIError.phaseFailed("Rules phase produced no output")
         }
 
-        if json {
+        if options.json {
             let jsonOutput: [String: Any] = [
                 "focus_areas": output.focusAreas.count,
                 "rules": output.rules.count,

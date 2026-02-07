@@ -10,36 +10,27 @@ struct EvaluateCommand: AsyncParsableCommand {
         abstract: "Run rule evaluations against code (Phase 3)"
     )
 
-    @Argument(help: "Pull request number")
-    var prNumber: String
-
-    @Option(name: .long, help: "Path to the repository")
-    var repoPath: String?
-
-    @Option(name: .long, help: "Output directory for phase results")
-    var outputDir: String?
+    @OptionGroup var options: CLIOptions
 
     @Option(name: .long, help: "Filter to specific rules (comma-separated)")
     var rules: String?
 
-    @Flag(name: .long, help: "Output results as JSON")
-    var json: Bool = false
-
     func run() async throws {
-        let config = resolveConfig(repoPath: repoPath, outputDir: outputDir)
+        let resolved = try resolveConfigFromOptions(options)
+        let config = resolved.config
         let environment = resolveEnvironment(config: config)
         let useCase = EvaluateUseCase(config: config, environment: environment)
 
-        if !json {
-            print("Running evaluations for PR #\(prNumber)...")
+        if !options.json {
+            print("Running evaluations for PR #\(options.prNumber)...")
         }
 
         var result: EvaluationPhaseOutput?
 
-        for try await progress in useCase.execute(prNumber: prNumber, rules: rules, repoPath: repoPath) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, rules: rules, repoPath: options.repoPath) {
             switch progress {
             case .running(let phase):
-                if !json {
+                if !options.json {
                     print("  Running \(phase.rawValue)...")
                 }
             case .completed(let output):
@@ -56,7 +47,7 @@ struct EvaluateCommand: AsyncParsableCommand {
             throw CLIError.phaseFailed("Evaluate phase produced no output")
         }
 
-        if json {
+        if options.json {
             let data = try JSONEncoder.prettyEncoder.encode(output.summary)
             print(String(data: data, encoding: .utf8)!)
         } else {

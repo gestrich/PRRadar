@@ -10,8 +10,7 @@ struct CommentCommand: AsyncParsableCommand {
         abstract: "Post review comments to GitHub PR (Phase 5)"
     )
 
-    @Argument(help: "Pull request number")
-    var prNumber: String
+    @OptionGroup var options: CLIOptions
 
     @Option(name: .long, help: "GitHub repo (owner/name)")
     var repo: String?
@@ -19,30 +18,25 @@ struct CommentCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Minimum violation score to post")
     var minScore: String?
 
-    @Option(name: .long, help: "Output directory for phase results")
-    var outputDir: String?
-
-    @Option(name: .long, help: "Path to the repository")
-    var repoPath: String?
-
     @Flag(name: .long, help: "Preview comments without posting")
     var dryRun: Bool = false
 
     func run() async throws {
-        let config = resolveConfig(repoPath: repoPath, outputDir: outputDir)
+        let resolved = try resolveConfigFromOptions(options)
+        let config = resolved.config
         let environment = resolveEnvironment(config: config)
         let useCase = PostCommentsUseCase(config: config, environment: environment)
 
         if dryRun {
-            print("Dry run: previewing comments for PR #\(prNumber)...")
+            print("Dry run: previewing comments for PR #\(options.prNumber)...")
         } else {
-            print("Posting comments for PR #\(prNumber)...")
+            print("Posting comments for PR #\(options.prNumber)...")
         }
 
         var result: CommentPhaseOutput?
 
         for try await progress in useCase.execute(
-            prNumber: prNumber,
+            prNumber: options.prNumber,
             repo: repo,
             minScore: minScore,
             dryRun: dryRun

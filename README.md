@@ -1,10 +1,22 @@
 # PRRadar
 
-A Python CLI tool for AI-powered pull request reviews using the Claude Agent SDK.
+An AI-powered pull request review system with two applications: a **Python CLI** for running the review pipeline and a **macOS app** for visualizing results and debugging.
+
+## Why Two Apps?
+
+- **Python App** (`prradar/`) — The core review engine. A CLI tool that fetches PR diffs, applies rule-based filtering, evaluates code with the Claude Agent SDK, and generates reports.
+- **Mac App** (`pr-radar-mac/`) — A native macOS SwiftUI application. The Mac UI is useful for visualizing the results produced by the Python app (viewing diffs, reports, evaluation outputs). The Mac app also includes a CLI target, which is important because it allows Claude to run and debug the Mac app via the command line — something that is difficult to do through a GUI alone.
+
+## Architecture
+
+Both apps follow structured architecture patterns defined as Claude Code plugins:
+
+- **Python app**: [python-architecture](https://github.com/gestrich/python-architecture) — Service Layer pattern, domain models, dependency injection
+- **Mac app**: [swift-app-architecture](https://github.com/gestrich/swift-app-architecture) — 4-layer architecture (SDKs → Services → Features → Apps)
 
 ## Overview
 
-PRRadar provides thorough, focused code reviews by:
+The Python app provides thorough, focused code reviews by:
 
 1. **Breaking PRs into segments** — Parses diffs into reviewable code chunks
 2. **Rule-based filtering** — Determines which rules apply based on file extensions and regex patterns
@@ -72,11 +84,11 @@ The `agent.sh` script outputs artifacts to `~/Desktop/code-reviews/`:
 Outputs to `tmp/` by default:
 
 ```bash
-python3 -m scripts agent diff 123
-python3 -m scripts agent rules 123 --rules-dir ./rules
-python3 -m scripts agent evaluate 123
-python3 -m scripts agent report 123 --min-score 5
-python3 -m scripts agent comment 123 --dry-run
+python -m prradar agent diff 123
+python -m prradar agent rules 123 --rules-dir ./rules
+python -m prradar agent evaluate 123
+python -m prradar agent report 123 --min-score 5
+python -m prradar agent comment 123 --dry-run
 ```
 
 ## Rules
@@ -268,6 +280,34 @@ PRRadar runs as a sequential pipeline where each phase writes artifacts to disk 
 ```bash
 ./agent.sh status 123    # Show pipeline progress for PR #123
 ```
+
+## Mac App
+
+The Mac app is a native macOS SwiftUI application that wraps the Python CLI, providing a visual interface for reviewing PR analysis results.
+
+### Requirements
+
+- macOS 15+, Swift 6.2+
+- Python app installed (`pip install -e .`)
+
+### Build & Run
+
+```bash
+cd pr-radar-mac
+swift build
+swift run MacApp
+```
+
+### Architecture
+
+The Mac app follows a 4-layer architecture (see [swift-app-architecture](https://github.com/gestrich/swift-app-architecture)):
+
+| Layer | Target | Role |
+|-------|--------|------|
+| **SDKs** | `PRRadarMacSDK` | CLI command definitions mirroring the Python CLI |
+| **Services** | `PRRadarConfigService`, `PRRadarCLIService` | Config management and Python CLI execution |
+| **Features** | `PRReviewFeature` | Use cases (e.g., `FetchDiffUseCase`) |
+| **Apps** | `MacApp` | SwiftUI views and `@Observable` models |
 
 ## Plugin Mode
 

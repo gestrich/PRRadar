@@ -10,17 +10,10 @@ struct AnalyzeCommand: AsyncParsableCommand {
         abstract: "Run the full review pipeline (all phases)"
     )
 
-    @Argument(help: "Pull request number")
-    var prNumber: String
+    @OptionGroup var options: CLIOptions
 
     @Option(name: .long, help: "Path to rules directory")
     var rulesDir: String?
-
-    @Option(name: .long, help: "Path to the repository")
-    var repoPath: String?
-
-    @Option(name: .long, help: "Output directory for phase results")
-    var outputDir: String?
 
     @Flag(name: .long, help: "Use GitHub diff instead of local")
     var githubDiff: Bool = false
@@ -40,24 +33,23 @@ struct AnalyzeCommand: AsyncParsableCommand {
     @Option(name: .long, help: "GitHub repo (owner/name)")
     var repo: String?
 
-    @Flag(name: .long, help: "Output results as JSON")
-    var json: Bool = false
-
     func run() async throws {
-        let config = resolveConfig(repoPath: repoPath, outputDir: outputDir)
+        let resolved = try resolveConfigFromOptions(options)
+        let config = resolved.config
         let environment = resolveEnvironment(config: config)
         let useCase = AnalyzeUseCase(config: config, environment: environment)
+        let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
-        if !json {
-            print("Running full analysis for PR #\(prNumber)...")
+        if !options.json {
+            print("Running full analysis for PR #\(options.prNumber)...")
         }
 
         var result: AnalyzePhaseOutput?
 
         for try await progress in useCase.execute(
-            prNumber: prNumber,
-            rulesDir: rulesDir,
-            repoPath: repoPath,
+            prNumber: options.prNumber,
+            rulesDir: effectiveRulesDir,
+            repoPath: options.repoPath,
             githubDiff: githubDiff,
             stopAfter: stopAfter,
             skipTo: skipTo,
@@ -67,7 +59,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
         ) {
             switch progress {
             case .running(let phase):
-                if !json {
+                if !options.json {
                     print("  Running \(phase.rawValue)...")
                 }
             case .completed(let output):
@@ -84,7 +76,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             throw CLIError.phaseFailed("Analyze pipeline produced no output")
         }
 
-        if json {
+        if options.json {
             var jsonOutput: [String: [String]] = [:]
             for (phase, files) in output.files {
                 jsonOutput[phase.rawValue] = files

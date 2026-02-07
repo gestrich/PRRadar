@@ -10,20 +10,11 @@ struct StatusCommand: AsyncParsableCommand {
         abstract: "Show pipeline status for a PR"
     )
 
-    @Argument(help: "Pull request number")
-    var prNumber: String
-
-    @Option(name: .long, help: "Output directory for phase results")
-    var outputDir: String?
-
-    @Option(name: .long, help: "Path to the repository")
-    var repoPath: String?
-
-    @Flag(name: .long, help: "Output results as JSON")
-    var json: Bool = false
+    @OptionGroup var options: CLIOptions
 
     func run() async throws {
-        let config = resolveConfig(repoPath: repoPath, outputDir: outputDir)
+        let resolved = try resolveConfigFromOptions(options)
+        let config = resolved.config
 
         struct PhaseStatus {
             let phase: PRRadarPhase
@@ -34,7 +25,7 @@ struct StatusCommand: AsyncParsableCommand {
         var statuses: [PhaseStatus] = []
 
         for phase in PRRadarPhase.allCases {
-            let files = OutputFileReader.files(in: config, prNumber: prNumber, phase: phase)
+            let files = OutputFileReader.files(in: config, prNumber: options.prNumber, phase: phase)
             let status: String
             if files.isEmpty {
                 status = "missing"
@@ -45,7 +36,7 @@ struct StatusCommand: AsyncParsableCommand {
             statuses.append(PhaseStatus(phase: phase, status: status, fileCount: files.count))
         }
 
-        if json {
+        if options.json {
             var jsonOutput: [[String: Any]] = []
             for s in statuses {
                 jsonOutput.append([
@@ -57,7 +48,7 @@ struct StatusCommand: AsyncParsableCommand {
             let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
             print(String(data: data, encoding: .utf8)!)
         } else {
-            print("Pipeline status for PR #\(prNumber):")
+            print("Pipeline status for PR #\(options.prNumber):")
             print("")
             print(String(format: "  %-30s  %-10s  %s", "Phase", "Status", "Files"))
             print(String(format: "  %-30s  %-10s  %s", "-----", "------", "-----"))

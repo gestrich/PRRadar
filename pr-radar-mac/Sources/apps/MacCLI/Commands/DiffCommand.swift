@@ -10,33 +10,24 @@ struct DiffCommand: AsyncParsableCommand {
         abstract: "Fetch and parse PR diff (Phase 1)"
     )
 
-    @Argument(help: "Pull request number")
-    var prNumber: String
-
-    @Option(name: .long, help: "Path to the repository")
-    var repoPath: String?
-
-    @Option(name: .long, help: "Output directory for phase results")
-    var outputDir: String?
-
-    @Flag(name: .long, help: "Output results as JSON")
-    var json: Bool = false
+    @OptionGroup var options: CLIOptions
 
     @Flag(name: .long, help: "Open output directory in Finder after completion")
     var open: Bool = false
 
     func run() async throws {
-        let config = resolveConfig(repoPath: repoPath, outputDir: outputDir)
+        let resolved = try resolveConfigFromOptions(options)
+        let config = resolved.config
         let environment = resolveEnvironment(config: config)
         let useCase = FetchDiffUseCase(config: config, environment: environment)
 
-        if !json {
-            print("Fetching diff for PR #\(prNumber)...")
+        if !options.json {
+            print("Fetching diff for PR #\(options.prNumber)...")
         }
 
         var outputFiles: [String] = []
 
-        for try await progress in useCase.execute(prNumber: prNumber) {
+        for try await progress in useCase.execute(prNumber: options.prNumber) {
             switch progress {
             case .running:
                 break
@@ -48,7 +39,7 @@ struct DiffCommand: AsyncParsableCommand {
             }
         }
 
-        if json {
+        if options.json {
             let data = try JSONEncoder.prettyEncoder.encode(["files": outputFiles])
             print(String(data: data, encoding: .utf8)!)
         } else {
@@ -61,7 +52,7 @@ struct DiffCommand: AsyncParsableCommand {
         if `open` {
             let phaseDir = DataPathsService.phaseDirectory(
                 outputDir: config.absoluteOutputDir,
-                prNumber: prNumber,
+                prNumber: options.prNumber,
                 phase: .pullRequest
             )
             let process = Process()
