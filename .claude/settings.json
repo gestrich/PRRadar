@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "swift-app-architecture@gestrich-swift-app-architecture": true
+  }
+}

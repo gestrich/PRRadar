@@ -95,6 +95,7 @@ struct ContentView: View {
             .deletingLastPathComponent() // → MacApp/
             .deletingLastPathComponent() // → apps/
             .deletingLastPathComponent() // → Sources/
+            .deletingLastPathComponent() // → pr-radar-mac/
             .deletingLastPathComponent() // → repo root
             .appendingPathComponent(".venv/bin")
             .path
