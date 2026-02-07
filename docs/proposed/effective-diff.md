@@ -214,12 +214,23 @@ def rediff_regions(old_text: str, new_text: str, old_label: str, new_label: str)
         return result.stdout
 ```
 
-## - [ ] Phase 4: Diff Reconstruction
+## - [x] Phase 4: Diff Reconstruction
 
 Combine the effective diffs for moved blocks with the unchanged portions of the original diff to produce the final effective `GitDiff`.
 
 **Input**: Original `GitDiff` + effective diff hunks from Phase 3
 **Output**: New `GitDiff` representing the effective diff + a move report
+
+### Implementation Notes
+
+- Added to `prradar/infrastructure/effective_diff.py` as standalone functions (same pattern as Phases 1-3)
+- `MoveDetail` and `MoveReport` use `frozen=True` for immutability; `MoveReport.moves` is a tuple
+- `classify_hunk` determines if an original hunk is `move_removed`, `move_added`, or `unchanged` by checking line range overlap against each candidate's source/target
+- `_ranges_overlap` provides simple inclusive range intersection check
+- `_hunk_line_range` extracts (start, end) inclusive ranges from hunk old/new sides
+- `reconstruct_effective_diff` iterates original hunks, drops removed-side move hunks, replaces added-side with effective diff hunks (deduplicating via `id()` tracking), and keeps unrelated hunks as-is
+- `build_move_report` aggregates per-move statistics including matched line counts and effective changed line counts
+- 34 unit tests in `tests/infrastructure/effective_diff/test_reconstruction.py` covering: hunk line ranges (4 tests), range overlap (6 tests), hunk classification (8 tests), diff reconstruction (7 tests), changed line counting (3 tests), and move report generation (6 tests)
 
 ### Tasks
 

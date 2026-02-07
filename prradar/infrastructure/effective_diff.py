@@ -8,6 +8,9 @@ blocks (tolerating small gaps) and scores each for move confidence.
 
 Phase 3: Block extension and re-diff. Extends matched blocks by surrounding
 context from source files and re-diffs to isolate meaningful changes.
+
+Phase 4: Diff reconstruction. Combines effective diffs for moved blocks with
+unchanged portions of the original diff to produce the final effective GitDiff.
 """
 
 from __future__ import annotations
@@ -607,4 +610,201 @@ def compute_effective_diff_for_candidate(
         candidate=candidate,
         hunks=trimmed,
         raw_diff=raw_diff,
+    )
+
+
+# ------------------------------------------------------------------
+# Phase 4: Diff Reconstruction
+# ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MoveDetail:
+    """Details about a single detected code move."""
+
+    source_file: str
+    target_file: str
+    source_lines: tuple[int, int]
+    target_lines: tuple[int, int]
+    matched_lines: int
+    score: float
+    effective_diff_lines: int
+
+
+@dataclass(frozen=True)
+class MoveReport:
+    """Summary of all detected code moves."""
+
+    moves_detected: int
+    total_lines_moved: int
+    total_lines_effectively_changed: int
+    moves: tuple[MoveDetail, ...]
+
+
+def _count_changed_lines_in_hunks(hunks: list[Hunk]) -> int:
+    """Count added + removed lines across a list of hunks."""
+    count = 0
+    for hunk in hunks:
+        for diff_line in hunk.get_diff_lines():
+            if diff_line.line_type in (DiffLineType.ADDED, DiffLineType.REMOVED):
+                count += 1
+    return count
+
+
+def _hunk_line_range(hunk: Hunk, side: str) -> tuple[int, int]:
+    """Get the (start, end) 1-indexed inclusive line range for a hunk side.
+
+    Args:
+        hunk: The hunk to inspect.
+        side: "old" for removed side, "new" for added side.
+
+    Returns:
+        (start, end) inclusive line range. End may equal start-1 for zero-length hunks.
+    """
+    if side == "old":
+        return (hunk.old_start, hunk.old_start + max(hunk.old_length - 1, 0))
+    return (hunk.new_start, hunk.new_start + max(hunk.new_length - 1, 0))
+
+
+def _ranges_overlap(
+    a_start: int, a_end: int, b_start: int, b_end: int
+) -> bool:
+    """Check if two inclusive 1-indexed ranges overlap."""
+    return a_start <= b_end and b_start <= a_end
+
+
+def classify_hunk(
+    hunk: Hunk,
+    effective_results: list[EffectiveDiffResult],
+) -> tuple[str, EffectiveDiffResult | None]:
+    """Classify a hunk from the original diff relative to detected moves.
+
+    Returns:
+        A tuple of (classification, result) where classification is one of:
+        - "move_removed": Hunk is on the removed side of a detected move
+        - "move_added": Hunk is on the added side of a detected move
+        - "unchanged": Not part of any detected move
+
+        For move_removed/move_added, the associated EffectiveDiffResult is returned.
+    """
+    hunk_old_start, hunk_old_end = _hunk_line_range(hunk, "old")
+    hunk_new_start, hunk_new_end = _hunk_line_range(hunk, "new")
+
+    for result in effective_results:
+        candidate = result.candidate
+        src_start = candidate.removed_lines[0].line_number
+        src_end = candidate.removed_lines[-1].line_number
+        tgt_start = candidate.added_lines[0].line_number
+        tgt_end = candidate.added_lines[-1].line_number
+
+        # Check removed side: hunk is in the source file and overlaps the removed block
+        if (
+            hunk.file_path == candidate.source_file
+            and hunk_old_start > 0
+            and _ranges_overlap(hunk_old_start, hunk_old_end, src_start, src_end)
+        ):
+            return ("move_removed", result)
+
+        # Check added side: hunk is in the target file and overlaps the added block
+        if (
+            hunk.file_path == candidate.target_file
+            and hunk_new_start > 0
+            and _ranges_overlap(hunk_new_start, hunk_new_end, tgt_start, tgt_end)
+        ):
+            return ("move_added", result)
+
+    return ("unchanged", None)
+
+
+def reconstruct_effective_diff(
+    original_diff: GitDiff,
+    effective_results: list[EffectiveDiffResult],
+) -> GitDiff:
+    """Reconstruct a GitDiff by replacing move hunks with their effective diffs.
+
+    For each hunk in the original diff:
+    - Part of a detected move (removed side): Drop it
+    - Part of a detected move (added side): Replace with the effective diff hunks
+    - Not part of any move: Keep as-is
+
+    Args:
+        original_diff: The original parsed GitDiff.
+        effective_results: Results from Phase 3 (one per move candidate).
+
+    Returns:
+        A new GitDiff containing only meaningful changes.
+    """
+    surviving_hunks: list[Hunk] = []
+    # Track which effective results we've already emitted to avoid duplicates
+    emitted_results: set[int] = set()
+
+    for hunk in original_diff.hunks:
+        classification, result = classify_hunk(hunk, effective_results)
+
+        if classification == "move_removed":
+            # Drop: the effective diff on the added side captures real changes
+            continue
+
+        if classification == "move_added" and result is not None:
+            result_id = id(result)
+            if result_id not in emitted_results:
+                emitted_results.add(result_id)
+                surviving_hunks.extend(result.hunks)
+            # If already emitted, skip (multiple original hunks may map to one result)
+            continue
+
+        # unchanged — keep as-is
+        surviving_hunks.append(hunk)
+
+    return GitDiff(
+        raw_content=original_diff.raw_content,
+        hunks=surviving_hunks,
+        commit_hash=original_diff.commit_hash,
+    )
+
+
+def build_move_report(
+    effective_results: list[EffectiveDiffResult],
+) -> MoveReport:
+    """Build a summary report of all detected moves.
+
+    Args:
+        effective_results: Results from Phase 3 (one per move candidate).
+
+    Returns:
+        MoveReport with aggregate statistics and per-move details.
+    """
+    details: list[MoveDetail] = []
+    total_lines_moved = 0
+    total_effectively_changed = 0
+
+    for result in effective_results:
+        candidate = result.candidate
+        matched = len(candidate.removed_lines)
+        eff_lines = _count_changed_lines_in_hunks(result.hunks)
+
+        src_start = candidate.removed_lines[0].line_number
+        src_end = candidate.removed_lines[-1].line_number
+        tgt_start = candidate.added_lines[0].line_number
+        tgt_end = candidate.added_lines[-1].line_number
+
+        details.append(
+            MoveDetail(
+                source_file=candidate.source_file,
+                target_file=candidate.target_file,
+                source_lines=(src_start, src_end),
+                target_lines=(tgt_start, tgt_end),
+                matched_lines=matched,
+                score=candidate.score,
+                effective_diff_lines=eff_lines,
+            )
+        )
+        total_lines_moved += matched
+        total_effectively_changed += eff_lines
+
+    return MoveReport(
+        moves_detected=len(details),
+        total_lines_moved=total_lines_moved,
+        total_lines_effectively_changed=total_effectively_changed,
+        moves=tuple(details),
     )
