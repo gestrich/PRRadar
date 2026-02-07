@@ -69,7 +69,7 @@ Create the directory tree and move source files:
 
 **Completed.** Replaced Phase 1 placeholders with real source files. `PRRadar.swift` moved to `Sources/sdks/PRRadarMacSDK/`, `ContentView.swift` copied to `Sources/apps/MacApp/UI/`, and `main.swift` updated with `PRRadarMacApp` struct using the reference project's `NSApplication` activation pattern. Note: `ContentView.swift` still has the old `#filePath` depth (3 levels) — Phase 3 will update it to 5 levels for the new location.
 
-## - [ ] Phase 3: Update ContentView.swift for new file location
+## - [x] Phase 3: Update ContentView.swift for new file location
 
 The `venvBinPath` computed property uses `#filePath` to navigate up to the repo root. Since the file moves from `PRRadarMac/PRRadarMac/ContentView.swift` (3 levels deep) to `Sources/apps/MacApp/UI/ContentView.swift` (5 levels deep), update the path calculation:
 
@@ -92,6 +92,8 @@ URL(fileURLWithPath: #filePath)
 ```
 
 Also update the import — change `import PRRadarMacSDK` (unchanged, since the module name stays the same).
+
+**Completed.** Updated `venvBinPath` in `Sources/apps/MacApp/UI/ContentView.swift` from 3 to 5 `deletingLastPathComponent()` calls to match the new directory depth. Imports unchanged since module name is the same. Build verified.
 
 ## - [ ] Phase 4: Update .gitignore for SwiftPM
 

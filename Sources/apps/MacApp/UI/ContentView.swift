@@ -91,9 +91,11 @@ struct ContentView: View {
 
     var venvBinPath: String {
         URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // ContentView.swift → PRRadarMac/PRRadarMac/
-            .deletingLastPathComponent() // → PRRadarMac/
-            .deletingLastPathComponent() // → PRRadar repo root
+            .deletingLastPathComponent() // ContentView.swift → UI/
+            .deletingLastPathComponent() // → MacApp/
+            .deletingLastPathComponent() // → apps/
+            .deletingLastPathComponent() // → Sources/
+            .deletingLastPathComponent() // → repo root
             .appendingPathComponent(".venv/bin")
             .path
     }
