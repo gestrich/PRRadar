@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from prradar.domain.agent_outputs import EvaluationSummary
+from prradar.domain.evaluation_task import EvaluationTask
 from prradar.services.evaluation_service import (
     EvaluationResult,
     run_batch_evaluation,
@@ -101,14 +102,18 @@ def cmd_evaluate(
     total_duration = 0
     violations_count = 0
 
-    # Progress callback - handles printing and running totals
+    # Callbacks for progress display
+    def on_start(index: int, total: int, task: EvaluationTask) -> None:
+        method_info = task.focus_area.description
+        print(f"  [{index}/{total}] {task.focus_area.file_path}:{method_info} - {task.rule.name}")
+
     def on_result(index: int, total: int, result: EvaluationResult) -> None:
         nonlocal total_cost, total_duration, violations_count
 
-        task = tasks[index - 1]
-        method_info = task.focus_area.description
-        status = "⚠️ Violation" if result.evaluation.violates_rule else "✓ OK"
-        print(f"  [{index}/{total}] {result.file_path}:{method_info} - {result.rule_name}: {status}")
+        if result.evaluation.violates_rule:
+            print(f"    ⚠️ Violation (score: {result.evaluation.score})")
+        else:
+            print(f"    ✓ OK")
 
         total_duration += result.duration_ms
         if result.cost_usd:
@@ -117,7 +122,9 @@ def cmd_evaluate(
             violations_count += 1
 
     # Run evaluations
-    results = asyncio.run(run_batch_evaluation(tasks, output_dir, on_result, repo_path=repo_path))
+    results = asyncio.run(
+        run_batch_evaluation(tasks, output_dir, on_result, on_start=on_start, repo_path=repo_path)
+    )
 
     # Build and save summary
     summary = EvaluationSummary(

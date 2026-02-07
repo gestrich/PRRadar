@@ -15,7 +15,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+import sys
+
+from claude_agent_sdk import (
+    ClaudeAgentOptions,
+    AssistantMessage,
+    ResultMessage,
+    query,
+)
+from claude_agent_sdk.types import TextBlock, ToolUseBlock
 
 from prradar.domain.agent_outputs import RuleEvaluation
 from prradar.domain.evaluation_task import EvaluationTask
@@ -173,7 +181,14 @@ async def evaluate_task(
     cost_usd: float | None = None
 
     async for message in query(prompt=prompt, options=options):
-        if isinstance(message, ResultMessage):
+        if isinstance(message, AssistantMessage):
+            for block in message.content:
+                if isinstance(block, TextBlock):
+                    for line in block.text.strip().split("\n"):
+                        print(f"      {line}", flush=True)
+                elif isinstance(block, ToolUseBlock):
+                    print(f"      [{block.name}]", flush=True)
+        elif isinstance(message, ResultMessage):
             # Capture structured output
             if message.structured_output:
                 evaluation_data = message.structured_output
@@ -214,20 +229,21 @@ async def run_batch_evaluation(
     tasks: list[EvaluationTask],
     output_dir: Path,
     on_result: Callable[[int, int, EvaluationResult], None] | None = None,
+    on_start: Callable[[int, int, EvaluationTask], None] | None = None,
     repo_path: str = ".",
 ) -> list[EvaluationResult]:
     """Run evaluations for all tasks.
 
     Core service method - handles evaluation and file I/O but no printing.
-    Progress display is delegated to the caller via callback.
+    Progress display is delegated to the caller via callbacks.
 
     Args:
         tasks: Tasks to evaluate
         output_dir: Where to save results (creates 'evaluations' subdirectory)
-        on_result: Optional callback for progress reporting. Called with
-                   (index, total, result) after each evaluation completes.
-                   Index is 1-based. Service does NOT print progress - caller
-                   handles display via this callback.
+        on_result: Optional callback called after each evaluation completes.
+                   Called with (index, total, result). Index is 1-based.
+        on_start: Optional callback called before each evaluation begins.
+                  Called with (index, total, task). Index is 1-based.
         repo_path: Path to the local repo checkout for codebase exploration
 
     Returns:
@@ -239,6 +255,8 @@ async def run_batch_evaluation(
     total = len(tasks)
 
     for i, task in enumerate(tasks, 1):
+        if on_start:
+            on_start(i, total, task)
         result = await evaluate_task(task, repo_path=repo_path)
         results.append(result)
 

@@ -13,7 +13,8 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 
-from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+from claude_agent_sdk import ClaudeAgentOptions, AssistantMessage, ResultMessage, query
+from claude_agent_sdk.types import TextBlock
 
 from prradar.domain.diff import Hunk
 from prradar.domain.focus_area import FocusArea, FocusType
@@ -147,7 +148,12 @@ class FocusGeneratorService:
         cost_usd: float = 0.0
 
         async for message in query(prompt=prompt, options=options):
-            if isinstance(message, ResultMessage):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock):
+                        for line in block.text.strip().split("\n"):
+                            print(f"      {line}", flush=True)
+            elif isinstance(message, ResultMessage):
                 if message.structured_output:
                     structured_output = message.structured_output
                 if message.total_cost_usd:

@@ -43,23 +43,7 @@ final class PRReviewModel {
 
     var selectedPhase: PRRadarPhase = .pullRequest
 
-    var selectedConfiguration: RepoConfiguration? {
-        get {
-            let savedID = UserDefaults.standard.string(forKey: "selectedConfigID")
-                .flatMap(UUID.init(uuidString:))
-            if let savedID, let config = settings.configurations.first(where: { $0.id == savedID }) {
-                return config
-            }
-            return settings.defaultConfiguration
-        }
-        set {
-            if let id = newValue?.id {
-                UserDefaults.standard.set(id.uuidString, forKey: "selectedConfigID")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "selectedConfigID")
-            }
-        }
-    }
+    private(set) var selectedConfiguration: RepoConfiguration?
 
     var prNumber: String {
         if let pr = selectedPR {
@@ -81,6 +65,14 @@ final class PRReviewModel {
     }
 
     private func restoreSelections() {
+        let savedID = UserDefaults.standard.string(forKey: "selectedConfigID")
+            .flatMap(UUID.init(uuidString:))
+        if let savedID, let config = settings.configurations.first(where: { $0.id == savedID }) {
+            selectedConfiguration = config
+        } else {
+            selectedConfiguration = settings.defaultConfiguration
+        }
+
         if selectedConfiguration != nil {
             refreshPRList()
             let savedPR = UserDefaults.standard.integer(forKey: "selectedPRNumber")
@@ -127,6 +119,7 @@ final class PRReviewModel {
         persistSettings()
         if settings.configurations.count == 1 {
             selectedConfiguration = config
+            persistSelectedConfigID()
         }
     }
 
@@ -136,6 +129,7 @@ final class PRReviewModel {
         persistSettings()
         if wasSelected {
             selectedConfiguration = settings.defaultConfiguration
+            persistSelectedConfigID()
         }
     }
 
@@ -153,6 +147,7 @@ final class PRReviewModel {
 
     func selectConfiguration(_ config: RepoConfiguration) {
         selectedConfiguration = config
+        persistSelectedConfigID()
         selectedPR = nil
         refreshPRList()
     }
@@ -526,6 +521,14 @@ final class PRReviewModel {
     private func appendLog(_ text: String, to phase: PRRadarPhase) {
         let existing = runningLogs(for: phase)
         phaseStates[phase] = .running(logs: existing + text)
+    }
+
+    private func persistSelectedConfigID() {
+        if let id = selectedConfiguration?.id {
+            UserDefaults.standard.set(id.uuidString, forKey: "selectedConfigID")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "selectedConfigID")
+        }
     }
 
     private func persistSettings() {

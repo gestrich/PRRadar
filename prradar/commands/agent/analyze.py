@@ -262,11 +262,13 @@ async def run_analyze_batch_evaluation(
         List of evaluation results
     """
 
-    def on_result(index: int, total: int, result: EvaluationResult) -> None:
-        """Progress callback - handles printing and stats updates."""
-        task = tasks[index - 1]
+    def on_start(index: int, total: int, task: EvaluationTask) -> None:
+        """Print task header before evaluation begins."""
         method_info = task.focus_area.description
-        print(f"  [{index}/{total}] {result.file_path}:{method_info} - {result.rule_name}...")
+        print(f"  [{index}/{total}] {task.focus_area.file_path}:{method_info} - {task.rule.name}")
+
+    def on_result(index: int, total: int, result: EvaluationResult) -> None:
+        """Print result after evaluation completes."""
         stats.tasks_evaluated += 1
 
         if result.cost_usd:
@@ -278,7 +280,9 @@ async def run_analyze_batch_evaluation(
         else:
             print(f"    ✓  No violation")
 
-    return await run_batch_evaluation(tasks, output_dir, on_result=on_result, repo_path=repo_path)
+    return await run_batch_evaluation(
+        tasks, output_dir, on_result=on_result, on_start=on_start, repo_path=repo_path
+    )
 
 
 # ============================================================
