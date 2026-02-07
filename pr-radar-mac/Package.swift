@@ -11,10 +11,15 @@ let package = Package(
         .executable(
             name: "MacApp",
             targets: ["MacApp"]
-        )
+        ),
+        .executable(
+            name: "PRRadarMacCLI",
+            targets: ["PRRadarMacCLI"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/gestrich/SwiftCLI.git", branch: "main"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],
     targets: [
         // SDK Layer
@@ -76,6 +81,19 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
+        ),
+
+        // CLI App Layer
+        .executableTarget(
+            name: "PRRadarMacCLI",
+            dependencies: [
+                .target(name: "PRReviewFeature"),
+                .target(name: "PRRadarCLIService"),
+                .target(name: "PRRadarConfigService"),
+                .target(name: "PRRadarModels"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
+            path: "Sources/apps/MacCLI"
         ),
     ]
 )

@@ -365,68 +365,45 @@ Created 2 new view files in `Sources/apps/MacApp/UI/ReviewViews/` and updated th
 
 ---
 
-## - [ ] Phase 8: CLI Target
+## - [x] Phase 8: CLI Target
 
 Add a command-line executable target that calls the same use cases as the GUI app. This lets users run phases from the terminal with structured output.
 
+### Completed
+
+Created `Sources/apps/MacCLI/` with 8 files:
+
+**Root command:** `PRRadarMacCLI.swift`
+- `@main` entry point using `AsyncParsableCommand` from ArgumentParser
+- Shared `CLIOptions`, `CLIError`, `resolveConfig()`, `resolveEnvironment()`, `printError()` helpers
+- `resolveConfig()` uses `#filePath` to locate `.venv/bin` (same pattern as MacApp's `main.swift`)
+- Defaults repo path to current directory and output dir to `code-reviews` when not specified
+
+**Subcommands in `Commands/`:**
+
+- `DiffCommand.swift` — Calls `FetchDiffUseCase`, prints file list. `--json` outputs file list as JSON. `--open` opens output dir in Finder via `/usr/bin/open`.
+- `RulesCommand.swift` — Calls `FetchRulesUseCase`, prints focus area/rule/task counts and details. `--json` outputs counts as JSON.
+- `EvaluateCommand.swift` — Calls `EvaluateUseCase`, prints summary stats and color-coded violations. `--json` outputs `EvaluationSummary` as JSON.
+- `ReportCommand.swift` — Calls `GenerateReportUseCase`, prints markdown report to stdout. `--json` outputs `ReviewReport` as JSON.
+- `CommentCommand.swift` — Calls `PostCommentsUseCase` with `--dry-run` flag for preview mode.
+- `AnalyzeCommand.swift` — Calls `AnalyzeUseCase` with full set of options (`--stop-after`, `--skip-to`, `--no-dry-run`, `--min-score`, `--repo`, `--github-diff`). `--json` outputs files-by-phase.
+- `StatusCommand.swift` — Reads phase directories directly via `OutputFileReader`, prints status table with colored indicators (checkmark/tilde/X). `--json` outputs structured status array.
+
 ### Package.swift changes
 
-- Add new executable target: `PRRadarMacCLI`
-- Dependencies: `PRReviewFeature`, `PRRadarConfigService`, `PRRadarModels`, `ArgumentParser`
-- Add `swift-argument-parser` as a package dependency
+- Added `swift-argument-parser` (from 1.5.0) as package dependency
+- Added `PRRadarMacCLI` executable product and target
+- Dependencies: `PRReviewFeature`, `PRRadarCLIService`, `PRRadarConfigService`, `PRRadarModels`, `ArgumentParser`
 
-### New files
+### Technical notes
 
-**`Sources/apps/MacCLI/`:**
-
-- `PRRadarMacCLI.swift` — Root command using ArgumentParser
-  ```
-  pr-radar-mac <subcommand> [options]
-  ```
-
-- `Commands/DiffCommand.swift` — Phase 1
-  - Arguments: pr-number, --repo-path, --output-dir
-  - Calls `FetchDiffUseCase`, prints file list and summary
-  - `--json` flag: output parsed DiffOutput as JSON
-  - `--open`: open output directory in Finder after completion
-
-- `Commands/RulesCommand.swift` — Phase 2
-  - Arguments: pr-number, --rules-dir, --output-dir
-  - Calls `FetchRulesUseCase`, prints focus areas/rules/task counts
-  - `--json` flag: output as JSON
-
-- `Commands/EvaluateCommand.swift` — Phase 3
-  - Arguments: pr-number, --repo-path, --output-dir, --rules (filter)
-  - Calls `EvaluateUseCase`, prints evaluation results with color-coded severity
-  - Progress: prints each evaluation as it completes
-
-- `Commands/ReportCommand.swift` — Phase 4
-  - Arguments: pr-number, --min-score, --output-dir
-  - Calls `GenerateReportUseCase`, prints markdown report to stdout
-  - `--json` flag: output ReviewReport as JSON
-
-- `Commands/CommentCommand.swift` — Phase 5
-  - Arguments: pr-number, --repo, --min-score, --dry-run, --output-dir
-  - Calls `PostCommentsUseCase`
-  - In dry-run: prints comment previews
-  - Without dry-run: posts and confirms
-
-- `Commands/AnalyzeCommand.swift` — Phase 6
-  - Arguments: pr-number + all options from above
-  - Calls `AnalyzeUseCase`, streams progress for each phase
-  - `--stop-after`, `--skip-to` flags matching Python CLI
-
-- `Commands/StatusCommand.swift` — Pipeline status
-  - Arguments: pr-number, --output-dir
-  - Reads phase directories and prints pipeline status table
-  - Shows: phase name, status (complete/partial/missing), file count
-
-### Output formatting
-
-- Default: human-readable colored terminal output (using ANSI codes)
-- `--json`: machine-readable JSON output (using the domain models' Codable conformance)
-- Progress indicators for long-running phases (evaluate)
-- Error output to stderr, results to stdout
+- All commands use `AsyncParsableCommand` for async use case execution
+- Each command creates its own `PRRadarConfig` and environment (no shared state needed)
+- `severityColor()` returns ANSI escape codes for color-coded terminal output (green 1-4, yellow 5-7, red 8+)
+- Error output goes to stderr via `printError()`, results go to stdout
+- `--json` mode suppresses all progress messages to keep output machine-parsable
+- The `CLIOptions` struct is defined but commands declare their own arguments to avoid carrying unused options (e.g. `--rules-dir` only on rules/analyze)
+- `StatusCommand` reads phase directories directly via `OutputFileReader` without running any CLI command — it's a local-only operation
 
 ---
 
