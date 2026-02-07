@@ -59,16 +59,9 @@ inspected and debugged independently.
         help="PR number to fetch diff for",
     )
     diff_parser.add_argument(
-        "--source",
-        type=str,
-        choices=["github", "local"],
-        default="github",
-        help="Diff source (default: github)",
-    )
-    diff_parser.add_argument(
         "--local-repo-path",
         type=str,
-        help="Path to local git repository (default: current directory)",
+        help="Use local git repo for diff instead of GitHub API",
     )
 
     # rules command
@@ -171,16 +164,9 @@ inspected and debugged independently.
         help="Directory containing review rules (default: code-review-rules/)",
     )
     analyze_parser.add_argument(
-        "--source",
-        type=str,
-        choices=["github", "local"],
-        default="github",
-        help="Diff source (default: github)",
-    )
-    analyze_parser.add_argument(
         "--local-repo-path",
         type=str,
-        help="Path to local git repository (default: current directory)",
+        help="Use local git repo for diff instead of GitHub API",
     )
     analyze_parser.add_argument(
         "--stop-after",
@@ -266,12 +252,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
     if args.agent_command == "diff":
         from prradar.commands.agent.diff import cmd_diff
 
-        # Convert string to enum
-        try:
-            diff_source = DiffSource.from_string(args.source)
-        except ValueError as e:
-            print(f"Error: {e}")
-            return 1
+        diff_source = DiffSource.LOCAL_GIT if args.local_repo_path else DiffSource.GITHUB_API
 
         return cmd_diff(
             pr_number=pr_number,
@@ -359,12 +340,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
                 print("  Error: Could not detect repository. Use --repo to specify.")
                 return 1
 
-        # Convert string to enum
-        try:
-            diff_source = DiffSource.from_string(args.source)
-        except ValueError as e:
-            print(f"Error: {e}")
-            return 1
+        diff_source = DiffSource.LOCAL_GIT if args.local_repo_path else DiffSource.GITHUB_API
 
         return cmd_analyze(
             pr_number=pr_number,
