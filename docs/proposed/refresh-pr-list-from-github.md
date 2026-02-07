@@ -84,7 +84,7 @@ Create a new use case following the existing `FetchDiffUseCase` pattern.
 
 **Completed.** Created `FetchPRListUseCase` following the exact `FetchDiffUseCase` pattern. The `execute` method takes optional `limit`, `state`, and `repoSlug` parameters. It constructs `PRRadar.Agent.ListPrs` (matching the SDK struct name), streams CLI output via `CLIOutputStream`, and on success calls `PRDiscoveryService.discoverPRs(outputDir:repoSlug:)` to return the refreshed `[PRMetadata]` list. Uses `config.absoluteOutputDir` for the discovery call since `PRDiscoveryService` expects an absolute path. No `parseOutput` static method — the list-prs command writes files to disk and discovery reads them.
 
-## - [ ] Phase 5: Mac App — Model + UI integration
+## - [x] Phase 5: Mac App — Model + UI integration
 
 Wire the use case into `PRReviewModel` and update the refresh button.
 
@@ -102,6 +102,8 @@ Wire the use case into `PRReviewModel` and update the refresh button.
   - Update the refresh button to call the new async `refreshPRList()`
   - Add `ProgressView()` overlay or replace the button icon with a spinner when `model.isRefreshing` is true
   - Disable the refresh button while refreshing
+
+**Completed.** `PRReviewModel.refreshPRList()` is now async — it creates a `FetchPRListUseCase` with the current config, derives the `repoSlug` for filtering, and streams the result. On `.completed`, the PR list is updated in the `ConfigContext`. The old synchronous filesystem-only refresh was renamed to `refreshPRListFromDisk()` (private) and is still used by `startNewReview` after the diff completes. In `ContentView`, the refresh button wraps the call in a `Task`, replaces the icon with a `ProgressView` spinner while `model.isRefreshing` is true, and is disabled when refreshing or when no config is selected.
 
 ## - [ ] Phase 6: Swift CLI — `RefreshCommand`
 

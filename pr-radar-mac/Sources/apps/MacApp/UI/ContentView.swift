@@ -125,11 +125,17 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
-                    model.refreshPRList()
+                    Task { await model.refreshPRList() }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    if model.isRefreshing {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
                 .help("Refresh PR list")
+                .disabled(model.isRefreshing || selectedConfig == nil)
             }
             ToolbarItem(placement: .automatic) {
                 Button {

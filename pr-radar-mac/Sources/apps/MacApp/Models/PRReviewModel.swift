@@ -45,6 +45,7 @@ final class PRReviewModel {
 
     private(set) var state: ModelState = .noConfig
     private(set) var settings: AppSettings
+    private(set) var isRefreshing = false
 
     private let venvBinPath: String
     private let environment: [String: String]
@@ -185,7 +186,37 @@ final class PRReviewModel {
         state = .hasConfig(ConfigContext(config: config, prs: prs, review: nil))
     }
 
-    func refreshPRList() {
+    func refreshPRList() async {
+        guard let selected = selectedConfiguration else { return }
+
+        isRefreshing = true
+        let config = makeConfig(from: selected)
+        let slug = PRDiscoveryService.repoSlug(fromRepoPath: selected.repoPath)
+        let useCase = FetchPRListUseCase(config: config, environment: environment)
+
+        do {
+            for try await progress in useCase.execute(repoSlug: slug) {
+                switch progress {
+                case .running:
+                    break
+                case .log:
+                    break
+                case .completed(let prs):
+                    mutateConfigContext { ctx in
+                        ctx.prs = prs
+                    }
+                case .failed:
+                    break
+                }
+            }
+        } catch {
+            // Refresh is best-effort; fall back to disk discovery on failure
+        }
+
+        isRefreshing = false
+    }
+
+    private func refreshPRListFromDisk() {
         mutateConfigContext { ctx in
             let slug = PRDiscoveryService.repoSlug(fromRepoPath: ctx.config.repoPath)
             ctx.prs = PRDiscoveryService.discoverPRs(outputDir: ctx.config.outputDir, repoSlug: slug)
@@ -272,7 +303,7 @@ final class PRReviewModel {
 
         await runDiff()
 
-        refreshPRList()
+        refreshPRListFromDisk()
         if let updated = discoveredPRs.first(where: { $0.number == prNumber }) {
             selectPR(updated)
         }
