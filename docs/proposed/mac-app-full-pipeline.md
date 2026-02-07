@@ -225,54 +225,37 @@ Created 8 new files across 3 targets:
 
 ---
 
-## - [ ] Phase 5: Phase Output Views
+## - [x] Phase 5: Phase Output Views
 
 Create SwiftUI views for displaying each phase's structured output. Each view takes the parsed domain model and renders it in a useful format.
 
-### New view files in `Sources/apps/MacApp/UI/`
+### Completed
 
-**Phase 1 — Diff View:** `PhaseViews/DiffPhaseView.swift`
-- Tab view with two tabs: "Full Diff" and "Effective Diff"
-- Each tab uses `SimpleDiffView` (copied from RefactorApp) to display the raw diff
-- File list sidebar showing changed files with hunk counts
-- Tap a file to filter diff to just that file's hunks
+Created 8 new view files in `Sources/apps/MacApp/UI/PhaseViews/`:
 
-**Phase 2 — Focus Areas & Rules View:** `PhaseViews/RulesPhaseView.swift`
-- Three-section layout:
-  - **Focus Areas**: List of identified focus areas grouped by file, showing method names and line ranges
-  - **Rules**: List of loaded rules with name, category, description (expandable rows)
-  - **Tasks**: Count of generated evaluation tasks, grouped by rule
-- Summary bar: "X focus areas, Y rules, Z tasks created"
+**Shared components:**
 
-**Phase 3 — Evaluations View:** `PhaseViews/EvaluationsPhaseView.swift`
-- List of evaluation results, color-coded by severity:
-  - Green (1-4): minor/no issue
-  - Orange (5-7): moderate violation
-  - Red (8-10): severe violation
-- Each row shows: rule name, file:line, score badge, short comment preview
-- Expandable detail: full comment text, rule description, focus area context
-- Filter controls: by severity, by file, by rule
-- Summary header: total evaluated, violations found, cost
+- `SeverityBadge.swift` — Color-coded score capsule (green 1-4, orange 5-7, red 8-10)
+- `PhaseSummaryBar.swift` — Reusable bar with label/value pairs on a `.bar` background
+- `ViolationCard.swift` — Expandable card showing violation details (rule name, score badge, file:line, comment, method, docs link)
 
-**Phase 4 — Report View:** `PhaseViews/ReportPhaseView.swift`
-- Summary cards: total tasks, violations found, highest severity, total cost
-- Breakdown tables: by severity, by file, by rule (matching Python's summary.md layout)
-- Violations list: detailed violation cards with rule name, score, file, comment
-- Option to view raw markdown report in a text view
+**Phase views:**
 
-**Phase 5 — Comments Preview View:** `PhaseViews/CommentsPhaseView.swift`
-- List of comments that will be posted (dry-run output)
-- Each comment shows: file, line number, rule name, comment body
-- Checkbox per comment to include/exclude from posting
-- "Post Selected" / "Post All" buttons
-- Uses `CodeView` (from RefactorApp) to show the code context around each comment location
-- This is the approval flow — user reviews before posting
+- `DiffPhaseView.swift` — Segmented control for Full/Effective diff, HSplitView with file sidebar (shows hunk count per file) and monospaced diff content. Clicking a file filters to its hunks only.
+- `RulesPhaseView.swift` — Three-section List: focus areas grouped by file with DisclosureGroup, rules with expandable content/docs, tasks grouped by rule with count.
+- `EvaluationsPhaseView.swift` — Filterable evaluation list with severity/file/rule Pickers. Each row shows SeverityBadge, rule name, file:line, and expandable detail (model, duration, cost).
+- `ReportPhaseView.swift` — Summary cards (total tasks, violations, highest severity, cost), breakdown sections (by severity, file, rule), violations list using ViolationCard, "View Markdown" sheet for raw report.
+- `CommentsPhaseView.swift` — Checkbox per violation for include/exclude, select all/deselect all, "Post Selected" button, severity badges, CLI output section. Shows ContentUnavailableView when no violations.
 
-### Shared components
+### Technical notes
 
-- `PhaseViews/PhaseSummaryBar.swift` — Reusable summary bar showing phase name, status, timing
-- `PhaseViews/SeverityBadge.swift` — Color-coded score badge (green/orange/red)
-- `PhaseViews/ViolationCard.swift` — Reusable card for displaying a single violation
+- All views take parsed domain models as input (no fetching or state management) — they are pure presentation
+- `DiffPhaseView` accepts optional `effectiveDiff` parameter; the Effective Diff tab only appears when provided
+- `CommentsPhaseView` filters evaluations to only those with `violatesRule == true` for the comments list
+- `ViolationCard` uses tap-to-expand pattern rather than `DisclosureGroup` for a cleaner card appearance
+- `EvaluationsPhaseView` filter state is local (`@State`) — resets when the view is recreated
+- No Package.swift changes needed — all files auto-included in existing MacApp target
+- `CodeView` integration deferred to Phase 7 (Comment Approval Flow) where file content is available from the repo
 
 ---
 
