@@ -55,7 +55,6 @@ final class PRReviewModel {
         self.environment = environment
         self.settingsService = settingsService
         self.settings = settingsService.load()
-        restoreSelections()
     }
 
     // MARK: - Mutation Helpers
@@ -74,7 +73,7 @@ final class PRReviewModel {
         }
     }
 
-    // MARK: - Backward-Compatible Computed Properties
+    // MARK: - Computed Properties
 
     var selectedConfiguration: RepoConfiguration? {
         guard case .hasConfig(let ctx) = state else { return nil }
@@ -87,18 +86,8 @@ final class PRReviewModel {
     }
 
     var selectedPR: PRMetadata? {
-        get {
-            guard case .hasConfig(let ctx) = state else { return nil }
-            return ctx.review?.pr
-        }
-        set {
-            if let pr = newValue {
-                selectPR(pr)
-            } else {
-                mutateConfigContext { $0.review = nil }
-                UserDefaults.standard.removeObject(forKey: "selectedPRNumber")
-            }
-        }
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.pr
     }
 
     var selectedPhase: PRRadarPhase {
@@ -188,35 +177,18 @@ final class PRReviewModel {
             }
             ctx.review = review
         }
-        UserDefaults.standard.set(pr.number, forKey: "selectedPRNumber")
     }
 
     func selectConfiguration(_ config: RepoConfiguration) {
-        let prs = PRDiscoveryService.discoverPRs(outputDir: config.outputDir)
+        let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
+        let prs = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
         state = .hasConfig(ConfigContext(config: config, prs: prs, review: nil))
-        persistSelectedConfigID()
     }
 
     func refreshPRList() {
         mutateConfigContext { ctx in
-            ctx.prs = PRDiscoveryService.discoverPRs(outputDir: ctx.config.outputDir)
-        }
-    }
-
-    private func restoreSelections() {
-        let savedID = UserDefaults.standard.string(forKey: "selectedConfigID")
-            .flatMap(UUID.init(uuidString:))
-        if let savedID, let config = settings.configurations.first(where: { $0.id == savedID }) {
-            selectConfiguration(config)
-        } else if let config = settings.defaultConfiguration {
-            selectConfiguration(config)
-        }
-
-        if selectedConfiguration != nil {
-            let savedPR = UserDefaults.standard.integer(forKey: "selectedPRNumber")
-            if savedPR != 0, let match = discoveredPRs.first(where: { $0.number == savedPR }) {
-                selectPR(match)
-            }
+            let slug = PRDiscoveryService.repoSlug(fromRepoPath: ctx.config.repoPath)
+            ctx.prs = PRDiscoveryService.discoverPRs(outputDir: ctx.config.outputDir, repoSlug: slug)
         }
     }
 
@@ -553,14 +525,6 @@ final class PRReviewModel {
                 existing = ""
             }
             review.phaseStates[phase] = .running(logs: existing + text)
-        }
-    }
-
-    private func persistSelectedConfigID() {
-        if let id = selectedConfiguration?.id {
-            UserDefaults.standard.set(id.uuidString, forKey: "selectedConfigID")
-        } else {
-            UserDefaults.standard.removeObject(forKey: "selectedConfigID")
         }
     }
 

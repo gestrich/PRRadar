@@ -1,9 +1,14 @@
 import PRRadarConfigService
+import PRRadarModels
 import SwiftUI
 
 struct ContentView: View {
 
     @Environment(PRReviewModel.self) private var model
+    @State private var selectedConfig: RepoConfiguration?
+    @State private var selectedPR: PRMetadata?
+    @AppStorage("selectedConfigID") private var savedConfigID: String = ""
+    @AppStorage("selectedPRNumber") private var savedPRNumber: Int = 0
     @State private var showSettings = false
     @State private var showNewReview = false
     @State private var newPRNumber = ""
@@ -20,24 +25,42 @@ struct ContentView: View {
             SettingsView()
                 .environment(model)
         }
+        .task {
+            if let config = model.settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
+                selectedConfig = config
+                model.selectConfiguration(config)
+                if savedPRNumber != 0, let pr = model.discoveredPRs.first(where: { $0.number == savedPRNumber }) {
+                    selectedPR = pr
+                    model.selectPR(pr)
+                }
+            } else if let config = model.settings.defaultConfiguration {
+                selectedConfig = config
+                model.selectConfiguration(config)
+            }
+        }
+        .onChange(of: selectedConfig) { old, new in
+            guard let config = new, config.id != old?.id else { return }
+            guard config != model.selectedConfiguration else { return }
+            model.selectConfiguration(config)
+            savedConfigID = config.id.uuidString
+            selectedPR = nil
+            savedPRNumber = 0
+        }
+        .onChange(of: selectedPR) { _, new in
+            if let pr = new {
+                guard pr != model.selectedPR else { return }
+                model.selectPR(pr)
+                savedPRNumber = pr.number
+            } else {
+                savedPRNumber = 0
+            }
+        }
     }
 
     // MARK: - Column 1: Config Sidebar
 
-    @ViewBuilder
     private var configSidebar: some View {
-        @Bindable var model = model
-
-        let configBinding = Binding<RepoConfiguration?>(
-            get: { model.selectedConfiguration },
-            set: { newConfig in
-                if let config = newConfig {
-                    model.selectConfiguration(config)
-                }
-            }
-        )
-
-        List(model.settings.configurations, selection: configBinding) { config in
+        List(model.settings.configurations, selection: $selectedConfig) { config in
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(config.name)
@@ -75,29 +98,27 @@ struct ContentView: View {
 
     // MARK: - Column 2: PR List
 
-    @ViewBuilder
     private var prListView: some View {
-        @Bindable var model = model
-
         Group {
-            switch model.state {
-            case .noConfig:
+            if selectedConfig != nil {
+                if model.discoveredPRs.isEmpty {
+                    ContentUnavailableView(
+                        "No Reviews Found",
+                        systemImage: "doc.text.magnifyingglass",
+                        description: Text("No PR review data found in the output directory.")
+                    )
+                } else {
+                    List(model.discoveredPRs, selection: $selectedPR) { pr in
+                        PRListRow(pr: pr)
+                            .tag(pr)
+                    }
+                }
+            } else {
                 ContentUnavailableView(
                     "Select a Configuration",
                     systemImage: "folder",
                     description: Text("Choose a repo configuration from the sidebar.")
                 )
-            case .hasConfig(let ctx) where ctx.prs.isEmpty:
-                ContentUnavailableView(
-                    "No Reviews Found",
-                    systemImage: "doc.text.magnifyingglass",
-                    description: Text("No PR review data found in the output directory.")
-                )
-            case .hasConfig:
-                List(model.discoveredPRs, selection: $model.selectedPR) { pr in
-                    PRListRow(pr: pr)
-                        .tag(pr)
-                }
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 280)
@@ -118,7 +139,7 @@ struct ContentView: View {
                     Image(systemName: "plus")
                 }
                 .help("Start a new PR review")
-                .disabled(model.selectedConfiguration == nil)
+                .disabled(selectedConfig == nil)
                 .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
                     newReviewPopover
                 }
@@ -130,17 +151,12 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        switch model.state {
-        case .noConfig:
-            ContentUnavailableView(
-                "Select a Configuration",
-                systemImage: "folder",
-                description: Text("Choose a repo configuration from the sidebar.")
-            )
-        case .hasConfig(let ctx):
-            if let review = ctx.review {
-                ReviewDetailView(config: ctx.config, review: review)
-                    .id(review.pr.number)
+        if let selectedConfig {
+            if let selectedPR,
+               case .hasConfig(let ctx) = model.state,
+               let review = ctx.review {
+                ReviewDetailView(config: selectedConfig, review: review)
+                    .id(selectedPR.number)
                     .environment(model)
             } else {
                 ContentUnavailableView(
@@ -149,6 +165,12 @@ struct ContentView: View {
                     description: Text("Choose a PR from the list to view its review data.")
                 )
             }
+        } else {
+            ContentUnavailableView(
+                "Select a Configuration",
+                systemImage: "folder",
+                description: Text("Choose a repo configuration from the sidebar.")
+            )
         }
     }
 
@@ -179,7 +201,11 @@ struct ContentView: View {
     private func submitNewReview() {
         guard let number = Int(newPRNumber) else { return }
         showNewReview = false
-        Task { await model.startNewReview(prNumber: number) }
+        Task {
+            await model.startNewReview(prNumber: number)
+            selectedPR = model.selectedPR
+            if let pr = selectedPR { savedPRNumber = pr.number }
+        }
     }
 }
 
