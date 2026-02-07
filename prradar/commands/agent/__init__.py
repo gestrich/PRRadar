@@ -59,9 +59,15 @@ inspected and debugged independently.
         help="PR number to fetch diff for",
     )
     diff_parser.add_argument(
-        "--local-repo-path",
+        "--repo-path",
         type=str,
-        help="Use local git repo for diff instead of GitHub API",
+        default=".",
+        help="Path to local git repo (default: current directory)",
+    )
+    diff_parser.add_argument(
+        "--github-diff",
+        action="store_true",
+        help="Use GitHub API for diff text instead of local git",
     )
 
     # rules command
@@ -164,9 +170,15 @@ inspected and debugged independently.
         help="Directory containing review rules (default: code-review-rules/)",
     )
     analyze_parser.add_argument(
-        "--local-repo-path",
+        "--repo-path",
         type=str,
-        help="Use local git repo for diff instead of GitHub API",
+        default=".",
+        help="Path to local git repo (default: current directory)",
+    )
+    analyze_parser.add_argument(
+        "--github-diff",
+        action="store_true",
+        help="Use GitHub API for diff text instead of local git",
     )
     analyze_parser.add_argument(
         "--stop-after",
@@ -252,13 +264,13 @@ def cmd_agent(args: argparse.Namespace) -> int:
     if args.agent_command == "diff":
         from prradar.commands.agent.diff import cmd_diff
 
-        diff_source = DiffSource.LOCAL_GIT if args.local_repo_path else DiffSource.GITHUB_API
+        diff_source = DiffSource.GITHUB if args.github_diff else DiffSource.LOCAL
 
         return cmd_diff(
             pr_number=pr_number,
             output_dir=pr_dir,
             source=diff_source,
-            local_repo_path=args.local_repo_path,
+            repo_path=args.repo_path,
         )
 
     elif args.agent_command == "rules":
@@ -340,7 +352,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
                 print("  Error: Could not detect repository. Use --repo to specify.")
                 return 1
 
-        diff_source = DiffSource.LOCAL_GIT if args.local_repo_path else DiffSource.GITHUB_API
+        diff_source = DiffSource.GITHUB if args.github_diff else DiffSource.LOCAL
 
         return cmd_analyze(
             pr_number=pr_number,
@@ -353,7 +365,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             skip_to=args.skip_to,
             min_score=args.min_score,
             source=diff_source,
-            local_repo_path=args.local_repo_path,
+            repo_path=args.repo_path,
         )
 
     else:

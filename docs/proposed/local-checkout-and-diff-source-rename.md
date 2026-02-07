@@ -87,7 +87,7 @@ Update tests in `tests/test_github_repo.py` and `tests/test_diff_provider_factor
 
 **Completed.** Injected `GitOperationsService` into `GitHubDiffProvider` constructor (matching `LocalGitDiffProvider`'s signature). `get_pr_diff()` now fetches PR metadata, checks clean working directory, fetches branches, checks out head commit, then fetches diff via `gh pr diff`. Factory's `local_repo_path` parameter is now required (`str`, no longer `str | None`) since both providers need it for checkout. `cmd_diff` defaults `local_repo_path` to `"."` when not provided (pending Phase 4 CLI rename). Tests rewritten with full checkout workflow verification including order test (`check_clean → fetch × 2 → checkout_commit → pr_diff`), dirty directory abort, checkout failure propagation, and `GitOperationsService` injection for both factory paths. All 341 tests pass.
 
-## - [ ] Phase 4: Rename DiffSource enum and CLI flags
+## - [x] Phase 4: Rename DiffSource enum and CLI flags
 
 > Skills: `/python-architecture:domain-modeling`, `/python-architecture:cli-architecture`
 
@@ -108,6 +108,8 @@ Update tests in `tests/test_github_repo.py` and `tests/test_diff_provider_factor
 - Default `source` flips to `DiffSource.LOCAL`
 
 Update `tests/test_diff_source.py` for renamed enum members. Update all references across codebase (`GITHUB_API` → `GITHUB`, `LOCAL_GIT` → `LOCAL`).
+
+**Completed.** Renamed `DiffSource.GITHUB_API` → `GITHUB` and `DiffSource.LOCAL_GIT` → `LOCAL` (values unchanged: `"github"`, `"local"`). Replaced `--local-repo-path` with `--repo-path` (default `"."`) on both `diff` and `analyze` subcommands. Added `--github-diff` boolean flag (`store_true`) for opt-in GitHub API diff. Default behavior is now local git diff (`DiffSource.LOCAL`). Updated `cmd_diff` and `cmd_analyze` signatures: `local_repo_path: str | None` → `repo_path: str = "."`, default `source` flipped to `DiffSource.LOCAL`. Factory's internal `local_repo_path` parameter kept as-is (it's an internal detail). All tests updated for renamed enum members. All 341 tests pass.
 
 ## - [ ] Phase 5: Validation
 

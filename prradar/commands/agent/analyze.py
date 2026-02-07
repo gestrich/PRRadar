@@ -292,8 +292,8 @@ def cmd_analyze(
     stop_after: str | None = None,
     skip_to: str | None = None,
     min_score: int = 5,
-    source: DiffSource = DiffSource.GITHUB_API,
-    local_repo_path: str | None = None,
+    source: DiffSource = DiffSource.LOCAL,
+    repo_path: str = ".",
 ) -> int:
     """Execute the analyze command - full review pipeline.
 
@@ -307,8 +307,8 @@ def cmd_analyze(
         stop_after: Stop after this phase (diff, rules, evaluate)
         skip_to: Skip to this phase (rules, evaluate, comment)
         min_score: Minimum score for posting comments
-        source: Diff source (DiffSource.GITHUB_API or DiffSource.LOCAL_GIT)
-        local_repo_path: Path to local git repo (for local source)
+        source: Diff source (DiffSource.LOCAL or DiffSource.GITHUB)
+        repo_path: Path to local git repo (default: current directory)
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -346,7 +346,7 @@ def cmd_analyze(
         print("=" * 60)
         print("Phase 1: Fetching PR diff")
         print("=" * 60)
-        result = cmd_diff(pr_number, output_dir, source, local_repo_path)
+        result = cmd_diff(pr_number, output_dir, source, repo_path)
         if result != 0:
             print("  Error in diff phase")
             return result

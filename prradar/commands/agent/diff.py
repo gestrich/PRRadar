@@ -35,16 +35,16 @@ from prradar.services.phase_sequencer import (
 def cmd_diff(
     pr_number: int,
     output_dir: Path,
-    source: DiffSource = DiffSource.GITHUB_API,
-    local_repo_path: str | None = None,
+    source: DiffSource = DiffSource.LOCAL,
+    repo_path: str = ".",
 ) -> int:
     """Execute the diff command.
 
     Args:
         pr_number: PR number to fetch
         output_dir: PR-specific output directory (already includes PR number)
-        source: Diff source (DiffSource.GITHUB_API or DiffSource.LOCAL_GIT)
-        local_repo_path: Path to local git repo (for local source)
+        source: Diff source (DiffSource.LOCAL or DiffSource.GITHUB)
+        repo_path: Path to local git repo (default: current directory)
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -72,7 +72,7 @@ def cmd_diff(
         source,
         repo.owner,
         repo.name,
-        local_repo_path=local_repo_path or ".",
+        local_repo_path=repo_path,
     )
 
     # Fetch and store diff

@@ -13,16 +13,17 @@ class DiffSource(Enum):
     """Source for diff acquisition.
 
     Attributes:
-        GITHUB_API: Use GitHub API for diff (default, no local repo required)
-        LOCAL_GIT: Use local git for diff (requires local repo checkout)
+        GITHUB: Use GitHub API for diff (opt-in via --github-diff)
+        LOCAL: Use local git for diff (default)
 
     Note:
         Both sources use GitHub API for PR metadata (branch names, etc).
-        Only the diff acquisition method changes.
+        Both sources checkout the PR branch locally.
+        Only the diff text acquisition method changes.
     """
 
-    GITHUB_API = "github"
-    LOCAL_GIT = "local"
+    GITHUB = "github"
+    LOCAL = "local"
 
     @classmethod
     def from_string(cls, value: str) -> DiffSource:
@@ -39,9 +40,9 @@ class DiffSource(Enum):
 
         Examples:
             >>> DiffSource.from_string("github")
-            <DiffSource.GITHUB_API: 'github'>
+            <DiffSource.GITHUB: 'github'>
             >>> DiffSource.from_string("local")
-            <DiffSource.LOCAL_GIT: 'local'>
+            <DiffSource.LOCAL: 'local'>
         """
         value_lower = value.lower()
         for member in cls:

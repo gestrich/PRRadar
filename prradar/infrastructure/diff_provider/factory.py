@@ -24,7 +24,7 @@ def create_diff_provider(
     """Create a diff provider based on source type.
 
     Args:
-        source: GITHUB_API or LOCAL_GIT
+        source: GITHUB or LOCAL
         repo_owner: GitHub repo owner (needed for both sources)
         repo_name: GitHub repo name (needed for both sources)
         local_repo_path: Path to local git repo (required for both sources)
@@ -35,9 +35,9 @@ def create_diff_provider(
     git_service = GitOperationsService(local_repo_path)
     gh_runner = GhCommandRunner()
 
-    if source == DiffSource.GITHUB_API:
+    if source == DiffSource.GITHUB:
         return GitHubDiffProvider(repo_owner, repo_name, git_service, gh_runner)
-    elif source == DiffSource.LOCAL_GIT:
+    elif source == DiffSource.LOCAL:
         return LocalGitDiffProvider(repo_owner, repo_name, git_service, gh_runner)
     else:
         raise ValueError(f"Unknown diff source: {source}")
