@@ -21,6 +21,7 @@ _PR_FIELDS = [
     "author",
     "baseRefName",
     "headRefName",
+    "headRefOid",
     "state",
     "isDraft",
     "url",

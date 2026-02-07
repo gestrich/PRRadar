@@ -111,7 +111,7 @@ Update `tests/test_diff_source.py` for renamed enum members. Update all referenc
 
 **Completed.** Renamed `DiffSource.GITHUB_API` → `GITHUB` and `DiffSource.LOCAL_GIT` → `LOCAL` (values unchanged: `"github"`, `"local"`). Replaced `--local-repo-path` with `--repo-path` (default `"."`) on both `diff` and `analyze` subcommands. Added `--github-diff` boolean flag (`store_true`) for opt-in GitHub API diff. Default behavior is now local git diff (`DiffSource.LOCAL`). Updated `cmd_diff` and `cmd_analyze` signatures: `local_repo_path: str | None` → `repo_path: str = "."`, default `source` flipped to `DiffSource.LOCAL`. Factory's internal `local_repo_path` parameter kept as-is (it's an internal detail). All tests updated for renamed enum members. All 341 tests pass.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
 > Skills: `/python-architecture:testing-services`
 
@@ -122,3 +122,10 @@ Update `tests/test_diff_source.py` for renamed enum members. Update all referenc
 3. Verify the ios repo is at the PR's head commit (detached HEAD) after each run
 4. `diff -r` the two output directories to confirm identical diff content
 5. Also compare against `/Users/bill/Desktop/code-reviews/18726` to confirm consistency with previous runs
+
+**Completed.** Found and fixed a bug: `headRefOid` was missing from the `_PR_FIELDS` list in `GhCommandRunner` (`prradar/infrastructure/github/runner.py`), causing `checkout_commit` to receive an empty string. After adding `"headRefOid"` to `_PR_FIELDS`, all validation passed:
+- All 341 tests pass
+- Both `agent.sh diff 18726` (local) and `agent.sh diff --github-diff 18726` (GitHub) succeed
+- Both modes leave the ios repo in detached HEAD at the correct PR commit (`4fb35c8a7f1`)
+- `diff -r` of the two output directories shows identical content
+- `headRefOid` is now properly persisted in the saved `gh-pr.json` artifact
