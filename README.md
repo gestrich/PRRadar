@@ -85,7 +85,7 @@ Rules define what PRRadar checks for during reviews. Each rule is a markdown fil
 
 ### Rule Format
 
-```yaml
+````yaml
 ---
 description: Brief description of what the rule checks
 category: safety
@@ -114,7 +114,7 @@ Guidance for reviewers.
 ```
 Template comment for violations.
 ```
-```
+````
 
 ### Frontmatter Fields
 
@@ -136,7 +136,7 @@ A rule is applied to a diff segment when:
 
 ### Example Rule
 
-```yaml
+````yaml
 ---
 description: Handle errors explicitly rather than silently ignoring them
 category: safety
@@ -188,7 +188,7 @@ except OperationError as e:
 This error is being silently ignored. Consider logging it or handling
 it explicitly so failures are visible during debugging and monitoring.
 ```
-```
+````
 
 ### Directory Organization
 

@@ -152,6 +152,7 @@ class DiffPhaseChecker(_FixedFileChecker):
     REQUIRED_FILES = [
         DIFF_RAW_FILENAME,
         DIFF_PARSED_JSON_FILENAME,
+        DIFF_PARSED_MD_FILENAME,
         GH_PR_FILENAME,
         GH_COMMENTS_FILENAME,
         GH_REPO_FILENAME,

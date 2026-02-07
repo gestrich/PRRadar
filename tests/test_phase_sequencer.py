@@ -22,6 +22,7 @@ import pytest
 from prradar.commands.migrate_to_phases import migrate_all, migrate_pr_directory
 from prradar.services.phase_sequencer import (
     DIFF_PARSED_JSON_FILENAME,
+    DIFF_PARSED_MD_FILENAME,
     DIFF_RAW_FILENAME,
     EFFECTIVE_DIFF_MOVES_FILENAME,
     EFFECTIVE_DIFF_PARSED_JSON_FILENAME,
@@ -660,9 +661,10 @@ class TestDiffPhaseChecker(unittest.TestCase):
         assert not status.exists
         assert not status.is_complete
         assert status.completed_count == 0
-        assert status.total_count == 8
+        assert status.total_count == 9
         assert DIFF_RAW_FILENAME in status.missing_items
         assert DIFF_PARSED_JSON_FILENAME in status.missing_items
+        assert DIFF_PARSED_MD_FILENAME in status.missing_items
         assert GH_PR_FILENAME in status.missing_items
         assert GH_COMMENTS_FILENAME in status.missing_items
         assert GH_REPO_FILENAME in status.missing_items
@@ -680,7 +682,8 @@ class TestDiffPhaseChecker(unittest.TestCase):
         assert status.exists
         assert not status.is_complete
         assert status.completed_count == 2
-        assert status.total_count == 8
+        assert status.total_count == 9
+        assert DIFF_PARSED_MD_FILENAME in status.missing_items
         assert GH_PR_FILENAME in status.missing_items
         assert GH_COMMENTS_FILENAME in status.missing_items
         assert GH_REPO_FILENAME in status.missing_items
@@ -693,6 +696,7 @@ class TestDiffPhaseChecker(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("{}")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
@@ -703,8 +707,8 @@ class TestDiffPhaseChecker(unittest.TestCase):
         status = self.checker.check_status(self.tmp_path)
         assert status.exists
         assert status.is_complete
-        assert status.completed_count == 8
-        assert status.total_count == 8
+        assert status.completed_count == 9
+        assert status.total_count == 9
         assert status.missing_items == []
 
     def test_empty_directory(self) -> None:
@@ -980,6 +984,7 @@ class TestGetPhaseStatus(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("{}")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
@@ -1152,6 +1157,7 @@ class TestGetAllStatuses(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("{}")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
@@ -1199,6 +1205,7 @@ class TestPrintPipelineStatus(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("{}")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
@@ -1274,8 +1281,8 @@ class TestPrintPipelineStatus(unittest.TestCase):
             sys.stdout = old_stdout
 
         output = captured.getvalue()
-        assert "1/8" in output
-        assert "12%" in output
+        assert "1/9" in output
+        assert "11%" in output
 
     def test_shows_header(self) -> None:
         """Output includes header line."""
@@ -1351,6 +1358,7 @@ class TestCmdStatus(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("{}")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
@@ -1443,6 +1451,7 @@ class TestResumeAndStatusIntegration(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("diff content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("[]")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
@@ -1511,6 +1520,7 @@ class TestResumeAndStatusIntegration(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / DIFF_RAW_FILENAME).write_text("diff content")
         (diff_dir / DIFF_PARSED_JSON_FILENAME).write_text("[]")
+        (diff_dir / DIFF_PARSED_MD_FILENAME).write_text("")
         (diff_dir / GH_PR_FILENAME).write_text("{}")
         (diff_dir / GH_COMMENTS_FILENAME).write_text("{}")
         (diff_dir / GH_REPO_FILENAME).write_text("{}")
