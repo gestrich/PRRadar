@@ -111,7 +111,7 @@ Rules declare which focus type they need.
 
 ---
 
-## - [ ] Phase 3: File Focus Area Generator
+## - [x] Phase 3: File Focus Area Generator
 
 Add file-level focus area generation alongside the existing method-level generator.
 
@@ -136,9 +136,17 @@ Add file-level focus area generation alongside the existing method-level generat
 - `hunk_content` for file focus areas is the concatenation of all hunk contents for that file
 - `focus_id` format: sanitized file path (e.g., `src-auth-handler.py`) with no hunk index since it covers the whole file
 
-**Files to modify:**
-- `prradar/services/focus_generator.py`
-- Tests
+**Files modified:**
+- `prradar/services/focus_generator.py` — Added `generate_file_focus_areas()` method (pure aggregation, no AI); updated `generate_all_focus_areas()` with optional `requested_types: set[FocusType]` parameter; added `defaultdict` import
+- `tests/test_focus_type.py` — Added `TestFileFocusAreaGeneration` (7 tests: single-hunk, multi-hunk, multiple files, sanitized ID, hunk index tracking, empty hunks, annotated content) and `TestGenerateAllFocusAreasWithTypes` (5 tests: default METHOD-only, FILE-only skips method gen, both types mixed, file cost is zero, empty hunks)
+
+**Technical notes:**
+- `generate_all_focus_areas()` defaults to `requested_types={FocusType.METHOD}` when `None` — backward compatible with existing callers in `rules.py`
+- `generate_file_focus_areas()` is synchronous (no AI calls needed), called directly from the async `generate_all_focus_areas()`
+- Hunks grouped via `defaultdict(list)` keyed by `file_path`; annotated contents joined with `"\n\n"` separator
+- `hunk_index` on file focus areas stores the index of the first hunk for that file (from the overall hunk list)
+- `FocusGenerationResult` required no changes — it already supports mixed-type focus areas in its `focus_areas` list
+- All 515 tests pass (503 existing + 12 new)
 
 ---
 

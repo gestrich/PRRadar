@@ -10,6 +10,7 @@ dependency injection.
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from dataclasses import dataclass
 
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
@@ -184,25 +185,87 @@ class FocusGeneratorService:
 
         return focus_areas, cost_usd
 
+    def generate_file_focus_areas(self, hunks: list[Hunk]) -> list[FocusArea]:
+        """Generate file-level focus areas by grouping hunks per file.
+
+        No AI call needed — aggregates all hunks for each file into a single
+        FocusArea with FocusType.FILE.
+
+        Args:
+            hunks: List of hunks from parsed diff
+
+        Returns:
+            List of file-level focus areas (one per unique file)
+        """
+        hunks_by_file: dict[str, list[tuple[int, Hunk]]] = defaultdict(list)
+        for i, hunk in enumerate(hunks):
+            hunks_by_file[hunk.file_path].append((i, hunk))
+
+        focus_areas: list[FocusArea] = []
+        for file_path, indexed_hunks in hunks_by_file.items():
+            all_annotated = []
+            min_start = None
+            max_end = None
+
+            for hunk_index, hunk in indexed_hunks:
+                annotated = hunk.get_annotated_content()
+                all_annotated.append(annotated)
+
+                hunk_end = hunk.new_start + hunk.new_length - 1
+                if min_start is None or hunk.new_start < min_start:
+                    min_start = hunk.new_start
+                if max_end is None or hunk_end > max_end:
+                    max_end = hunk_end
+
+            safe_path = file_path.replace("/", "-").replace("\\", "-")
+
+            focus_areas.append(
+                FocusArea(
+                    focus_id=safe_path,
+                    file_path=file_path,
+                    start_line=min_start or 0,
+                    end_line=max_end or 0,
+                    description=file_path,
+                    hunk_index=indexed_hunks[0][0],
+                    hunk_content="\n\n".join(all_annotated),
+                    focus_type=FocusType.FILE,
+                )
+            )
+
+        return focus_areas
+
     async def generate_all_focus_areas(
-        self, hunks: list[Hunk], pr_number: int
+        self,
+        hunks: list[Hunk],
+        pr_number: int,
+        requested_types: set[FocusType] | None = None,
     ) -> FocusGenerationResult:
         """Generate focus areas for all hunks in a diff.
 
         Args:
             hunks: List of hunks from parsed diff
             pr_number: PR number being analyzed
+            requested_types: Set of FocusType values to generate. If None,
+                generates METHOD focus areas only (backward compatible).
 
         Returns:
             FocusGenerationResult with all focus areas
         """
+        if requested_types is None:
+            requested_types = {FocusType.METHOD}
+
         all_focus_areas: list[FocusArea] = []
         total_cost = 0.0
 
-        for i, hunk in enumerate(hunks):
-            focus_areas, cost = await self.generate_focus_areas_for_hunk(hunk, i)
-            all_focus_areas.extend(focus_areas)
-            total_cost += cost
+        if FocusType.METHOD in requested_types:
+            for i, hunk in enumerate(hunks):
+                focus_areas, cost = await self.generate_focus_areas_for_hunk(hunk, i)
+                all_focus_areas.extend(focus_areas)
+                total_cost += cost
+
+        if FocusType.FILE in requested_types:
+            file_focus_areas = self.generate_file_focus_areas(hunks)
+            all_focus_areas.extend(file_focus_areas)
 
         return FocusGenerationResult(
             pr_number=pr_number,
