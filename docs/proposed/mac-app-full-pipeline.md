@@ -259,49 +259,60 @@ Created 8 new view files in `Sources/apps/MacApp/UI/PhaseViews/`:
 
 ---
 
-## - [ ] Phase 6: Pipeline Navigation and Status UI
+## - [x] Phase 6: Pipeline Navigation and Status UI
 
 Redesign the main app UI to support all phases with navigation, pipeline status tracking, and phase selection.
 
-### Files to modify
+### Completed
+
+Redesigned the app from a single-phase view into a full pipeline navigation UI:
+
+**`Sources/apps/MacApp/Models/PRReviewModel.swift`** — Complete rewrite:
+- `PhaseState` enum: `.idle`, `.running(logs:)`, `.completed(logs:)`, `.failed(error:logs:)`
+- Per-phase state tracking via `phaseStates: [PRRadarPhase: PhaseState]` dictionary
+- Typed phase outputs: `diffFiles`, `rulesOutput`, `evaluationOutput`, `reportOutput`, `commentOutput`
+- `selectedPhase: PRRadarPhase` for sidebar navigation
+- `runPhase(_:)` dispatches to the correct use case, `runAllPhases()` chains sequentially
+- `canRunPhase(_:)` validates prerequisites (e.g., evaluations require tasks to be complete)
+- `resetPhase(_:)` and `resetAllPhases()` for clearing state
+- `runComments(dryRun:)` for the comment posting flow
+- Removed old single-phase `State` enum and `isRunning` property
 
 **`Sources/apps/MacApp/UI/ContentView.swift`** — Complete redesign:
-- **Sidebar**: List of phases (1-6) with status indicators (not started, running, completed, failed)
-  - Phase icons and names
-  - Completion checkmarks or spinners
-  - Click to navigate to phase view
-- **Detail area**: Shows the selected phase's input form + output view
-- **Toolbar**: Configuration picker (from Phase 3), settings gear, "Run All" button
-- Pipeline status bar at bottom showing overall progress
-
-**`Sources/apps/MacApp/Models/PRReviewModel.swift`** — Expand to manage all phases:
-- Track state per phase: `[PRRadarPhase: PhaseState]`
-- `PhaseState` enum: idle, running(logs), completed(output: Any), failed(error, logs)
-- Methods: `runPhase(_ phase: PRRadarPhase)`, `runAllPhases()`, `resetPhase(_ phase:)`
-- Pipeline sequencing: validate prerequisites before running a phase
-- Store typed outputs: `diffOutput`, `rulesOutput`, `evaluationOutput`, `reportOutput`, `commentOutput`
-
-**New:** `Sources/apps/MacApp/UI/PhaseInputView.swift`
-- Reusable form for phase-specific inputs
-- Phase 1: repo path, PR number, output dir (existing fields)
-- Phase 2: rules directory path (+ browse button)
-- Phase 3: optional rule filter, repo path for codebase exploration
-- Phase 4: min score threshold slider
-- Phase 5: repo (owner/name), dry-run toggle
-- Phase 6: all options combined
-
-**New:** `Sources/apps/MacApp/UI/PipelineStatusView.swift`
-- Horizontal pipeline visualization: Phase 1 → Phase 2 → ... → Phase 6
-- Each phase node shows status (dot color: gray/blue/green/red)
-- Arrows between phases
-- Click to jump to phase
-
-### Navigation pattern
-
 - `NavigationSplitView` with sidebar (phase list) and detail (phase content)
-- Each phase detail is a `VStack` with input form on top, output view below
-- "Run Phase" button per phase (disabled if prerequisites not met)
-- Logs panel (toggleable) showing raw CLI output for any phase
+- Sidebar shows all 6 phases with icons, names, phase numbers, and status badges (spinner/checkmark/error)
+- Detail area: global input bar (config picker + PR number + "Run All") at top, phase input form, phase output view
+- Phase output views wire the typed model outputs to the existing phase views (RulesPhaseView, EvaluationsPhaseView, ReportPhaseView)
+- ContentUnavailableView placeholders when no data is available for a phase
+- Settings gear in toolbar
+
+**New: `Sources/apps/MacApp/UI/PipelineStatusView.swift`**
+- Horizontal pipeline bar at the bottom of the window
+- Phase nodes with status indicators (gray dot = idle, spinner = running, green checkmark = complete, red X = failed)
+- Chevron arrows between phases
+- Click any phase node to navigate to it
+- Selected phase highlighted with accent color background
+
+**New: `Sources/apps/MacApp/UI/PhaseInputView.swift`**
+- Reusable input form shown above the output for each phase
+- Shows phase title, description, and config info (repo name, rules dir when relevant)
+- Run button with prerequisite validation and running state
+- Completion/failure status indicators
+- Collapsible logs section
+
+**`Sources/apps/MacApp/main.swift`**
+- Window size increased from 700x600 to 1000x700 to accommodate the split view layout
+
+### Technical notes
+
+- `PRRadarPhase` already conforms to `Hashable` via `String` raw value — works directly as `List` selection type
+- Rules phases (focusAreas, rules, tasks) are grouped: running any of them triggers `FetchRulesUseCase` which updates all three phase states together
+- The model removed the old `State` enum; all state is now per-phase in the `phaseStates` dictionary
+- Phase outputs are stored as separate typed properties rather than using `Any` — provides type safety without casting
+- `canRunPhase` enforces prerequisite chain: diff → rules → evaluations → report
+- `runAllPhases` stops on first failure
+- `selectConfiguration` resets all phase state since outputs are config-specific
+- No Package.swift changes needed — new files auto-included in existing MacApp target
 
 ---
 
