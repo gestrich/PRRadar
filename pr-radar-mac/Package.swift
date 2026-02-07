@@ -17,6 +17,7 @@ let package = Package(
         .package(url: "https://github.com/gestrich/SwiftCLI.git", branch: "main"),
     ],
     targets: [
+        // SDK Layer
         .target(
             name: "PRRadarMacSDK",
             dependencies: [
@@ -24,6 +25,25 @@ let package = Package(
             ],
             path: "Sources/sdks/PRRadarMacSDK"
         ),
+
+        // Services Layer — Configuration (Foundation-only, no other target deps)
+        .target(
+            name: "PRRadarConfigService",
+            path: "Sources/services/PRRadarConfigService"
+        ),
+
+        // Services Layer — CLI Execution
+        .target(
+            name: "PRRadarCLIService",
+            dependencies: [
+                .target(name: "PRRadarMacSDK"),
+                .target(name: "PRRadarConfigService"),
+                .product(name: "CLISDK", package: "SwiftCLI"),
+            ],
+            path: "Sources/services/PRRadarCLIService"
+        ),
+
+        // App Layer
         .executableTarget(
             name: "MacApp",
             dependencies: [
