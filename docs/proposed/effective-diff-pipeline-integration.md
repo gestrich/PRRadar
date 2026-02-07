@@ -56,7 +56,7 @@ Add all three to `DiffPhaseChecker.REQUIRED_FILES`.
 
 **Completed**: Three constants added after existing Phase 1 constants. `DiffPhaseChecker.REQUIRED_FILES` expanded from 5 to 8 entries. Tests updated: `total_count` assertions changed from 5 to 8, all test helpers that create a "complete" diff phase now write the 3 new files, percentage test updated from `1/5 (20%)` to `1/8 (12%)`. All 485 tests pass.
 
-## - [ ] Phase 3: Integrate effective diff into cmd_diff()
+## - [x] Phase 3: Integrate effective diff into cmd_diff()
 
 After PR metadata is fetched and stored in `cmd_diff()`, add:
 
@@ -74,6 +74,8 @@ After PR metadata is fetched and stored in `cmd_diff()`, add:
 Errors propagate normally (no try/except wrapper) since these files are required for phase completion.
 
 **Files**: `prradar/commands/agent/diff.py`
+
+**Completed**: Effective diff pipeline integrated into `cmd_diff()` between PR metadata fetch and comments fetch. File contents collected via `provider.get_file_content()` with `GitFileNotFoundError` handled for new/deleted files. Base ref uses `origin/` prefix for LOCAL source. Three output files written using phase_sequencer constants. Summary section prints moves detected, lines moved, and lines effectively changed. All 485 tests pass.
 
 ## - [ ] Phase 4: Validation
 

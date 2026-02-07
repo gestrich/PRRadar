@@ -1,15 +1,19 @@
 """Agent diff command - fetch and store PR data artifacts.
 
 Fetches diff, PR metadata, comments, and repository info from GitHub and stores
-them as artifacts for subsequent pipeline phases.
+them as artifacts for subsequent pipeline phases. Also runs the effective diff
+pipeline to detect moved code and produce reduced diffs.
 
 Artifact outputs (all in phase-1-pull-request/):
-    diff-raw.diff      - Original diff text
-    diff-parsed.json   - Structured diff with hunks (machine-readable)
-    diff-parsed.md     - Structured diff with hunks (human-readable)
-    gh-pr.json       - Raw GitHub PR metadata JSON
-    gh-comments.json - Raw GitHub comments JSON
-    gh-repo.json     - Raw GitHub repository JSON
+    diff-raw.diff                - Original diff text
+    diff-parsed.json             - Structured diff with hunks (machine-readable)
+    diff-parsed.md               - Structured diff with hunks (human-readable)
+    effective-diff-parsed.json   - Effective diff with moves removed (machine-readable)
+    effective-diff-parsed.md     - Effective diff with moves removed (human-readable)
+    effective-diff-moves.json    - Move detection report
+    gh-pr.json                   - Raw GitHub PR metadata JSON
+    gh-comments.json             - Raw GitHub comments JSON
+    gh-repo.json                 - Raw GitHub repository JSON
 """
 
 from __future__ import annotations
@@ -19,11 +23,16 @@ from pathlib import Path
 
 from prradar.domain.diff_source import DiffSource
 from prradar.infrastructure.diff_provider.factory import create_diff_provider
+from prradar.infrastructure.effective_diff import run_effective_diff_pipeline
 from prradar.infrastructure.github.runner import GhCommandRunner
+from prradar.services.git_operations import GitFileNotFoundError
 from prradar.services.phase_sequencer import (
     DIFF_PARSED_JSON_FILENAME,
     DIFF_PARSED_MD_FILENAME,
     DIFF_RAW_FILENAME,
+    EFFECTIVE_DIFF_MOVES_FILENAME,
+    EFFECTIVE_DIFF_PARSED_JSON_FILENAME,
+    EFFECTIVE_DIFF_PARSED_MD_FILENAME,
     GH_COMMENTS_FILENAME,
     GH_PR_FILENAME,
     GH_REPO_FILENAME,
@@ -111,6 +120,37 @@ def cmd_diff(
     pr_path.write_text(pr.raw_json)
     print(f"  Wrote {pr_path}")
 
+    # Run effective diff pipeline
+    print("  Running effective diff analysis...")
+    base_ref = f"origin/{pr.base_ref_name}" if source == DiffSource.LOCAL else pr.base_ref_name
+    head_ref = pr.head_ref_oid
+
+    old_files: dict[str, str] = {}
+    new_files: dict[str, str] = {}
+    for file_path in git_diff.get_unique_files():
+        try:
+            old_files[file_path] = provider.get_file_content(file_path, base_ref)
+        except GitFileNotFoundError:
+            pass
+        try:
+            new_files[file_path] = provider.get_file_content(file_path, head_ref)
+        except GitFileNotFoundError:
+            pass
+
+    effective_diff, move_report = run_effective_diff_pipeline(git_diff, old_files, new_files)
+
+    eff_json_path = diff_dir / EFFECTIVE_DIFF_PARSED_JSON_FILENAME
+    eff_json_path.write_text(json.dumps(effective_diff.to_dict(annotate_lines=True), indent=2))
+    print(f"  Wrote {eff_json_path}")
+
+    eff_md_path = diff_dir / EFFECTIVE_DIFF_PARSED_MD_FILENAME
+    eff_md_path.write_text(effective_diff.to_markdown())
+    print(f"  Wrote {eff_md_path}")
+
+    moves_path = diff_dir / EFFECTIVE_DIFF_MOVES_FILENAME
+    moves_path.write_text(json.dumps(move_report.to_dict(), indent=2))
+    print(f"  Wrote {moves_path}")
+
     # Fetch comments
     print("  Fetching comments...")
     success, comments_result = gh.get_pull_request_comments(pr_number)
@@ -143,6 +183,9 @@ def cmd_diff(
     print(f"  Files changed: {pr.changed_files}")
     print(f"  Additions: +{pr.additions}")
     print(f"  Deletions: -{pr.deletions}")
+    print(f"  Moves detected: {move_report.moves_detected}")
+    print(f"  Lines moved: {move_report.total_lines_moved}")
+    print(f"  Lines effectively changed: {move_report.total_lines_effectively_changed}")
     print(f"  Comments: {len(comments.comments)}")
     print(f"  Reviews: {len(comments.reviews)}")
     print()
