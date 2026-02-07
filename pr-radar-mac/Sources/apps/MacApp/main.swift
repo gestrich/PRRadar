@@ -29,6 +29,6 @@ struct PRRadarMacApp: App {
             ContentView()
                 .environment(model)
         }
-        .defaultSize(width: 1000, height: 700)
+        .defaultSize(width: 1200, height: 750)
     }
 }

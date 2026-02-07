@@ -197,7 +197,7 @@ Files to modify:
 - If the PR already exists in `discoveredPRs`, it is selected without creating a duplicate
 - Button is disabled when no configuration is selected
 
-## - [ ] Phase 7: Update window sizing and cleanup
+## - [x] Phase 7: Update window sizing and cleanup
 
 **Window sizing**:
 - Update `defaultSize` in `main.swift` to accommodate 3 columns (e.g., `width: 1200, height: 750`)
@@ -214,6 +214,14 @@ Files to modify:
 - `Sources/apps/MacApp/main.swift`
 - `Sources/apps/MacApp/UI/ContentView.swift`
 - `Sources/apps/MacApp/Models/PRReviewModel.swift`
+
+**Technical notes:**
+- Window `defaultSize` updated from 1000×700 to 1200×750 to accommodate the third column
+- `prNumber` simplified from a writable computed property (with `manualPRNumber` backing) to a read-only computed property — the setter was only needed for the old text field binding which was removed in Phase 3
+- `selectedPR` number persisted to UserDefaults key `"selectedPRNumber"` via `didSet`
+- New `restoreSelections()` method called from `init` — refreshes the PR list for the saved config, then restores the saved PR selection if it exists in the discovered PRs
+- `SettingsView` sheet verified working correctly from the gear button in the config sidebar toolbar — no changes needed
+- Config picker dropdown and `prNumber` UserDefaults were already removed in earlier phases (Phases 2-3)
 
 ## - [ ] Phase 8: Architecture Validation
 

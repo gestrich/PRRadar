@@ -23,6 +23,11 @@ final class PRReviewModel {
         didSet {
             resetAllPhases()
             loadExistingOutputs()
+            if let number = selectedPR?.number {
+                UserDefaults.standard.set(number, forKey: "selectedPRNumber")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedPRNumber")
+            }
         }
     }
 
@@ -57,18 +62,11 @@ final class PRReviewModel {
     }
 
     var prNumber: String {
-        get {
-            if let pr = selectedPR {
-                return String(pr.number)
-            }
-            return manualPRNumber
+        if let pr = selectedPR {
+            return String(pr.number)
         }
-        set {
-            manualPRNumber = newValue
-        }
+        return ""
     }
-
-    private var manualPRNumber: String = ""
 
     private let venvBinPath: String
     private let environment: [String: String]
@@ -79,6 +77,17 @@ final class PRReviewModel {
         self.environment = environment
         self.settingsService = settingsService
         self.settings = settingsService.load()
+        restoreSelections()
+    }
+
+    private func restoreSelections() {
+        if selectedConfiguration != nil {
+            refreshPRList()
+            let savedPR = UserDefaults.standard.integer(forKey: "selectedPRNumber")
+            if savedPR != 0, let match = discoveredPRs.first(where: { $0.number == savedPR }) {
+                selectedPR = match
+            }
+        }
     }
 
     // MARK: - State Queries
