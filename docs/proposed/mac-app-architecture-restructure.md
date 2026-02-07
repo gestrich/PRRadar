@@ -228,22 +228,31 @@ MacApp (App Layer)
 - `FetchDiffUseCase.init` simplified: removed `runner` parameter, creates `PRRadarCLIRunner()` internally. This is appropriate because the runner has no state or configuration — it's a pure execution wrapper.
 - The Package.swift already had the correct target list from prior phases; the code changes in this phase enforce the boundaries at the import level.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
+
+**Completed.** All build and architecture compliance checks pass.
 
 **Build verification:**
-- `cd pr-radar-mac && swift build` must succeed with no errors
-- Verify each target compiles independently (no circular dependencies)
+- `cd pr-radar-mac && swift build` succeeds with no errors
+- All 5 targets compile with no circular dependencies
 
-**Architecture compliance checks:**
-- `PRRadarMacSDK` imports only `CLISDK` and Foundation — no app/feature/service imports
-- `PRRadarCLIService` imports only `PRRadarMacSDK`, `CLISDK`, Foundation — no SwiftUI or app imports
-- `PRReviewFeature` imports only `PRRadarCLIService`, `PRRadarMacSDK` — no SwiftUI or `@Observable`
-- `MacApp` is the only target with `import SwiftUI` and `@Observable`
+**Architecture compliance checks — all verified:**
+
+| Target | Imports | Status |
+|--------|---------|--------|
+| `PRRadarMacSDK` | `CLISDK` only | Correct — no app/feature/service imports |
+| `PRRadarConfigService` | `Foundation` only | Correct — no other target dependencies |
+| `PRRadarCLIService` | `CLISDK`, `PRRadarMacSDK`, `PRRadarConfigService`, `Foundation` | Correct — no SwiftUI or app imports |
+| `PRReviewFeature` | `PRRadarCLIService`, `PRRadarConfigService`, `PRRadarMacSDK` | Correct — no SwiftUI or `@Observable` |
+| `MacApp` | `SwiftUI`, `AppKit`, `Foundation`, `PRRadarConfigService`, `PRReviewFeature` | Correct — only target with SwiftUI and `@Observable` |
+
+- Zero SwiftUI or `@Observable` references found in features, services, or SDK layers
+- Layer boundaries are enforced by the compiler via Package.swift target dependencies
 
 **Functional verification:**
 - Run the app, enter repo path / PR number / output dir
 - Click "Run Phase 1" — should produce same behavior as before (fetch diff, show files, show logs)
-- Verify `@AppStorage` persistence still works (quit and relaunch, fields should be populated)
+- User preferences persist via `UserDefaults` (quit and relaunch, fields should be populated)
 
 **State management verification:**
 - While running: UI shows progress indicator, button disabled
