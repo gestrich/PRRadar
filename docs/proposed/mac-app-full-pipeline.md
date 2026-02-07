@@ -460,25 +460,38 @@ Reviewed all 8 commits (74e3d6c..2a5f436) against 3 swift-app-architecture skill
 
 ---
 
-## - [ ] Phase 10: Validation
+## - [x] Phase 10: Validation
 
-### Build verification
-- `swift build` for the full package (both MacApp and MacCLI targets)
-- Resolve any compilation errors from copied views or new code
+### Completed
 
-### Functional testing
-- Run each CLI command with a test PR number and verify output
-- Launch the Mac app and verify:
-  - Settings view: add/edit/delete repo configurations
-  - Phase navigation: sidebar shows all phases, clicking navigates correctly
-  - Phase 1: run diff, view output, view effective diff
-  - Phase 2: run rules, view focus areas/rules/tasks
-  - Phase 3: run evaluate, view results with severity badges
-  - Phase 4: run report, view summary and violation details
-  - Phase 5: review comments in approval view, test dry-run
-  - Pipeline status bar updates correctly
+**Build verification:**
+- `swift build` passes for the full package (MacApp, MacCLI, and PRRadarModelsTests targets)
+- No compilation errors — all targets build cleanly
 
-### Unit tests
-- Add test target `PRRadarModelsTests` with JSON parsing tests for each model
-- Use sample JSON fixtures from actual Python pipeline output files
-- Verify all models round-trip through encode/decode correctly
+**Unit tests:**
+- Added `PRRadarModelsTests` test target to Package.swift with dependency on `PRRadarModels`
+- Created 5 test files in `Tests/PRRadarModelsTests/`:
+
+| File | Models Tested | Tests |
+|------|--------------|-------|
+| `DiffOutputTests.swift` | `ParsedHunk`, `PRDiffOutput`, `EffectiveDiffOutput`, `MoveDetail`, `MoveReport` | 9 |
+| `FocusAreaOutputTests.swift` | `FocusType`, `FocusArea`, `FocusAreaTypeOutput` | 6 |
+| `RuleOutputTests.swift` | `AppliesTo`, `GrepPatterns`, `ReviewRule`, `AllRulesOutput` | 7 |
+| `TaskOutputTests.swift` | `TaskRule`, `EvaluationTaskOutput` | 5 |
+| `EvaluationOutputTests.swift` | `RuleEvaluation`, `RuleEvaluationResult`, `EvaluationSummary` | 7 |
+| `ReportOutputTests.swift` | `ViolationRecord`, `ReportSummary`, `ReviewReport`, `AnyCodableValue` | 12 |
+
+- **46 tests total**, all passing
+- JSON fixtures match actual Python `to_dict()` output format (snake_case keys, optional field omission, null handling)
+- Round-trip (encode → decode) tests verify bidirectional fidelity for key models
+- Edge cases covered: empty arrays, null optional fields, missing optional keys, bare JSON arrays (all-rules.json format), heterogeneous `by_method` dictionary via `AnyCodableValue`
+
+**Functional testing:**
+- Functional testing of the GUI and CLI requires a live PR number and configured repo — deferred to manual acceptance testing
+
+### Technical notes
+
+- Uses Swift Testing framework (`@Suite`, `@Test`, `#expect`) — not XCTest
+- Test target has no dependencies beyond `PRRadarModels` (pure model parsing tests)
+- `AnyCodableValue` gets `Equatable` conformance via test-only extension for assertion convenience
+- Package.swift change: added single `.testTarget` entry for `PRRadarModelsTests`

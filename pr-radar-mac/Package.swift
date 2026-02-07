@@ -95,5 +95,14 @@ let package = Package(
             ],
             path: "Sources/apps/MacCLI"
         ),
+
+        // Tests
+        .testTarget(
+            name: "PRRadarModelsTests",
+            dependencies: [
+                .target(name: "PRRadarModels"),
+            ],
+            path: "Tests/PRRadarModelsTests"
+        ),
     ]
 )
