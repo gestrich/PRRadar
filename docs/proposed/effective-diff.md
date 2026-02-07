@@ -90,12 +90,22 @@ class LineMatch:
 - Distance 0 (same hunk, adjacent): likely an in-place edit, not a move
 - Distance > 0 (different hunk or file): move candidate
 
-## - [ ] Phase 2: Block Aggregation and Scoring
+## - [x] Phase 2: Block Aggregation and Scoring
 
 Group matched lines into blocks and score each block for move confidence.
 
 **Input**: List of `LineMatch` from Phase 1
 **Output**: List of `MoveCandidate` blocks with confidence scores
+
+### Implementation Notes
+
+- Added to `prradar/infrastructure/effective_diff.py` as standalone functions (same pattern as Phase 1)
+- `MoveCandidate` uses `frozen=True` with tuple fields for immutability
+- `_BlockAccumulator` is an internal mutable helper used only during grouping
+- Distance-0 matches are filtered out before grouping (in-place edits, not moves)
+- Matches grouped by `(source_file, target_file)` pair, then sorted by removed line number for contiguity detection
+- Consistency scoring uses standard deviation of target line numbers normalized against expected spread
+- 40 unit tests across `test_block_aggregation.py` (15 tests) and `test_scoring.py` (25 tests) covering: gap tolerance, block splitting, distance filtering, multi-file grouping, all four scoring factors, composite scoring, and find_move_candidates integration
 
 ### Tasks
 
