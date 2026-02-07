@@ -42,7 +42,8 @@ struct DiffCommand: AsyncParsableCommand {
                 break
             case .completed(let files):
                 outputFiles = files
-            case .failed(let error):
+            case .failed(let error, let logs):
+                if !logs.isEmpty { printError(logs) }
                 throw CLIError.phaseFailed("Diff failed: \(error)")
             }
         }

@@ -196,9 +196,9 @@ final class PRReviewModel {
                     parseDiffOutputs(config: config)
                     let logs = runningLogs(for: .pullRequest)
                     phaseStates[.pullRequest] = .completed(logs: logs)
-                case .failed(let error):
-                    let logs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .failed(error: error, logs: logs)
+                case .failed(let error, let logs):
+                    let existingLogs = runningLogs(for: .pullRequest)
+                    phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
                 }
             }
         } catch {

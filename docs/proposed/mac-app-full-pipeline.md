@@ -407,7 +407,7 @@ Created `Sources/apps/MacCLI/` with 8 files:
 
 ---
 
-## - [ ] Phase 9: Architecture Validation
+## - [x] Phase 9: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -422,6 +422,41 @@ Review all commits made during the preceding phases and validate they follow the
 3. Fetch and read ALL skills from the swift-app-architecture GitHub repo
 4. Evaluate the Swift changes against each skill's conventions
 5. Fix any violations found
+
+### Completed
+
+Reviewed all 8 commits (74e3d6c..2a5f436) against 3 swift-app-architecture skills: architecture, swiftui, and skill-authoring.
+
+**Skills evaluated:**
+- **architecture** — 4-layer structure, dependency rules, placement guidance, code style
+- **swiftui** — Model-View pattern, enum-based state, @Observable conventions, state ownership
+- **skill-authoring** — Not applicable (no skill files modified)
+
+**Validation results by convention:**
+
+| Convention | Status | Notes |
+|-----------|--------|-------|
+| Layer boundaries (Package.swift) | Pass | All dependencies flow downward: Apps → Features → Services → SDKs |
+| SDKs stateless, Sendable structs | Pass | `PRRadarMacSDK` is command definitions only |
+| Services: no orchestration | Pass | `PRRadarCLIRunner`, `OutputFileReader`, `PhaseOutputParser`, `SettingsService` all single-concern |
+| Features: use case structs with `AsyncThrowingStream` | Pass | All 6 use cases are `Sendable` structs returning streams |
+| Apps: `@Observable` only in Apps layer | Pass | `PRReviewModel` is the only `@Observable` type, in `apps/MacApp/Models/` |
+| Apps: `@MainActor` on observable models | Pass | `PRReviewModel` has `@MainActor` |
+| Apps: root model stored in App struct | Pass | `@State private var model` in `PRRadarMacApp` |
+| Apps: CLI uses use cases directly | Pass | All CLI commands create use cases and consume streams directly |
+| SwiftUI: enum-based state | Pass | `PhaseState` enum with `.idle`, `.running`, `.completed`, `.failed` |
+| SwiftUI: models consume use case streams | Pass | Phase runner methods iterate streams and assign state |
+| Features don't depend on other features | Pass | `PRReviewFeature` has no feature-to-feature dependencies |
+
+**Violation found and fixed:**
+
+- `FetchDiffUseCase` used a legacy `FetchDiffProgress` enum (from Phase 1) instead of the generic `PhaseProgress<T>` introduced in Phase 4. All other use cases consistently used `PhaseProgress<T>`. Migrated `FetchDiffUseCase` to return `PhaseProgress<[String]>`, updated consumers in `PRReviewModel.runDiff()` and `DiffCommand`, and deleted `FetchDiffProgress.swift`.
+
+### Technical notes
+
+- The multi-phase pipeline uses a `[PRRadarPhase: PhaseState]` dictionary rather than a single top-level state enum. This is an intentional deviation — each phase has independent lifecycle state, and a single enum would require combinatorial cases. The per-phase `PhaseState` enum still satisfies the "enum-based state" convention.
+- Phase output types (`RulesPhaseOutput`, `EvaluationPhaseOutput`, etc.) are co-located with their use cases in the Features layer. The architecture permits "feature-specific types" in features, and these are simple DTOs tied directly to use case return values.
+- `SettingsService` is a `final class` (not a struct) because it manages file I/O state (file URL). It's `Sendable` with an immutable `fileURL`. This is acceptable for a Services-layer utility.
 
 ---
 

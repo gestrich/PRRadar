@@ -15,9 +15,9 @@ public struct FetchDiffUseCase: Sendable {
         self.environment = environment
     }
 
-    public func execute(prNumber: String) -> AsyncThrowingStream<FetchDiffProgress, Error> {
+    public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<[String]>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running)
+            continuation.yield(.running(phase: .pullRequest))
 
             Task {
                 do {
@@ -39,15 +39,16 @@ public struct FetchDiffUseCase: Sendable {
                             prNumber: prNumber,
                             phase: .pullRequest
                         )
-                        continuation.yield(.completed(files: files))
+                        continuation.yield(.completed(output: files))
                     } else {
                         continuation.yield(.failed(
-                            error: "Phase 1 failed (exit code \(result.exitCode))"
+                            error: "Phase 1 failed (exit code \(result.exitCode))",
+                            logs: result.errorOutput
                         ))
                     }
                     continuation.finish()
                 } catch {
-                    continuation.yield(.failed(error: error.localizedDescription))
+                    continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()
                 }
             }
