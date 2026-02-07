@@ -5,19 +5,28 @@ as added lines elsewhere in the diff, tagging each with file/line/hunk metadata.
 
 Phase 2: Block aggregation and scoring. Groups matched lines into contiguous
 blocks (tolerating small gaps) and scores each for move confidence.
+
+Phase 3: Block extension and re-diff. Extends matched blocks by surrounding
+context from source files and re-diffs to isolate meaningful changes.
 """
 
 from __future__ import annotations
 
+import re
 import statistics
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 
 from prradar.domain.diff import DiffLineType, GitDiff, Hunk
 
 DEFAULT_GAP_TOLERANCE = 3
 DEFAULT_MIN_BLOCK_SIZE = 3
 DEFAULT_MIN_SCORE = 0.0
+DEFAULT_CONTEXT_LINES = 20
+DEFAULT_TRIM_PROXIMITY = 3
 
 
 class TaggedLineType(Enum):
@@ -375,3 +384,227 @@ def find_move_candidates(
 
     candidates.sort(key=lambda c: c.score, reverse=True)
     return candidates
+
+
+# ------------------------------------------------------------------
+# Phase 3: Block Extension and Re-Diff
+# ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class EffectiveDiffResult:
+    """Result of re-diffing a single moved block."""
+
+    candidate: MoveCandidate
+    hunks: list[Hunk]
+    raw_diff: str
+
+
+def _extract_line_range(file_content: str, start: int, end: int) -> str:
+    """Extract a 1-indexed inclusive line range from file content.
+
+    Args:
+        file_content: Full file contents as a string.
+        start: First line to include (1-indexed, clamped to 1).
+        end: Last line to include (1-indexed, clamped to file length).
+
+    Returns:
+        Extracted text as a string (with trailing newline if non-empty).
+    """
+    lines = file_content.splitlines(keepends=True)
+    start = max(1, start)
+    end = min(len(lines), end)
+    if start > end:
+        return ""
+    return "".join(lines[start - 1 : end])
+
+
+def extend_block_range(
+    candidate: MoveCandidate,
+    context_lines: int = DEFAULT_CONTEXT_LINES,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Compute extended line ranges for a move candidate's source and target.
+
+    Returns:
+        ((source_start, source_end), (target_start, target_end)) — 1-indexed inclusive.
+    """
+    src_start = candidate.removed_lines[0].line_number
+    src_end = candidate.removed_lines[-1].line_number
+    tgt_start = candidate.added_lines[0].line_number
+    tgt_end = candidate.added_lines[-1].line_number
+
+    return (
+        (max(1, src_start - context_lines), src_end + context_lines),
+        (max(1, tgt_start - context_lines), tgt_end + context_lines),
+    )
+
+
+def rediff_regions(
+    old_text: str,
+    new_text: str,
+    old_label: str,
+    new_label: str,
+) -> str:
+    """Run git diff --no-index on two text regions and return raw diff output.
+
+    The temp file paths in the diff output are replaced with the provided labels
+    so the output has meaningful file paths.
+
+    Args:
+        old_text: Contents of the old (source) region.
+        new_text: Contents of the new (target) region.
+        old_label: Label for the old file (e.g. source file path).
+        new_label: Label for the new file (e.g. target file path).
+
+    Returns:
+        Raw unified diff string with relabeled paths, or empty string if identical.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        old_path = Path(tmpdir) / "old.txt"
+        new_path = Path(tmpdir) / "new.txt"
+        old_path.write_text(old_text)
+        new_path.write_text(new_text)
+
+        result = subprocess.run(
+            ["git", "diff", "--no-index", "--no-color", str(old_path), str(new_path)],
+            capture_output=True,
+            text=True,
+        )
+        raw = result.stdout
+        if not raw:
+            return ""
+
+        # git diff --no-index produces paths like a/<tmpdir>/old.txt.
+        # Replace those with a/<label> and b/<label>.
+        # Strip leading / from temp paths since git uses a/<path> format.
+        old_rel = str(old_path).lstrip("/")
+        new_rel = str(new_path).lstrip("/")
+        raw = raw.replace(f"a/{old_rel}", f"a/{old_label}")
+        raw = raw.replace(f"b/{new_rel}", f"b/{new_label}")
+
+        return raw
+
+
+def _hunk_overlaps_block(
+    hunk: Hunk,
+    block_start: int,
+    block_end: int,
+    region_start: int,
+    proximity: int = DEFAULT_TRIM_PROXIMITY,
+) -> bool:
+    """Check if a hunk's line range overlaps or is adjacent to the block boundaries.
+
+    The hunk line numbers are relative to the extracted region, so we offset them
+    by region_start to get absolute file line numbers before comparing.
+
+    Args:
+        hunk: A parsed Hunk from the re-diff output.
+        block_start: First line of the original matched block (absolute, 1-indexed).
+        block_end: Last line of the original matched block (absolute, 1-indexed).
+        region_start: Start line of the extracted region (absolute, 1-indexed).
+        proximity: Number of lines of slack for "adjacent" matching.
+
+    Returns:
+        True if the hunk overlaps or is within proximity of the block.
+    """
+    # The re-diff operates on the extracted region, so hunk line numbers
+    # are relative to the region. Convert to absolute file line numbers.
+    # We use old_start for old side, but either side works since we're
+    # checking overlap with the block which has known absolute positions.
+    # Use the new side since the "target" block is the added side.
+    hunk_abs_start = region_start + hunk.new_start - 1
+    hunk_abs_end = hunk_abs_start + max(hunk.new_length - 1, 0)
+
+    # Check overlap with proximity tolerance
+    return (
+        hunk_abs_start <= block_end + proximity
+        and hunk_abs_end >= block_start - proximity
+    )
+
+
+def trim_hunks(
+    hunks: list[Hunk],
+    block_start: int,
+    block_end: int,
+    region_start: int,
+    proximity: int = DEFAULT_TRIM_PROXIMITY,
+) -> list[Hunk]:
+    """Filter hunks to keep only those overlapping the original matched block.
+
+    Args:
+        hunks: Parsed hunks from the re-diff output.
+        block_start: First line of the original matched block (absolute, 1-indexed).
+        block_end: Last line of the original matched block (absolute, 1-indexed).
+        region_start: Start line of the extracted region (absolute, 1-indexed).
+        proximity: Adjacency tolerance in lines.
+
+    Returns:
+        Filtered list of hunks.
+    """
+    return [
+        h for h in hunks
+        if _hunk_overlaps_block(h, block_start, block_end, region_start, proximity)
+    ]
+
+
+def compute_effective_diff_for_candidate(
+    candidate: MoveCandidate,
+    old_files: dict[str, str],
+    new_files: dict[str, str],
+    context_lines: int = DEFAULT_CONTEXT_LINES,
+    trim_proximity: int = DEFAULT_TRIM_PROXIMITY,
+) -> EffectiveDiffResult:
+    """Compute the effective diff for a single move candidate.
+
+    Extends the matched block by ±context_lines, extracts regions from
+    source file contents, re-diffs them, and trims unrelated hunks.
+
+    Args:
+        candidate: The move candidate to process.
+        old_files: Dict of {file_path: content} for old file versions.
+        new_files: Dict of {file_path: content} for new file versions.
+        context_lines: Number of lines to extend in each direction.
+        trim_proximity: Adjacency tolerance for hunk trimming.
+
+    Returns:
+        EffectiveDiffResult with the effective diff hunks for this move.
+    """
+    (src_start, src_end), (tgt_start, tgt_end) = extend_block_range(
+        candidate, context_lines
+    )
+
+    old_content = old_files.get(candidate.source_file, "")
+    new_content = new_files.get(candidate.target_file, "")
+
+    old_region = _extract_line_range(old_content, src_start, src_end)
+    new_region = _extract_line_range(new_content, tgt_start, tgt_end)
+
+    raw_diff = rediff_regions(
+        old_region,
+        new_region,
+        old_label=candidate.source_file,
+        new_label=candidate.target_file,
+    )
+
+    if not raw_diff:
+        return EffectiveDiffResult(candidate=candidate, hunks=[], raw_diff="")
+
+    parsed = GitDiff.from_diff_content(raw_diff)
+
+    # Trim hunks to only those overlapping the original block
+    tgt_block_start = candidate.added_lines[0].line_number
+    tgt_block_end = candidate.added_lines[-1].line_number
+
+    trimmed = trim_hunks(
+        parsed.hunks,
+        block_start=tgt_block_start,
+        block_end=tgt_block_end,
+        region_start=tgt_start,
+        proximity=trim_proximity,
+    )
+
+    return EffectiveDiffResult(
+        candidate=candidate,
+        hunks=trimmed,
+        raw_diff=raw_diff,
+    )

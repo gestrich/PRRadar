@@ -157,12 +157,25 @@ score = size_factor * avg_uniqueness * consistency * distance_factor
 - Filter out blocks below a confidence threshold (tunable, start with empirical testing)
 - Filter out blocks with distance 0 (in-place edits)
 
-## - [ ] Phase 3: Block Extension and Re-Diff
+## - [x] Phase 3: Block Extension and Re-Diff
 
 For each high-confidence move candidate, fetch surrounding context from the provided source file contents and re-diff to capture boundary changes (e.g., renamed method signatures).
 
 **Input**: List of `MoveCandidate` blocks + old/new file contents (as dicts)
 **Output**: Effective diff hunks (git diff format) for each moved block
+
+### Implementation Notes
+
+- Added to `prradar/infrastructure/effective_diff.py` as standalone functions (same pattern as Phases 1-2)
+- `EffectiveDiffResult` dataclass (frozen) holds the candidate, parsed hunks, and raw diff output
+- `_extract_line_range` handles 1-indexed inclusive ranges with clamping to file boundaries
+- `extend_block_range` computes ±N context around both source and target block regions
+- `rediff_regions` writes regions to temp files, runs `git diff --no-index --no-color`, and relabels paths
+  - Path relabeling strips leading `/` from temp paths to match git's `a/`/`b/` prefix format
+- `_hunk_overlaps_block` converts region-relative hunk positions to absolute file positions for overlap checking
+- `trim_hunks` filters re-diff hunks to only those overlapping or adjacent to (within proximity of) the original block
+- `compute_effective_diff_for_candidate` orchestrates the full pipeline for a single MoveCandidate
+- 38 unit tests in `tests/infrastructure/effective_diff/test_rediff.py` covering: line extraction (9 tests), block range extension (4 tests), re-diff subprocess (8 tests), hunk overlap/trimming (11 tests), and integration (6 tests)
 
 ### Tasks
 
