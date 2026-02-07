@@ -123,7 +123,7 @@ Files to modify:
 - `PipelineStatusView` moved from bottom of the old layout to top of the detail column (above `PhaseInputView`)
 - Gear/settings toolbar button moved to column 1 sidebar toolbar
 
-## - [ ] Phase 4: PR list row view
+## - [x] Phase 4: PR list row view
 
 Create a dedicated view for PR list rows in column 2.
 
@@ -142,6 +142,13 @@ Create a dedicated view for PR list rows in column 2.
 
 Files to create:
 - `Sources/apps/MacApp/UI/PRListRow.swift`
+
+**Technical notes:**
+- Extracted inline `prRow(_:)` and `stateIndicator(_:)` methods from `ContentView` into a standalone `PRListRow` view
+- Relative timestamp uses `ISO8601DateFormatter` (with fractional seconds fallback) to parse `createdAt`, then `RelativeDateTimeFormatter` with `.abbreviated` style
+- Fallback PRs detected by checking empty `author.login`, `headRefName`, and `state` — title rendered without bold weight
+- Removed unused `PRRadarModels` import from `ContentView` since `PRMetadata` is no longer directly referenced there
+- Includes SwiftUI `#Preview` blocks for both normal and fallback PR rows
 
 ## - [ ] Phase 5: Auto-load existing phase outputs on PR selection
 

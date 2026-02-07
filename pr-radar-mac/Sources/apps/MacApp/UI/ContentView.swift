@@ -1,5 +1,4 @@
 import PRRadarConfigService
-import PRRadarModels
 import SwiftUI
 
 struct ContentView: View {
@@ -97,7 +96,7 @@ struct ContentView: View {
                 )
             } else {
                 List(model.discoveredPRs, selection: $model.selectedPR) { pr in
-                    prRow(pr)
+                    PRListRow(pr: pr)
                         .tag(pr)
                 }
             }
@@ -112,67 +111,6 @@ struct ContentView: View {
                 }
                 .help("Refresh PR list")
             }
-        }
-    }
-
-    @ViewBuilder
-    private func prRow(_ pr: PRMetadata) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text("#\(pr.number)")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(.secondary.opacity(0.15))
-                    .clipShape(Capsule())
-
-                stateIndicator(pr.state)
-
-                Spacer()
-            }
-
-            Text(pr.title)
-                .font(.body)
-                .lineLimit(2)
-
-            if !pr.headRefName.isEmpty {
-                Text(pr.headRefName)
-                    .font(.caption)
-                    .fontDesign(.monospaced)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            if !pr.author.login.isEmpty {
-                Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    @ViewBuilder
-    private func stateIndicator(_ state: String) -> some View {
-        let uppercased = state.uppercased()
-        switch uppercased {
-        case "OPEN":
-            Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
-        case "MERGED":
-            Circle()
-                .fill(.purple)
-                .frame(width: 8, height: 8)
-        case "CLOSED":
-            Circle()
-                .fill(.red)
-                .frame(width: 8, height: 8)
-        default:
-            Circle()
-                .fill(.gray.opacity(0.4))
-                .frame(width: 8, height: 8)
         }
     }
 
