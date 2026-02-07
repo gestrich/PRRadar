@@ -77,7 +77,7 @@ Errors propagate normally (no try/except wrapper) since these files are required
 
 **Completed**: Effective diff pipeline integrated into `cmd_diff()` between PR metadata fetch and comments fetch. File contents collected via `provider.get_file_content()` with `GitFileNotFoundError` handled for new/deleted files. Base ref uses `origin/` prefix for LOCAL source. Three output files written using phase_sequencer constants. Summary section prints moves detected, lines moved, and lines effectively changed. All 485 tests pass.
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
 Run existing tests to ensure nothing is broken:
 
@@ -88,3 +88,5 @@ source .venv/bin/activate && python -m pytest tests/ -v
 Update any phase sequencer tests that assert on `DiffPhaseChecker.REQUIRED_FILES` to include the three new filenames.
 
 Verify the `run_effective_diff_pipeline()` function works end-to-end by confirming the existing `test_end_to_end.py` tests still pass (they exercise the same pipeline stages internally).
+
+**Completed**: All 485 tests pass. Phase sequencer tests (111 tests) already updated in Phase 2 with correct assertions for 8 required files. All 13 end-to-end effective diff tests pass, confirming `run_effective_diff_pipeline()` correctly chains the four internal stages. No test changes needed in this phase — all updates were handled proactively in Phases 2 and 3.
