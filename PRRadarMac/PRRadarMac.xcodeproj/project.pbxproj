@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A9E91CA32F3781020030C5C6 /* PRRadarMacSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A9E91CA22F3781020030C5C6 /* PRRadarMacSDK */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A9E91C932F37808E0030C5C6 /* PRRadarMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PRRadarMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A9E91CA32F3781020030C5C6 /* PRRadarMacSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = PRRadarMac;
 			packageProductDependencies = (
+				A9E91CA22F3781020030C5C6 /* PRRadarMacSDK */,
 			);
 			productName = PRRadarMac;
 			productReference = A9E91C932F37808E0030C5C6 /* PRRadarMac.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = A9E91C8A2F37808E0030C5C6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A9E91CA12F3781020030C5C6 /* XCLocalSwiftPackageReference "../PRRadarMacSDK" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A9E91C942F37808E0030C5C6 /* Products */;
 			projectDirPath = "";
@@ -331,6 +340,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A9E91CA12F3781020030C5C6 /* XCLocalSwiftPackageReference "../PRRadarMacSDK" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../PRRadarMacSDK;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A9E91CA22F3781020030C5C6 /* PRRadarMacSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PRRadarMacSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A9E91C8B2F37808E0030C5C6 /* Project object */;
 }
