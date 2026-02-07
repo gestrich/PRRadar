@@ -43,6 +43,17 @@ let package = Package(
             path: "Sources/services/PRRadarCLIService"
         ),
 
+        // Features Layer
+        .target(
+            name: "PRReviewFeature",
+            dependencies: [
+                .target(name: "PRRadarCLIService"),
+                .target(name: "PRRadarConfigService"),
+                .target(name: "PRRadarMacSDK"),
+            ],
+            path: "Sources/features/PRReviewFeature"
+        ),
+
         // App Layer
         .executableTarget(
             name: "MacApp",

@@ -92,24 +92,22 @@ Following the configuration skill pattern, this service centralizes environment 
 - `CLIResult` is a separate type from CLISDK's `ExecutionResult` to decouple from the external dependency at the service boundary
 - `PRRadarConfig.absoluteOutputDir` handles tilde expansion and relative-to-repo-path resolution, centralizing path logic that was previously inline in `ContentView.runPhase1()`
 
-## - [ ] Phase 2: Create Features Layer — `PRReviewFeature` Target
+## - [x] Phase 2: Create Features Layer — `PRReviewFeature` Target
 
 Create use cases that orchestrate the CLI service calls into user-facing workflows.
 
+**Completed.** PRReviewFeature target compiles and the full project builds successfully.
+
 **New target:** `PRReviewFeature` at `Sources/features/PRReviewFeature/`
 
-**Files to create:**
-- `PRReviewFeature/usecases/FetchDiffUseCase.swift` — `StreamingUseCase` that:
-  1. Validates inputs (repo path, PR number, output dir)
-  2. Calls `PRRadarCLIRunner` to execute the diff command
-  3. Reads output files from the result directory
-  4. Yields progress updates via `AsyncThrowingStream` (e.g., `.running`, `.completed(files:)`, `.failed(error:)`)
-- `PRReviewFeature/models/FetchDiffProgress.swift` — Enum defining progress states for the diff operation
+**Files created:**
+- `PRReviewFeature/models/FetchDiffProgress.swift` — Enum with three progress states: `.running`, `.completed(files:)`, `.failed(error:)`. All cases are `Sendable`.
+- `PRReviewFeature/usecases/FetchDiffUseCase.swift` — `Sendable` struct that accepts `PRRadarCLIRunner`, `PRRadarConfig`, and environment at init. The `execute(prNumber:)` method returns an `AsyncThrowingStream<FetchDiffProgress, Error>` that yields `.running`, then executes `PRRadar.Agent.Diff` via the CLI runner, reads output files via `OutputFileReader`, and yields `.completed(files:)` or `.failed(error:)`.
 
 **Dependencies:** `PRRadarCLIService`, `PRRadarConfigService`, `PRRadarMacSDK`
 
 **Package.swift changes:**
-- Add `PRReviewFeature` library target with path `Sources/features/PRReviewFeature`
+- Added `PRReviewFeature` library target with path `Sources/features/PRReviewFeature`
 - Dependencies: `PRRadarCLIService`, `PRRadarConfigService`, `PRRadarMacSDK`
 
 **Key design decisions:**
@@ -117,6 +115,11 @@ Create use cases that orchestrate the CLI service calls into user-facing workflo
 - The use case does NOT know about SwiftUI, `@Observable`, or any UI types
 - Use cases receive resolved configuration via init — they never load config themselves (per configuration skill)
 - Future agent commands (rules, evaluate, report, etc.) become additional use cases in this same target
+
+**Technical notes:**
+- `FetchDiffUseCase` is a plain `Sendable` struct — no protocols or abstractions since there's only one implementation
+- The `AsyncThrowingStream` wraps a `Task` internally to bridge the sync continuation API with async CLI execution
+- Input validation (empty repo path, PR number) is left to the App layer since `PRRadarConfig` already requires these values at construction time
 
 ## - [ ] Phase 3: Restructure App Layer — Enum-Based State + @Observable Model
 
