@@ -5,7 +5,7 @@ Generates focus areas from hunks using Claude, then creates
 evaluation tasks for each rule+focus_area combination.
 
 Requires:
-    <output-dir>/<pr-number>/phase-1-pull-request/parsed.json  - Structured diff with hunks
+    <output-dir>/<pr-number>/phase-1-pull-request/diff-parsed.json  - Structured diff with hunks
 
 Artifact outputs:
     <output-dir>/<pr-number>/phase-2-focus-areas/all.json  - Generated focus areas
@@ -24,7 +24,7 @@ from prradar.domain.diff import Hunk
 from prradar.domain.evaluation_task import EvaluationTask
 from prradar.domain.focus_area import FocusArea
 from prradar.services.focus_generator import FocusGenerationResult, FocusGeneratorService
-from prradar.services.phase_sequencer import PhaseSequencer, PipelinePhase
+from prradar.services.phase_sequencer import DIFF_PARSED_JSON_FILENAME, PhaseSequencer, PipelinePhase
 from prradar.services.rule_loader import RuleLoaderService
 
 
@@ -50,7 +50,7 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
         return 1
 
     # Verify diff artifacts exist
-    parsed_diff_path = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.DIFF) / "parsed.json"
+    parsed_diff_path = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.DIFF) / DIFF_PARSED_JSON_FILENAME
     if not parsed_diff_path.exists():
         print(f"  Error: Diff not found at {parsed_diff_path}")
         print("  Run 'agent diff' first to collect PR data")
@@ -164,13 +164,13 @@ def cmd_rules(pr_number: int, output_dir: Path, rules_dir: str) -> int:
 
 
 def _reconstruct_hunks(hunk_dicts: list[dict]) -> list[Hunk]:
-    """Reconstruct Hunk objects from parsed.json dictionaries.
+    """Reconstruct Hunk objects from diff-parsed.json dictionaries.
 
-    The parsed.json stores hunks with annotated content. We reconstruct
+    The diff-parsed.json stores hunks with annotated content. We reconstruct
     Hunk objects with enough data for the focus generator to work.
 
     Args:
-        hunk_dicts: List of hunk dictionaries from parsed.json
+        hunk_dicts: List of hunk dictionaries from diff-parsed.json
 
     Returns:
         List of Hunk objects

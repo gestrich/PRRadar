@@ -461,6 +461,30 @@ class GitDiff:
             "hunks": [hunk.to_dict(annotate_lines=annotate_lines) for hunk in self.hunks],
         }
 
+    def to_markdown(self) -> str:
+        """Render the diff as human-readable markdown.
+
+        Groups hunks by file and renders each hunk as a fenced diff block
+        with line range info. Intended for debugging, not machine consumption.
+        """
+        unique_files = self.get_unique_files()
+        parts: list[str] = []
+
+        parts.append(f"# Diff Summary\n")
+        parts.append(f"**Files changed:** {len(unique_files)}  ")
+        parts.append(f"**Total hunks:** {len(self.hunks)}\n")
+
+        for file_path in unique_files:
+            file_hunks = self.get_hunks_by_file(file_path)
+            parts.append(f"---\n\n## `{file_path}`\n")
+
+            for i, hunk in enumerate(file_hunks, 1):
+                end_line = hunk.new_start + hunk.new_length - 1
+                parts.append(f"### Hunk {i} (lines {hunk.new_start}\u2013{end_line})\n")
+                parts.append(f"```diff\n{hunk.content}\n```\n")
+
+        return "\n".join(parts)
+
     # --------------------------------------------------------
     # Public API
     # --------------------------------------------------------

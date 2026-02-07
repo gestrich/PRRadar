@@ -4,11 +4,12 @@ Fetches diff, PR metadata, comments, and repository info from GitHub and stores
 them as artifacts for subsequent pipeline phases.
 
 Artifact outputs (all in phase-1-pull-request/):
-    raw.diff      - Original diff text
-    parsed.json   - Structured diff with hunks
-    pr.json       - Raw GitHub PR metadata JSON
-    comments.json - Raw GitHub comments JSON
-    repo.json     - Raw GitHub repository JSON
+    diff-raw.diff      - Original diff text
+    diff-parsed.json   - Structured diff with hunks (machine-readable)
+    diff-parsed.md     - Structured diff with hunks (human-readable)
+    gh-pr.json       - Raw GitHub PR metadata JSON
+    gh-comments.json - Raw GitHub comments JSON
+    gh-repo.json     - Raw GitHub repository JSON
 """
 
 from __future__ import annotations
@@ -19,7 +20,16 @@ from pathlib import Path
 from prradar.domain.diff_source import DiffSource
 from prradar.infrastructure.diff_provider.factory import create_diff_provider
 from prradar.infrastructure.github.runner import GhCommandRunner
-from prradar.services.phase_sequencer import PhaseSequencer, PipelinePhase
+from prradar.services.phase_sequencer import (
+    DIFF_PARSED_JSON_FILENAME,
+    DIFF_PARSED_MD_FILENAME,
+    DIFF_RAW_FILENAME,
+    GH_COMMENTS_FILENAME,
+    GH_PR_FILENAME,
+    GH_REPO_FILENAME,
+    PhaseSequencer,
+    PipelinePhase,
+)
 
 
 def cmd_diff(
@@ -73,16 +83,20 @@ def cmd_diff(
         print(f"  Error fetching diff: {e}")
         return 1
 
-    raw_diff_path = diff_dir / "raw.diff"
+    raw_diff_path = diff_dir / DIFF_RAW_FILENAME
     raw_diff_path.write_text(diff_content)
     print(f"  Wrote {raw_diff_path}")
 
     # Parse diff into structured format
     git_diff = GitDiff.from_diff_content(diff_content)
     parsed_diff = git_diff.to_dict(annotate_lines=True)
-    parsed_diff_path = diff_dir / "parsed.json"
+    parsed_diff_path = diff_dir / DIFF_PARSED_JSON_FILENAME
     parsed_diff_path.write_text(json.dumps(parsed_diff, indent=2))
     print(f"  Wrote {parsed_diff_path} ({len(git_diff.hunks)} hunks)")
+
+    parsed_md_path = diff_dir / DIFF_PARSED_MD_FILENAME
+    parsed_md_path.write_text(git_diff.to_markdown())
+    print(f"  Wrote {parsed_md_path}")
 
     # Fetch PR metadata
     print("  Fetching PR metadata...")
@@ -93,7 +107,7 @@ def cmd_diff(
     assert not isinstance(pr_result, str)
     pr = pr_result
 
-    pr_path = diff_dir / "pr.json"
+    pr_path = diff_dir / GH_PR_FILENAME
     pr_path.write_text(pr.raw_json)
     print(f"  Wrote {pr_path}")
 
@@ -106,7 +120,7 @@ def cmd_diff(
     assert not isinstance(comments_result, str)
     comments = comments_result
 
-    comments_path = diff_dir / "comments.json"
+    comments_path = diff_dir / GH_COMMENTS_FILENAME
     comments_path.write_text(comments.raw_json)
     print(f"  Wrote {comments_path}")
 
@@ -119,7 +133,7 @@ def cmd_diff(
     assert not isinstance(repo_result, str)
     repo = repo_result
 
-    repo_path = diff_dir / "repo.json"
+    repo_path = diff_dir / GH_REPO_FILENAME
     repo_path.write_text(repo.raw_json)
     print(f"  Wrote {repo_path}")
 

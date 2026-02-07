@@ -16,6 +16,14 @@ from typing import Protocol
 # Phases not yet implemented (skipped during dependency validation)
 _FUTURE_PHASES: set[str] = set()
 
+# Phase 1 artifact filenames
+DIFF_RAW_FILENAME = "diff-raw.diff"
+DIFF_PARSED_JSON_FILENAME = "diff-parsed.json"
+DIFF_PARSED_MD_FILENAME = "diff-parsed.md"
+GH_PR_FILENAME = "gh-pr.json"
+GH_COMMENTS_FILENAME = "gh-comments.json"
+GH_REPO_FILENAME = "gh-repo.json"
+
 
 class PipelinePhase(Enum):
     """Pipeline phases in execution order.
@@ -138,7 +146,7 @@ class _FixedFileChecker:
 class DiffPhaseChecker(_FixedFileChecker):
     """Checks completion status for phase-1-pull-request."""
 
-    REQUIRED_FILES = ["raw.diff", "parsed.json", "pr.json", "comments.json", "repo.json"]
+    REQUIRED_FILES = [DIFF_RAW_FILENAME, DIFF_PARSED_JSON_FILENAME, GH_PR_FILENAME, GH_COMMENTS_FILENAME, GH_REPO_FILENAME]
 
     def __init__(self) -> None:
         super().__init__(PipelinePhase.DIFF, self.REQUIRED_FILES)
