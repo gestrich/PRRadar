@@ -230,6 +230,25 @@ inspected and debugged independently.
         help="PR number to show status for",
     )
 
+    # list-prs command
+    list_prs_parser = agent_subparsers.add_parser(
+        "list-prs",
+        help="Fetch recent PR metadata from GitHub",
+    )
+    list_prs_parser.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum number of PRs to fetch (default: 50)",
+    )
+    list_prs_parser.add_argument(
+        "--state",
+        type=str,
+        default="open",
+        choices=["open", "closed", "merged", "all"],
+        help="PR state filter (default: open)",
+    )
+
 
 def ensure_output_dir(output_dir: str, pr_number: int) -> Path:
     """Create and return the output directory for a PR.
@@ -259,6 +278,16 @@ def cmd_agent(args: argparse.Namespace) -> int:
         print("Error: No agent command specified")
         print("Use 'prradar agent --help' for usage information")
         return 1
+
+    # list-prs has no pr_number — handle before ensure_output_dir
+    if args.agent_command == "list-prs":
+        from prradar.commands.agent.list_prs import cmd_list_prs
+
+        return cmd_list_prs(
+            output_dir=args.output_dir,
+            limit=args.limit,
+            state=args.state,
+        )
 
     output_dir = args.output_dir
     pr_number = args.pr_number

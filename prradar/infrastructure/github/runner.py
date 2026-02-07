@@ -6,6 +6,7 @@ This abstraction allows services to be tested without actually calling gh.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -193,6 +194,31 @@ class GhCommandRunner:
         if not success:
             return False, result
         return True, PullRequestComments.from_json(result)
+
+    def list_pull_requests(
+        self, limit: int = 50, state: str = "open"
+    ) -> tuple[bool, list[PullRequest] | str]:
+        """List recent pull requests for the current repository.
+
+        Args:
+            limit: Maximum number of PRs to fetch
+            state: PR state filter (open, closed, merged, all)
+
+        Returns:
+            Tuple of (success, list of PullRequest or error string)
+        """
+        success, result = self.run(
+            [
+                "gh", "pr", "list",
+                "--json", ",".join(_PR_FIELDS),
+                "--limit", str(limit),
+                "--state", state,
+            ]
+        )
+        if not success:
+            return False, result
+        data = json.loads(result)
+        return True, [PullRequest.from_dict(item) for item in data]
 
     def get_repository(self) -> tuple[bool, Repository | str]:
         """Get current repository metadata as a typed model.
