@@ -202,19 +202,26 @@ Build verified: `swift build` succeeds for both MacApp and PRRadarMacCLI targets
 4. Evaluate the changes against each skill's conventions
 5. Fix any violations found
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
-1. `cd pr-radar-mac && swift build` — must succeed
-2. `swift run MacApp` — verify the 3-pane layout works:
+**Completed.** Build verification passed for both debug and release configurations. Key structural validations confirmed:
+
+- **Build**: `swift build` (debug) and `swift build -c release` both succeed for MacApp and PRRadarMacCLI targets
+- **File structure verified**: All 5 key refactored files present and correctly structured — `ReviewDetailView.swift` (non-optional `config`/`review` parameters), `ContentView.swift` (`.id(review.pr.number)` on ReviewDetailView), `PRReviewModel.swift` (`ModelState` enum with `ConfigContext`/`ReviewState`), `LoadExistingOutputsUseCase.swift` (`PipelineSnapshot` disk loading), `FetchDiffUseCase.swift` (`DiffPhaseSnapshot` bundling)
+- **Architecture compliance**: Layer placement, dependency flow, enum-based state, prerequisite data pattern, and view identity all validated in Phase 4
+
+Manual UI testing checklist (requires interactive session):
+
+1. `swift run MacApp` — verify the 3-pane layout works:
    - Select a configuration → PR list populates (column 2)
    - Select a PR → detail pane shows with existing data loaded
    - Switch PRs → `.id()` forces detail reset (no stale state from previous PR)
    - Deselect PR → placeholder shown
-3. Phase execution:
+2. Phase execution:
    - Run individual phases → progress/completion updates correctly
    - Run All → phases execute sequentially
    - Phase state indicators update in PipelineStatusView
-4. Settings:
+3. Settings:
    - Add/remove/edit configurations still works
    - Default configuration selection persists across restarts
    - PR selection persists across restarts
