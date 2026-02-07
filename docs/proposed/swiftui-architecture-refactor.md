@@ -140,9 +140,11 @@ Remove: `parseDiffOutputs`, `parseRulesOutputs`, `parseEvaluationOutputs`, `pars
 
 **Validation:** `cd pr-radar-mac && swift build` succeeds. All views compile via backward-compatible computed properties.
 
-## - [ ] Phase 3: View Refactor — Extract ReviewDetailView
+## - [x] Phase 3: View Refactor — Extract ReviewDetailView
 
 Extract phase detail views from `ContentView`, apply prerequisite data pattern, add `.id()`.
+
+**Completed.** Created `ReviewDetailView` taking non-optional `config: RepoConfiguration` and `review: ReviewState` parameters (prerequisite data pattern). Moved all phase output views (`diffOutputView`, `rulesOutputView`, `evaluationsOutputView`, `reportOutputView`, `runningLogView`) and `@State showEffectiveDiff`/`showCommentApproval` from ContentView into ReviewDetailView. Phase output views now read from the `review` parameter directly (e.g., `review.diff?.fullDiff`, `review.rules`). ContentView detail column switches on `model.state` enum — `.noConfig` shows config placeholder, `.hasConfig` with review shows `ReviewDetailView` with `.id(review.pr.number)`, without review shows PR selection placeholder. PR list column also switches on `model.state`. ContentView reduced from ~370 to ~189 lines; ReviewDetailView is 207 lines. `.id(review.pr.number)` ensures `@State` resets when switching PRs. No changes to `PipelineStatusView`, `PhaseInputView`, `SettingsView`, `CommentApprovalView`, or any phase views. Build verified: `swift build` succeeds for both MacApp and PRRadarMacCLI targets.
 
 ### 3.1 Create `ReviewDetailView`
 
