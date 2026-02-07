@@ -914,11 +914,12 @@ class TestRuleEvaluationCombined(unittest.TestCase):
         self.assertFalse(rule.should_evaluate("src/Handler.m", "NSString *name;"))
 
 
-class TestRuleScope(unittest.TestCase):
-    """Tests for RuleScope enum and scope field on Rule."""
+class TestRuleFocusType(unittest.TestCase):
+    """Tests for focus_type field on Rule."""
 
-    def test_default_scope_is_localized(self):
-        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+    def test_default_focus_type_is_file(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
 
         rule = Rule(
             name="test-rule",
@@ -929,10 +930,11 @@ class TestRuleScope(unittest.TestCase):
             grep=GrepPatterns(),
             content="Content",
         )
-        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+        self.assertEqual(rule.focus_type, FocusType.FILE)
 
-    def test_scope_can_be_set_to_global(self):
-        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+    def test_focus_type_can_be_set_to_method(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
 
         rule = Rule(
             name="test-rule",
@@ -942,12 +944,13 @@ class TestRuleScope(unittest.TestCase):
             applies_to=AppliesTo(),
             grep=GrepPatterns(),
             content="Content",
-            scope=RuleScope.GLOBAL,
+            focus_type=FocusType.METHOD,
         )
-        self.assertEqual(rule.scope, RuleScope.GLOBAL)
+        self.assertEqual(rule.focus_type, FocusType.METHOD)
 
-    def test_to_dict_includes_scope(self):
-        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+    def test_to_dict_includes_focus_type(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
 
         rule = Rule(
             name="test-rule",
@@ -957,12 +960,12 @@ class TestRuleScope(unittest.TestCase):
             applies_to=AppliesTo(),
             grep=GrepPatterns(),
             content="Content",
-            scope=RuleScope.GLOBAL,
+            focus_type=FocusType.METHOD,
         )
         result = rule.to_dict()
-        self.assertEqual(result["scope"], "global")
+        self.assertEqual(result["focus_type"], "method")
 
-    def test_to_dict_default_scope_is_localized(self):
+    def test_to_dict_default_focus_type_is_file(self):
         from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
 
         rule = Rule(
@@ -975,24 +978,11 @@ class TestRuleScope(unittest.TestCase):
             content="Content",
         )
         result = rule.to_dict()
-        self.assertEqual(result["scope"], "localized")
+        self.assertEqual(result["focus_type"], "file")
 
-    def test_from_dict_parses_localized_scope(self):
-        from prradar.domain.rule import Rule, RuleScope
-
-        data = {
-            "name": "test",
-            "file_path": "test.md",
-            "description": "Test",
-            "category": "test",
-            "content": "Content",
-            "scope": "localized",
-        }
-        rule = Rule.from_dict(data)
-        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
-
-    def test_from_dict_parses_global_scope(self):
-        from prradar.domain.rule import Rule, RuleScope
+    def test_from_dict_parses_file_focus_type(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
 
         data = {
             "name": "test",
@@ -1000,13 +990,29 @@ class TestRuleScope(unittest.TestCase):
             "description": "Test",
             "category": "test",
             "content": "Content",
-            "scope": "global",
+            "focus_type": "file",
         }
         rule = Rule.from_dict(data)
-        self.assertEqual(rule.scope, RuleScope.GLOBAL)
+        self.assertEqual(rule.focus_type, FocusType.FILE)
 
-    def test_from_dict_defaults_to_localized_when_missing(self):
-        from prradar.domain.rule import Rule, RuleScope
+    def test_from_dict_parses_method_focus_type(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
+
+        data = {
+            "name": "test",
+            "file_path": "test.md",
+            "description": "Test",
+            "category": "test",
+            "content": "Content",
+            "focus_type": "method",
+        }
+        rule = Rule.from_dict(data)
+        self.assertEqual(rule.focus_type, FocusType.METHOD)
+
+    def test_from_dict_defaults_to_file_when_missing(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
 
         data = {
             "name": "test",
@@ -1016,10 +1022,11 @@ class TestRuleScope(unittest.TestCase):
             "content": "Content",
         }
         rule = Rule.from_dict(data)
-        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+        self.assertEqual(rule.focus_type, FocusType.FILE)
 
-    def test_from_dict_defaults_to_localized_for_invalid_scope(self):
-        from prradar.domain.rule import Rule, RuleScope
+    def test_from_dict_defaults_to_file_for_invalid_value(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
 
         data = {
             "name": "test",
@@ -1027,21 +1034,22 @@ class TestRuleScope(unittest.TestCase):
             "description": "Test",
             "category": "test",
             "content": "Content",
-            "scope": "invalid-scope",
+            "focus_type": "invalid-type",
         }
         rule = Rule.from_dict(data)
-        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+        self.assertEqual(rule.focus_type, FocusType.FILE)
 
-    def test_from_file_parses_scope_from_frontmatter(self):
+    def test_from_file_parses_focus_type_from_frontmatter(self):
         import tempfile
         from pathlib import Path
 
-        from prradar.domain.rule import Rule, RuleScope
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
 
         content = """---
 description: Test rule
 category: test
-scope: global
+focus_type: method
 ---
 Rule content here.
 """
@@ -1050,13 +1058,14 @@ Rule content here.
             f.flush()
             rule = Rule.from_file(Path(f.name))
 
-        self.assertEqual(rule.scope, RuleScope.GLOBAL)
+        self.assertEqual(rule.focus_type, FocusType.METHOD)
 
-    def test_from_file_defaults_to_localized_when_scope_missing(self):
+    def test_from_file_defaults_to_file_when_focus_type_missing(self):
         import tempfile
         from pathlib import Path
 
-        from prradar.domain.rule import Rule, RuleScope
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
 
         content = """---
 description: Test rule
@@ -1069,10 +1078,32 @@ Rule content here.
             f.flush()
             rule = Rule.from_file(Path(f.name))
 
-        self.assertEqual(rule.scope, RuleScope.LOCALIZED)
+        self.assertEqual(rule.focus_type, FocusType.FILE)
 
-    def test_round_trip_serialization(self):
-        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+    def test_from_file_defaults_to_file_for_invalid_focus_type(self):
+        import tempfile
+        from pathlib import Path
+
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import Rule
+
+        content = """---
+description: Test rule
+category: test
+focus_type: bogus
+---
+Rule content here.
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(content)
+            f.flush()
+            rule = Rule.from_file(Path(f.name))
+
+        self.assertEqual(rule.focus_type, FocusType.FILE)
+
+    def test_round_trip_serialization_method(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
 
         original = Rule(
             name="test-rule",
@@ -1082,11 +1113,28 @@ Rule content here.
             applies_to=AppliesTo(file_patterns=["*.py"]),
             grep=GrepPatterns(any_patterns=["pattern"]),
             content="Content",
-            scope=RuleScope.GLOBAL,
+            focus_type=FocusType.METHOD,
         )
         restored = Rule.from_dict(original.to_dict())
-        self.assertEqual(restored.scope, RuleScope.GLOBAL)
+        self.assertEqual(restored.focus_type, FocusType.METHOD)
         self.assertEqual(restored.name, original.name)
+
+    def test_round_trip_serialization_file(self):
+        from prradar.domain.focus_area import FocusType
+        from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
+
+        original = Rule(
+            name="test-rule",
+            file_path="test.md",
+            description="Test",
+            category="test",
+            applies_to=AppliesTo(),
+            grep=GrepPatterns(),
+            content="Content",
+            focus_type=FocusType.FILE,
+        )
+        restored = Rule.from_dict(original.to_dict())
+        self.assertEqual(restored.focus_type, FocusType.FILE)
 
 
 if __name__ == "__main__":

@@ -74,7 +74,7 @@ Add `FocusType` as a first-class concept to the domain layer.
 
 ---
 
-## - [ ] Phase 2: Rule Model — Add `focus_type` Field
+## - [x] Phase 2: Rule Model — Add `focus_type` Field
 
 Rules declare which focus type they need.
 
@@ -99,10 +99,15 @@ Rules declare which focus type they need.
 
 6. Update tests: parsing with/without focus_type, round-trip, invalid values, remove all RuleScope tests
 
-**Files to modify:**
-- `prradar/domain/rule.py`
-- `prradar/domain/__init__.py`
-- Tests
+**Files modified:**
+- `prradar/domain/rule.py` — Replaced `RuleScope` with `FocusType` import from `focus_area.py`; replaced `scope` field with `focus_type: FocusType` (default `FocusType.FILE`); updated `from_file()`, `from_dict()`, and `to_dict()` to use `focus_type`; removed `RuleScope` enum and `from enum import Enum`
+- `prradar/domain/__init__.py` — Removed `RuleScope` import and `__all__` export
+- `tests/test_diff_parser.py` — Replaced `TestRuleScope` (11 tests) with `TestRuleFocusType` (13 tests) covering: default value, explicit method/file, `to_dict` serialization, `from_dict` parsing (file, method, missing, invalid), `from_file` parsing (method, missing, invalid frontmatter), round-trip serialization for both types
+
+**Technical notes:**
+- `Rule` imports `FocusType` directly from `prradar.domain.focus_area` (not via `__init__.py`) to avoid circular imports
+- Fallback pattern matches Phase 1's `FocusArea.from_dict()`: try/except on `FocusType(value)` for `ValueError`, `.get("focus_type", "file")` for missing keys
+- Net test change: +2 (11 removed, 13 added) — 503 total tests pass (501 existing + 2 net new)
 
 ---
 

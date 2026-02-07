@@ -16,7 +16,7 @@ from prradar.domain.review import (
     ReviewOutput,
     ReviewSummary,
 )
-from prradar.domain.rule import AppliesTo, GrepPatterns, Rule, RuleScope
+from prradar.domain.rule import AppliesTo, GrepPatterns, Rule
 
 __all__ = [
     "AppliesTo",
@@ -34,7 +34,6 @@ __all__ = [
     "ReviewOutput",
     "ReviewSummary",
     "Rule",
-    "RuleScope",
     "RuleApplicability",
     "RuleEvaluation",
 ]
