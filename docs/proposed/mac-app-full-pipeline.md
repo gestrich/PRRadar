@@ -128,40 +128,52 @@ Copied 5 model files and 4 view files from RefactorApp:
 
 ---
 
-## - [ ] Phase 3: Settings Model and Multi-Repo Configuration View
+## - [x] Phase 3: Settings Model and Multi-Repo Configuration View
 
 Replace the single repo/output config with a settings model that supports multiple repo configurations. Each configuration bundles a repo path, output directory, rules directory, and optional defaults.
 
-### New files
+### Completed
+
+Created settings model, persistence service, and configuration management UI:
 
 **Model:** `Sources/services/PRRadarConfigService/RepoConfiguration.swift`
-- `RepoConfiguration`: Codable struct with id (UUID), name, repoPath, outputDir, rulesDir, isDefault
-- `AppSettings`: Codable struct holding array of RepoConfigurations
-- Persistence via JSON file in Application Support directory (not UserDefaults — too structured)
+- `RepoConfiguration`: Codable/Sendable/Identifiable/Hashable struct with id (UUID), name, repoPath, outputDir, rulesDir, isDefault
+- `AppSettings`: Codable struct holding array of RepoConfigurations with `defaultConfiguration` computed property
 
 **Service:** `Sources/services/PRRadarConfigService/SettingsService.swift`
-- `SettingsService`: Load/save AppSettings, add/remove/update configurations
-- File-based persistence with `FileManager`
+- `SettingsService`: Sendable class with load/save, add/remove/update/setDefault operations
+- Persists to `~/Library/Application Support/PRRadar/settings.json`
+- First added configuration automatically becomes default
+- Removing the default configuration promotes the next available one
 
 **View:** `Sources/apps/MacApp/UI/SettingsView.swift`
-- List of saved repo configurations (name, path, rules dir)
-- Add/edit/delete configurations
-- Set default configuration
-- Each config row shows repo name and path
-- Edit sheet with text fields for all paths + folder picker buttons
+- List of saved repo configurations with name, path, default badge
+- Add/edit/delete with inline icon buttons
+- Set default via star button
+- Edit sheet with text fields for all 4 paths (name, repoPath, outputDir, rulesDir)
+- Folder picker (NSOpenPanel) browse buttons for all path fields
+- ContentUnavailableView when no configurations exist
 
 **Model update:** `Sources/apps/MacApp/Models/PRReviewModel.swift`
-- Replace individual `repoPath`/`outputDir` stored properties with selected `RepoConfiguration`
-- Add `SettingsService` dependency
-- Add `configurations` list and `selectedConfiguration` binding
-- Remove UserDefaults persistence for individual fields
+- Replaced individual `repoPath`/`outputDir` UserDefaults properties with `selectedConfiguration` (persisted by UUID in UserDefaults)
+- Added `settings: AppSettings` property backed by SettingsService
+- Added configuration management methods: `addConfiguration`, `removeConfiguration`, `updateConfiguration`, `setDefault`, `selectConfiguration`
+- `selectConfiguration` resets phase state to `.idle`
+- `runDiff()` reads repoPath/outputDir from the selected configuration
 
-### UI integration
+**UI integration (ContentView.swift):**
+- Configuration picker (Picker dropdown) replaces repo path text field
+- Gear icon button opens SettingsView as a sheet
+- Read-only repo path display below picker
+- Run button disabled when no configuration is selected
 
-- Add Settings button/gear icon to main toolbar
-- Settings opens as a sheet or separate window
-- Configuration picker (dropdown) in the main review view to switch between repos
-- When switching configs, update all paths and clear current phase state
+### Technical notes
+
+- Settings persisted as JSON (not UserDefaults) — supports the structured array of configurations
+- Selected configuration ID persisted in UserDefaults for fast lookup across launches
+- `SettingsService` is `Sendable` (immutable after init) for safe use across actors
+- No changes to Package.swift — new files auto-included in existing targets
+- Removed `repoPath` and `outputDir` UserDefaults persistence (migration not needed — fresh feature)
 
 ---
 

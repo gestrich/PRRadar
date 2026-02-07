@@ -1,8 +1,10 @@
 import SwiftUI
+import PRRadarConfigService
 
 struct ContentView: View {
 
     @Environment(PRReviewModel.self) private var model
+    @State private var showSettings = false
 
     var body: some View {
         @Bindable var model = model
@@ -13,10 +15,43 @@ struct ContentView: View {
                 .bold()
 
             HStack {
-                Text("Repo Path")
+                Text("Config")
                     .frame(width: 80, alignment: .trailing)
-                TextField("/path/to/repo", text: $model.repoPath)
-                    .textFieldStyle(.roundedBorder)
+                Picker("", selection: Binding(
+                    get: { model.selectedConfiguration?.id },
+                    set: { id in
+                        if let id, let config = model.settings.configurations.first(where: { $0.id == id }) {
+                            model.selectConfiguration(config)
+                        }
+                    }
+                )) {
+                    if model.settings.configurations.isEmpty {
+                        Text("No configurations").tag(nil as UUID?)
+                    }
+                    ForEach(model.settings.configurations) { config in
+                        Text(config.name).tag(config.id as UUID?)
+                    }
+                }
+                .frame(maxWidth: 250)
+
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gear")
+                }
+                .help("Manage configurations")
+            }
+
+            if let selected = model.selectedConfiguration {
+                HStack {
+                    Text("Repo")
+                        .frame(width: 80, alignment: .trailing)
+                    Text(selected.repoPath)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
 
             HStack {
@@ -29,17 +64,10 @@ struct ContentView: View {
             }
 
             HStack {
-                Text("Output Dir")
-                    .frame(width: 80, alignment: .trailing)
-                TextField("~/Desktop/code-reviews", text: $model.outputDir)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            HStack {
                 Button("Run Phase 1") {
                     Task { await model.runDiff() }
                 }
-                .disabled(model.isRunning || model.repoPath.isEmpty || model.prNumber.isEmpty)
+                .disabled(model.isRunning || model.selectedConfiguration == nil || model.prNumber.isEmpty)
 
                 if model.isRunning {
                     ProgressView()
@@ -77,6 +105,10 @@ struct ContentView: View {
         }
         .padding()
         .frame(minWidth: 500, minHeight: 400)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environment(model)
+        }
     }
 
     @ViewBuilder

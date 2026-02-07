@@ -14,10 +14,24 @@ final class PRReviewModel {
     }
 
     private(set) var state: State = .idle
+    private(set) var settings: AppSettings
 
-    var repoPath: String {
-        get { access(keyPath: \.repoPath); return UserDefaults.standard.string(forKey: "repoPath") ?? "" }
-        set { withMutation(keyPath: \.repoPath) { UserDefaults.standard.set(newValue, forKey: "repoPath") } }
+    var selectedConfiguration: RepoConfiguration? {
+        get {
+            let savedID = UserDefaults.standard.string(forKey: "selectedConfigID")
+                .flatMap(UUID.init(uuidString:))
+            if let savedID, let config = settings.configurations.first(where: { $0.id == savedID }) {
+                return config
+            }
+            return settings.defaultConfiguration
+        }
+        set {
+            if let id = newValue?.id {
+                UserDefaults.standard.set(id.uuidString, forKey: "selectedConfigID")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedConfigID")
+            }
+        }
     }
 
     var prNumber: String {
@@ -25,17 +39,15 @@ final class PRReviewModel {
         set { withMutation(keyPath: \.prNumber) { UserDefaults.standard.set(newValue, forKey: "prNumber") } }
     }
 
-    var outputDir: String {
-        get { access(keyPath: \.outputDir); return UserDefaults.standard.string(forKey: "outputDir") ?? "" }
-        set { withMutation(keyPath: \.outputDir) { UserDefaults.standard.set(newValue, forKey: "outputDir") } }
-    }
-
     private let venvBinPath: String
     private let environment: [String: String]
+    private let settingsService: SettingsService
 
-    init(venvBinPath: String, environment: [String: String]) {
+    init(venvBinPath: String, environment: [String: String], settingsService: SettingsService = SettingsService()) {
         self.venvBinPath = venvBinPath
         self.environment = environment
+        self.settingsService = settingsService
+        self.settings = settingsService.load()
     }
 
     var isRunning: Bool {
@@ -43,11 +55,47 @@ final class PRReviewModel {
         return false
     }
 
+    func addConfiguration(_ config: RepoConfiguration) {
+        settingsService.addConfiguration(config, to: &settings)
+        persistSettings()
+        if settings.configurations.count == 1 {
+            selectedConfiguration = config
+        }
+    }
+
+    func removeConfiguration(id: UUID) {
+        let wasSelected = selectedConfiguration?.id == id
+        settingsService.removeConfiguration(id: id, from: &settings)
+        persistSettings()
+        if wasSelected {
+            selectedConfiguration = settings.defaultConfiguration
+        }
+    }
+
+    func updateConfiguration(_ config: RepoConfiguration) {
+        if let idx = settings.configurations.firstIndex(where: { $0.id == config.id }) {
+            settings.configurations[idx] = config
+            persistSettings()
+        }
+    }
+
+    func setDefault(id: UUID) {
+        settingsService.setDefault(id: id, in: &settings)
+        persistSettings()
+    }
+
+    func selectConfiguration(_ config: RepoConfiguration) {
+        selectedConfiguration = config
+        state = .idle
+    }
+
     func runDiff() async {
+        guard let selected = selectedConfiguration else { return }
+
         let config = PRRadarConfig(
             venvBinPath: venvBinPath,
-            repoPath: repoPath,
-            outputDir: outputDir
+            repoPath: selected.repoPath,
+            outputDir: selected.outputDir
         )
 
         state = .running(logs: "Looking for prradar in: \(venvBinPath)\n")
@@ -76,5 +124,9 @@ final class PRReviewModel {
             let logs = if case .running(let l) = state { l } else { "" }
             state = .failed(error: error.localizedDescription, logs: logs)
         }
+    }
+
+    private func persistSettings() {
+        try? settingsService.save(settings)
     }
 }
