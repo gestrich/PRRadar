@@ -67,7 +67,7 @@ Add the `ListPRs` command to the Swift SDK and ensure the CLI runner can execute
 
 **Completed.** Added `PRRadar.Agent.ListPrs` struct (named `ListPrs` not `ListPRs` so the CLISDK kebab-case macro produces `list-prs` matching the Python subcommand). Both `limit` and `state` are optional `String?` `@Option` properties. No `@Positional` prNumber needed. `PRRadarCLIRunner.execute` required no changes — it inserts `--output-dir` after `"agent"` generically, which works correctly for commands with or without positional arguments.
 
-## - [ ] Phase 4: Swift Feature layer — `FetchPRListUseCase`
+## - [x] Phase 4: Swift Feature layer — `FetchPRListUseCase`
 
 Create a new use case following the existing `FetchDiffUseCase` pattern.
 
@@ -81,6 +81,8 @@ Create a new use case following the existing `FetchDiffUseCase` pattern.
   - Output type: `[PRMetadata]` (the refreshed list)
 
 **Progress type:** Use `PhaseProgress<[PRMetadata]>` to match the existing pattern.
+
+**Completed.** Created `FetchPRListUseCase` following the exact `FetchDiffUseCase` pattern. The `execute` method takes optional `limit`, `state`, and `repoSlug` parameters. It constructs `PRRadar.Agent.ListPrs` (matching the SDK struct name), streams CLI output via `CLIOutputStream`, and on success calls `PRDiscoveryService.discoverPRs(outputDir:repoSlug:)` to return the refreshed `[PRMetadata]` list. Uses `config.absoluteOutputDir` for the discovery call since `PRDiscoveryService` expects an absolute path. No `parseOutput` static method — the list-prs command writes files to disk and discovery reads them.
 
 ## - [ ] Phase 5: Mac App — Model + UI integration
 
