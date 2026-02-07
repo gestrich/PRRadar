@@ -57,7 +57,7 @@ public struct EvaluateUseCase: Sendable {
                     _ = await logTask.result
 
                     if result.isSuccess {
-                        let output = try parseOutput(prNumber: prNumber)
+                        let output = try Self.parseOutput(config: config, prNumber: prNumber)
                         continuation.yield(.completed(output: output))
                     } else {
                         continuation.yield(.failed(
@@ -74,7 +74,7 @@ public struct EvaluateUseCase: Sendable {
         }
     }
 
-    private func parseOutput(prNumber: String) throws -> EvaluationPhaseOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> EvaluationPhaseOutput {
         let summary: EvaluationSummary = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .evaluations, filename: "summary.json"
         )

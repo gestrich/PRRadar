@@ -333,9 +333,11 @@ final class PRReviewModel {
                     break
                 case .log(let text):
                     appendLog(text, to: .pullRequest)
-                case .completed(let files):
-                    diffFiles = files
-                    parseDiffOutputs(config: config)
+                case .completed(let snapshot):
+                    diffFiles = snapshot.files
+                    fullDiff = snapshot.fullDiff
+                    effectiveDiff = snapshot.effectiveDiff
+                    moveReport = snapshot.moveReport
                     let logs = runningLogs(for: .pullRequest)
                     phaseStates[.pullRequest] = .completed(logs: logs)
                 case .failed(let error, let logs):

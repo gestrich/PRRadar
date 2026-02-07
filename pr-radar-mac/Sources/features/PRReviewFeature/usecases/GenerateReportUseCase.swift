@@ -56,7 +56,7 @@ public struct GenerateReportUseCase: Sendable {
                     _ = await logTask.result
 
                     if result.isSuccess {
-                        let output = try parseOutput(prNumber: prNumber)
+                        let output = try Self.parseOutput(config: config, prNumber: prNumber)
                         continuation.yield(.completed(output: output))
                     } else {
                         continuation.yield(.failed(
@@ -73,7 +73,7 @@ public struct GenerateReportUseCase: Sendable {
         }
     }
 
-    private func parseOutput(prNumber: String) throws -> ReportPhaseOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> ReportPhaseOutput {
         let report: ReviewReport = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .report, filename: "summary.json"
         )

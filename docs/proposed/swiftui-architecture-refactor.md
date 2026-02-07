@@ -17,9 +17,11 @@ The refactor introduces `ModelState` enum with `ConfigContext`/`ReviewState`, mo
 
 ## Phases
 
-## - [ ] Phase 1: Use Case Foundation
+## - [x] Phase 1: Use Case Foundation
 
 Move parsing logic out of the model into use cases. Additive changes except for `FetchDiffUseCase` return type.
+
+**Completed.** All four use case parse methods are now `public static`, `DiffPhaseSnapshot` bundles diff outputs, `LoadExistingOutputsUseCase` provides centralized disk loading, and `PRReviewModel.runDiff()` unpacks the snapshot. Also updated `MacCLI/DiffCommand.swift` which consumed the old `[String]` output type. Build verified: `swift build` succeeds.
 
 ### 1.1 Add `DiffPhaseSnapshot` to FetchDiffUseCase
 

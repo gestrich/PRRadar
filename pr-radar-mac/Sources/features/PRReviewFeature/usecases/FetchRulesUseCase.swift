@@ -58,7 +58,7 @@ public struct FetchRulesUseCase: Sendable {
                     _ = await logTask.result
 
                     if result.isSuccess {
-                        let output = try parseOutput(prNumber: prNumber)
+                        let output = try Self.parseOutput(config: config, prNumber: prNumber)
                         continuation.yield(.completed(output: output))
                     } else {
                         continuation.yield(.failed(
@@ -75,7 +75,7 @@ public struct FetchRulesUseCase: Sendable {
         }
     }
 
-    private func parseOutput(prNumber: String) throws -> RulesPhaseOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> RulesPhaseOutput {
         // Parse focus areas from phase-2 (per-type JSON files)
         let focusFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .focusAreas
