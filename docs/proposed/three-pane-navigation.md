@@ -175,7 +175,7 @@ Files to modify:
 - Added `public init` to `RulesPhaseOutput`, `EvaluationPhaseOutput`, and `ReportPhaseOutput` — their memberwise initializers were `internal` by default, preventing construction from the App layer
 - Rules phase requires at least focus areas or rules to be present to count as completed (empty results are treated as no output)
 
-## - [ ] Phase 6: Wire up new PR creation flow
+## - [x] Phase 6: Wire up new PR creation flow
 
 Since the PR number text field is removed from the main UI, add a way to initiate a review for a new PR.
 
@@ -189,6 +189,13 @@ Alternatively, add a text field at the top of the PR list (similar to a search f
 Files to modify:
 - `Sources/apps/MacApp/UI/ContentView.swift`
 - `Sources/apps/MacApp/Models/PRReviewModel.swift`
+
+**Technical notes:**
+- "+" toolbar button in column 2 opens a popover with a PR number text field and "Start Review" button
+- Popover supports Enter key submission via `.onSubmit` and `.keyboardShortcut(.defaultAction)`
+- `PRReviewModel.startNewReview(prNumber:)` creates a fallback `PRMetadata`, inserts it into `discoveredPRs`, selects it, runs the diff phase, then refreshes the PR list to pick up the real `gh-pr.json` metadata
+- If the PR already exists in `discoveredPRs`, it is selected without creating a duplicate
+- Button is disabled when no configuration is selected
 
 ## - [ ] Phase 7: Update window sizing and cleanup
 

@@ -156,6 +156,23 @@ final class PRReviewModel {
         discoveredPRs = PRDiscoveryService.discoverPRs(outputDir: config.outputDir)
     }
 
+    func startNewReview(prNumber: Int) async {
+        guard selectedConfiguration != nil else { return }
+
+        let fallback = PRMetadata.fallback(number: prNumber)
+        if !discoveredPRs.contains(where: { $0.number == prNumber }) {
+            discoveredPRs.insert(fallback, at: 0)
+        }
+        selectedPR = discoveredPRs.first(where: { $0.number == prNumber })
+
+        await runDiff()
+
+        refreshPRList()
+        if let updated = discoveredPRs.first(where: { $0.number == prNumber }) {
+            selectedPR = updated
+        }
+    }
+
     // MARK: - Phase Execution
 
     func runPhase(_ phase: PRRadarPhase) async {

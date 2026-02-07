@@ -7,6 +7,8 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showEffectiveDiff = false
     @State private var showCommentApproval = false
+    @State private var showNewReview = false
+    @State private var newPRNumber = ""
 
     var body: some View {
         @Bindable var model = model
@@ -110,6 +112,19 @@ struct ContentView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .help("Refresh PR list")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    newPRNumber = ""
+                    showNewReview = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Start a new PR review")
+                .disabled(model.selectedConfiguration == nil)
+                .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
+                    newReviewPopover
+                }
             }
         }
     }
@@ -298,6 +313,36 @@ struct ContentView: View {
                 description: Text("Run Phase 6 to generate the report.")
             )
         }
+    }
+
+    // MARK: - New Review Popover
+
+    @ViewBuilder
+    private var newReviewPopover: some View {
+        VStack(spacing: 12) {
+            Text("New PR Review")
+                .font(.headline)
+
+            TextField("PR number", text: $newPRNumber)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 160)
+                .onSubmit {
+                    submitNewReview()
+                }
+
+            Button("Start Review") {
+                submitNewReview()
+            }
+            .disabled(Int(newPRNumber) == nil)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding()
+    }
+
+    private func submitNewReview() {
+        guard let number = Int(newPRNumber) else { return }
+        showNewReview = false
+        Task { await model.startNewReview(prNumber: number) }
     }
 
     // MARK: - Running Log
