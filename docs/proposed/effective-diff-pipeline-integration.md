@@ -42,7 +42,7 @@ This mirrors the `_run_pipeline()` helper in `tests/infrastructure/effective_dif
 
 **Completed**: `MoveDetail.to_dict()` serializes tuples as lists for JSON compatibility. `MoveReport.to_dict()` delegates to `MoveDetail.to_dict()` for each move. `run_effective_diff_pipeline()` added as a "Pipeline Entry Point" section at the end of the module. All 485 tests pass.
 
-## - [ ] Phase 2: Add filename constants and update DiffPhaseChecker
+## - [x] Phase 2: Add filename constants and update DiffPhaseChecker
 
 Add three filename constants to `phase_sequencer.py` after the existing Phase 1 constants:
 
@@ -53,6 +53,8 @@ Add three filename constants to `phase_sequencer.py` after the existing Phase 1 
 Add all three to `DiffPhaseChecker.REQUIRED_FILES`.
 
 **Files**: `prradar/services/phase_sequencer.py`
+
+**Completed**: Three constants added after existing Phase 1 constants. `DiffPhaseChecker.REQUIRED_FILES` expanded from 5 to 8 entries. Tests updated: `total_count` assertions changed from 5 to 8, all test helpers that create a "complete" diff phase now write the 3 new files, percentage test updated from `1/5 (20%)` to `1/8 (12%)`. All 485 tests pass.
 
 ## - [ ] Phase 3: Integrate effective diff into cmd_diff()
 

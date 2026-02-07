@@ -23,6 +23,9 @@ DIFF_PARSED_MD_FILENAME = "diff-parsed.md"
 GH_PR_FILENAME = "gh-pr.json"
 GH_COMMENTS_FILENAME = "gh-comments.json"
 GH_REPO_FILENAME = "gh-repo.json"
+EFFECTIVE_DIFF_PARSED_JSON_FILENAME = "effective-diff-parsed.json"
+EFFECTIVE_DIFF_PARSED_MD_FILENAME = "effective-diff-parsed.md"
+EFFECTIVE_DIFF_MOVES_FILENAME = "effective-diff-moves.json"
 
 
 class PipelinePhase(Enum):
@@ -146,7 +149,16 @@ class _FixedFileChecker:
 class DiffPhaseChecker(_FixedFileChecker):
     """Checks completion status for phase-1-pull-request."""
 
-    REQUIRED_FILES = [DIFF_RAW_FILENAME, DIFF_PARSED_JSON_FILENAME, GH_PR_FILENAME, GH_COMMENTS_FILENAME, GH_REPO_FILENAME]
+    REQUIRED_FILES = [
+        DIFF_RAW_FILENAME,
+        DIFF_PARSED_JSON_FILENAME,
+        GH_PR_FILENAME,
+        GH_COMMENTS_FILENAME,
+        GH_REPO_FILENAME,
+        EFFECTIVE_DIFF_PARSED_JSON_FILENAME,
+        EFFECTIVE_DIFF_PARSED_MD_FILENAME,
+        EFFECTIVE_DIFF_MOVES_FILENAME,
+    ]
 
     def __init__(self) -> None:
         super().__init__(PipelinePhase.DIFF, self.REQUIRED_FILES)
