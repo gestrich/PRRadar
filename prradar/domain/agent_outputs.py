@@ -27,7 +27,7 @@ class RuleApplicability:
     """Structured output for rule applicability determination.
 
     Used by the rules command to determine if a rule applies to
-    a given code segment based on file type, content, and context.
+    a given focus area based on file type, content, and context.
     """
 
     applicable: bool
@@ -46,7 +46,7 @@ class RuleApplicability:
             "properties": {
                 "applicable": {
                     "type": "boolean",
-                    "description": "Whether the rule applies to this code segment",
+                    "description": "Whether the rule applies to this focus area",
                 },
                 "reason": {
                     "type": "string",

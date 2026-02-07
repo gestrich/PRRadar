@@ -1,7 +1,7 @@
 """Agent evaluate command - run rule evaluations using Claude Agent SDK.
 
 Reads evaluation tasks created by the rules command and evaluates each
-rule+segment combination using the Claude Agent SDK with structured outputs.
+rule+focus area combination using the Claude Agent SDK with structured outputs.
 
 Requires:
     <output-dir>/<pr-number>/phase-4-tasks/*.json  - Evaluation task files

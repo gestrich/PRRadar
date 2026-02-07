@@ -128,26 +128,6 @@ class RuleLoaderService:
         """
         return [rule for rule in rules if rule.applies_to_file(file_path)]
 
-    def filter_rules_for_segment(
-        self,
-        rules: list[Rule],
-        file_path: str,
-        diff_text: str,
-    ) -> list[Rule]:
-        """Filter rules that should be evaluated for a code segment.
-
-        Combines file extension filtering and grep pattern matching.
-
-        Args:
-            rules: List of rules to filter
-            file_path: File path of the segment
-            diff_text: Diff content to match against grep patterns
-
-        Returns:
-            Rules that should be evaluated for this segment
-        """
-        return [rule for rule in rules if rule.should_evaluate(file_path, diff_text)]
-
     def filter_rules_for_focus_area(
         self,
         all_rules: list[Rule],
@@ -174,7 +154,7 @@ class RuleLoaderService:
             if rule.grep.has_patterns():
                 focused_content = focus_area.get_focused_content()
                 changed_content = Hunk.extract_changed_content(focused_content)
-                if not rule.matches_diff_segment(changed_content):
+                if not rule.matches_diff_content(changed_content):
                     continue
 
             applicable_rules.append(rule)

@@ -131,7 +131,7 @@ async def evaluate_task(
     """Evaluate a single task using Claude Agent SDK.
 
     Args:
-        task: The evaluation task containing rule and code segment
+        task: The evaluation task containing rule and focus area
         repo_path: Path to the local repo checkout for codebase exploration
 
     Returns:

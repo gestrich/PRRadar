@@ -86,11 +86,11 @@ class AppliesTo:
 
 @dataclass
 class GrepPatterns:
-    """Regex patterns for filtering diff segments.
+    """Regex patterns for filtering diff content.
 
-    Used to pre-filter which diff segments a rule should evaluate.
-    This reduces unnecessary AI calls by skipping segments that
-    clearly don't match the rule's focus.
+    Used to pre-filter which diff content a rule should evaluate.
+    This reduces unnecessary AI calls by skipping content that
+    clearly doesn't match the rule's focus.
 
     Patterns are Python regular expressions (re module syntax).
     """
@@ -129,7 +129,7 @@ class GrepPatterns:
         """Check if text matches the grep pattern criteria.
 
         Args:
-            text: Text to search (typically a diff segment)
+            text: Text to search (typically diff content)
 
         Returns:
             True if patterns match (or no patterns specified):
@@ -326,14 +326,14 @@ class Rule:
         """
         return self.applies_to.matches_file(file_path)
 
-    def matches_diff_segment(self, diff_text: str) -> bool:
-        """Check if a diff segment matches the grep patterns.
+    def matches_diff_content(self, diff_text: str) -> bool:
+        """Check if diff content matches the grep patterns.
 
         Args:
-            diff_text: The diff segment text to check
+            diff_text: The diff content text to check
 
         Returns:
-            True if the segment matches (or no patterns defined)
+            True if the content matches (or no patterns defined)
         """
         return self.grep.matches(diff_text)
 
@@ -344,12 +344,12 @@ class Rule:
 
         Args:
             file_path: Path to the file
-            diff_text: The diff segment text
+            diff_text: The diff content text
 
         Returns:
             True if the rule should be evaluated
         """
-        return self.applies_to_file(file_path) and self.matches_diff_segment(diff_text)
+        return self.applies_to_file(file_path) and self.matches_diff_content(diff_text)
 
     # --------------------------------------------------------
     # Private Methods

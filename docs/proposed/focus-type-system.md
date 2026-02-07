@@ -254,7 +254,7 @@ Update the evaluation prompt to inform the AI about the local checkout and encou
 
 ---
 
-## - [ ] Phase 6: Segment Terminology Cleanup
+## - [x] Phase 6: Segment Terminology Cleanup
 
 Remove remaining "segment" terminology from the codebase in favor of "focus area."
 
@@ -276,13 +276,22 @@ Remove remaining "segment" terminology from the codebase in favor of "focus area
 3. Update tests referencing the old names
 4. Grep for any remaining "segment" references in `prradar/` and clean up
 
-**Files to modify:**
-- `prradar/domain/review.py`
-- `prradar/domain/rule.py`
-- `prradar/services/rule_loader.py`
-- `prradar/services/github_comment.py`
-- `prradar/commands/agent/analyze.py`
-- Tests
+**Files modified:**
+- `prradar/domain/review.py` — Renamed `Feedback.segment` → `focus_area_id`, `ReviewSummary.total_segments` → `total_focus_areas`; updated `from_dict()` with backward-compatible fallbacks for old JSON keys (`segment`, `totalSegments`); updated `ReviewOutput` default factory to use keyword arguments
+- `prradar/domain/rule.py` — Renamed `matches_diff_segment()` → `matches_diff_content()`; updated `should_evaluate()` internal call; cleaned up `GrepPatterns` docstring ("diff segments" → "diff content")
+- `prradar/services/rule_loader.py` — Deleted `filter_rules_for_segment()` entirely; updated `filter_rules_for_focus_area()` to call `matches_diff_content()`
+- `prradar/services/github_comment.py` — Updated `"Total Segments Reviewed:"` → `"Total Focus Areas Reviewed:"`
+- `prradar/commands/post_review.py` — Updated `"Total Segments Reviewed:"` → `"Total Focus Areas Reviewed:"`
+- `prradar/commands/agent/analyze.py` — Renamed `violations_for_segment` → `violations_for_focus_area`; updated docstrings ("segment" → "focus area")
+- `prradar/commands/agent/evaluate.py` — Updated module docstring ("rule+segment" → "rule+focus area")
+- `prradar/domain/agent_outputs.py` — Updated docstrings and JSON schema descriptions ("code segment" → "focus area")
+- `prradar/services/evaluation_service.py` — Updated docstring ("code segment" → "focus area")
+
+**Technical notes:**
+- `Feedback.from_dict()` uses `data.get("focus_area_id", data.get("segment", ""))` for backward compatibility with existing JSON data
+- `ReviewSummary.from_dict()` uses `data.get("totalFocusAreas", data.get("totalSegments", 0))` for backward compatibility
+- No test changes required — no tests directly referenced the renamed methods or fields; all tests use the public API (`should_evaluate()`, `filter_rules_for_focus_area()`, `grep.matches()`)
+- All 537 tests pass (no changes to test count)
 
 ---
 

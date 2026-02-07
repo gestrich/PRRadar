@@ -151,10 +151,10 @@ async def run_interactive_evaluation(
     stats: AnalyzeStats,
     repo_path: str = ".",
 ) -> None:
-    """Run evaluations interactively, prompting for each segment.
+    """Run evaluations interactively, prompting for each focus area.
 
-    Groups tasks by segment and prompts once per segment. When approved,
-    evaluates all rules for that segment.
+    Groups tasks by focus area and prompts once per focus area. When approved,
+    evaluates all rules for that focus area.
 
     Args:
         tasks: List of evaluation tasks
@@ -190,7 +190,7 @@ async def run_interactive_evaluation(
             continue
 
         # Evaluate all rules for this focus area
-        violations_for_segment = []
+        violations_for_focus_area = []
 
         for task in focus_area_tasks:
             print(f"  Evaluating rule: {task.rule.name}...")
@@ -212,20 +212,20 @@ async def run_interactive_evaluation(
                 stats.violations_found += 1
                 print(f"    ⚠️  Violation (score: {result.evaluation.score})")
                 violation = ViolationService.create_violation(result, task)
-                violations_for_segment.append(violation)
+                violations_for_focus_area.append(violation)
             else:
                 print(f"    ✓ No violation")
 
         # Prompt to post comments for any violations found
-        if violations_for_segment:
+        if violations_for_focus_area:
             print()
-            for vi, violation in enumerate(violations_for_segment, 1):
+            for vi, violation in enumerate(violations_for_focus_area, 1):
                 comment_response = prompt_for_comment(
-                    violation, vi, len(violations_for_segment)
+                    violation, vi, len(violations_for_focus_area)
                 )
 
                 if comment_response is None or comment_response == "q":
-                    remaining = len(violations_for_segment) - vi + 1
+                    remaining = len(violations_for_focus_area) - vi + 1
                     stats.comments_skipped += remaining
                     print(f"  Skipped {remaining} remaining comment(s).")
                     break

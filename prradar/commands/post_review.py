@@ -153,7 +153,7 @@ def _generate_job_summary_content(review: ReviewOutput) -> str:
     violations = review.violations
     lines.extend(
         [
-            f"**Total Segments Reviewed:** {review.summary.total_segments}",
+            f"**Total Focus Areas Reviewed:** {review.summary.total_focus_areas}",
             f"**Violations Found:** {len(violations)}",
             "",
         ]

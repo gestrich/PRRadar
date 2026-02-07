@@ -209,7 +209,7 @@ class GitHubCommentService:
         lines = [
             "## Code Review Summary",
             "",
-            f"**Total Segments Reviewed:** {review.summary.total_segments}",
+            f"**Total Focus Areas Reviewed:** {review.summary.total_focus_areas}",
             f"**Violations Found:** {len(violations)}",
             "",
         ]

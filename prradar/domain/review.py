@@ -16,10 +16,10 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Feedback:
-    """A single piece of review feedback for a code segment."""
+    """A single piece of review feedback for a focus area."""
 
     file: str
-    segment: str
+    focus_area_id: str
     rule: str
     score: int
     line_number: int
@@ -42,7 +42,7 @@ class Feedback:
         """
         return cls(
             file=data.get("file", ""),
-            segment=data.get("segment", ""),
+            focus_area_id=data.get("focus_area_id", data.get("segment", "")),
             rule=data.get("rule", ""),
             score=data.get("score", 0),
             line_number=data.get("lineNumber", 0),
@@ -88,7 +88,7 @@ class ReviewSummary:
     """Overall review summary with statistics and category breakdowns."""
 
     summary_file: str
-    total_segments: int
+    total_focus_areas: int
     total_violations: int
     categories: dict[str, CategorySummary] = field(default_factory=dict)
 
@@ -101,7 +101,7 @@ class ReviewSummary:
 
         return cls(
             summary_file=data.get("summaryFile", ""),
-            total_segments=data.get("totalSegments", 0),
+            total_focus_areas=data.get("totalFocusAreas", data.get("totalSegments", 0)),
             total_violations=data.get("totalViolations", 0),
             categories=categories,
         )
@@ -117,7 +117,7 @@ class ReviewOutput:
 
     success: bool
     feedback: list[Feedback] = field(default_factory=list)
-    summary: ReviewSummary = field(default_factory=lambda: ReviewSummary("", 0, 0))
+    summary: ReviewSummary = field(default_factory=lambda: ReviewSummary(summary_file="", total_focus_areas=0, total_violations=0))
 
     # --------------------------------------------------------
     # Factory Methods
