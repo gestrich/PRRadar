@@ -22,15 +22,12 @@ fi
 # Check for virtual environment
 if [ ! -d "$VENV_DIR" ]; then
     echo "Error: Virtual environment not found at $VENV_DIR"
-    echo "Create it with: python3.11 -m venv $VENV_DIR && $VENV_DIR/bin/pip install -r requirements.txt"
+    echo "Create it with: python3.11 -m venv $VENV_DIR && $VENV_DIR/bin/pip install -e ."
     exit 1
 fi
 
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"
 
-# Set PYTHONPATH to include the scripts directory
-export PYTHONPATH="$SCRIPT_DIR/plugin/skills/pr-review:$PYTHONPATH"
-
 # Run the agent command with output dir and pass all arguments using venv Python
-"$VENV_DIR/bin/python" -m scripts agent --output-dir "$OUTPUT_DIR" "$@"
+"$VENV_DIR/bin/python" -m prradar agent --output-dir "$OUTPUT_DIR" "$@"

@@ -230,15 +230,44 @@ Reviews produce artifacts in a structured directory:
     └── summary.md               # Human-readable markdown
 ```
 
-## Architecture
+## Pipeline Phases
 
-PRRadar uses a pipeline architecture with file-based artifacts between phases:
+PRRadar runs as a sequential pipeline where each phase writes artifacts to disk and the next phase reads them. This makes the pipeline debuggable, resumable, and individually runnable.
 
 ```
-diff → rules → tasks → evaluate → report → comment
+  1. DIFF
+     │  raw.diff, parsed.json
+     ▼
+  2. FOCUS AREAS
+     │  all.json
+     ▼
+  3. RULES
+     │  all-rules.json
+     ▼
+  4. TASKS
+     │  {id}.json  (one per rule + focus area pair)
+     ▼
+  5. EVALUATIONS
+     │  {id}.json, summary.json
+     ▼
+  6. REPORT
+        summary.json, summary.md
 ```
 
-Each phase is independently runnable, making the pipeline debuggable and resumable.
+| Phase | What it does |
+|-------|-------------|
+| **Diff** | Fetches the PR diff from GitHub or a local git repo and parses it into structured file changes |
+| **Focus Areas** | Breaks the diff into reviewable code units (methods, functions, blocks) |
+| **Rules** | Loads rule definitions and filters them by file extension and grep patterns |
+| **Tasks** | Creates rule + focus area pairs — one evaluation task per combination |
+| **Evaluations** | Sends each task to Claude for analysis, producing scored results |
+| **Report** | Aggregates evaluations into a final JSON and markdown summary |
+
+**Resume:** If a run is interrupted, re-running the same command skips already-completed work. The `status` command shows progress across all phases.
+
+```bash
+./agent.sh status 123    # Show pipeline progress for PR #123
+```
 
 ## Plugin Mode
 

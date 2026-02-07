@@ -228,22 +228,21 @@ Only violations (score ≥ 5) are included in the final report.
 
 ### Command-Line Interface
 
-PRRadar is implemented as Python scripts in the `scripts/` directory. While the skill provides guidance for Claude to use the tool, you can also run it directly:
+PRRadar is implemented as a Python package (`prradar/`) at the repository root. While the skill provides guidance for Claude to use the tool, you can also run it directly:
 
 ```bash
 # From repository root
-python3 -m scripts --help
+prradar --help
+python3 -m prradar --help
 
-# Review a PR
-python3 -m scripts review-pr --rules ./rules --pr 123
-
-# Review local commits
-python3 -m scripts review-commit --rules ./rules --commit abc1234
+# Agent mode pipeline
+prradar agent analyze 123 --rules-dir ./code-review-rules
 ```
 
 ### System Requirements
 
-- Python 3.11 or higher (uses standard library only)
+- Python 3.11 or higher
+- `claude-agent-sdk` and `pyyaml`
 - `git` command-line tool
 - `gh` (GitHub CLI) for PR reviews
 
@@ -254,15 +253,13 @@ python3 -m scripts review-commit --rules ./rules --commit abc1234
 git clone https://github.com/gestrich/PRRadar.git
 cd PRRadar
 
-# Verify Python version
-python3 --version  # Should be 3.11+
-
-# Verify dependencies
-git --version
-gh --version
+# Create venv and install
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e .
 
 # Test the CLI
-python3 -m scripts --help
+prradar --help
 ```
 
 ## Value Proposition

@@ -23,5 +23,10 @@ review-output/
 # Agent mode artifacts
 code-reviews/
 
+# Distribution/packaging
+*.egg-info/
+dist/
+build/
+
 # Environment variables (API keys)
 .env

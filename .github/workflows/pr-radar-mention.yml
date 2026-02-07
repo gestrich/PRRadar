@@ -91,6 +91,10 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install dependencies
+        if: steps.interpret.outputs.execution_file != ''
+        run: pip install -r requirements.txt
+
       - name: Handle mention
         id: handle
         if: steps.interpret.outputs.execution_file != ''
@@ -98,9 +102,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr_number || github.event.issue.number || github.event.pull_request.number }}
           COMMENT_TYPE: ${{ github.event_name == 'pull_request_review_comment' && 'review_comment' || 'issue_comment' }}
-          PYTHONPATH: plugin/skills/pr-review
         run: |
-          python -m scripts handle-mention \
+          python -m prradar handle-mention \
             --execution-file "${{ steps.interpret.outputs.execution_file }}" \
             --pr-number "$PR_NUMBER" \
             --repo "${{ github.repository }}" \

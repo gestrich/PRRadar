@@ -129,13 +129,16 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install dependencies
+        if: steps.claude-review.outputs.execution_file != ''
+        run: pip install -r requirements.txt
+
       - name: Post review comments
         if: steps.claude-review.outputs.execution_file != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: plugin/skills/pr-review
         run: |
-          python -m scripts post-review \
+          python -m prradar post-review \
             --execution-file "${{ steps.claude-review.outputs.execution_file }}" \
             --pr-number "${{ inputs.pr_number || github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
