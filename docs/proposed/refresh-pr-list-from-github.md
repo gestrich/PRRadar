@@ -105,7 +105,7 @@ Wire the use case into `PRReviewModel` and update the refresh button.
 
 **Completed.** `PRReviewModel.refreshPRList()` is now async — it creates a `FetchPRListUseCase` with the current config, derives the `repoSlug` for filtering, and streams the result. On `.completed`, the PR list is updated in the `ConfigContext`. The old synchronous filesystem-only refresh was renamed to `refreshPRListFromDisk()` (private) and is still used by `startNewReview` after the diff completes. In `ContentView`, the refresh button wraps the call in a `Task`, replaces the icon with a `ProgressView` spinner while `model.isRefreshing` is true, and is disabled when refreshing or when no config is selected.
 
-## - [ ] Phase 6: Swift CLI — `RefreshCommand`
+## - [x] Phase 6: Swift CLI — `RefreshCommand`
 
 Add a CLI command so the Swift CLI can also fetch recent PRs.
 
@@ -119,6 +119,8 @@ Add a CLI command so the Swift CLI can also fetch recent PRs.
   - Prints fetched PR count on completion
 
 - `pr-radar-mac/Sources/apps/MacCLI/PRRadarMacCLI.swift` — Add `RefreshCommand.self` to the subcommands list
+
+**Completed.** Created `RefreshCommand` with its own option properties (no `CLIOptions` `@OptionGroup` since there's no `prNumber`). Config resolution follows the same pattern as `resolveConfigFromOptions` — resolves named config, falls back to CLI overrides, then defaults. The command derives `repoSlug` from the resolved repo path via `PRDiscoveryService.repoSlug()` for filtering. Supports `--json` for structured output (array of PR summaries) and human-readable output listing each PR with number, title, and author. Registered as `RefreshCommand.self` in `PRRadarMacCLI` subcommands.
 
 ## - [ ] Phase 7: Architecture Validation
 
