@@ -324,7 +324,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             gh = GhCommandRunner()
             success, result = gh.get_repository()
             if success:
-                repo = f"{result.owner}/{result.name}"
+                repo = result.full_name
             else:
                 print("  Error: Could not detect repository. Use --repo to specify.")
                 return 1
@@ -354,7 +354,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             gh = GhCommandRunner()
             success, result = gh.get_repository()
             if success:
-                repo = f"{result.owner}/{result.name}"
+                repo = result.full_name
             else:
                 print("  Error: Could not detect repository. Use --repo to specify.")
                 return 1
