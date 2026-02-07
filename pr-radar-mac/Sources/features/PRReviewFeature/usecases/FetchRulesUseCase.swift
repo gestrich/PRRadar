@@ -8,6 +8,12 @@ public struct RulesPhaseOutput: Sendable {
     public let focusAreas: [FocusArea]
     public let rules: [ReviewRule]
     public let tasks: [EvaluationTaskOutput]
+
+    public init(focusAreas: [FocusArea], rules: [ReviewRule], tasks: [EvaluationTaskOutput]) {
+        self.focusAreas = focusAreas
+        self.rules = rules
+        self.tasks = tasks
+    }
 }
 
 public struct FetchRulesUseCase: Sendable {

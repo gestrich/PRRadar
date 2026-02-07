@@ -7,6 +7,11 @@ import PRRadarModels
 public struct EvaluationPhaseOutput: Sendable {
     public let evaluations: [RuleEvaluationResult]
     public let summary: EvaluationSummary
+
+    public init(evaluations: [RuleEvaluationResult], summary: EvaluationSummary) {
+        self.evaluations = evaluations
+        self.summary = summary
+    }
 }
 
 public struct EvaluateUseCase: Sendable {

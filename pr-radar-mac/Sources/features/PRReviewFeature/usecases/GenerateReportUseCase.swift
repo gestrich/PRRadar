@@ -7,6 +7,11 @@ import PRRadarModels
 public struct ReportPhaseOutput: Sendable {
     public let report: ReviewReport
     public let markdownContent: String
+
+    public init(report: ReviewReport, markdownContent: String) {
+        self.report = report
+        self.markdownContent = markdownContent
+    }
 }
 
 public struct GenerateReportUseCase: Sendable {

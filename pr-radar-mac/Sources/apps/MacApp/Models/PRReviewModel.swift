@@ -22,6 +22,7 @@ final class PRReviewModel {
     var selectedPR: PRMetadata? {
         didSet {
             resetAllPhases()
+            loadExistingOutputs()
         }
     }
 
@@ -199,6 +200,99 @@ final class PRReviewModel {
         evaluationOutput = nil
         reportOutput = nil
         commentOutput = nil
+    }
+
+    // MARK: - Load Existing Outputs
+
+    func loadExistingOutputs() {
+        guard let selected = selectedConfiguration, selectedPR != nil else { return }
+        let config = makeConfig(from: selected)
+
+        // Phase 1: Diff outputs
+        parseDiffOutputs(config: config)
+        if fullDiff != nil || effectiveDiff != nil {
+            phaseStates[.pullRequest] = .completed(logs: "")
+        }
+
+        // Phases 2-4: Focus areas, rules, tasks
+        if let output = parseRulesOutputs(config: config) {
+            rulesOutput = output
+            phaseStates[.focusAreas] = .completed(logs: "")
+            phaseStates[.rules] = .completed(logs: "")
+            phaseStates[.tasks] = .completed(logs: "")
+        }
+
+        // Phase 5: Evaluations
+        if let output = parseEvaluationOutputs(config: config) {
+            evaluationOutput = output
+            phaseStates[.evaluations] = .completed(logs: "")
+        }
+
+        // Phase 6: Report
+        if let output = parseReportOutputs(config: config) {
+            reportOutput = output
+            phaseStates[.report] = .completed(logs: "")
+        }
+    }
+
+    private func parseRulesOutputs(config: PRRadarConfig) -> RulesPhaseOutput? {
+        let focusFiles = PhaseOutputParser.listPhaseFiles(
+            config: config, prNumber: prNumber, phase: .focusAreas
+        ).filter { $0.hasSuffix(".json") }
+
+        var allFocusAreas: [FocusArea] = []
+        for file in focusFiles {
+            if let typeOutput: FocusAreaTypeOutput = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .focusAreas, filename: file
+            ) {
+                allFocusAreas.append(contentsOf: typeOutput.focusAreas)
+            }
+        }
+
+        guard let rules: [ReviewRule] = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .rules, filename: "all-rules.json"
+        ) else { return nil }
+
+        let tasks: [EvaluationTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
+            config: config, prNumber: prNumber, phase: .tasks
+        )) ?? []
+
+        guard !allFocusAreas.isEmpty || !rules.isEmpty else { return nil }
+
+        return RulesPhaseOutput(focusAreas: allFocusAreas, rules: rules, tasks: tasks)
+    }
+
+    private func parseEvaluationOutputs(config: PRRadarConfig) -> EvaluationPhaseOutput? {
+        guard let summary: EvaluationSummary = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .evaluations, filename: "summary.json"
+        ) else { return nil }
+
+        let evalFiles = PhaseOutputParser.listPhaseFiles(
+            config: config, prNumber: prNumber, phase: .evaluations
+        ).filter { $0.hasSuffix(".json") && $0 != "summary.json" }
+
+        var evaluations: [RuleEvaluationResult] = []
+        for file in evalFiles {
+            if let evaluation: RuleEvaluationResult = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .evaluations, filename: file
+            ) {
+                evaluations.append(evaluation)
+            }
+        }
+
+        return EvaluationPhaseOutput(evaluations: evaluations, summary: summary)
+    }
+
+    private func parseReportOutputs(config: PRRadarConfig) -> ReportPhaseOutput? {
+        guard let report: ReviewReport = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .report, filename: "summary.json"
+        ) else { return nil }
+
+        guard let markdown = try? PhaseOutputParser.readPhaseTextFile(
+            config: config, prNumber: prNumber, phase: .report, filename: "summary.md"
+        ) else { return nil }
+
+        return ReportPhaseOutput(report: report, markdownContent: markdown)
     }
 
     // MARK: - Phase Runners

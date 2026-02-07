@@ -150,7 +150,7 @@ Files to create:
 - Removed unused `PRRadarModels` import from `ContentView` since `PRMetadata` is no longer directly referenced there
 - Includes SwiftUI `#Preview` blocks for both normal and fallback PR rows
 
-## - [ ] Phase 5: Auto-load existing phase outputs on PR selection
+## - [x] Phase 5: Auto-load existing phase outputs on PR selection
 
 When a PR is selected from the list, immediately load any existing phase outputs from disk rather than requiring the user to re-run phases.
 
@@ -167,6 +167,13 @@ This reuses the existing `PhaseOutputParser` and `parseDiffOutputs()` logic. The
 
 Files to modify:
 - `Sources/apps/MacApp/Models/PRReviewModel.swift`
+
+**Technical notes:**
+- `loadExistingOutputs()` is called from `selectedPR`'s `didSet` after `resetAllPhases()`, so phases are cleared first then re-populated from disk
+- Each phase is parsed independently with `try?` — if one phase's files are missing or corrupt, later phases can still load
+- Phase 1 reuses the existing `parseDiffOutputs(config:)` method; phases 2-6 use new private helpers (`parseRulesOutputs`, `parseEvaluationOutputs`, `parseReportOutputs`)
+- Added `public init` to `RulesPhaseOutput`, `EvaluationPhaseOutput`, and `ReportPhaseOutput` — their memberwise initializers were `internal` by default, preventing construction from the App layer
+- Rules phase requires at least focus areas or rules to be present to count as completed (empty results are treated as no output)
 
 ## - [ ] Phase 6: Wire up new PR creation flow
 
