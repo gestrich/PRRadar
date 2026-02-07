@@ -194,7 +194,7 @@ Update the rules command to generate focus areas by type and pair rules with mat
 
 ---
 
-## - [ ] Phase 5: Evaluation Enhancement — Codebase Exploration Context
+## - [x] Phase 5: Evaluation Enhancement — Codebase Exploration Context
 
 Update the evaluation prompt to inform the AI about the local checkout and encourage codebase exploration when appropriate.
 
@@ -236,10 +236,21 @@ Update the evaluation prompt to inform the AI about the local checkout and encou
 
 7. Update tests for the new prompt template and tool access configuration
 
-**Files to modify:**
-- `prradar/services/evaluation_service.py`
-- `prradar/commands/agent/evaluate.py` (to pass repo path)
-- Tests
+**Files modified:**
+- `prradar/services/evaluation_service.py` — Added `## Codebase Context` section with `{repo_path}` placeholder to `EVALUATION_PROMPT_TEMPLATE`; added `repo_path` parameter (default `"."`) to `evaluate_task()` and `run_batch_evaluation()`; configured `allowed_tools=["Read", "Grep", "Glob"]` and `cwd=repo_path` on `ClaudeAgentOptions`
+- `prradar/commands/agent/evaluate.py` — Added `repo_path` parameter to `cmd_evaluate()`, passed through to `run_batch_evaluation()`
+- `prradar/commands/agent/analyze.py` — Added `repo_path` parameter to `run_interactive_evaluation()` and `run_analyze_batch_evaluation()`; threaded `repo_path` from `cmd_analyze()` through to both evaluation paths
+- `prradar/commands/agent/__init__.py` — Added `--repo-path` CLI argument to evaluate subcommand; passed `repo_path` to `cmd_evaluate()`
+- `prradar/services/report_generator.py` — Added optional `focus_areas_dir` parameter to `ReportGeneratorService.__init__()`; added `_load_focus_area_generation_cost()` method; total report cost now includes focus area generation cost
+- `prradar/commands/agent/report.py` — Passed `focus_areas_dir` to `ReportGeneratorService`
+- `tests/test_services.py` — Updated `TestEvaluationPromptTemplate` (added 3 tests: codebase context section, exploration guidance, repo_path formatting); added `TestEvaluationToolAccess` (3 tests: allowed_tools config, default repo_path, run_batch_evaluation param); added `TestReportGeneratorFocusAreaCost` (3 tests: includes generation cost, backward compatible without dir, multiple type costs)
+
+**Technical notes:**
+- `repo_path` is threaded through as a string parameter (default `"."`) from CLI → command → service → `query()` call, matching existing `repo_path` patterns in `cmd_diff()` and `cmd_analyze()`
+- `allowed_tools=["Read", "Grep", "Glob"]` enables codebase exploration during evaluation; `cwd=repo_path` sets the working directory so file paths resolve correctly
+- `ResultMessage.total_cost_usd` already captures cumulative cost across multi-turn tool-use sessions — no changes needed for cost tracking
+- `ReportGeneratorService` now accepts an optional `focus_areas_dir` parameter; when provided, `_load_focus_area_generation_cost()` sums `generation_cost_usd` from all per-type JSON files. This is additive (backward compatible — defaults to 0.0 when dir is None or missing)
+- All 537 tests pass (528 existing + 9 new)
 
 ---
 
