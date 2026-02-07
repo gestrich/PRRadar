@@ -121,69 +121,36 @@ Create use cases that orchestrate the CLI service calls into user-facing workflo
 - The `AsyncThrowingStream` wraps a `Task` internally to bridge the sync continuation API with async CLI execution
 - Input validation (empty repo path, PR number) is left to the App layer since `PRRadarConfig` already requires these values at construction time
 
-## - [ ] Phase 3: Restructure App Layer — Enum-Based State + @Observable Model
+## - [x] Phase 3: Restructure App Layer — Enum-Based State + @Observable Model
 
-Refactor `ContentView.swift` to follow Model-View architecture with enum-based state.
+Refactored `ContentView.swift` to follow Model-View architecture with enum-based state.
 
-**Files to modify:**
-- `Sources/apps/MacApp/UI/ContentView.swift` — Slim down to pure view code that observes a model
+**Completed.** PRReviewModel created, ContentView slimmed to pure view code, and the full project builds successfully.
 
-**Files to create:**
+**Files created:**
 - `Sources/apps/MacApp/Models/PRReviewModel.swift` — `@Observable @MainActor` class that:
-  - Owns an enum state: `.idle`, `.running(logs: [String])`, `.completed(files: [String], logs: [String])`, `.failed(error: String, logs: [String])`
-  - Holds `@AppStorage` persistent settings (repoPath, prNumber, outputDir)
-  - Has a `runDiff()` method that creates and streams from `FetchDiffUseCase`
+  - Owns an enum state: `.idle`, `.running(logs: String)`, `.completed(files: [String], logs: String)`, `.failed(error: String, logs: String)`
+  - Persists user settings (repoPath, prNumber, outputDir) via UserDefaults with `@Observable` access/mutation tracking
+  - Has a `runDiff()` method that creates `PRRadarConfig` on-demand and streams from `FetchDiffUseCase`
   - Replaces the scattered `@State` variables (`isRunning`, `outputFiles`, `errorMessage`, `logs`)
 
-**`main.swift` changes — Configuration initialized at App layer:**
-- Create `PRRadarConfig` with resolved venv path (derived from bundle/known location)
-- Create `PRRadarEnvironment` from the config
-- Pass config into `PRReviewModel` via init
-- Model stored as `@State` in the App struct, injected into views via `.environment()`
-
-```swift
-@main
-struct PRRadarMacApp: App {
-    @State private var model: PRReviewModel
-
-    init() {
-        let config = PRRadarConfig(venvBinPath: /* resolved at app layer */)
-        let environment = PRRadarEnvironment.build(config: config)
-        _model = State(initialValue: PRReviewModel(
-            config: config,
-            environment: environment
-        ))
-        NSApplication.shared.setActivationPolicy(.regular)
-        NSApplication.shared.activate(ignoringOtherApps: true)
-    }
-
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environment(model)
-        }
-        .defaultSize(width: 700, height: 600)
-    }
-}
-```
-
-**ContentView changes:**
-- Remove all `@State` properties
-- Remove `venvBinPath`, `prradarEnvironment`, `runPhase1()` — all moved to lower layers
-- Receive model from environment
-- View body reads state from model's enum and renders accordingly
-- Button action simply calls `model.runDiff()`
-
-**Package.swift changes:**
-- Update `MacApp` target dependencies: add `PRReviewFeature`, `PRRadarConfigService`, keep `CLISDK`
-- Remove direct `PRRadarMacSDK` dependency from MacApp (accessed through Features)
+**Files modified:**
+- `Sources/apps/MacApp/main.swift` — Resolves venv path and environment at app layer, creates `PRReviewModel`, stores as `@State`, injects via `.environment(model)`
+- `Sources/apps/MacApp/UI/ContentView.swift` — Slimmed to pure view code; receives model from `@Environment(PRReviewModel.self)`, uses `@Bindable` for two-way bindings, `switch` on model state enum for rendering
+- `Package.swift` — Updated MacApp dependencies: added `PRReviewFeature` and `PRRadarConfigService`, removed direct `PRRadarMacSDK`
 
 **Key design decisions:**
 - Model is `@Observable` (not `@State` in view) — follows MV architecture
 - Enum state eliminates impossible states (e.g., `isRunning = true` AND `errorMessage != nil`)
 - **Configuration created at App layer, injected into model** — per configuration skill, the App layer owns initialization
-- Model receives resolved config; it never creates configuration services itself
-- `@AppStorage` stays in the model for user preferences (repoPath, prNumber, outputDir) — these are UI-layer persistence, distinct from app configuration
+- Model receives venvBinPath and environment at init; creates `PRRadarConfig` per-execution using current user settings (repoPath, prNumber, outputDir)
+- User preferences use `UserDefaults` with `@Observable` access/mutation tracking instead of `@AppStorage` — this avoids the `@AppStorage` + `@Observable` incompatibility while maintaining persistence across launches
+
+**Technical notes:**
+- Logs use `String` (not `[String]`) to match the original `ContentView` behavior where logs were a single accumulated string
+- `PRReviewModel` creates `PRRadarConfig` inside `runDiff()` rather than at init, because the config depends on mutable user settings (repoPath, outputDir) that change between runs
+- `ContentView` uses `@ViewBuilder` helper `logsSection(_:)` to deduplicate the logs rendering across running/completed/failed states
+- The `#Preview` provides a stub model with empty venvBinPath/environment for Xcode previews
 
 ## - [ ] Phase 4: Update Package.swift Dependency Graph
 

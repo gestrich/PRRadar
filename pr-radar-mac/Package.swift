@@ -58,7 +58,8 @@ let package = Package(
         .executableTarget(
             name: "MacApp",
             dependencies: [
-                .target(name: "PRRadarMacSDK"),
+                .target(name: "PRReviewFeature"),
+                .target(name: "PRRadarConfigService"),
                 .product(name: "CLISDK", package: "SwiftCLI"),
             ],
             path: "Sources/apps/MacApp",
