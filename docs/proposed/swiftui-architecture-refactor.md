@@ -173,9 +173,22 @@ Extract phase detail views from `ContentView`, apply prerequisite data pattern, 
 
 **Files unchanged:** `PipelineStatusView`, `PhaseInputView`, `SettingsView`, `CommentApprovalView`, `PRListRow`, all phase views (DiffPhaseView, RulesPhaseView, etc.), all service/SDK files, `main.swift`, `Package.swift`.
 
-## - [ ] Phase 4: Architecture Validation
+## - [x] Phase 4: Architecture Validation
 
 Review all commits made during phases 1-3 and validate they follow the project's architectural conventions.
+
+**Completed.** Reviewed all changes from commits `2364884..4036f6f` (3 commits across 10 files, +605/-457 lines) against all swift-app-architecture and swift-swiftui skill documents. No violations found. Evaluation covered:
+
+- **Layer placement**: All types in correct layers — `@Observable` model and state types in Apps, use case structs and snapshot types in Features, no upward dependencies
+- **Dependency flow**: Package.swift targets confirm Apps → Features → Services → SDKs, no violations
+- **Enum-based state**: `ModelState` with `ConfigContext`/`ReviewState` associated values eliminates impossible state combinations
+- **State ownership**: Use cases define and return snapshot types (`DiffPhaseSnapshot`, `PipelineSnapshot`, phase output structs); model defines state transitions (`selectPR`, `selectConfiguration`, `mutateReview`)
+- **Prerequisite data**: `ReviewDetailView` takes non-optional `config: RepoConfiguration` and `review: ReviewState`; parent `ContentView` shows placeholders when data unavailable
+- **View identity**: `.id(review.pr.number)` on `ReviewDetailView` forces `@State` reset when switching PRs
+- **Code style**: Alphabetical imports in all files, correct file organization (properties → init → computed → methods → nested types), use cases are `Sendable` structs with constructor DI
+- **`@Observable` placement**: Only `PRReviewModel` in Apps layer; Features and Services have no observable types
+
+Build verified: `swift build` succeeds for both MacApp and PRRadarMacCLI targets.
 
 **For Swift changes** (`pr-radar-mac/`):
 - Fetch and read each skill from `https://github.com/gestrich/swift-app-architecture` (skills directory)
