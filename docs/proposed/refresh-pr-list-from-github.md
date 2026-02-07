@@ -57,13 +57,15 @@ prradar agent --output-dir code-reviews list-prs --limit 20 --state all
 
 **Completed.** 16 tests total (10 for `cmd_list_prs`, 6 for `GhCommandRunner.list_pull_requests`). Tests use `patch` on `GhCommandRunner` constructor to inject mocks, and `PullRequest.from_dict`/`Repository.from_dict` factories for realistic test data with `raw_json` populated. Tests also verify roundtrip: saved JSON files can be parsed back into domain models via `from_file`.
 
-## - [ ] Phase 3: Swift SDK + CLI Service layer
+## - [x] Phase 3: Swift SDK + CLI Service layer
 
 Add the `ListPRs` command to the Swift SDK and ensure the CLI runner can execute it.
 
 **Files to modify:**
 - `pr-radar-mac/Sources/sdks/PRRadarMacSDK/PRRadar.swift` — Add `PRRadar.Agent.ListPRs` struct with `@Option("--limit")`, `@Option("--state")` (no `@Positional` prNumber)
 - `pr-radar-mac/Sources/services/PRRadarCLIService/PRRadarCLIRunner.swift` — Verify the `execute` method works for commands without a `prNumber` positional. The runner injects `--output-dir` after "agent" which should still work fine since `list-prs` doesn't need `pr_number`.
+
+**Completed.** Added `PRRadar.Agent.ListPrs` struct (named `ListPrs` not `ListPRs` so the CLISDK kebab-case macro produces `list-prs` matching the Python subcommand). Both `limit` and `state` are optional `String?` `@Option` properties. No `@Positional` prNumber needed. `PRRadarCLIRunner.execute` required no changes — it inserts `--output-dir` after `"agent"` generically, which works correctly for commands with or without positional arguments.
 
 ## - [ ] Phase 4: Swift Feature layer — `FetchPRListUseCase`
 

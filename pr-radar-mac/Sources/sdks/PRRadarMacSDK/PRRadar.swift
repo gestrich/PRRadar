@@ -66,5 +66,11 @@ public struct PRRadar {
             @Positional public var prNumber: String
             @Option("--output-dir") public var outputDir: String?
         }
+
+        @CLICommand
+        public struct ListPrs {
+            @Option("--limit") public var limit: String?
+            @Option("--state") public var state: String?
+        }
     }
 }
