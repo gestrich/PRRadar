@@ -45,7 +45,7 @@ prradar agent --output-dir code-reviews list-prs --limit 20 --state all
 
 **Completed.** `list_pull_requests()` parses the JSON array from `gh pr list` into `PullRequest` domain objects using the existing `from_dict` factory. The `cmd_list_prs` function writes both `gh-pr.json` and `gh-repo.json` per PR into the standard phase-1 directory structure, so `PRDiscoveryService.discoverPRs()` picks them up automatically. The `--state` arg uses `choices` validation to restrict to valid `gh` values.
 
-## - [ ] Phase 2: Python tests for `list-prs`
+## - [x] Phase 2: Python tests for `list-prs`
 
 **Files to create/modify:**
 - `tests/commands/agent/test_list_prs.py` — New file with unit tests for `cmd_list_prs`:
@@ -54,6 +54,8 @@ prradar agent --output-dir code-reviews list-prs --limit 20 --state all
   - Test `--limit` and `--state` arguments are passed through
   - Test behavior when `gh pr list` returns empty results
 - `tests/infrastructure/github/test_runner.py` — Add test for the new `list_pull_requests` method (verify correct `gh` command construction)
+
+**Completed.** 16 tests total (10 for `cmd_list_prs`, 6 for `GhCommandRunner.list_pull_requests`). Tests use `patch` on `GhCommandRunner` constructor to inject mocks, and `PullRequest.from_dict`/`Repository.from_dict` factories for realistic test data with `raw_json` populated. Tests also verify roundtrip: saved JSON files can be parsed back into domain models via `from_file`.
 
 ## - [ ] Phase 3: Swift SDK + CLI Service layer
 
