@@ -22,7 +22,7 @@ Output files are **required** for Phase 1 completion. Even when zero moves are d
 
 ## Phases
 
-## - [ ] Phase 1: Add serialization and pipeline function to effective_diff.py
+## - [x] Phase 1: Add serialization and pipeline function to effective_diff.py
 
 Add `to_dict()` methods on `MoveDetail` and `MoveReport` for JSON serialization, following the `Hunk.to_dict()` pattern already used in the codebase.
 
@@ -39,6 +39,8 @@ def run_effective_diff_pipeline(
 This mirrors the `_run_pipeline()` helper in `tests/infrastructure/effective_diff/test_end_to_end.py`: `extract_tagged_lines` → `find_exact_matches` → `find_move_candidates` → `compute_effective_diff_for_candidate` (per candidate) → `reconstruct_effective_diff` + `build_move_report`.
 
 **Files**: `prradar/infrastructure/effective_diff.py`
+
+**Completed**: `MoveDetail.to_dict()` serializes tuples as lists for JSON compatibility. `MoveReport.to_dict()` delegates to `MoveDetail.to_dict()` for each move. `run_effective_diff_pipeline()` added as a "Pipeline Entry Point" section at the end of the module. All 485 tests pass.
 
 ## - [ ] Phase 2: Add filename constants and update DiffPhaseChecker
 

@@ -630,6 +630,17 @@ class MoveDetail:
     score: float
     effective_diff_lines: int
 
+    def to_dict(self) -> dict:
+        return {
+            "source_file": self.source_file,
+            "target_file": self.target_file,
+            "source_lines": list(self.source_lines),
+            "target_lines": list(self.target_lines),
+            "matched_lines": self.matched_lines,
+            "score": self.score,
+            "effective_diff_lines": self.effective_diff_lines,
+        }
+
 
 @dataclass(frozen=True)
 class MoveReport:
@@ -639,6 +650,14 @@ class MoveReport:
     total_lines_moved: int
     total_lines_effectively_changed: int
     moves: tuple[MoveDetail, ...]
+
+    def to_dict(self) -> dict:
+        return {
+            "moves_detected": self.moves_detected,
+            "total_lines_moved": self.total_lines_moved,
+            "total_lines_effectively_changed": self.total_lines_effectively_changed,
+            "moves": [m.to_dict() for m in self.moves],
+        }
 
 
 def _count_changed_lines_in_hunks(hunks: list[Hunk]) -> int:
@@ -808,3 +827,40 @@ def build_move_report(
         total_lines_effectively_changed=total_effectively_changed,
         moves=tuple(details),
     )
+
+
+# ------------------------------------------------------------------
+# Pipeline Entry Point
+# ------------------------------------------------------------------
+
+
+def run_effective_diff_pipeline(
+    git_diff: GitDiff,
+    old_files: dict[str, str],
+    new_files: dict[str, str],
+) -> tuple[GitDiff, MoveReport]:
+    """Run the full effective diff pipeline: match, group, re-diff, reconstruct.
+
+    Chains the four internal stages to detect moved code blocks and produce
+    a reduced diff containing only meaningful changes.
+
+    Args:
+        git_diff: The original parsed diff.
+        old_files: Dict of {file_path: content} for old (base) file versions.
+        new_files: Dict of {file_path: content} for new (head) file versions.
+
+    Returns:
+        (effective_diff, move_report) — the reduced GitDiff and a summary of moves.
+    """
+    removed, added = extract_tagged_lines(git_diff)
+    matches = find_exact_matches(removed, added)
+    candidates = find_move_candidates(matches, added)
+
+    effective_results = [
+        compute_effective_diff_for_candidate(c, old_files, new_files)
+        for c in candidates
+    ]
+
+    effective_diff = reconstruct_effective_diff(git_diff, effective_results)
+    report = build_move_report(effective_results)
+    return effective_diff, report
