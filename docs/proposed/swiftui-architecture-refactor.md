@@ -61,9 +61,11 @@ No changes to `PostCommentsUseCase` or `AnalyzeUseCase` (they don't parse files 
 
 **Validation:** `cd pr-radar-mac && swift build` succeeds.
 
-## - [ ] Phase 2: Model Refactor — Enum-Based State
+## - [x] Phase 2: Model Refactor — Enum-Based State
 
 Rewrite `PRReviewModel` internals with a `ModelState` enum. Keep backward-compatible computed properties so existing views compile unchanged.
+
+**Completed.** Replaced ~12 independent optional properties with `ModelState` enum (`noConfig` / `hasConfig(ConfigContext)`). `ConfigContext` holds `config`, `prs`, and optional `ReviewState`. `ReviewState` bundles `pr`, `phaseStates`, and all phase outputs. Added `mutateConfigContext` and `mutateReview` helpers for clean enum mutations. Replaced `selectedPR.didSet` with explicit `selectPR(_:)` that creates `ReviewState` and loads existing outputs via `LoadExistingOutputsUseCase`. All backward-compatible computed properties preserve the existing view API — no changes to `ContentView`, `PipelineStatusView`, `PhaseInputView`, `SettingsView`, or `CommentApprovalView`. Removed dead code: `parseDiffOutputs`, `parseRulesOutputs`, `parseEvaluationOutputs`, `parseReportOutputs`, `loadExistingOutputs`, `resetAllPhases`. Build verified: `swift build` succeeds for both MacApp and PRRadarMacCLI targets.
 
 ### 2.1 Define new types
 

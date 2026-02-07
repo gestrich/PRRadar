@@ -4,6 +4,34 @@ import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
+struct ConfigContext {
+    var config: RepoConfiguration
+    var prs: [PRMetadata]
+    var review: ReviewState?
+}
+
+struct ReviewState {
+    var pr: PRMetadata
+    var phaseStates: [PRRadarPhase: PRReviewModel.PhaseState]
+    var diff: DiffPhaseSnapshot?
+    var rules: RulesPhaseOutput?
+    var evaluation: EvaluationPhaseOutput?
+    var report: ReportPhaseOutput?
+    var comments: CommentPhaseOutput?
+    var selectedPhase: PRRadarPhase
+
+    init(pr: PRMetadata) {
+        self.pr = pr
+        self.phaseStates = [:]
+        self.selectedPhase = .pullRequest
+    }
+}
+
+enum ModelState {
+    case noConfig
+    case hasConfig(ConfigContext)
+}
+
 @Observable
 @MainActor
 final class PRReviewModel {
@@ -15,42 +43,8 @@ final class PRReviewModel {
         case failed(error: String, logs: String)
     }
 
-    private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
+    private(set) var state: ModelState = .noConfig
     private(set) var settings: AppSettings
-    private(set) var discoveredPRs: [PRMetadata] = []
-
-    var selectedPR: PRMetadata? {
-        didSet {
-            resetAllPhases()
-            loadExistingOutputs()
-            if let number = selectedPR?.number {
-                UserDefaults.standard.set(number, forKey: "selectedPRNumber")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "selectedPRNumber")
-            }
-        }
-    }
-
-    // Typed phase outputs
-    private(set) var diffFiles: [String]?
-    private(set) var fullDiff: GitDiff?
-    private(set) var effectiveDiff: GitDiff?
-    private(set) var moveReport: MoveReport?
-    private(set) var rulesOutput: RulesPhaseOutput?
-    private(set) var evaluationOutput: EvaluationPhaseOutput?
-    private(set) var reportOutput: ReportPhaseOutput?
-    private(set) var commentOutput: CommentPhaseOutput?
-
-    var selectedPhase: PRRadarPhase = .pullRequest
-
-    private(set) var selectedConfiguration: RepoConfiguration?
-
-    var prNumber: String {
-        if let pr = selectedPR {
-            return String(pr.number)
-        }
-        return ""
-    }
 
     private let venvBinPath: String
     private let environment: [String: String]
@@ -64,20 +58,164 @@ final class PRReviewModel {
         restoreSelections()
     }
 
+    // MARK: - Mutation Helpers
+
+    private func mutateConfigContext(_ transform: (inout ConfigContext) -> Void) {
+        guard case .hasConfig(var ctx) = state else { return }
+        transform(&ctx)
+        state = .hasConfig(ctx)
+    }
+
+    private func mutateReview(_ transform: (inout ReviewState) -> Void) {
+        mutateConfigContext { ctx in
+            guard var review = ctx.review else { return }
+            transform(&review)
+            ctx.review = review
+        }
+    }
+
+    // MARK: - Backward-Compatible Computed Properties
+
+    var selectedConfiguration: RepoConfiguration? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.config
+    }
+
+    var discoveredPRs: [PRMetadata] {
+        guard case .hasConfig(let ctx) = state else { return [] }
+        return ctx.prs
+    }
+
+    var selectedPR: PRMetadata? {
+        get {
+            guard case .hasConfig(let ctx) = state else { return nil }
+            return ctx.review?.pr
+        }
+        set {
+            if let pr = newValue {
+                selectPR(pr)
+            } else {
+                mutateConfigContext { $0.review = nil }
+                UserDefaults.standard.removeObject(forKey: "selectedPRNumber")
+            }
+        }
+    }
+
+    var selectedPhase: PRRadarPhase {
+        get {
+            guard case .hasConfig(let ctx) = state else { return .pullRequest }
+            return ctx.review?.selectedPhase ?? .pullRequest
+        }
+        set {
+            mutateReview { $0.selectedPhase = newValue }
+        }
+    }
+
+    var phaseStates: [PRRadarPhase: PhaseState] {
+        guard case .hasConfig(let ctx) = state else { return [:] }
+        return ctx.review?.phaseStates ?? [:]
+    }
+
+    var fullDiff: GitDiff? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.diff?.fullDiff
+    }
+
+    var effectiveDiff: GitDiff? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.diff?.effectiveDiff
+    }
+
+    var moveReport: MoveReport? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.diff?.moveReport
+    }
+
+    var diffFiles: [String]? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.diff?.files
+    }
+
+    var rulesOutput: RulesPhaseOutput? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.rules
+    }
+
+    var evaluationOutput: EvaluationPhaseOutput? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.evaluation
+    }
+
+    var reportOutput: ReportPhaseOutput? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.report
+    }
+
+    var commentOutput: CommentPhaseOutput? {
+        guard case .hasConfig(let ctx) = state else { return nil }
+        return ctx.review?.comments
+    }
+
+    var prNumber: String {
+        guard case .hasConfig(let ctx) = state, let review = ctx.review else { return "" }
+        return String(review.pr.number)
+    }
+
+    // MARK: - Explicit State Transitions
+
+    func selectPR(_ pr: PRMetadata) {
+        mutateConfigContext { ctx in
+            var review = ReviewState(pr: pr)
+            let config = self.makeConfig(from: ctx.config)
+            let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: String(pr.number))
+            if let diff = snapshot.diff {
+                review.diff = diff
+                review.phaseStates[.pullRequest] = .completed(logs: "")
+            }
+            if let rules = snapshot.rules {
+                review.rules = rules
+                review.phaseStates[.focusAreas] = .completed(logs: "")
+                review.phaseStates[.rules] = .completed(logs: "")
+                review.phaseStates[.tasks] = .completed(logs: "")
+            }
+            if let evaluation = snapshot.evaluation {
+                review.evaluation = evaluation
+                review.phaseStates[.evaluations] = .completed(logs: "")
+            }
+            if let report = snapshot.report {
+                review.report = report
+                review.phaseStates[.report] = .completed(logs: "")
+            }
+            ctx.review = review
+        }
+        UserDefaults.standard.set(pr.number, forKey: "selectedPRNumber")
+    }
+
+    func selectConfiguration(_ config: RepoConfiguration) {
+        let prs = PRDiscoveryService.discoverPRs(outputDir: config.outputDir)
+        state = .hasConfig(ConfigContext(config: config, prs: prs, review: nil))
+        persistSelectedConfigID()
+    }
+
+    func refreshPRList() {
+        mutateConfigContext { ctx in
+            ctx.prs = PRDiscoveryService.discoverPRs(outputDir: ctx.config.outputDir)
+        }
+    }
+
     private func restoreSelections() {
         let savedID = UserDefaults.standard.string(forKey: "selectedConfigID")
             .flatMap(UUID.init(uuidString:))
         if let savedID, let config = settings.configurations.first(where: { $0.id == savedID }) {
-            selectedConfiguration = config
-        } else {
-            selectedConfiguration = settings.defaultConfiguration
+            selectConfiguration(config)
+        } else if let config = settings.defaultConfiguration {
+            selectConfiguration(config)
         }
 
         if selectedConfiguration != nil {
-            refreshPRList()
             let savedPR = UserDefaults.standard.integer(forKey: "selectedPRNumber")
             if savedPR != 0, let match = discoveredPRs.first(where: { $0.number == savedPR }) {
-                selectedPR = match
+                selectPR(match)
             }
         }
     }
@@ -118,8 +256,7 @@ final class PRReviewModel {
         settingsService.addConfiguration(config, to: &settings)
         persistSettings()
         if settings.configurations.count == 1 {
-            selectedConfiguration = config
-            persistSelectedConfigID()
+            selectConfiguration(config)
         }
     }
 
@@ -128,8 +265,11 @@ final class PRReviewModel {
         settingsService.removeConfiguration(id: id, from: &settings)
         persistSettings()
         if wasSelected {
-            selectedConfiguration = settings.defaultConfiguration
-            persistSelectedConfigID()
+            if let fallback = settings.defaultConfiguration {
+                selectConfiguration(fallback)
+            } else {
+                state = .noConfig
+            }
         }
     }
 
@@ -145,35 +285,24 @@ final class PRReviewModel {
         persistSettings()
     }
 
-    func selectConfiguration(_ config: RepoConfiguration) {
-        selectedConfiguration = config
-        persistSelectedConfigID()
-        selectedPR = nil
-        refreshPRList()
-    }
-
-    func refreshPRList() {
-        guard let config = selectedConfiguration else {
-            discoveredPRs = []
-            return
-        }
-        discoveredPRs = PRDiscoveryService.discoverPRs(outputDir: config.outputDir)
-    }
-
     func startNewReview(prNumber: Int) async {
         guard selectedConfiguration != nil else { return }
 
         let fallback = PRMetadata.fallback(number: prNumber)
         if !discoveredPRs.contains(where: { $0.number == prNumber }) {
-            discoveredPRs.insert(fallback, at: 0)
+            mutateConfigContext { ctx in
+                ctx.prs.insert(fallback, at: 0)
+            }
         }
-        selectedPR = discoveredPRs.first(where: { $0.number == prNumber })
+        if let match = discoveredPRs.first(where: { $0.number == prNumber }) {
+            selectPR(match)
+        }
 
         await runDiff()
 
         refreshPRList()
         if let updated = discoveredPRs.first(where: { $0.number == prNumber }) {
-            selectedPR = updated
+            selectPR(updated)
         }
     }
 
@@ -198,122 +327,19 @@ final class PRReviewModel {
     }
 
     func resetPhase(_ phase: PRRadarPhase) {
-        phaseStates[phase] = .idle
-        switch phase {
-        case .pullRequest:
-            diffFiles = nil
-            fullDiff = nil
-            effectiveDiff = nil
-            moveReport = nil
-        case .focusAreas, .rules, .tasks: rulesOutput = nil
-        case .evaluations: evaluationOutput = nil
-        case .report: reportOutput = nil
-        }
-    }
-
-    func resetAllPhases() {
-        phaseStates.removeAll()
-        diffFiles = nil
-        fullDiff = nil
-        effectiveDiff = nil
-        moveReport = nil
-        rulesOutput = nil
-        evaluationOutput = nil
-        reportOutput = nil
-        commentOutput = nil
-    }
-
-    // MARK: - Load Existing Outputs
-
-    func loadExistingOutputs() {
-        guard let selected = selectedConfiguration, selectedPR != nil else { return }
-        let config = makeConfig(from: selected)
-
-        // Phase 1: Diff outputs
-        parseDiffOutputs(config: config)
-        if fullDiff != nil || effectiveDiff != nil {
-            phaseStates[.pullRequest] = .completed(logs: "")
-        }
-
-        // Phases 2-4: Focus areas, rules, tasks
-        if let output = parseRulesOutputs(config: config) {
-            rulesOutput = output
-            phaseStates[.focusAreas] = .completed(logs: "")
-            phaseStates[.rules] = .completed(logs: "")
-            phaseStates[.tasks] = .completed(logs: "")
-        }
-
-        // Phase 5: Evaluations
-        if let output = parseEvaluationOutputs(config: config) {
-            evaluationOutput = output
-            phaseStates[.evaluations] = .completed(logs: "")
-        }
-
-        // Phase 6: Report
-        if let output = parseReportOutputs(config: config) {
-            reportOutput = output
-            phaseStates[.report] = .completed(logs: "")
-        }
-    }
-
-    private func parseRulesOutputs(config: PRRadarConfig) -> RulesPhaseOutput? {
-        let focusFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .focusAreas
-        ).filter { $0.hasSuffix(".json") }
-
-        var allFocusAreas: [FocusArea] = []
-        for file in focusFiles {
-            if let typeOutput: FocusAreaTypeOutput = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .focusAreas, filename: file
-            ) {
-                allFocusAreas.append(contentsOf: typeOutput.focusAreas)
+        mutateReview { review in
+            review.phaseStates[phase] = .idle
+            switch phase {
+            case .pullRequest:
+                review.diff = nil
+            case .focusAreas, .rules, .tasks:
+                review.rules = nil
+            case .evaluations:
+                review.evaluation = nil
+            case .report:
+                review.report = nil
             }
         }
-
-        guard let rules: [ReviewRule] = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .rules, filename: "all-rules.json"
-        ) else { return nil }
-
-        let tasks: [EvaluationTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
-            config: config, prNumber: prNumber, phase: .tasks
-        )) ?? []
-
-        guard !allFocusAreas.isEmpty || !rules.isEmpty else { return nil }
-
-        return RulesPhaseOutput(focusAreas: allFocusAreas, rules: rules, tasks: tasks)
-    }
-
-    private func parseEvaluationOutputs(config: PRRadarConfig) -> EvaluationPhaseOutput? {
-        guard let summary: EvaluationSummary = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .evaluations, filename: "summary.json"
-        ) else { return nil }
-
-        let evalFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .evaluations
-        ).filter { $0.hasSuffix(".json") && $0 != "summary.json" }
-
-        var evaluations: [RuleEvaluationResult] = []
-        for file in evalFiles {
-            if let evaluation: RuleEvaluationResult = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .evaluations, filename: file
-            ) {
-                evaluations.append(evaluation)
-            }
-        }
-
-        return EvaluationPhaseOutput(evaluations: evaluations, summary: summary)
-    }
-
-    private func parseReportOutputs(config: PRRadarConfig) -> ReportPhaseOutput? {
-        guard let report: ReviewReport = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .report, filename: "summary.json"
-        ) else { return nil }
-
-        guard let markdown = try? PhaseOutputParser.readPhaseTextFile(
-            config: config, prNumber: prNumber, phase: .report, filename: "summary.md"
-        ) else { return nil }
-
-        return ReportPhaseOutput(report: report, markdownContent: markdown)
     }
 
     // MARK: - Phase Runners
@@ -322,7 +348,7 @@ final class PRReviewModel {
         guard let selected = selectedConfiguration else { return }
 
         let config = makeConfig(from: selected)
-        phaseStates[.pullRequest] = .running(logs: "Running diff for PR #\(prNumber)...\n")
+        mutateReview { $0.phaseStates[.pullRequest] = .running(logs: "Running diff for PR #\(self.prNumber)...\n") }
 
         let useCase = FetchDiffUseCase(config: config, environment: environment)
 
@@ -334,43 +360,23 @@ final class PRReviewModel {
                 case .log(let text):
                     appendLog(text, to: .pullRequest)
                 case .completed(let snapshot):
-                    diffFiles = snapshot.files
-                    fullDiff = snapshot.fullDiff
-                    effectiveDiff = snapshot.effectiveDiff
-                    moveReport = snapshot.moveReport
-                    let logs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .completed(logs: logs)
+                    mutateReview { review in
+                        review.diff = snapshot
+                        let logs = self.runningLogs(for: .pullRequest)
+                        review.phaseStates[.pullRequest] = .completed(logs: logs)
+                    }
                 case .failed(let error, let logs):
-                    let existingLogs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
+                    mutateReview { review in
+                        let existingLogs = self.runningLogs(for: .pullRequest)
+                        review.phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
+                    }
                 }
             }
         } catch {
-            let logs = runningLogs(for: .pullRequest)
-            phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
-        }
-    }
-
-    private func parseDiffOutputs(config: PRRadarConfig) {
-        // Parse full diff from the human-readable markdown file
-        if let diffText = try? PhaseOutputParser.readPhaseTextFile(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.md"
-        ) {
-            fullDiff = GitDiff.fromDiffContent(diffText)
-        }
-
-        // Parse effective diff from the human-readable markdown file
-        if let effectiveText = try? PhaseOutputParser.readPhaseTextFile(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.md"
-        ) {
-            effectiveDiff = GitDiff.fromDiffContent(effectiveText)
-        }
-
-        // Parse move report
-        if let report: MoveReport = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-moves.json"
-        ) {
-            moveReport = report
+            mutateReview { review in
+                let logs = self.runningLogs(for: .pullRequest)
+                review.phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
+            }
         }
     }
 
@@ -379,8 +385,10 @@ final class PRReviewModel {
 
         let config = makeConfig(from: selected)
         let rulesPhases: [PRRadarPhase] = [.focusAreas, .rules, .tasks]
-        for phase in rulesPhases {
-            phaseStates[phase] = .running(logs: "")
+        mutateReview { review in
+            for phase in rulesPhases {
+                review.phaseStates[phase] = .running(logs: "")
+            }
         }
 
         let useCase = FetchRulesUseCase(config: config, environment: environment)
@@ -390,23 +398,29 @@ final class PRReviewModel {
             for try await progress in useCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
                 switch progress {
                 case .running(let phase):
-                    phaseStates[phase] = .running(logs: "Running \(phase.rawValue)...\n")
+                    mutateReview { $0.phaseStates[phase] = .running(logs: "Running \(phase.rawValue)...\n") }
                 case .log(let text):
                     appendLog(text, to: .rules)
                 case .completed(let output):
-                    rulesOutput = output
-                    for phase in rulesPhases {
-                        phaseStates[phase] = .completed(logs: "")
+                    mutateReview { review in
+                        review.rules = output
+                        for phase in rulesPhases {
+                            review.phaseStates[phase] = .completed(logs: "")
+                        }
                     }
                 case .failed(let error, let logs):
-                    for phase in rulesPhases {
-                        phaseStates[phase] = .failed(error: error, logs: logs)
+                    mutateReview { review in
+                        for phase in rulesPhases {
+                            review.phaseStates[phase] = .failed(error: error, logs: logs)
+                        }
                     }
                 }
             }
         } catch {
-            for phase in rulesPhases {
-                phaseStates[phase] = .failed(error: error.localizedDescription, logs: "")
+            mutateReview { review in
+                for phase in rulesPhases {
+                    review.phaseStates[phase] = .failed(error: error.localizedDescription, logs: "")
+                }
             }
         }
     }
@@ -415,7 +429,7 @@ final class PRReviewModel {
         guard let selected = selectedConfiguration else { return }
 
         let config = makeConfig(from: selected)
-        phaseStates[.evaluations] = .running(logs: "Running evaluations...\n")
+        mutateReview { $0.phaseStates[.evaluations] = .running(logs: "Running evaluations...\n") }
 
         let useCase = EvaluateUseCase(config: config, environment: environment)
 
@@ -427,16 +441,20 @@ final class PRReviewModel {
                 case .log(let text):
                     appendLog(text, to: .evaluations)
                 case .completed(let output):
-                    evaluationOutput = output
-                    let logs = runningLogs(for: .evaluations)
-                    phaseStates[.evaluations] = .completed(logs: logs)
+                    mutateReview { review in
+                        review.evaluation = output
+                        let logs = self.runningLogs(for: .evaluations)
+                        review.phaseStates[.evaluations] = .completed(logs: logs)
+                    }
                 case .failed(let error, let logs):
-                    phaseStates[.evaluations] = .failed(error: error, logs: logs)
+                    mutateReview { $0.phaseStates[.evaluations] = .failed(error: error, logs: logs) }
                 }
             }
         } catch {
-            let logs = runningLogs(for: .evaluations)
-            phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: logs)
+            mutateReview { review in
+                let logs = self.runningLogs(for: .evaluations)
+                review.phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: logs)
+            }
         }
     }
 
@@ -444,7 +462,7 @@ final class PRReviewModel {
         guard let selected = selectedConfiguration else { return }
 
         let config = makeConfig(from: selected)
-        phaseStates[.report] = .running(logs: "Generating report...\n")
+        mutateReview { $0.phaseStates[.report] = .running(logs: "Generating report...\n") }
 
         let useCase = GenerateReportUseCase(config: config, environment: environment)
 
@@ -456,16 +474,20 @@ final class PRReviewModel {
                 case .log(let text):
                     appendLog(text, to: .report)
                 case .completed(let output):
-                    reportOutput = output
-                    let logs = runningLogs(for: .report)
-                    phaseStates[.report] = .completed(logs: logs)
+                    mutateReview { review in
+                        review.report = output
+                        let logs = self.runningLogs(for: .report)
+                        review.phaseStates[.report] = .completed(logs: logs)
+                    }
                 case .failed(let error, let logs):
-                    phaseStates[.report] = .failed(error: error, logs: logs)
+                    mutateReview { $0.phaseStates[.report] = .failed(error: error, logs: logs) }
                 }
             }
         } catch {
-            let logs = runningLogs(for: .report)
-            phaseStates[.report] = .failed(error: error.localizedDescription, logs: logs)
+            mutateReview { review in
+                let logs = self.runningLogs(for: .report)
+                review.phaseStates[.report] = .failed(error: error.localizedDescription, logs: logs)
+            }
         }
     }
 
@@ -473,7 +495,7 @@ final class PRReviewModel {
         guard let selected = selectedConfiguration else { return }
 
         let config = makeConfig(from: selected)
-        phaseStates[.evaluations] = .running(logs: "Posting comments...\n")
+        mutateReview { $0.phaseStates[.evaluations] = .running(logs: "Posting comments...\n") }
 
         let useCase = PostCommentsUseCase(config: config, environment: environment)
 
@@ -485,15 +507,17 @@ final class PRReviewModel {
                 case .log(let text):
                     appendLog(text, to: .evaluations)
                 case .completed(let output):
-                    commentOutput = output
-                    let logs = runningLogs(for: .evaluations)
-                    phaseStates[.evaluations] = .completed(logs: logs)
+                    mutateReview { review in
+                        review.comments = output
+                        let logs = self.runningLogs(for: .evaluations)
+                        review.phaseStates[.evaluations] = .completed(logs: logs)
+                    }
                 case .failed(let error, let logs):
-                    phaseStates[.evaluations] = .failed(error: error, logs: logs)
+                    mutateReview { $0.phaseStates[.evaluations] = .failed(error: error, logs: logs) }
                 }
             }
         } catch {
-            phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "")
+            mutateReview { $0.phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "") }
         }
     }
 
@@ -521,8 +545,15 @@ final class PRReviewModel {
     }
 
     private func appendLog(_ text: String, to phase: PRRadarPhase) {
-        let existing = runningLogs(for: phase)
-        phaseStates[phase] = .running(logs: existing + text)
+        mutateReview { review in
+            let existing: String
+            if case .running(let logs) = review.phaseStates[phase] {
+                existing = logs
+            } else {
+                existing = ""
+            }
+            review.phaseStates[phase] = .running(logs: existing + text)
+        }
     }
 
     private func persistSelectedConfigID() {
