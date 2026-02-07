@@ -110,12 +110,14 @@ The existing `build/` entry already covers the Python build directory but `.buil
 
 **Completed.** Added `.build/`, `.swiftpm/`, and `Package.resolved` to `.gitignore` above the existing distribution/packaging section. These files were already untracked so no `git rm --cached` was needed. Build verified with `swift build --product MacApp`.
 
-## - [ ] Phase 5: Remove old Xcode project and separate package
+## - [x] Phase 5: Remove old Xcode project and separate package
 
 Remove the files that are no longer needed:
 
 1. Delete `PRRadarMac/` directory entirely (contains `.xcodeproj` and the old source files that have been moved)
 2. Delete `PRRadarMacSDK/` directory entirely (its source has been moved to `Sources/sdks/`, its `Package.swift` is replaced by the top-level one)
+
+**Completed.** Removed `PRRadarMac/` (Xcode project, assets, and old source files) and `PRRadarMacSDK/` (old separate package with its own Package.swift and sources). All source files were already moved to `Sources/` in earlier phases. Build verified with `swift build --product MacApp`.
 
 ## - [ ] Phase 6: Validation
 
