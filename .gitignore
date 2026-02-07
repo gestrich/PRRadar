@@ -26,6 +26,11 @@ review-output/
 # Agent mode artifacts
 code-reviews/
 
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
 # Distribution/packaging
 *.egg-info/
 dist/

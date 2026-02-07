@@ -95,7 +95,7 @@ Also update the import — change `import PRRadarMacSDK` (unchanged, since the m
 
 **Completed.** Updated `venvBinPath` in `Sources/apps/MacApp/UI/ContentView.swift` from 3 to 5 `deletingLastPathComponent()` calls to match the new directory depth. Imports unchanged since module name is the same. Build verified.
 
-## - [ ] Phase 4: Update .gitignore for SwiftPM
+## - [x] Phase 4: Update .gitignore for SwiftPM
 
 Add SwiftPM build artifacts to `.gitignore`:
 
@@ -107,6 +107,8 @@ Package.resolved
 ```
 
 The existing `build/` entry already covers the Python build directory but `.build/` is the SwiftPM-specific build directory.
+
+**Completed.** Added `.build/`, `.swiftpm/`, and `Package.resolved` to `.gitignore` above the existing distribution/packaging section. These files were already untracked so no `git rm --cached` was needed. Build verified with `swift build --product MacApp`.
 
 ## - [ ] Phase 5: Remove old Xcode project and separate package
 
