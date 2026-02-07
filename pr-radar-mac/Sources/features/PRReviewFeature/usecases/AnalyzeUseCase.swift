@@ -1,3 +1,4 @@
+import CLISDK
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarMacSDK
@@ -48,11 +49,24 @@ public struct AnalyzeUseCase: Sendable {
                         repo: repo
                     )
 
+                    let outputStream = CLIOutputStream()
+                    let logTask = Task {
+                        for await event in await outputStream.makeStream() {
+                            if let text = event.text, !event.isCommand {
+                                continuation.yield(.log(text: text))
+                            }
+                        }
+                    }
+
                     let result = try await runner.execute(
                         command: command,
                         config: config,
-                        environment: environment
+                        environment: environment,
+                        output: outputStream
                     )
+
+                    await outputStream.finishAll()
+                    _ = await logTask.result
 
                     if result.isSuccess {
                         var filesByPhase: [PRRadarPhase: [String]] = [:]

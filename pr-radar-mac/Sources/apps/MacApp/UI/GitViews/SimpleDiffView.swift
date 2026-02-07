@@ -39,13 +39,7 @@ public struct SimpleDiffView: View {
             Divider()
 
             // Diff content
-            ScrollView {
-                Text(diff.rawContent)
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-            }
+            RichDiffContentView(diff: diff)
         }
         .frame(minWidth: 800, minHeight: 600)
     }

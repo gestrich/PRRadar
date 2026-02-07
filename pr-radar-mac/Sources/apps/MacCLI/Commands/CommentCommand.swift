@@ -44,6 +44,8 @@ struct CommentCommand: AsyncParsableCommand {
             switch progress {
             case .running:
                 break
+            case .log(let text):
+                print(text, terminator: "")
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

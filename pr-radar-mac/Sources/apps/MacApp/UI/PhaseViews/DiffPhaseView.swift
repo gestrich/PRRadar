@@ -69,12 +69,6 @@ struct DiffPhaseView: View {
             return diff
         }()
 
-        ScrollView {
-            Text(filtered.rawContent)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-        }
+        RichDiffContentView(diff: filtered)
     }
 }

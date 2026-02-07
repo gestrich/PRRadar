@@ -237,6 +237,8 @@ struct ContentView: View {
                 Text(file)
                     .font(.system(.body, design: .monospaced))
             }
+        } else if case .running(let logs) = model.stateFor(.pullRequest) {
+            runningLogView(logs)
         } else {
             ContentUnavailableView(
                 "No Diff Data",
@@ -254,6 +256,8 @@ struct ContentView: View {
                 rules: output.rules,
                 tasks: output.tasks
             )
+        } else if case .running(let logs) = model.stateFor(model.selectedPhase) {
+            runningLogView(logs)
         } else {
             ContentUnavailableView(
                 "No Rules Data",
@@ -299,6 +303,8 @@ struct ContentView: View {
                 .environment(model)
                 .frame(minWidth: 900, minHeight: 600)
             }
+        } else if case .running(let logs) = model.stateFor(.evaluations) {
+            runningLogView(logs)
         } else {
             ContentUnavailableView(
                 "No Evaluation Data",
@@ -315,12 +321,32 @@ struct ContentView: View {
                 report: output.report,
                 markdownContent: output.markdownContent
             )
+        } else if case .running(let logs) = model.stateFor(.report) {
+            runningLogView(logs)
         } else {
             ContentUnavailableView(
                 "No Report Data",
                 systemImage: "chart.bar.doc.horizontal",
                 description: Text("Run Phase 6 to generate the report.")
             )
+        }
+    }
+
+    // MARK: - Running Log
+
+    @ViewBuilder
+    private func runningLogView(_ logs: String) -> some View {
+        ScrollView {
+            ScrollViewReader { proxy in
+                Text(logs.isEmpty ? "Running..." : logs)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .id("logBottom")
+                    .onChange(of: logs) {
+                        proxy.scrollTo("logBottom", anchor: .bottom)
+                    }
+            }
         }
     }
 

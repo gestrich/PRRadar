@@ -191,6 +191,8 @@ final class PRReviewModel {
                 switch progress {
                 case .running:
                     break
+                case .log(let text):
+                    appendLog(text, to: .pullRequest)
                 case .completed(let files):
                     diffFiles = files
                     parseDiffOutputs(config: config)
@@ -247,6 +249,8 @@ final class PRReviewModel {
                 switch progress {
                 case .running(let phase):
                     phaseStates[phase] = .running(logs: "Running \(phase.rawValue)...\n")
+                case .log(let text):
+                    appendLog(text, to: .rules)
                 case .completed(let output):
                     rulesOutput = output
                     for phase in rulesPhases {
@@ -278,6 +282,8 @@ final class PRReviewModel {
                 switch progress {
                 case .running:
                     break
+                case .log(let text):
+                    appendLog(text, to: .evaluations)
                 case .completed(let output):
                     evaluationOutput = output
                     let logs = runningLogs(for: .evaluations)
@@ -305,6 +311,8 @@ final class PRReviewModel {
                 switch progress {
                 case .running:
                     break
+                case .log(let text):
+                    appendLog(text, to: .report)
                 case .completed(let output):
                     reportOutput = output
                     let logs = runningLogs(for: .report)
@@ -332,6 +340,8 @@ final class PRReviewModel {
                 switch progress {
                 case .running:
                     break
+                case .log(let text):
+                    appendLog(text, to: .evaluations)
                 case .completed(let output):
                     commentOutput = output
                     let logs = runningLogs(for: .evaluations)
@@ -366,6 +376,11 @@ final class PRReviewModel {
     private func runningLogs(for phase: PRRadarPhase) -> String {
         if case .running(let logs) = phaseStates[phase] { return logs }
         return ""
+    }
+
+    private func appendLog(_ text: String, to phase: PRRadarPhase) {
+        let existing = runningLogs(for: phase)
+        phaseStates[phase] = .running(logs: existing + text)
     }
 
     private func persistSettings() {

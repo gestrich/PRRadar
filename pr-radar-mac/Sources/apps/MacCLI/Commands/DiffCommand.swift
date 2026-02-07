@@ -31,6 +31,8 @@ struct DiffCommand: AsyncParsableCommand {
             switch progress {
             case .running:
                 break
+            case .log(let text):
+                if !options.json { print(text, terminator: "") }
             case .completed(let files):
                 outputFiles = files
             case .failed(let error, let logs):

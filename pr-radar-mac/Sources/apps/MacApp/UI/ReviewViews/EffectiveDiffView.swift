@@ -155,12 +155,6 @@ struct EffectiveDiffView: View {
             return activeDiff
         }()
 
-        ScrollView {
-            Text(displayDiff.rawContent)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-        }
+        RichDiffContentView(diff: displayDiff)
     }
 }

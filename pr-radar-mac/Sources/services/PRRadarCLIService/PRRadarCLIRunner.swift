@@ -13,7 +13,8 @@ public struct PRRadarCLIRunner: Sendable {
     public func execute<C: CLICommand>(
         command: C,
         config: PRRadarConfig,
-        environment: [String: String]
+        environment: [String: String],
+        output: CLIOutputStream? = nil
     ) async throws -> CLIResult where C.Program == PRRadar {
         let client = CLIClient(defaultWorkingDirectory: config.repoPath)
 
@@ -29,7 +30,8 @@ public struct PRRadarCLIRunner: Sendable {
             command: config.prradarPath,
             arguments: arguments,
             environment: environment,
-            printCommand: false
+            printCommand: false,
+            output: output
         )
 
         return CLIResult(
