@@ -119,7 +119,7 @@ Remove the files that are no longer needed:
 
 **Completed.** Removed `PRRadarMac/` (Xcode project, assets, and old source files) and `PRRadarMacSDK/` (old separate package with its own Package.swift and sources). All source files were already moved to `Sources/` in earlier phases. Build verified with `swift build --product MacApp`.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 1. **Build the package:** `swift build` from the repo root — should compile both targets
 2. **Build MacApp specifically:** `swift build --product MacApp`
@@ -127,3 +127,11 @@ Remove the files that are no longer needed:
 4. **Open in Xcode:** `xed .` — verify Xcode can open the workspace and all targets are visible
 5. **Verify Python is unaffected:** `python -m pytest tests/ -v` — existing Python tests should still pass
 6. **Verify venvBinPath:** Confirm the `#filePath`-based path calculation resolves to the correct `.venv/bin` directory
+
+**Completed.** All validation checks passed:
+- `swift build` compiles both `PRRadarMacSDK` and `MacApp` targets successfully
+- `swift build --product MacApp` builds the executable product
+- `.build/debug/MacApp` launches, runs as a regular Dock app with the ContentView UI
+- `xed .` opens the workspace in Xcode with all targets visible
+- All 537 Python tests pass (`python -m pytest tests/ -v`)
+- `venvBinPath` correctly resolves from `Sources/apps/MacApp/UI/ContentView.swift` through 5 `deletingLastPathComponent()` calls to the repo root, finding `.venv/bin/prradar`
