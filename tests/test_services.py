@@ -760,6 +760,22 @@ class TestEvaluationPromptTemplate(unittest.TestCase):
 
         self.assertIn("Only evaluate the code within the focus area boundaries", EVALUATION_PROMPT_TEMPLATE)
 
+    def test_prompt_template_includes_codebase_context_section(self):
+        """Prompt template should include codebase context section with repo_path placeholder."""
+        from prradar.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
+
+        self.assertIn("## Codebase Context", EVALUATION_PROMPT_TEMPLATE)
+        self.assertIn("{repo_path}", EVALUATION_PROMPT_TEMPLATE)
+        self.assertIn("full access to the codebase", EVALUATION_PROMPT_TEMPLATE)
+
+    def test_prompt_template_includes_exploration_guidance(self):
+        """Prompt template should include guidance on when to explore vs when not to."""
+        from prradar.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
+
+        self.assertIn("isolated patterns", EVALUATION_PROMPT_TEMPLATE)
+        self.assertIn("broader concerns", EVALUATION_PROMPT_TEMPLATE)
+        self.assertIn("explore the codebase as needed", EVALUATION_PROMPT_TEMPLATE)
+
     def test_prompt_formats_with_focus_area_fields(self):
         """Prompt template should format correctly with all focus area fields."""
         from prradar.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
@@ -773,11 +789,176 @@ class TestEvaluationPromptTemplate(unittest.TestCase):
             start_line=10,
             end_line=25,
             diff_content="+    new code",
+            repo_path="/home/user/my-repo",
         )
 
         self.assertIn("Focus Area: login(username, password)", formatted)
         self.assertIn("File: src/auth.py", formatted)
         self.assertIn("Lines: 10-25", formatted)
+        self.assertIn("/home/user/my-repo", formatted)
+
+    def test_prompt_formats_repo_path_in_codebase_context(self):
+        """Formatted prompt should include repo_path in codebase context section."""
+        from prradar.services.evaluation_service import EVALUATION_PROMPT_TEMPLATE
+
+        formatted = EVALUATION_PROMPT_TEMPLATE.format(
+            rule_name="test-rule",
+            rule_description="Test description",
+            rule_content="Rule content here",
+            focus_area_description="handle()",
+            file_path="src/handler.py",
+            start_line=1,
+            end_line=10,
+            diff_content="+code",
+            repo_path="/tmp/checkout",
+        )
+
+        self.assertIn("checked out locally at: /tmp/checkout", formatted)
+
+
+# ============================================================
+# Evaluation Tool Access Tests
+# ============================================================
+
+
+class TestEvaluationToolAccess(unittest.TestCase):
+    """Tests for evaluation tool access configuration."""
+
+    def test_evaluate_task_configures_allowed_tools(self):
+        """evaluate_task should configure Read, Grep, Glob as allowed tools."""
+        from claude_agent_sdk import ClaudeAgentOptions
+
+        options = ClaudeAgentOptions(
+            model="claude-sonnet-4-20250514",
+            allowed_tools=["Read", "Grep", "Glob"],
+            cwd="/test/repo",
+            output_format={"type": "json_schema", "schema": {}},
+        )
+
+        self.assertEqual(options.allowed_tools, ["Read", "Grep", "Glob"])
+        self.assertEqual(options.cwd, "/test/repo")
+
+    def test_evaluate_task_default_repo_path(self):
+        """evaluate_task should default to current directory for repo_path."""
+        import asyncio
+        import inspect
+        from prradar.services.evaluation_service import evaluate_task
+
+        sig = inspect.signature(evaluate_task)
+        self.assertEqual(sig.parameters["repo_path"].default, ".")
+
+    def test_run_batch_evaluation_accepts_repo_path(self):
+        """run_batch_evaluation should accept repo_path parameter."""
+        import inspect
+        from prradar.services.evaluation_service import run_batch_evaluation
+
+        sig = inspect.signature(run_batch_evaluation)
+        self.assertIn("repo_path", sig.parameters)
+        self.assertEqual(sig.parameters["repo_path"].default, ".")
+
+
+# ============================================================
+# Report Generator Focus Area Cost Tests
+# ============================================================
+
+
+class TestReportGeneratorFocusAreaCost(unittest.TestCase):
+    """Tests for report generator including focus area generation cost."""
+
+    def test_report_includes_focus_area_generation_cost(self):
+        """Report should include focus area generation cost in total."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from prradar.services.phase_sequencer import PhaseSequencer, PipelinePhase
+
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
+            focus_areas_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.FOCUS_AREAS)
+
+            # Create a focus area file with generation cost
+            focus_data = {
+                "focus_type": "method",
+                "focus_areas": [],
+                "generation_cost_usd": 0.005,
+            }
+            (focus_areas_dir / "method.json").write_text(json.dumps(focus_data))
+
+            # Create an evaluation with its own cost
+            eval_data = {
+                "task_id": "task-1",
+                "rule_name": "test-rule",
+                "file_path": "test.py",
+                "evaluation": {
+                    "violates_rule": False,
+                    "score": 1,
+                    "comment": "OK",
+                },
+                "cost_usd": 0.002,
+            }
+            (evaluations_dir / "task-1.json").write_text(json.dumps(eval_data))
+
+            from prradar.services.report_generator import ReportGeneratorService
+
+            service = ReportGeneratorService(evaluations_dir, tasks_dir, focus_areas_dir)
+            report = service.generate_report(pr_number=123, min_score=5)
+
+            # Total should be evaluation cost + focus area generation cost
+            self.assertAlmostEqual(report.summary.total_cost_usd, 0.007, places=4)
+
+    def test_report_without_focus_areas_dir(self):
+        """Report should work without focus_areas_dir (backward compatible)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from prradar.services.phase_sequencer import PhaseSequencer, PipelinePhase
+
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
+
+            eval_data = {
+                "task_id": "task-1",
+                "rule_name": "test-rule",
+                "file_path": "test.py",
+                "evaluation": {
+                    "violates_rule": False,
+                    "score": 1,
+                    "comment": "OK",
+                },
+                "cost_usd": 0.003,
+            }
+            (evaluations_dir / "task-1.json").write_text(json.dumps(eval_data))
+
+            from prradar.services.report_generator import ReportGeneratorService
+
+            service = ReportGeneratorService(evaluations_dir, tasks_dir)
+            report = service.generate_report(pr_number=123, min_score=5)
+
+            self.assertAlmostEqual(report.summary.total_cost_usd, 0.003, places=4)
+
+    def test_report_includes_multiple_focus_area_type_costs(self):
+        """Report should sum costs from multiple focus area type files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from prradar.services.phase_sequencer import PhaseSequencer, PipelinePhase
+
+            evaluations_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.EVALUATIONS)
+            tasks_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.TASKS)
+            focus_areas_dir = PhaseSequencer.ensure_phase_dir(Path(tmpdir), PipelinePhase.FOCUS_AREAS)
+
+            # Method type has cost (AI-generated), file type is free
+            (focus_areas_dir / "method.json").write_text(json.dumps({
+                "focus_type": "method",
+                "focus_areas": [],
+                "generation_cost_usd": 0.01,
+            }))
+            (focus_areas_dir / "file.json").write_text(json.dumps({
+                "focus_type": "file",
+                "focus_areas": [],
+                "generation_cost_usd": 0.0,
+            }))
+
+            from prradar.services.report_generator import ReportGeneratorService
+
+            service = ReportGeneratorService(evaluations_dir, tasks_dir, focus_areas_dir)
+            report = service.generate_report(pr_number=123, min_score=5)
+
+            self.assertAlmostEqual(report.summary.total_cost_usd, 0.01, places=4)
 
 
 if __name__ == "__main__":

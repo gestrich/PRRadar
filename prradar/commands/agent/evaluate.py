@@ -27,13 +27,19 @@ from prradar.services.phase_sequencer import PhaseSequencer, PipelinePhase
 from prradar.services.task_loader_service import TaskLoaderService
 
 
-def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | None = None) -> int:
+def cmd_evaluate(
+    pr_number: int,
+    output_dir: Path,
+    rules_filter: list[str] | None = None,
+    repo_path: str = ".",
+) -> int:
     """Execute the evaluate command.
 
     Args:
         pr_number: PR number being evaluated
         output_dir: PR-specific output directory (already includes PR number)
         rules_filter: Only evaluate tasks for these rule names (None = all rules)
+        repo_path: Path to the local repo checkout for codebase exploration
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -111,7 +117,7 @@ def cmd_evaluate(pr_number: int, output_dir: Path, rules_filter: list[str] | Non
             violations_count += 1
 
     # Run evaluations
-    results = asyncio.run(run_batch_evaluation(tasks, output_dir, on_result))
+    results = asyncio.run(run_batch_evaluation(tasks, output_dir, on_result, repo_path=repo_path))
 
     # Build and save summary
     summary = EvaluationSummary(

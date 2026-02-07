@@ -102,6 +102,12 @@ inspected and debugged independently.
         nargs="+",
         help="Only evaluate specific rules (by name)",
     )
+    evaluate_parser.add_argument(
+        "--repo-path",
+        type=str,
+        default=".",
+        help="Path to local git repo for codebase exploration (default: current directory)",
+    )
 
     # report command
     report_parser = agent_subparsers.add_parser(
@@ -289,6 +295,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             pr_number=pr_number,
             output_dir=pr_dir,
             rules_filter=args.rules,
+            repo_path=args.repo_path,
         )
 
     elif args.agent_command == "report":

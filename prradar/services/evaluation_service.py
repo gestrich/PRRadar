@@ -52,6 +52,21 @@ Ignore any surrounding code in the diff hunk.
 {diff_content}
 ```
 
+## Codebase Context
+
+The PR branch is checked out locally at: {repo_path}
+You have full access to the codebase for additional context.
+
+- For rules that evaluate isolated patterns (naming conventions, signature
+  format), the focus area content above is typically sufficient.
+- For rules that evaluate broader concerns (architecture, client usage,
+  integration patterns), explore the codebase as needed. For example,
+  search for callers of a method, check how similar patterns are used
+  elsewhere, or read surrounding code for context.
+
+Use your judgment: explore when it would improve the quality of your
+review, but don't explore unnecessarily for simple pattern checks.
+
 ## Instructions
 
 Analyze the code changes shown in the diff and determine if they violate the rule.
@@ -109,11 +124,15 @@ class EvaluationResult:
 # ============================================================
 
 
-async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
+async def evaluate_task(
+    task: EvaluationTask,
+    repo_path: str = ".",
+) -> EvaluationResult:
     """Evaluate a single task using Claude Agent SDK.
 
     Args:
         task: The evaluation task containing rule and code segment
+        repo_path: Path to the local repo checkout for codebase exploration
 
     Returns:
         EvaluationResult with the evaluation outcome
@@ -132,13 +151,16 @@ async def evaluate_task(task: EvaluationTask) -> EvaluationResult:
         start_line=task.focus_area.start_line,
         end_line=task.focus_area.end_line,
         diff_content=focused_content,
+        repo_path=repo_path,
     )
 
-    # Configure structured output
+    # Configure structured output with tool access for codebase exploration
     # Note: Don't use max_turns=1 as it may prevent the agent from completing
     # the structured output generation
     options = ClaudeAgentOptions(
         model=model,
+        allowed_tools=["Read", "Grep", "Glob"],
+        cwd=repo_path,
         output_format={
             "type": "json_schema",
             "schema": RuleEvaluation.json_schema(),
@@ -192,6 +214,7 @@ async def run_batch_evaluation(
     tasks: list[EvaluationTask],
     output_dir: Path,
     on_result: Callable[[int, int, EvaluationResult], None] | None = None,
+    repo_path: str = ".",
 ) -> list[EvaluationResult]:
     """Run evaluations for all tasks.
 
@@ -205,6 +228,7 @@ async def run_batch_evaluation(
                    (index, total, result) after each evaluation completes.
                    Index is 1-based. Service does NOT print progress - caller
                    handles display via this callback.
+        repo_path: Path to the local repo checkout for codebase exploration
 
     Returns:
         List of all evaluation results
@@ -215,7 +239,7 @@ async def run_batch_evaluation(
     total = len(tasks)
 
     for i, task in enumerate(tasks, 1):
-        result = await evaluate_task(task)
+        result = await evaluate_task(task, repo_path=repo_path)
         results.append(result)
 
         # Save evaluation result to file

@@ -30,15 +30,17 @@ class ReportGeneratorService:
     beyond file I/O for reading evaluation results.
     """
 
-    def __init__(self, evaluations_dir: Path, tasks_dir: Path):
+    def __init__(self, evaluations_dir: Path, tasks_dir: Path, focus_areas_dir: Path | None = None):
         """Initialize the report generator.
 
         Args:
             evaluations_dir: Directory containing evaluation JSON files
             tasks_dir: Directory containing task JSON files (for metadata)
+            focus_areas_dir: Directory containing focus area JSON files (for generation cost)
         """
         self._evaluations_dir = evaluations_dir
         self._tasks_dir = tasks_dir
+        self._focus_areas_dir = focus_areas_dir
 
     # --------------------------------------------------------
     # Public API
@@ -56,6 +58,9 @@ class ReportGeneratorService:
         """
         # Load all evaluation results
         violations, total_tasks, total_cost = self._load_violations(min_score)
+
+        # Add focus area generation cost to total
+        total_cost += self._load_focus_area_generation_cost()
 
         # Calculate summary statistics
         summary = self._calculate_summary(violations, total_tasks, total_cost)
@@ -171,6 +176,26 @@ class ReportGeneratorService:
                 continue
 
         return violations, total_tasks, total_cost
+
+    def _load_focus_area_generation_cost(self) -> float:
+        """Load the total focus area generation cost from per-type files.
+
+        Returns:
+            Total generation cost in USD across all focus area types
+        """
+        if not self._focus_areas_dir or not self._focus_areas_dir.exists():
+            return 0.0
+
+        total = 0.0
+        for type_file in self._focus_areas_dir.glob("*.json"):
+            try:
+                data = json.loads(type_file.read_text())
+                cost = data.get("generation_cost_usd", 0.0)
+                if cost:
+                    total += cost
+            except (json.JSONDecodeError, KeyError):
+                continue
+        return total
 
     def _load_task_metadata(self) -> dict[str, dict]:
         """Load task metadata for enrichment.

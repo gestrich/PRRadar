@@ -53,6 +53,7 @@ def cmd_report(
     # Verify evaluations directory exists
     evaluations_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
     tasks_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.TASKS)
+    focus_areas_dir = PhaseSequencer.get_phase_dir(output_dir, PipelinePhase.FOCUS_AREAS)
 
     if not evaluations_dir.exists():
         print(f"  Error: Evaluations directory not found at {evaluations_dir}")
@@ -63,8 +64,8 @@ def cmd_report(
         print(f"  Warning: Tasks directory not found at {tasks_dir}")
         print("  Some metadata (documentation links) may be missing")
 
-    # Generate report
-    service = ReportGeneratorService(evaluations_dir, tasks_dir)
+    # Generate report (includes focus area generation cost if available)
+    service = ReportGeneratorService(evaluations_dir, tasks_dir, focus_areas_dir)
     report = service.generate_report(pr_number, min_score)
 
     # Save report files

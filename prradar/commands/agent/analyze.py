@@ -149,6 +149,7 @@ async def run_interactive_evaluation(
     pr_number: int,
     repo: str,
     stats: AnalyzeStats,
+    repo_path: str = ".",
 ) -> None:
     """Run evaluations interactively, prompting for each segment.
 
@@ -161,6 +162,7 @@ async def run_interactive_evaluation(
         pr_number: PR number
         repo: Repository in owner/repo format
         stats: Statistics object to update
+        repo_path: Path to the local repo checkout for codebase exploration
     """
     evaluations_dir = PhaseSequencer.ensure_phase_dir(output_dir, PipelinePhase.EVALUATIONS)
 
@@ -192,7 +194,7 @@ async def run_interactive_evaluation(
 
         for task in focus_area_tasks:
             print(f"  Evaluating rule: {task.rule.name}...")
-            result = await evaluate_task(task)
+            result = await evaluate_task(task, repo_path=repo_path)
             stats.tasks_evaluated += 1
 
             if result.cost_usd:
@@ -243,6 +245,7 @@ async def run_analyze_batch_evaluation(
     tasks: list[EvaluationTask],
     output_dir: Path,
     stats: AnalyzeStats,
+    repo_path: str = ".",
 ) -> list[EvaluationResult]:
     """Run all evaluations without interaction.
 
@@ -253,6 +256,7 @@ async def run_analyze_batch_evaluation(
         tasks: List of evaluation tasks
         output_dir: PR output directory
         stats: Statistics object to update
+        repo_path: Path to the local repo checkout for codebase exploration
 
     Returns:
         List of evaluation results
@@ -274,7 +278,7 @@ async def run_analyze_batch_evaluation(
         else:
             print(f"    ✓  No violation")
 
-    return await run_batch_evaluation(tasks, output_dir, on_result=on_result)
+    return await run_batch_evaluation(tasks, output_dir, on_result=on_result, repo_path=repo_path)
 
 
 # ============================================================
@@ -417,12 +421,12 @@ def cmd_analyze(
         # Interactive mode: prompt for each task
         asyncio.run(
             run_interactive_evaluation(
-                tasks, output_dir, pr_number, repo, stats
+                tasks, output_dir, pr_number, repo, stats, repo_path=repo_path
             )
         )
     else:
         # Batch mode: evaluate all tasks
-        results = asyncio.run(run_analyze_batch_evaluation(tasks, output_dir, stats))
+        results = asyncio.run(run_analyze_batch_evaluation(tasks, output_dir, stats, repo_path=repo_path))
 
         if stop_after == "evaluate":
             print()
