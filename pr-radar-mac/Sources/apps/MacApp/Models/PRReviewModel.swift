@@ -1,5 +1,4 @@
 import Foundation
-import PRRadarCLIService
 import PRRadarConfigService
 import PRReviewFeature
 
@@ -53,9 +52,7 @@ final class PRReviewModel {
 
         state = .running(logs: "Looking for prradar in: \(venvBinPath)\n")
 
-        let runner = PRRadarCLIRunner()
         let useCase = FetchDiffUseCase(
-            runner: runner,
             config: config,
             environment: environment
         )

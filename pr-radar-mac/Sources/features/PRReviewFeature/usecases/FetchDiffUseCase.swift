@@ -4,16 +4,13 @@ import PRRadarMacSDK
 
 public struct FetchDiffUseCase: Sendable {
 
-    private let runner: PRRadarCLIRunner
     private let config: PRRadarConfig
     private let environment: [String: String]
 
     public init(
-        runner: PRRadarCLIRunner,
         config: PRRadarConfig,
         environment: [String: String]
     ) {
-        self.runner = runner
         self.config = config
         self.environment = environment
     }
@@ -24,6 +21,7 @@ public struct FetchDiffUseCase: Sendable {
 
             Task {
                 do {
+                    let runner = PRRadarCLIRunner()
                     let command = PRRadar.Agent.Diff(
                         prNumber: prNumber,
                         repoPath: config.repoPath

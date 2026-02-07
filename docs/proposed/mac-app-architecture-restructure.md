@@ -152,9 +152,11 @@ Refactored `ContentView.swift` to follow Model-View architecture with enum-based
 - `ContentView` uses `@ViewBuilder` helper `logsSection(_:)` to deduplicate the logs rendering across running/completed/failed states
 - The `#Preview` provides a stub model with empty venvBinPath/environment for Xcode previews
 
-## - [ ] Phase 4: Update Package.swift Dependency Graph
+## - [x] Phase 4: Update Package.swift Dependency Graph
 
-Finalize the Package.swift to enforce layer boundaries through target dependencies.
+Finalized the Package.swift to enforce layer boundaries through target dependencies.
+
+**Completed.** Package.swift matches the target dependency graph, build succeeds, and layer boundaries are enforced by the compiler.
 
 **Target dependency graph:**
 ```
@@ -220,6 +222,11 @@ MacApp (App Layer)
 ```
 
 **Verification:** Build must succeed with `swift build` — the compiler enforces that no target imports a module it doesn't declare as a dependency.
+
+**Technical notes:**
+- `PRReviewModel` previously imported `PRRadarCLIService` directly to create `PRRadarCLIRunner` — this violated the layer boundary (App → Services). Moved `PRRadarCLIRunner` creation into `FetchDiffUseCase` since the runner is a stateless struct with no configuration. Now the App layer only talks to Features and Config.
+- `FetchDiffUseCase.init` simplified: removed `runner` parameter, creates `PRRadarCLIRunner()` internally. This is appropriate because the runner has no state or configuration — it's a pure execution wrapper.
+- The Package.swift already had the correct target list from prior phases; the code changes in this phase enforce the boundaries at the import level.
 
 ## - [ ] Phase 5: Validation
 
