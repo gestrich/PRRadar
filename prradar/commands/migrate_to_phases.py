@@ -1,7 +1,7 @@
 """Migrate existing output directories to phase-based naming.
 
 Renames legacy directory names (e.g., 'diff', 'tasks') to canonical
-phase directory names (e.g., 'phase-1-diff', 'phase-4-tasks').
+phase directory names (e.g., 'phase-1-pull-request', 'phase-4-tasks').
 """
 
 from __future__ import annotations

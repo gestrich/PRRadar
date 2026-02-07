@@ -65,7 +65,7 @@ class TestPipelinePhase(unittest.TestCase):
 
     def test_phase_values_include_numbers(self) -> None:
         """Phase values should include their phase number."""
-        assert PipelinePhase.DIFF.value == "phase-1-diff"
+        assert PipelinePhase.DIFF.value == "phase-1-pull-request"
         assert PipelinePhase.REPORT.value == "phase-6-report"
 
     def test_previous_implemented_phase_first(self) -> None:
@@ -94,7 +94,7 @@ class TestPhaseSequencerDirectoryManagement(unittest.TestCase):
     def test_get_phase_dir(self) -> None:
         """get_phase_dir returns correct path without creating it."""
         result = PhaseSequencer.get_phase_dir(self.tmp_path, PipelinePhase.DIFF)
-        assert result == self.tmp_path / "phase-1-diff"
+        assert result == self.tmp_path / "phase-1-pull-request"
         assert not result.exists()
 
     def test_ensure_phase_dir_creates_directory(self) -> None:
@@ -384,8 +384,8 @@ class TestMigrateToPhases(unittest.TestCase):
 
         assert not (pr_dir / "diff").exists()
         assert not (pr_dir / "tasks").exists()
-        assert (pr_dir / "phase-1-diff").exists()
-        assert (pr_dir / "phase-1-diff" / "raw.diff").exists()
+        assert (pr_dir / "phase-1-pull-request").exists()
+        assert (pr_dir / "phase-1-pull-request" / "raw.diff").exists()
         assert (pr_dir / "phase-4-tasks").exists()
         assert (pr_dir / "phase-4-tasks" / "task.json").exists()
 
@@ -394,7 +394,7 @@ class TestMigrateToPhases(unittest.TestCase):
         pr_dir = self.tmp_path / "123"
         (pr_dir / "diff").mkdir(parents=True)
         (pr_dir / "diff" / "raw.diff").write_text("legacy")
-        canonical = pr_dir / "phase-1-diff"
+        canonical = pr_dir / "phase-1-pull-request"
         canonical.mkdir()
         (canonical / "raw.diff").write_text("canonical")
 
@@ -652,33 +652,42 @@ class TestDiffPhaseChecker(unittest.TestCase):
         assert not status.exists
         assert not status.is_complete
         assert status.completed_count == 0
-        assert status.total_count == 2
+        assert status.total_count == 5
         assert "raw.diff" in status.missing_items
         assert "parsed.json" in status.missing_items
+        assert "pr.json" in status.missing_items
+        assert "comments.json" in status.missing_items
+        assert "repo.json" in status.missing_items
 
     def test_partial_completion(self) -> None:
         """Returns partial status when only some files exist."""
-        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
-        (diff_dir / "raw.diff").write_text("content")
-
-        status = self.checker.check_status(self.tmp_path)
-        assert status.exists
-        assert not status.is_complete
-        assert status.completed_count == 1
-        assert status.total_count == 2
-        assert status.missing_items == ["parsed.json"]
-
-    def test_complete(self) -> None:
-        """Returns complete status when all required files exist."""
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("content")
         (diff_dir / "parsed.json").write_text("{}")
 
         status = self.checker.check_status(self.tmp_path)
         assert status.exists
-        assert status.is_complete
+        assert not status.is_complete
         assert status.completed_count == 2
-        assert status.total_count == 2
+        assert status.total_count == 5
+        assert "pr.json" in status.missing_items
+        assert "comments.json" in status.missing_items
+        assert "repo.json" in status.missing_items
+
+    def test_complete(self) -> None:
+        """Returns complete status when all required files exist."""
+        diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
+        (diff_dir / "raw.diff").write_text("content")
+        (diff_dir / "parsed.json").write_text("{}")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
+
+        status = self.checker.check_status(self.tmp_path)
+        assert status.exists
+        assert status.is_complete
+        assert status.completed_count == 5
+        assert status.total_count == 5
         assert status.missing_items == []
 
     def test_empty_directory(self) -> None:
@@ -954,6 +963,9 @@ class TestGetPhaseStatus(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("content")
         (diff_dir / "parsed.json").write_text("{}")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
 
         status = PhaseSequencer.get_phase_status(self.tmp_path, PipelinePhase.DIFF)
         assert status.is_complete
@@ -1120,6 +1132,9 @@ class TestGetAllStatuses(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("content")
         (diff_dir / "parsed.json").write_text("{}")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
 
         statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
         assert statuses[PipelinePhase.DIFF].is_complete
@@ -1161,6 +1176,9 @@ class TestPrintPipelineStatus(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("content")
         (diff_dir / "parsed.json").write_text("{}")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
 
         captured = io.StringIO()
         old_stdout = sys.stdout
@@ -1230,8 +1248,8 @@ class TestPrintPipelineStatus(unittest.TestCase):
             sys.stdout = old_stdout
 
         output = captured.getvalue()
-        assert "1/2" in output
-        assert "50%" in output
+        assert "1/5" in output
+        assert "20%" in output
 
     def test_shows_header(self) -> None:
         """Output includes header line."""
@@ -1294,7 +1312,7 @@ class TestCmdStatus(unittest.TestCase):
             sys.stdout = old_stdout
 
         output = captured.getvalue()
-        assert "phase-1-diff" in output
+        assert "phase-1-pull-request" in output
         assert "phase-3-rules" in output
 
     def test_shows_indicators(self) -> None:
@@ -1307,6 +1325,9 @@ class TestCmdStatus(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("content")
         (diff_dir / "parsed.json").write_text("{}")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
 
         captured = io.StringIO()
         old_stdout = sys.stdout
@@ -1393,6 +1414,9 @@ class TestResumeAndStatusIntegration(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("diff content")
         (diff_dir / "parsed.json").write_text("[]")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
 
         statuses = PhaseSequencer.get_all_statuses(self.tmp_path)
         assert statuses[PipelinePhase.DIFF].is_complete
@@ -1455,6 +1479,9 @@ class TestResumeAndStatusIntegration(unittest.TestCase):
         diff_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.DIFF)
         (diff_dir / "raw.diff").write_text("diff content")
         (diff_dir / "parsed.json").write_text("[]")
+        (diff_dir / "pr.json").write_text("{}")
+        (diff_dir / "comments.json").write_text("{}")
+        (diff_dir / "repo.json").write_text("{}")
 
         focus_dir = PhaseSequencer.ensure_phase_dir(self.tmp_path, PipelinePhase.FOCUS_AREAS)
         (focus_dir / "all.json").write_text("[]")

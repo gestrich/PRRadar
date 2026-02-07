@@ -5,7 +5,7 @@ Generates focus areas from hunks using Claude, then creates
 evaluation tasks for each rule+focus_area combination.
 
 Requires:
-    <output-dir>/<pr-number>/phase-1-diff/parsed.json  - Structured diff with hunks
+    <output-dir>/<pr-number>/phase-1-pull-request/parsed.json  - Structured diff with hunks
 
 Artifact outputs:
     <output-dir>/<pr-number>/phase-2-focus-areas/all.json  - Generated focus areas

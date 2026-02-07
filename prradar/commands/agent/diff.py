@@ -1,14 +1,14 @@
-"""Agent diff command - fetch and store PR diff artifacts.
+"""Agent diff command - fetch and store PR data artifacts.
 
-Fetches diff, PR metadata, and comments from GitHub and stores them as artifacts
-for subsequent pipeline phases.
+Fetches diff, PR metadata, comments, and repository info from GitHub and stores
+them as artifacts for subsequent pipeline phases.
 
-Artifact outputs:
-    <output-dir>/<pr-number>/phase-1-diff/raw.diff     - Original diff text
-    <output-dir>/<pr-number>/phase-1-diff/parsed.json  - Structured diff with hunks
-    <output-dir>/<pr-number>/pr.json           - Raw GitHub PR metadata JSON
-    <output-dir>/<pr-number>/comments.json     - Raw GitHub comments JSON
-    <output-dir>/<pr-number>/repo.json         - Raw GitHub repository JSON
+Artifact outputs (all in phase-1-pull-request/):
+    raw.diff      - Original diff text
+    parsed.json   - Structured diff with hunks
+    pr.json       - Raw GitHub PR metadata JSON
+    comments.json - Raw GitHub comments JSON
+    repo.json     - Raw GitHub repository JSON
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def cmd_diff(
     assert not isinstance(pr_result, str)
     pr = pr_result
 
-    pr_path = output_dir / "pr.json"
+    pr_path = diff_dir / "pr.json"
     pr_path.write_text(pr.raw_json)
     print(f"  Wrote {pr_path}")
 
@@ -106,7 +106,7 @@ def cmd_diff(
     assert not isinstance(comments_result, str)
     comments = comments_result
 
-    comments_path = output_dir / "comments.json"
+    comments_path = diff_dir / "comments.json"
     comments_path.write_text(comments.raw_json)
     print(f"  Wrote {comments_path}")
 
@@ -119,7 +119,7 @@ def cmd_diff(
     assert not isinstance(repo_result, str)
     repo = repo_result
 
-    repo_path = output_dir / "repo.json"
+    repo_path = diff_dir / "repo.json"
     repo_path.write_text(repo.raw_json)
     print(f"  Wrote {repo_path}")
 

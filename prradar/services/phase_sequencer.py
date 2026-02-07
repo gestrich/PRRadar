@@ -24,7 +24,7 @@ class PipelinePhase(Enum):
     The enum order defines the execution sequence.
     """
 
-    DIFF = "phase-1-diff"
+    DIFF = "phase-1-pull-request"
     FOCUS_AREAS = "phase-2-focus-areas"
     RULES = "phase-3-rules"
     TASKS = "phase-4-tasks"
@@ -136,9 +136,9 @@ class _FixedFileChecker:
 
 
 class DiffPhaseChecker(_FixedFileChecker):
-    """Checks completion status for phase-1-diff."""
+    """Checks completion status for phase-1-pull-request."""
 
-    REQUIRED_FILES = ["raw.diff", "parsed.json"]
+    REQUIRED_FILES = ["raw.diff", "parsed.json", "pr.json", "comments.json", "repo.json"]
 
     def __init__(self) -> None:
         super().__init__(PipelinePhase.DIFF, self.REQUIRED_FILES)
