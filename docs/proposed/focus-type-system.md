@@ -295,7 +295,7 @@ Remove remaining "segment" terminology from the codebase in favor of "focus area
 
 ---
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 **Automated testing:**
 - Run full test suite: `python -m pytest tests/ -v`
@@ -320,6 +320,15 @@ Remove remaining "segment" terminology from the codebase in favor of "focus area
 - No rules of a given type — that generator is skipped
 - Separate output files per focus type round-trip correctly (`method.json`, `file.json`)
 - All rules default to `file` when no `focus_type` specified — method generator not invoked unless a rule explicitly requests it
+
+**Results:**
+- All 537 tests pass (0 failures, 0 errors) across 7 test files
+- All 5 edge cases confirmed covered by existing tests:
+  - Default `file`: `test_default_focus_type_is_file`, `test_default_rules_need_file_type`, `test_from_dict_defaults_to_file_when_missing`
+  - Invalid fallback: `test_from_dict_invalid_focus_type_defaults_to_file`, `test_from_dict_defaults_to_file_for_invalid_value`, `test_from_file_defaults_to_file_for_invalid_focus_type`
+  - Generator skipping: `test_file_only_skips_method_generation`, `test_all_file_rules_skips_method_type`
+  - Per-type file round-trip: `test_per_type_file_roundtrip`, `test_per_type_file_includes_cost`, `test_per_type_file_only_contains_matching_type`
+  - Method generator only when requested: `test_default_generates_method_only`, `test_default_rules_need_file_type`
 
 ---
 
