@@ -37,9 +37,12 @@ let package = Package(
             path: "Sources/services/PRRadarModels"
         ),
 
-        // Services Layer — Configuration (Foundation-only, no other target deps)
+        // Services Layer — Configuration
         .target(
             name: "PRRadarConfigService",
+            dependencies: [
+                .target(name: "PRRadarModels"),
+            ],
             path: "Sources/services/PRRadarConfigService"
         ),
 
