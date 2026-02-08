@@ -1,7 +1,3 @@
-* PRReviewModel
-    * A overloaded object
-    * Commenting on PRs is broken and may be related
-        * Should have been error message when failed
 * Restart State
     * Ensure state loads automatically on restart
     * Seems like it does not at least not for analyze phase - see pr 18702
@@ -12,7 +8,6 @@
         * Output
         * Count complete.. i.e. 1/100
 * UI
-    * Widen Diff Views
     * On rules view, the task counts are confusing
     * Button to open PR folder in Finder
     * Check what refresh button does

@@ -18,7 +18,7 @@ struct EffectiveDiffView: View {
 
             HSplitView {
                 leftPanel
-                    .frame(minWidth: 200, idealWidth: 240)
+                    .frame(minWidth: 200, idealWidth: 240, maxWidth: 280)
 
                 diffContent
             }

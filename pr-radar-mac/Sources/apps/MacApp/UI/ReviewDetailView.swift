@@ -29,6 +29,16 @@ struct ReviewDetailView: View {
                 }
                 .disabled(reviewModel.isAnyPhaseRunning || reviewModel.prNumber.isEmpty)
             }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    let path = "\(reviewModel.config.absoluteOutputDir)/\(reviewModel.prNumber)"
+                    NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .help("Open PR data in Finder")
+                .disabled(reviewModel.prNumber.isEmpty)
+            }
         }
     }
 

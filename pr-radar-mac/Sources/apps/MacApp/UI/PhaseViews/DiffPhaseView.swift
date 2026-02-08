@@ -30,7 +30,7 @@ struct DiffPhaseView: View {
 
             HSplitView {
                 fileList(for: activeDiff)
-                    .frame(minWidth: 180, idealWidth: 220)
+                    .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
 
                 diffContent(for: activeDiff)
             }
