@@ -79,6 +79,7 @@ class LocalGitDiffProvider(DiffProvider):
 
         # Step 4: Checkout PR's head commit (detached HEAD)
         self.git_service.checkout_commit(head_sha)
+        self.git_service.clean()
 
         # Step 5: Get diff via GitOperationsService
         return self.git_service.get_branch_diff(base_branch, head_branch)

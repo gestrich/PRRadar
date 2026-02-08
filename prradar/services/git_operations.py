@@ -154,6 +154,29 @@ class GitOperationsService:
                 f"Failed to checkout {sha}: {e.stderr}"
             )
 
+    def clean(self) -> None:
+        """Remove untracked files and directories.
+
+        Runs git clean -ffd to force-remove untracked files and directories,
+        including those in nested git repositories.
+
+        Raises:
+            GitRepositoryError: If not in a git repository
+        """
+        if not self.is_git_repository():
+            raise GitRepositoryError(
+                f"Not a git repository: {self.repo_path}\n"
+                "Make sure you're running from within a git repository."
+            )
+
+        subprocess.run(
+            ["git", "clean", "-ffd"],
+            cwd=self.repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
     def get_branch_diff(
         self, base_branch: str, head_branch: str, remote: str = "origin"
     ) -> str:

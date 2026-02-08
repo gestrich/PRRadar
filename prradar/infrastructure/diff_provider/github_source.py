@@ -75,6 +75,7 @@ class GitHubDiffProvider(DiffProvider):
 
         # Step 4: Checkout PR's head commit (detached HEAD)
         self.git_service.checkout_commit(head_sha)
+        self.git_service.clean()
 
         # Step 5: Return diff from gh pr diff (existing behavior)
         success, result = self.gh_runner.pr_diff(pr_number)
