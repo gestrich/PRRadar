@@ -33,7 +33,7 @@ struct DiffLineRowView: View {
 
     @State private var isHovering = false
 
-    private var lineType: DiffLineType {
+    private var lineType: DisplayDiffLineType {
         if lineContent.hasPrefix("+") {
             return .addition
         } else if lineContent.hasPrefix("-") {

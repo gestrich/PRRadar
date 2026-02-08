@@ -40,11 +40,9 @@ import Foundation
                 currentFile = extractFilePath(from: line)
                 fileHeader = [line]
                 inHunk = false
-            } else if line.hasPrefix("index ") {
-                fileHeader.append(line)
-            } else if line.hasPrefix("--- ") {
-                fileHeader.append(line)
-            } else if line.hasPrefix("+++ ") {
+            } else if line.hasPrefix("index ") || line.hasPrefix("--- ") || line.hasPrefix("+++ ")
+                        || line.hasPrefix("new file") || line.hasPrefix("deleted file")
+                        || line.hasPrefix("similarity") {
                 fileHeader.append(line)
             } else if line.hasPrefix("@@") {
                 if !currentHunk.isEmpty, let file = currentFile {
@@ -101,8 +99,8 @@ import Foundation
         Array(Set(hunks.map(\.filePath))).sorted()
     }
 
-    public func diffSections() -> [DiffSection] {
-        var sections: [String: [DiffLine]] = [:]
+    public func diffSections() -> [DisplayDiffSection] {
+        var sections: [String: [DisplayDiffLine]] = [:]
 
         for hunk in hunks {
             if sections[hunk.filePath] == nil {
@@ -110,7 +108,7 @@ import Foundation
             }
 
             for line in hunk.diffLines {
-                let type: DiffLineType
+                let type: DisplayDiffLineType
                 if line.hasPrefix("+") {
                     type = .addition
                 } else if line.hasPrefix("-") {
@@ -118,11 +116,11 @@ import Foundation
                 } else {
                     type = .context
                 }
-                sections[hunk.filePath]?.append(DiffLine(content: line, type: type))
+                sections[hunk.filePath]?.append(DisplayDiffLine(content: line, type: type))
             }
         }
 
-        return sections.map { DiffSection(filePath: $0.key, lines: $0.value) }
+        return sections.map { DisplayDiffSection(filePath: $0.key, lines: $0.value) }
             .sorted { $0.filePath < $1.filePath }
     }
 
@@ -160,6 +158,11 @@ import Foundation
         return changedLines
     }
 
+    /// Sorted list of unique file paths in this diff.
+    public var uniqueFiles: [String] {
+        Array(Set(hunks.map(\.filePath))).sorted()
+    }
+
     private static func extractFilePath(from line: String) -> String? {
         let quotedPattern = #"diff --git "?a/([^"]*)"? "?b/([^"]*)"?"#
         if let regex = try? NSRegularExpression(pattern: quotedPattern, options: []) {
@@ -183,14 +186,16 @@ import Foundation
     }
 }
 
-/// Represents a section of diff lines for a single file
-public struct DiffSection: Identifiable, Equatable {
+// MARK: - Display Models (for SwiftUI views)
+
+/// Represents a section of diff lines for a single file (display purposes)
+public struct DisplayDiffSection: Identifiable, Equatable {
     public let id = UUID()
     public let filePath: String
-    public let lines: [DiffLine]
+    public let lines: [DisplayDiffLine]
     public let isStaged: Bool
 
-    public init(filePath: String, lines: [DiffLine], isStaged: Bool = false) {
+    public init(filePath: String, lines: [DisplayDiffLine], isStaged: Bool = false) {
         self.filePath = filePath
         self.lines = lines
         self.isStaged = isStaged
@@ -198,18 +203,18 @@ public struct DiffSection: Identifiable, Equatable {
 }
 
 /// Represents a single line in a diff for display purposes
-public struct DiffLine: Identifiable, Equatable {
+public struct DisplayDiffLine: Identifiable, Equatable {
     public let id = UUID()
     public let content: String
-    public let type: DiffLineType
+    public let type: DisplayDiffLineType
 
-    public init(content: String, type: DiffLineType) {
+    public init(content: String, type: DisplayDiffLineType) {
         self.content = content
         self.type = type
     }
 }
 
-public enum DiffLineType: Equatable {
+public enum DisplayDiffLineType: Equatable {
     case addition
     case deletion
     case context

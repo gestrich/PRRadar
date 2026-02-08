@@ -1,5 +1,43 @@
 import Foundation
 
+// MARK: - DiffLine
+
+public enum DiffLineType: String, Sendable {
+    case added
+    case removed
+    case context
+    case header
+}
+
+/// A single line from a diff with metadata including line numbers.
+public struct DiffLine: Sendable {
+    public let content: String
+    public let rawLine: String
+    public let lineType: DiffLineType
+    public let newLineNumber: Int?
+    public let oldLineNumber: Int?
+
+    public init(
+        content: String,
+        rawLine: String,
+        lineType: DiffLineType,
+        newLineNumber: Int? = nil,
+        oldLineNumber: Int? = nil
+    ) {
+        self.content = content
+        self.rawLine = rawLine
+        self.lineType = lineType
+        self.newLineNumber = newLineNumber
+        self.oldLineNumber = oldLineNumber
+    }
+
+    public var isChanged: Bool {
+        lineType == .added || lineType == .removed
+    }
+}
+
+// MARK: - Hunk
+
 /// Represents a single hunk from a git diff
 @preconcurrency public struct Hunk: Identifiable, Equatable, Codable, Sendable {
     /// The path of the modified file (from b/ path in diff)
@@ -81,7 +119,7 @@ import Foundation
 
     /// Create a Hunk from raw diff data
     public static func fromHunkData(fileHeader: [String], hunkLines: [String], filePath: String?) -> Hunk? {
-        guard let filePath else { return nil }
+        guard let filePath, !filePath.isEmpty else { return nil }
 
         var oldStart = 0
         var oldLength = 0
@@ -127,5 +165,147 @@ import Foundation
             newStart: newStart,
             newLength: newLength
         )
+    }
+
+    // MARK: - Line Number Annotation
+
+    /// Return hunk content with target file line numbers prepended.
+    ///
+    /// Format:
+    /// - Added (+) and context lines get: `"  5: +code here"`
+    /// - Deleted (-) lines get: `"   -: -deleted code"` (no line number)
+    /// - Header lines are preserved as-is
+    public func getAnnotatedContent() -> String {
+        let lines = content.components(separatedBy: "\n")
+        var annotated: [String] = []
+        var newLine = newStart
+        var inHunkBody = false
+
+        for line in lines {
+            if line.hasPrefix("@@") {
+                annotated.append(line)
+                inHunkBody = true
+            } else if !inHunkBody {
+                annotated.append(line)
+            } else if line.hasPrefix("-") {
+                annotated.append("   -: \(line)")
+            } else if line.hasPrefix("+") {
+                annotated.append(String(format: "%4d: %@", newLine, line))
+                newLine += 1
+            } else if line.hasPrefix(" ") || line.isEmpty {
+                if !line.isEmpty {
+                    annotated.append(String(format: "%4d: %@", newLine, line))
+                    newLine += 1
+                } else {
+                    annotated.append(line)
+                }
+            } else {
+                annotated.append(line)
+            }
+        }
+
+        return annotated.joined(separator: "\n")
+    }
+
+    // MARK: - Structured DiffLine Parsing
+
+    /// Parse hunk content into structured `DiffLine` objects with line numbers and types.
+    public func getDiffLines() -> [DiffLine] {
+        let lines = content.components(separatedBy: "\n")
+        var result: [DiffLine] = []
+        var newLine = newStart
+        var oldLine = oldStart
+        var inHunkBody = false
+
+        for line in lines {
+            if line.hasPrefix("@@") {
+                inHunkBody = true
+                result.append(DiffLine(content: line, rawLine: line, lineType: .header))
+            } else if !inHunkBody {
+                result.append(DiffLine(content: line, rawLine: line, lineType: .header))
+            } else if line.hasPrefix("-") {
+                result.append(DiffLine(
+                    content: String(line.dropFirst()),
+                    rawLine: line,
+                    lineType: .removed,
+                    oldLineNumber: oldLine
+                ))
+                oldLine += 1
+            } else if line.hasPrefix("+") {
+                result.append(DiffLine(
+                    content: String(line.dropFirst()),
+                    rawLine: line,
+                    lineType: .added,
+                    newLineNumber: newLine
+                ))
+                newLine += 1
+            } else if line.hasPrefix(" ") || (line.isEmpty && inHunkBody) {
+                let content = line.hasPrefix(" ") ? String(line.dropFirst()) : line
+                if !line.isEmpty {
+                    result.append(DiffLine(
+                        content: content,
+                        rawLine: line,
+                        lineType: .context,
+                        newLineNumber: newLine,
+                        oldLineNumber: oldLine
+                    ))
+                    newLine += 1
+                    oldLine += 1
+                }
+            }
+        }
+
+        return result
+    }
+
+    /// Get only added lines (lines starting with +).
+    public func getAddedLines() -> [DiffLine] {
+        getDiffLines().filter { $0.lineType == .added }
+    }
+
+    /// Get only removed lines (lines starting with -).
+    public func getRemovedLines() -> [DiffLine] {
+        getDiffLines().filter { $0.lineType == .removed }
+    }
+
+    /// Get all changed lines (both added and removed).
+    public func getChangedLines() -> [DiffLine] {
+        getDiffLines().filter { $0.isChanged }
+    }
+
+    /// Get the text content of changed lines only (for grep pattern matching).
+    public func getChangedContent() -> String {
+        getChangedLines().map(\.content).joined(separator: "\n")
+    }
+
+    /// Extract changed content from diff text (handles both raw and annotated formats).
+    public static func extractChangedContent(from diffText: String) -> String {
+        var changedLines: [String] = []
+        var inHunkBody = false
+
+        for line in diffText.components(separatedBy: "\n") {
+            if line.hasPrefix("@@") {
+                inHunkBody = true
+            } else if inHunkBody {
+                // Raw format
+                if line.hasPrefix("+") && !line.hasPrefix("+++") {
+                    changedLines.append(String(line.dropFirst()))
+                } else if line.hasPrefix("-") && !line.hasPrefix("---") {
+                    changedLines.append(String(line.dropFirst()))
+                }
+                // Annotated format: "123: +code" or "   -: -code"
+                else if line.contains(": +") {
+                    if let idx = line.range(of: ": +") {
+                        changedLines.append(String(line[idx.upperBound...]))
+                    }
+                } else if line.contains(": -") && line.trimmingCharacters(in: .whitespaces).hasPrefix("-:") {
+                    if let idx = line.range(of: ": -") {
+                        changedLines.append(String(line[idx.upperBound...]))
+                    }
+                }
+            }
+        }
+
+        return changedLines.joined(separator: "\n")
     }
 }

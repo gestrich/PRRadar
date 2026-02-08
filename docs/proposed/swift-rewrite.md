@@ -86,55 +86,60 @@ Every new file and every modification must conform to these documents. When in d
 
 ---
 
-## - [ ] Phase 2: Domain Models Enhancement
+## - [x] Phase 2: Domain Models Enhancement
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `Layers.md` (Services layer rules for models), `Principles.md`, and `code-style.md`.
+> **Completed.** All models extended with behavior, 101 tests pass, both targets build.
 
-Extend `PRRadarModels` with pipeline-internal models that currently only exist in Python. The existing models handle JSON deserialization from Python output — they need to also support internal construction and pipeline flow.
+### What was implemented:
 
-### Extend existing models with behavior:
+**Rule model** (`RuleOutput.swift`):
+- `AppliesTo.matchesFile(_:)` — glob/fnmatch-style matching via regex conversion (supports `*`, `**`, `?` patterns)
+- `AppliesTo.fnmatch(_:pattern:)` — static helper converting glob patterns to `NSRegularExpression`
+- `GrepPatterns.matches(_:)` — regex matching with `all` (AND) and `any` (OR) semantics using `.anchorsMatchLines`
+- `GrepPatterns.hasPatterns` — computed property
+- `ReviewRule.fromFile(_ url:)` — loads markdown rule files with YAML frontmatter parsing
+- `ReviewRule.appliesToFile(_:)`, `matchesDiffContent(_:)`, `shouldEvaluate(filePath:diffText:)` — delegates to `AppliesTo`/`GrepPatterns`
+- `ReviewRule.parseFrontmatter(_:)` and `parseSimpleYAML(_:)` — minimal YAML parser (no external dependency) supporting strings, inline arrays `["a", "b"]`, nested dicts, and sub-list items with `- "value"` syntax
+- Memberwise `public init(...)` on all types; `Equatable` conformance added
 
-**Rule model** — extend existing `ReviewRule`, `AppliesTo`, and `GrepPatterns` (in `RuleOutput.swift`) with the logic currently in Python's `domain/rule.py`:
-- `ReviewRule` already has all the right fields (`name`, `filePath`, `description`, `category`, `focusType`, `content`, `model`, `appliesTo`, `grep`, etc.) — it just needs behavior added:
-  - `static func fromFile(_ path: URL) -> ReviewRule` — parse YAML frontmatter from markdown rule files (either add a `Yams` dependency or implement simple `---`-delimited frontmatter extraction since the format is straightforward)
-  - `func appliesToFile(_ filePath: String) -> Bool` — delegates to `AppliesTo`
-  - `func matchesDiffContent(_ diffText: String) -> Bool` — delegates to `GrepPatterns`
-  - `func shouldEvaluate(filePath: String, diffText: String) -> Bool` — combines both checks
-  - Add `public init(...)` memberwise initializer (currently only `Codable` init exists)
-- `AppliesTo` gains `func matchesFile(_ filePath: String) -> Bool` — `fnmatch`-equivalent file pattern matching (Foundation's `NSPredicate` with `LIKE` or a simple glob matcher)
-- `GrepPatterns` gains `func matches(_ text: String) -> Bool` — regex pattern matching using `NSRegularExpression`
+**Focus area model** (`FocusAreaOutput.swift`):
+- `FocusArea.getFocusedContent()` — extracts annotated lines within `[startLine, endLine]` from hunk content
+- `FocusArea.getContextAroundLine(_:contextLines:)` — diff excerpt centered on a target line
+- `FocusArea.contentHash()` — 8-character SHA-256 hex hash via `CryptoKit`
+- Memberwise `public init(...)` and `Equatable` conformance
 
-**Focus area model** — extend existing `FocusArea` (in `FocusAreaOutput.swift`) with behavior from Python's `domain/focus_area.py`:
-- `FocusArea` already has all the right fields (`focusId`, `filePath`, `startLine`, `endLine`, `description`, `hunkIndex`, `hunkContent`, `focusType`)
-- Add `func getFocusedContent() -> String` — extract lines within focus bounds from hunk content
-- Add `func getContextAroundLine(_ lineNumber: Int?, contextLines: Int) -> String` — diff excerpt centered on a target line
-- Add `func contentHash() -> String` — SHA-256 short hash of hunk content for grouping
-- Add `public init(...)` memberwise initializer
+**Evaluation task model** (`TaskOutput.swift`):
+- Memberwise `public init(...)` on `TaskRule` and `EvaluationTaskOutput`
+- `EvaluationTaskOutput.from(rule:focusArea:)` — factory generating task ID from rule name + focus ID
 
-**Evaluation task model** — extend existing `EvaluationTaskOutput` and `TaskRule` (in `TaskOutput.swift`) with construction behavior:
-- `EvaluationTaskOutput` already has `taskId`, `rule` (as `TaskRule`), and `focusArea` — just needs construction logic
-- Add `public init(...)` memberwise initializer for both types
-- Add factory: `static func from(rule: ReviewRule, focusArea: FocusArea) -> EvaluationTaskOutput` — generates task ID and creates `TaskRule` subset from full `ReviewRule`
+**Phase state models** (`DataPathsService.swift`):
+- `PRRadarPhase`: Added `phaseNumber`, `requiredPredecessor`, `displayName`
+- New `PhaseStatus` struct with `completionPercentage`, `isPartial`, `summary`
+- `DataPathsService`: Added `phaseExists()`, `canRunPhase()`, `validateCanRun()`, `phaseStatus()`, `allPhaseStatuses()`
 
-**Phase state models** — extend existing `PRRadarPhase` and `DataPathsService` (in `DataPathsService.swift`) with pipeline orchestration:
-- `PRRadarPhase` already has the 6 phase cases and raw values — add dependency validation (e.g., `.evaluations` requires `.tasks`)
-- `DataPathsService` already computes phase directories — add completion checking (does the directory contain expected output files?) and status reporting
+**Hunk model** (`Hunk.swift`):
+- New `DiffLineType` enum (`.added`, `.removed`, `.context`, `.header`) and `DiffLine` struct for pipeline use
+- `Hunk.getAnnotatedContent()` — line number annotation format (`"  10: +code"`, `"   -: -deleted"`)
+- `Hunk.getDiffLines()`, `getAddedLines()`, `getRemovedLines()`, `getChangedLines()`, `getChangedContent()`
+- `Hunk.extractChangedContent(from:)` — static, handles both raw and annotated diff formats
 
-### Models to verify/extend:
-- `GitDiff` in `PRRadarModels/GitDiffModels/` — verify it handles all cases from Python's `domain/diff.py` (annotation with line numbers, hunk splitting, move detection support). The Python parser annotates lines with `[old_line_num | new_line_num]` prefixes for the effective diff algorithm.
+**GitDiff model** (`GitDiff.swift`):
+- Parser handles `new file`, `deleted file`, `similarity` header lines
+- Renamed display types to `DisplayDiffSection`, `DisplayDiffLine`, `DisplayDiffLineType` to avoid collision with pipeline types in `Hunk.swift`
+- Added `uniqueFiles` computed property
 
-### Files to modify:
-- `pr-radar-mac/Sources/services/PRRadarModels/RuleOutput.swift` — extend `ReviewRule`, `AppliesTo`, `GrepPatterns` with parsing and matching behavior
-- `pr-radar-mac/Sources/services/PRRadarModels/FocusAreaOutput.swift` — extend `FocusArea` with `getFocusedContent()`, `contentHash()`, memberwise init
-- `pr-radar-mac/Sources/services/PRRadarModels/TaskOutput.swift` — extend `EvaluationTaskOutput`, `TaskRule` with memberwise init, factory method
-- `pr-radar-mac/Sources/services/PRRadarConfigService/DataPathsService.swift` — extend `PRRadarPhase` with dependency validation, extend `DataPathsService` with completion checking
-- Possibly extend existing `GitDiff.swift`, `Hunk.swift`
-- `pr-radar-mac/Tests/PRRadarModelsTests/` — add unit tests for new behavior
+### Technical notes:
+- No external YAML dependency — implemented a minimal parser covering the subset of YAML used in rule frontmatter (top-level keys, inline arrays, nested dicts with sub-lists)
+- `fnmatch` glob matching converts patterns to regex: `*` → `[^/]*`, `**/` → `(?:.*/)?`, `**` (end) → `.*`, `?` → `[^/]`
+- Display vs pipeline model separation: `DisplayDiffLine`/`DisplayDiffLineType` for SwiftUI views, `DiffLine`/`DiffLineType` for pipeline processing
+- Added `PRRadarConfigService` dependency to test target for `DataPathsService` tests
 
-### Validation:
-- All existing `PRRadarModelsTests` continue to pass
-- New model tests pass
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
+### Test files added (5 files, 57 new tests):
+- `RuleBehaviorTests.swift` — AppliesTo, GrepPatterns, ReviewRule, fnmatch, YAML parsing
+- `FocusAreaBehaviorTests.swift` — getFocusedContent, getContextAroundLine, contentHash
+- `TaskBehaviorTests.swift` — TaskRule init, EvaluationTaskOutput init, factory method
+- `HunkBehaviorTests.swift` — annotated content, getDiffLines, extractChangedContent
+- `PhaseBehaviorTests.swift` — PRRadarPhase, PhaseStatus, DataPathsService
 
 ---
 

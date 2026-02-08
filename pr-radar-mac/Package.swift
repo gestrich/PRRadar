@@ -104,6 +104,7 @@ let package = Package(
             name: "PRRadarModelsTests",
             dependencies: [
                 .target(name: "PRRadarModels"),
+                .target(name: "PRRadarConfigService"),
             ],
             path: "Tests/PRRadarModelsTests"
         ),
