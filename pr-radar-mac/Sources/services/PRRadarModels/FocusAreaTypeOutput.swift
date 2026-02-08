@@ -10,6 +10,22 @@ public struct FocusAreaTypeOutput: Codable, Sendable {
     public let totalHunksProcessed: Int
     public let generationCostUsd: Double
 
+    public init(
+        prNumber: Int,
+        generatedAt: String,
+        focusType: String,
+        focusAreas: [FocusArea],
+        totalHunksProcessed: Int,
+        generationCostUsd: Double
+    ) {
+        self.prNumber = prNumber
+        self.generatedAt = generatedAt
+        self.focusType = focusType
+        self.focusAreas = focusAreas
+        self.totalHunksProcessed = totalHunksProcessed
+        self.generationCostUsd = generationCostUsd
+    }
+
     enum CodingKeys: String, CodingKey {
         case prNumber = "pr_number"
         case generatedAt = "generated_at"

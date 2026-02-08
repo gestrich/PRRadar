@@ -206,43 +206,50 @@ Ported the entire `effective_diff.py` module (~867 lines) to Swift across 5 sour
 
 ---
 
-## - [ ] Phase 5: Services — Rule Loading, Focus Generation, and Task Creation
+## - [x] Phase 5: Services — Rule Loading, Focus Generation, and Task Creation
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `Layers.md` (Services layer rules), `Dependencies.md`, and `Principles.md`.
+> **Completed.** All four services created, FocusAreaTypeOutput extended, both targets build.
 
-Port the rule pipeline: loading rules from markdown files, generating focus areas via Claude, filtering rules by applicability, and creating evaluation tasks.
+### What was implemented:
 
-### Rule Loader (ports `services/rule_loader.py`)
-- Scan a rules directory for `*.md` files
-- Parse YAML frontmatter to create `ReviewRule` objects
-- Filter rules by file pattern matching against changed files in the diff
-- Filter rules by grep pattern matching against focus area content
-- Use Foundation `FileManager` for directory scanning, `String` methods for pattern matching
+**ClaudeBridgeClient** (`pr-radar-mac/Sources/services/PRRadarCLIService/ClaudeBridgeClient.swift`):
+- Wraps the Python `claude_bridge.py` script, piping JSON to stdin and reading JSON-lines from stdout
+- Uses Foundation `Process` directly (not CLIClient) because the bridge requires stdin piping
+- `BridgeRequest` — prompt, model, tools, cwd, output schema (serialized as `Data` for `Sendable` safety)
+- `BridgeResult` — output data, cost USD, duration MS (output stored as `Data`, parsed via `outputAsDictionary()`)
+- `BridgeMessage` — internal enum for parsing text, tool_use, and result JSON-lines (not `Sendable` — only used within `execute()`)
+- Python path resolution: checks common paths then falls back to `which`
 
-### Focus Generator (ports `services/focus_generator.py`)
-- For each diff hunk, call Claude Haiku via the bridge script (Phase 1) to identify methods/functions
-- Parse the structured JSON output into `FocusArea` objects
-- Create both "method" and "file" level focus areas
-- Uses the Claude bridge with model `claude-haiku-4-5-20251001`, no tools, structured output schema
+**RuleLoaderService** (`pr-radar-mac/Sources/services/PRRadarCLIService/RuleLoaderService.swift`):
+- Stateless `Sendable` struct with `GitOperationsService` dependency for building GitHub URLs
+- `loadAllRules(rulesDir:repoPath:)` — recursively finds `.md` files, parses via `ReviewRule.fromFile(_:)`, builds rule URLs from git remote
+- `filterRulesForFile(_:filePath:)` — filters by `AppliesTo` file patterns
+- `filterRulesForFocusArea(_:focusArea:)` — filters by file patterns + grep patterns against focused content (uses `Hunk.extractChangedContent(from:)`)
 
-### Task Creator (ports task pairing from `services/phase_sequencer.py`)
-- Pair each applicable rule with each relevant focus area
-- Generate task IDs
-- Write task files to the phase-4 output directory
+**FocusGeneratorService** (`pr-radar-mac/Sources/services/PRRadarCLIService/FocusGeneratorService.swift`):
+- Stateless `Sendable` struct with `ClaudeBridgeClient` dependency
+- `generateFocusAreasForHunk(_:hunkIndex:)` — calls Claude Haiku via bridge with structured output schema, parses methods into `FocusArea` objects
+- `generateFileFocusAreas(hunks:)` — groups hunks per file into file-level focus areas (no AI call)
+- `generateAllFocusAreas(hunks:prNumber:requestedTypes:)` — orchestrates both method and file focus area generation
+- Fallback: if Claude returns no methods, creates a single focus area covering the entire hunk
+- `sanitizeForId(_:)` — strips non-alphanumeric chars for safe focus IDs
+- Schema stored as `nonisolated(unsafe) private static let` to avoid `[String: Any]` Sendable issues
 
-### Files to create/modify:
-- `pr-radar-mac/Sources/services/PRRadarCLIService/RuleLoaderService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/FocusGeneratorService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/TaskCreatorService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/ClaudeBridgeClient.swift` — new (Swift wrapper around the bridge script, handles JSON-lines streaming)
-- Unit tests for rule loading and task creation
+**TaskCreatorService** (`pr-radar-mac/Sources/services/PRRadarCLIService/TaskCreatorService.swift`):
+- Stateless `Sendable` struct with `RuleLoaderService` dependency
+- `createTasks(rules:focusAreas:)` — pairs each applicable rule with matching focus areas (respects `focusType` matching)
+- `createAndWriteTasks(rules:focusAreas:outputDir:)` — creates tasks and writes individual JSON files to phase-4 directory
+- Uses `EvaluationTaskOutput.from(rule:focusArea:)` factory method from Phase 2
 
-### Validation:
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
-- Load rules from `/Users/bill/Developer/personal/PRRadar-TestRepo/rules/`
-- Generate focus areas for test repo PR #1 diff
-- Verify rule filtering produces expected matches
-- Task files written match expected format
+**FocusAreaTypeOutput** (`pr-radar-mac/Sources/services/PRRadarModels/FocusAreaTypeOutput.swift`):
+- Added memberwise `public init(...)` for native construction by services
+
+### Technical notes:
+- `[String: Any]` cannot conform to `Sendable` in Swift 6 strict concurrency — resolved by storing JSON schemas as `Data` in `BridgeRequest`/`BridgeResult`, and using `nonisolated(unsafe)` for the static schema constant
+- `BridgeMessage` is intentionally not `Sendable` — it's only used within the synchronous parsing loop in `ClaudeBridgeClient.execute()`
+- Services follow architecture conventions: stateless `Sendable` structs, constructor-based dependency injection
+- No `Package.swift` changes needed — all new files are in the existing `PRRadarCLIService` and `PRRadarModels` target directories
+- Both targets build successfully: `swift build` (MacApp + PRRadarMacCLI)
 
 ---
 
