@@ -73,5 +73,19 @@ public struct PRRadar {
             @Option("--state") public var state: String?
             @Option("--repo") public var repo: String?
         }
+
+        @CLICommand
+        public struct AnalyzeAll {
+            @Option("--since") public var since: String
+            @Option("--rules-dir") public var rulesDir: String?
+            @Option("--repo-path") public var repoPath: String?
+            @Flag("--github-diff") public var githubDiff: Bool = false
+            @Option("--min-score") public var minScore: String?
+            @Option("--repo") public var repo: String?
+            @Flag("--comment") public var comment: Bool = false
+            @Option("--limit") public var limit: String?
+            @Option("--state") public var state: String?
+            @Option("--output-dir") public var outputDir: String?
+        }
     }
 }

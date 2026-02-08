@@ -111,30 +111,24 @@ def cmd_analyze_all(
 - Tests mock GhCommandRunner, cmd_analyze, and ensure_output_dir at the module level
 - Follows same patterns as test_list_prs.py (setUp/tearDown with patchers)
 
-## - [ ] Phase 4: Mac app SDK and CLI command
+## - [x] Phase 4: Mac app SDK and CLI command
 
 Add the `analyze-all` command to the Swift SDK layer and Mac CLI.
 
-**Files to modify:**
-- `pr-radar-mac/Sources/sdks/PRRadarMacSDK/PRRadar.swift` — Add `AnalyzeAll` struct inside `PRRadar.Agent`:
-  ```swift
-  @CLICommand
-  public struct AnalyzeAll {
-      @Option("--since") public var since: String
-      @Option("--rules-dir") public var rulesDir: String?
-      @Option("--repo-path") public var repoPath: String?
-      @Flag("--github-diff") public var githubDiff: Bool = false
-      @Option("--min-score") public var minScore: String?
-      @Option("--repo") public var repo: String?
-      @Flag("--comment") public var comment: Bool = false
-      @Option("--limit") public var limit: String?
-      @Option("--state") public var state: String?
-      @Option("--output-dir") public var outputDir: String?
-  }
-  ```
+**Files modified:**
+- `pr-radar-mac/Sources/sdks/PRRadarMacSDK/PRRadar.swift` — Added `AnalyzeAll` struct inside `PRRadar.Agent` with all parameters matching the Python CLI (`--since`, `--rules-dir`, `--repo-path`, `--github-diff`, `--min-score`, `--repo`, `--comment`, `--limit`, `--state`, `--output-dir`)
 
-**Files to create:**
-- Mac CLI command for `analyze-all` (in `Sources/apps/MacCLI/Commands/` or wherever CLI commands live) — mirrors the Python CLI parameters, invokes via `PRRadarCLIRunner`
+**Files created:**
+- `pr-radar-mac/Sources/apps/MacCLI/Commands/AnalyzeAllCommand.swift` — `AsyncParsableCommand` with all parameters, uses `PRRadarCLIRunner` directly (no use case layer needed for CLI — output streams to stdout via `CLIClient`)
+
+**Files modified:**
+- `pr-radar-mac/Sources/apps/MacCLI/PRRadarMacCLI.swift` — Registered `AnalyzeAllCommand` in subcommands list
+
+**Notes:**
+- The CLI command does not use `CLIOutputStream` or a use case — `CLIClient.runProcess()` prints output to stdout in real-time by default, so the batch output streams naturally
+- The command follows the `RefreshCommand` pattern: defines its own options instead of using `@OptionGroup var options: CLIOptions` (since there is no `prNumber`)
+- `effectiveRulesDir` resolved from `--rules-dir` flag or named config's `rulesDir`
+- `swift build` compiles cleanly with no warnings
 
 ## - [ ] Phase 5: Mac app use case and UI
 
