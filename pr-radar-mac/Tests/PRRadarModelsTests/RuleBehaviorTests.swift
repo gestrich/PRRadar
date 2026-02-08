@@ -182,6 +182,27 @@ struct RuleBehaviorTests {
         #expect((grep?["all"] as? [String]) == ["import"])
     }
 
+    @Test("parseFrontmatter handles YAML escape sequences in strings")
+    func parseFrontmatterEscapes() {
+        let text = """
+        ---
+        description: Import order rule
+        grep:
+          any: ["^\\\\s*import\\\\s+", "^\\\\s*@testable\\\\s+import\\\\s+"]
+        ---
+        Content
+        """
+
+        let (fm, _) = ReviewRule.parseFrontmatter(text)
+        let grep = fm["grep"] as? [String: Any]
+        let patterns = grep?["any"] as? [String]
+        
+        // YAML escape: "\\\\" becomes "\\" which our parser should convert to "\"
+        // So "^\\\\s*import\\\\s+" should become "^\\s*import\\s+" (single backslashes for regex)
+        #expect(patterns?[0] == "^\\s*import\\s+")
+        #expect(patterns?[1] == "^\\s*@testable\\s+import\\s+")
+    }
+
     @Test("parseFrontmatter returns empty dict for text without frontmatter")
     func parseFrontmatterNoFrontmatter() {
         let text = "# Just a markdown file\nNo frontmatter here."

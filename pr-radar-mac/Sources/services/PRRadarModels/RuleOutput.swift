@@ -41,7 +41,18 @@ public struct AppliesTo: Codable, Sendable, Equatable {
     }
 
     /// Simple glob/fnmatch-style matching supporting `*` and `**` patterns.
+    ///
+    /// If the pattern contains no `/` characters, it matches against the filename only.
+    /// Otherwise, it matches against the full path.
     static func fnmatch(_ string: String, pattern: String) -> Bool {
+        // If pattern has no path separators, match against filename only
+        let matchString: String
+        if !pattern.contains("/") {
+            matchString = (string as NSString).lastPathComponent
+        } else {
+            matchString = string
+        }
+        
         // Convert glob pattern to regex
         var regex = "^"
         var i = pattern.startIndex
@@ -77,7 +88,7 @@ public struct AppliesTo: Codable, Sendable, Equatable {
         regex += "$"
 
         return (try? NSRegularExpression(pattern: regex, options: []))
-            .flatMap { $0.firstMatch(in: string, range: NSRange(string.startIndex..., in: string)) } != nil
+            .flatMap { $0.firstMatch(in: matchString, range: NSRange(matchString.startIndex..., in: matchString)) } != nil
     }
 }
 
@@ -290,6 +301,35 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         return (frontmatter, content)
     }
 
+    /// Process YAML escape sequences in a string.
+    private static func unescapeYAMLString(_ str: String) -> String {
+        var result = ""
+        var i = str.startIndex
+        while i < str.endIndex {
+            if str[i] == "\\" && str.index(after: i) < str.endIndex {
+                let next = str.index(after: i)
+                let nextChar = str[next]
+                switch nextChar {
+                case "n": result.append("\n")
+                case "t": result.append("\t")
+                case "r": result.append("\r")
+                case "\\": result.append("\\")
+                case "\"": result.append("\"")
+                case "'": result.append("'")
+                default:
+                    // For unknown escapes, keep the backslash
+                    result.append("\\")
+                    result.append(nextChar)
+                }
+                i = str.index(after: next)
+            } else {
+                result.append(str[i])
+                i = str.index(after: i)
+            }
+        }
+        return result
+    }
+    
     /// Minimal YAML parser supporting the subset used in rule frontmatter:
     /// top-level keys with string values, arrays, and one level of nesting.
     static func parseSimpleYAML(_ text: String) -> [String: Any] {
@@ -335,17 +375,20 @@ public struct ReviewRule: Codable, Sendable, Equatable {
                 } else if afterColon.hasPrefix("[") && afterColon.hasSuffix("]") {
                     let inner = String(afterColon.dropFirst().dropLast())
                     let items = inner.components(separatedBy: ",").map { item in
-                        item.trimmingCharacters(in: .whitespaces)
+                        let trimmed = item.trimmingCharacters(in: .whitespaces)
                             .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                        return unescapeYAMLString(trimmed)
                     }.filter { !$0.isEmpty }
                     result[key] = items
                 } else {
-                    result[key] = afterColon.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    let trimmed = afterColon.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    result[key] = unescapeYAMLString(trimmed)
                 }
             } else if indentLevel > 0 && trimmed.hasPrefix("- ") {
                 // List item
-                let value = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                let trimmedValue = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
                     .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                let value = unescapeYAMLString(trimmedValue)
 
                 if let nlk = nestedListKey, currentDict != nil {
                     // Sub-list item within a nested dict key
@@ -375,8 +418,9 @@ public struct ReviewRule: Codable, Sendable, Equatable {
                     if afterColon.hasPrefix("[") && afterColon.hasSuffix("]") {
                         let inner = String(afterColon.dropFirst().dropLast())
                         let items = inner.components(separatedBy: ",").map { item in
-                            item.trimmingCharacters(in: .whitespaces)
+                            let trimmed = item.trimmingCharacters(in: .whitespaces)
                                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                            return unescapeYAMLString(trimmed)
                         }.filter { !$0.isEmpty }
                         currentDict?[key] = items
                     } else if afterColon.isEmpty {
@@ -384,7 +428,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
                         currentDict?[key] = [] as [String]
                         nestedListKey = key
                     } else {
-                        currentDict?[key] = afterColon.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                        let trimmed = afterColon.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                        currentDict?[key] = unescapeYAMLString(trimmed)
                     }
                 }
             }
