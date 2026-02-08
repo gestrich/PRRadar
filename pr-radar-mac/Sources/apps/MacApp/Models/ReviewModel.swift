@@ -324,7 +324,8 @@ final class ReviewModel {
                 lineNumber: evaluation.evaluation.lineNumber,
                 commitSHA: commitSHA,
                 commentBody: commentBody,
-                repoPath: repoConfig.repoPath
+                repoPath: repoConfig.repoPath,
+                githubToken: config.githubToken
             )
 
             submittingCommentIds.remove(evaluation.taskId)

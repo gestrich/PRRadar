@@ -19,9 +19,27 @@ public enum PRDiscoveryService {
             let ghPRPath = "\(phaseDir)/gh-pr.json"
 
             guard fileManager.fileExists(atPath: ghPRPath),
-                  let data = fileManager.contents(atPath: ghPRPath),
-                  let metadata = try? JSONDecoder().decode(PRMetadata.self, from: data)
+                  let data = fileManager.contents(atPath: ghPRPath)
             else {
+                return repoSlug == nil ? PRMetadata.fallback(number: prNumber) : nil
+            }
+            
+            let metadata: PRMetadata
+            if let ghPR = try? JSONDecoder().decode(GitHubPullRequest.self, from: data) {
+                metadata = PRMetadata(
+                    number: ghPR.number,
+                    title: ghPR.title,
+                    author: PRMetadata.Author(
+                        login: ghPR.author?.login ?? "",
+                        name: ghPR.author?.name ?? ""
+                    ),
+                    state: ghPR.state ?? "",
+                    headRefName: ghPR.headRefName ?? "",
+                    createdAt: ghPR.createdAt ?? ""
+                )
+            } else if let prMeta = try? JSONDecoder().decode(PRMetadata.self, from: data) {
+                metadata = prMeta
+            } else {
                 return repoSlug == nil ? PRMetadata.fallback(number: prNumber) : nil
             }
 
