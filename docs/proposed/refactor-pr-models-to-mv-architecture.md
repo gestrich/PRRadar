@@ -198,7 +198,7 @@ Update all views to consume AllPRsModel and PRModel instead of PRReviewModel and
 - `SettingsView` compares selected config by `config.id == model.repoConfig.id` (was `model.selectedConfiguration?.id`)
 - Old `PRReviewModel` and `ReviewModel` remain in the project (unused) — to be removed in Phase 6
 
-## - [ ] Phase 5: Update App Entry Point
+## - [x] Phase 5: Update App Entry Point
 
 Update the main app entry point to initialize AllPRsModel instead of PRReviewModel.
 
@@ -214,6 +214,11 @@ Update the main app entry point to initialize AllPRsModel instead of PRReviewMod
 **Expected outcome:**
 - App properly initializes with new model structure
 - Self-initialization works on app launch
+
+**Technical notes:**
+- Already completed as part of Phase 4 — `main.swift` had to be updated simultaneously with the view changes to keep the app buildable
+- `main.swift` creates `SettingsService`, loads the default `RepoConfiguration`, constructs `PRRadarConfig`, and passes all three to `AllPRsModel(config:repoConfig:settingsService:)`
+- `AllPRsModel` is passed to `ContentView` via `.environment(allPRs)` and held as `@State private var allPRs: AllPRsModel` in the App struct
 
 ## - [ ] Phase 6: Remove Old Models
 
