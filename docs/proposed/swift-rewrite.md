@@ -393,7 +393,7 @@ Ported the entire `effective_diff.py` module (~867 lines) to Swift across 5 sour
 
 ---
 
-## - [ ] Phase 9: Architecture Validation
+## - [x] Phase 9: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -415,6 +415,20 @@ Review all commits made during the preceding phases and validate they follow the
 5. Fetch and read ALL skills from `https://github.com/gestrich/python-architecture`
 6. Evaluate the bridge script against each skill's conventions
 7. Fix any violations found
+
+**Completed — Violations found and fixed:**
+- Removed `EffectiveDiffOutput` type alias from `DiffOutput.swift` (architecture convention: no type aliases)
+- Deleted `PhaseSequencer.swift` — 239 lines of dead code that duplicated `DataPathsService` functionality; never referenced by any target
+- Moved module-level constants (`defaultModel`, `evaluationPromptTemplate`, `evaluationOutputSchema`) into `EvaluationService` struct as `private static let` properties (architecture convention: no module-level state)
+- Removed corresponding test for the deleted type alias
+
+**Reviewed and accepted (not violations):**
+- `RediffFunction` typealias in `BlockExtension.swift` — names a complex 4-parameter `@Sendable` function type used across multiple call sites; improves readability
+- Service-to-service dependencies (`PRRadarCLIService` → `PRRadarConfigService` → `PRRadarModels`) — `PRRadarModels` is a shared domain types target, consistent with the architecture's allowance for shared model layers
+- Constructor-based DI across all services — standard pattern, not mutable state
+- Python bridge (`claude_bridge.py`) — minimal 95-line stdin/stdout bridge; most Python architecture conventions (service layer, repository pattern, command dispatcher) are N/A for this single-purpose script
+
+**Build verification:** `swift build` succeeds, `swift test` passes (233 tests in 34 suites)
 
 ---
 

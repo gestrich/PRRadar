@@ -103,29 +103,6 @@ struct DiffOutputTests {
         #expect(diff.hunks.isEmpty)
     }
 
-    @Test("EffectiveDiffOutput is a typealias for PRDiffOutput")
-    func effectiveDiffOutputAlias() throws {
-        let json = """
-        {
-            "commit_hash": "eff1c1ent",
-            "hunks": [
-                {
-                    "file_path": "clean.swift",
-                    "content": "@@ -1,1 +1,2 @@\\n+new line",
-                    "old_start": 1,
-                    "old_length": 1,
-                    "new_start": 1,
-                    "new_length": 2
-                }
-            ]
-        }
-        """.data(using: .utf8)!
-
-        let effective = try JSONDecoder().decode(EffectiveDiffOutput.self, from: json)
-        #expect(effective.commitHash == "eff1c1ent")
-        #expect(effective.hunks.count == 1)
-    }
-
     // MARK: - MoveDetail
 
     @Test("MoveDetail decodes from Python's effective diff moves")

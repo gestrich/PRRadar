@@ -32,10 +32,6 @@ public struct PRDiffOutput: Codable, Sendable {
     }
 }
 
-/// Effective diff output — same structure as PRDiffOutput but with deduplicated hunks.
-/// Parsed from effective-diff-parsed.json.
-public typealias EffectiveDiffOutput = PRDiffOutput
-
 /// A single code move detected by the effective diff algorithm.
 public struct MoveDetail: Codable, Sendable {
     public let sourceFile: String
