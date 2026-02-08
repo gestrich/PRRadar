@@ -57,7 +57,7 @@ Create the new `PRModel` class that represents a single PR with self-initializin
 - `id` property requires `nonisolated` keyword for Swift 6.2 strict concurrency — `Identifiable` conformance on `@MainActor` classes needs nonisolated `id` since the protocol requirement is nonisolated
 - Uses `PhaseOutputParser.parsePhaseOutput` to decode `EvaluationSummary` from `summary.json`, catching any error (file not found, decode failure) as `.unavailable`
 
-## - [ ] Phase 2: Add Detail State to PRModel
+## - [x] Phase 2: Add Detail State to PRModel
 
 Add the heavy detail state loading to PRModel with on-demand initialization.
 
@@ -92,6 +92,13 @@ Add the heavy detail state loading to PRModel with on-demand initialization.
 - PRModel can load full review details on-demand
 - PRModel owns all phase execution logic
 - Complete migration of ReviewModel functionality into PRModel
+
+**Technical notes:**
+- `ReviewSnapshot` includes a `comments: CommentPhaseOutput?` field in addition to the four spec'd fields, since ReviewModel tracked comment state too
+- `init` now takes a third parameter `repoConfig: RepoConfiguration` (needed by `runRules()` for `rulesDir` and `submitSingleComment()` for `repoPath`/`repoSlug`)
+- `loadDetail()` is synchronous — `LoadExistingOutputsUseCase.execute()` is a synchronous disk read, so no `async` needed
+- All phase execution methods, comment submission, file access, and helper methods migrated verbatim from ReviewModel
+- `selectedPhase` property added to PRModel so it can own phase tab selection (previously on ReviewModel)
 
 ## - [ ] Phase 3: Create AllPRsModel
 
