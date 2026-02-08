@@ -1,21 +1,15 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-*.so
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
 
-# Virtual environments
-venv/
-.venv/
+# Xcode user data
+**/xcuserdata/
 
 # IDE
 .idea/
 .vscode/
 *.swp
-
-# Xcode user data
-**/xcuserdata/
 
 # OS
 .DS_Store
@@ -26,15 +20,8 @@ review-output/
 # Agent mode artifacts
 code-reviews/
 
-# Swift Package Manager
-.build/
-.swiftpm/
-Package.resolved
-
-# Distribution/packaging
-*.egg-info/
-dist/
-build/
+# Python bridge virtual environment
+.venv/
 
 # Environment variables (API keys)
 .env

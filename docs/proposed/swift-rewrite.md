@@ -364,37 +364,32 @@ Ported the entire `effective_diff.py` module (~867 lines) to Swift across 5 sour
 
 ---
 
-## - [ ] Phase 8: Python App Removal and Cleanup
+## - [x] Phase 8: Python App Removal and Cleanup
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `documentation.md` (for CLAUDE.md rewrite) and `Configuration.md`.
+> **Completed.** Python app removed, all project files updated to reflect Swift-only architecture, both targets build, 234 tests pass.
 
-Remove the Python app entirely and clean up any remaining references.
+### What was removed:
+- `prradar/` — entire Python package (58 files)
+- `tests/` — Python test directory (43 files)
+- `pyproject.toml`, `agent.sh`, `requirements.txt`, `README-Plugin.md`
+- `.github/workflows/pr-radar.yml`, `.github/workflows/pr-radar-mention.yml` — GitHub Actions workflows that invoked the deleted Python CLI
+- `.venv/`, `.pytest_cache/`, `prradar.egg-info/` — untracked Python artifacts
 
-### Delete Python files:
-- `prradar/` — entire directory
-- `tests/` — entire directory (Python tests replaced by Swift tests)
-- `pyproject.toml`
-- `agent.sh`
-- `.venv/` — if present in repo
-
-### Keep:
-- `pr-radar-mac/bridge/claude_bridge.py` — the minimal Claude SDK bridge
+### What was kept:
+- `pr-radar-mac/bridge/claude_bridge.py` — minimal Claude SDK bridge
 - `pr-radar-mac/bridge/requirements.txt`
 
-### Update project files:
-- `CLAUDE.md` — rewrite to reflect Swift-only architecture
-- `plugin/` — update SKILL.md if it references the Python CLI
-- `.gitignore` — remove Python-specific entries, add Swift-specific if needed
-- `README.md` — if it exists, update
-
-### Update the verification command:
-- `.claude/commands/pr-radar-verify-work.md` — update to only reference Swift CLI commands
+### What was updated:
+- `CLAUDE.md` — fully rewritten for Swift-only architecture (building, running, testing, structure)
+- `README.md` — fully rewritten for Swift-only project
+- `plugin/skills/pr-review/SKILL.md` — "Running PRRadar" section updated to reference Swift CLI; removed outdated "Current Implementation Status" and "Contributing" sections
+- `.gitignore` — removed Python-specific entries (`__pycache__/`, `*.py[cod]`, `*.egg-info/`, etc.), kept Swift and bridge-relevant entries
+- `.claude/commands/pr-radar-verify-work.md` — removed all Python CLI references, now only documents Swift CLI usage
 
 ### Validation:
-- No Python imports or references remain (except the bridge script)
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
-- `swift test` passes
-- Git status is clean (no accidentally deleted tracked files)
+- `swift build` succeeds (both MacApp and PRRadarMacCLI targets)
+- `swift test` passes (234 tests in 34 suites)
+- No Python imports or references remain in active project files (only historical docs in `docs/completed/`)
 
 ---
 

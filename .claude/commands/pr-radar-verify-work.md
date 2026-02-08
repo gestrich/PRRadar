@@ -2,7 +2,7 @@
 
 We have a dedicated test repository at `/Users/bill/Developer/personal/PRRadar-TestRepo` that exists solely for validating real changes against actual PRs. You have full access to this repo and the GitHub account associated with it.
 
-When this command is invoked, verify your recent changes by running the PRRadar tools against that test repo. What exactly you run depends on what we're working on or what the user asks for — often this means running the Python tool to analyze a PR, but it could be any pipeline phase.
+When this command is invoked, verify your recent changes by running the PRRadar tools against that test repo. What exactly you run depends on what we're working on or what the user asks for — often this means running the Swift CLI to analyze a PR, but it could be any pipeline phase.
 
 ## Before Running
 
@@ -17,21 +17,6 @@ When this command is invoked, verify your recent changes by running the PRRadar 
    ```bash
    rm -rf ~/Desktop/code-reviews
    ```
-
-## Running the Python CLI
-
-The Python CLI must be run with a proper output directory. Use `agent.sh` (which handles output directory creation) rather than `python -m prradar` directly:
-
-```bash
-# Preferred: use agent.sh from the PRRadar project root
-cd /Users/bill/Developer/personal/PRRadar
-./agent.sh diff 1 --repo-path /Users/bill/Developer/personal/PRRadar-TestRepo
-
-# Or any other command:
-./agent.sh analyze 1 --repo-path /Users/bill/Developer/personal/PRRadar-TestRepo --rules-dir /Users/bill/Developer/personal/PRRadar-TestRepo/rules
-```
-
-Running `python -m prradar agent diff 1` directly from the test repo will fail because it tries to write to a relative `code-reviews/` path that doesn't exist yet — `agent.sh` creates the output directory under `~/Desktop/code-reviews/`.
 
 ## Running the Swift CLI
 
@@ -50,14 +35,9 @@ To see all saved configurations: `swift run PRRadarMacCLI config list`
 
 ## Discovering Available Commands
 
-Both CLIs have built-in help. Use these to explore available commands rather than guessing:
+The CLI has built-in help. Use these to explore available commands rather than guessing:
 
 ```bash
-# Python CLI
-python -m prradar --help
-python -m prradar agent --help
-python -m prradar agent diff --help
-
 # Swift CLI (from pr-radar-mac/)
 swift run PRRadarMacCLI --help
 swift run PRRadarMacCLI diff --help

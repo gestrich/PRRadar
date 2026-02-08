@@ -228,38 +228,40 @@ Only violations (score ≥ 5) are included in the final report.
 
 ### Command-Line Interface
 
-PRRadar is implemented as a Python package (`prradar/`) at the repository root. While the skill provides guidance for Claude to use the tool, you can also run it directly:
+PRRadar is implemented as a Swift package (`pr-radar-mac/`). While the skill provides guidance for Claude to use the tool, you can also run it directly:
 
 ```bash
-# From repository root
-prradar --help
-python3 -m prradar --help
+# From pr-radar-mac/ directory
+swift run PRRadarMacCLI --help
 
-# Agent mode pipeline
-prradar agent analyze 123 --rules-dir ./code-review-rules
+# Pipeline commands
+swift run PRRadarMacCLI analyze 1 --config test-repo
+swift run PRRadarMacCLI diff 1 --config test-repo
+swift run PRRadarMacCLI status 1 --config test-repo
 ```
 
 ### System Requirements
 
-- Python 3.11 or higher
-- `claude-agent-sdk` and `pyyaml`
+- macOS 15+, Swift 6.2+
 - `git` command-line tool
 - `gh` (GitHub CLI) for PR reviews
+- Python 3.11+ (only for the Claude Agent SDK bridge)
 
 ### Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/gestrich/PRRadar.git
-cd PRRadar
+cd PRRadar/pr-radar-mac
 
-# Create venv and install
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+# Build
+swift build
+
+# Install bridge dependencies
+pip install -r bridge/requirements.txt
 
 # Test the CLI
-prradar --help
+swift run PRRadarMacCLI --help
 ```
 
 ## Value Proposition
@@ -270,26 +272,9 @@ prradar --help
 - **Transparent and debuggable**: Each phase produces artifacts for inspection
 - **Scales expertise**: Codify senior engineer knowledge into reusable rules
 
-## Current Implementation Status
-
-PRRadar is being built in phases:
-
-- ✅ **Phase 1**: Migrated existing code and GitHub Actions
-- 🔄 **Phase 2**: Core plugin structure (current phase)
-- ⏳ **Phase 3**: Diff acquisition (local and remote)
-- ⏳ **Phase 4**: Diff segmentation and chunking
-- ⏳ **Phase 5**: Rule management system
-- ⏳ **Phase 6**: AI review execution engine
-- ⏳ **Phase 7**: Review report generation
-- ⏳ **Phase 8**: GitHub integration
-- ⏳ **Phase 9**: Local iteration and rule development
-- ⏳ **Phase 10**: Documentation and packaging
-
-See [docs/proposed/pr-review-tool-implementation.md](../../docs/proposed/pr-review-tool-implementation.md) for the complete implementation plan.
-
 ## Plugin Installation
 
-Once published, you can install PRRadar as a Claude Code plugin:
+Install PRRadar as a Claude Code plugin:
 
 ```bash
 # Via Claude Code marketplace
@@ -299,15 +284,6 @@ Once published, you can install PRRadar as a Claude Code plugin:
 # Local development
 claude --plugin-dir ~/path/to/PRRadar/plugin
 ```
-
-## Contributing
-
-PRRadar is designed to be extensible through rules. To contribute:
-
-1. **Add new rules**: Create markdown files in your rules directory
-2. **Share rules**: Submit PRs with useful rules for common patterns
-3. **Improve segmentation**: Enhance the code chunking logic
-4. **Add language support**: Extend to more programming languages
 
 ## License
 

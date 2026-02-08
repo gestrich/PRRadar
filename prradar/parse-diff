@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# Wrapper script for parse-diff command
-# Handles PYTHONPATH so the command works from any directory
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PYTHONPATH="$SCRIPT_DIR" python3 -m scripts parse-diff "$@"
