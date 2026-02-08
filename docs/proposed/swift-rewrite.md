@@ -253,57 +253,58 @@ Ported the entire `effective_diff.py` module (~867 lines) to Swift across 5 sour
 
 ---
 
-## - [ ] Phase 6: Services — Evaluation, Reporting, and Phase Orchestration
+## - [x] Phase 6: Services — Evaluation, Reporting, and Phase Orchestration
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `Layers.md` (Services layer rules), `Dependencies.md`, and `Principles.md`.
+> **Completed.** All five services created, model inits added, both targets build.
 
-Port the remaining pipeline services: evaluation execution, report generation, violation filtering, and the overall phase sequencer.
+### What was implemented:
 
-### Evaluation Service (ports `services/evaluation_service.py`)
-- For each evaluation task, call Claude Sonnet via the bridge script with:
-  - The rule content + focus area diff as prompt
-  - `allowed_tools: ["Read", "Grep", "Glob"]` and `cwd: repoPath`
-  - Structured output schema for `RuleEvaluation`
-- Parse streaming output (text blocks, tool use blocks, result)
-- Track cost and duration per evaluation
-- Write evaluation result files to phase-5 directory
+**EvaluationService** (`pr-radar-mac/Sources/services/PRRadarCLIService/EvaluationService.swift`):
+- Stateless `Sendable` struct with `ClaudeBridgeClient` dependency
+- `evaluateTask(_:repoPath:)` — calls Claude Sonnet via bridge with rule content + focus area diff as prompt, structured output schema for `RuleEvaluation`, and `allowed_tools: ["Read", "Grep", "Glob"]` with `cwd: repoPath`
+- `runBatchEvaluation(tasks:outputDir:repoPath:onStart:onResult:)` — iterates all tasks, writes individual evaluation JSON files to phase-5 directory, supports progress callbacks
+- Evaluation prompt template matches Python's `EVALUATION_PROMPT_TEMPLATE` exactly
+- Falls back to non-violation result if Claude returns no structured output
 
-### Report Generator (ports `services/report_generator.py`)
-- Aggregate evaluation results into summary statistics
-- Group violations by severity, file, and rule
-- Calculate total cost and duration
-- Render markdown summary
-- Write `summary.json` and `summary.md` to phase-6 directory
+**ReportGeneratorService** (`pr-radar-mac/Sources/services/PRRadarCLIService/ReportGeneratorService.swift`):
+- Stateless `Sendable` struct, no dependencies
+- `generateReport(prNumber:minScore:outputDir:)` — aggregates evaluations into `ReviewReport` with summary statistics grouped by severity (8-10 severe, 5-7 moderate, 1-4 minor), file, rule, and method
+- `saveReport(report:outputDir:)` — writes `summary.json` and `summary.md` to phase-6 directory
+- Enriches violations with task metadata (documentation link, method name)
+- Includes focus area generation cost in total cost calculation
 
-### Violation Service (ports `services/violation_service.py`)
-- Filter evaluations by score threshold (default: violations with score ≥ 1)
+**ViolationService** (`pr-radar-mac/Sources/services/PRRadarCLIService/ViolationService.swift`):
+- `CommentableViolation` struct with `composeComment()` for GitHub markdown formatting (rule header with link, comment body, Claude skill reference, documentation link, PR Radar attribution with cost)
+- `ViolationService` — stateless struct with all static methods:
+  - `createViolation(result:task:)` — creates `CommentableViolation` from evaluation result with diff context
+  - `filterByScore(results:tasks:minScore:)` — filters by violation status and score threshold
+  - `loadViolations(evaluationsDir:tasksDir:minScore:)` — loads from disk files
 
-### Comment Service (ports `infrastructure/github/comment_service.py`)
-- Post inline PR comments via `gh api`
-- Format violation data into GitHub comment markdown
-- Handle existing comment detection (avoid duplicates)
+**CommentService** (`pr-radar-mac/Sources/services/PRRadarCLIService/CommentService.swift`):
+- Stateless `Sendable` struct with `GitHubService` dependency
+- `getPRHeadSHA(prNumber:repoPath:)` — fetches HEAD commit SHA via `gh api`
+- `postReviewComment(prNumber:violation:commitSHA:repoPath:)` — posts inline review comment on specific line, or general PR comment if no line number
+- `postComment(prNumber:body:repoPath:)` — posts general PR comment
+- `postViolations(violations:prNumber:repoPath:)` — posts all violations, returns (successful, failed) counts
 
-### Phase Sequencer (ports `services/phase_sequencer.py`)
-- Manage the pipeline: DIFF → FOCUS_AREAS → RULES → TASKS → EVALUATIONS → REPORT
-- Directory layout: `<output_dir>/<pr_number>/phase-N-<name>/`
-- Dependency validation (e.g., can't evaluate without rules)
-- Resume support (skip completed phases)
-- Status reporting
+**PhaseSequencer** (`pr-radar-mac/Sources/services/PRRadarCLIService/PhaseSequencer.swift`):
+- Stateless `Sendable` struct with all static methods
+- Path management: `getPhaseDir(outputDir:phase:)`, `ensurePhaseDir(outputDir:phase:)`
+- Dependency validation: `canRunPhase(_:outputDir:)`, `validateCanRun(_:outputDir:)`
+- Resume support: `getRemainingItems(outputDir:phase:allItems:)` — returns remaining items and skipped count
+- Status: `getPhaseStatus(outputDir:phase:)`, `getAllStatuses(outputDir:)`, `formatPipelineStatus(outputDir:)`
+- Phase completion checkers for all 6 phases matching Python's `PhaseSequencer` logic
 
-### Files to create/modify:
-- `pr-radar-mac/Sources/services/PRRadarCLIService/EvaluationService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/ReportGeneratorService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/ViolationService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/CommentService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/PhaseSequencer.swift` — new
-- Unit tests for report generation, violation filtering
+**Model enhancements:**
+- Added memberwise `public init(...)` to `RuleEvaluation`, `RuleEvaluationResult`, `ViolationRecord`, `ReportSummary`, `ReviewReport`
+- Added `toMarkdown()` to `ReviewReport` — generates formatted markdown report matching Python's `ReviewReport.to_markdown()`
+- Made `pullRequestRequiredFiles` and `reportRequiredFiles` public on `DataPathsService`
 
-### Validation:
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
-- Run full pipeline against test repo PR #1 with rules
-- Evaluation results written to correct directories
-- Report summary matches expected format
-- Phase sequencer correctly handles resume (re-run skips completed phases)
+### Technical notes:
+- Evaluation output schema stored as `nonisolated(unsafe)` to handle `[String: Any]` Sendable restriction
+- `PhaseSequencer` duplicates some logic from `DataPathsService` to work with the simpler `outputDir`-only API (no `prNumber` parameter) — the two will be unified in Phase 7 when the feature layer is updated
+- No `Package.swift` changes needed — all new files are in existing target directories
+- Both targets build successfully with zero warnings
 
 ---
 

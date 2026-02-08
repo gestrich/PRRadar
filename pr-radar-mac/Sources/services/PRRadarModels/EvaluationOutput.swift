@@ -10,6 +10,14 @@ public struct RuleEvaluation: Codable, Sendable {
     public let filePath: String
     public let lineNumber: Int?
 
+    public init(violatesRule: Bool, score: Int, comment: String, filePath: String, lineNumber: Int?) {
+        self.violatesRule = violatesRule
+        self.score = score
+        self.comment = comment
+        self.filePath = filePath
+        self.lineNumber = lineNumber
+    }
+
     enum CodingKeys: String, CodingKey {
         case violatesRule = "violates_rule"
         case score
@@ -29,6 +37,26 @@ public struct RuleEvaluationResult: Codable, Sendable {
     public let modelUsed: String
     public let durationMs: Int
     public let costUsd: Double?
+
+    public init(
+        taskId: String,
+        ruleName: String,
+        ruleFilePath: String,
+        filePath: String,
+        evaluation: RuleEvaluation,
+        modelUsed: String,
+        durationMs: Int,
+        costUsd: Double?
+    ) {
+        self.taskId = taskId
+        self.ruleName = ruleName
+        self.ruleFilePath = ruleFilePath
+        self.filePath = filePath
+        self.evaluation = evaluation
+        self.modelUsed = modelUsed
+        self.durationMs = durationMs
+        self.costUsd = costUsd
+    }
 
     enum CodingKeys: String, CodingKey {
         case taskId = "task_id"

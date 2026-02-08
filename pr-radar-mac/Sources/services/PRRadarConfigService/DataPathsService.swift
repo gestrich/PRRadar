@@ -132,7 +132,7 @@ public enum DataPathsService {
     // MARK: - Phase Completion Checking
 
     /// Phase 1 required artifact filenames.
-    static let pullRequestRequiredFiles = [
+    public static let pullRequestRequiredFiles = [
         "diff-raw.diff",
         "diff-parsed.json",
         "diff-parsed.md",
@@ -145,7 +145,7 @@ public enum DataPathsService {
     ]
 
     /// Phase 6 required artifact filenames.
-    static let reportRequiredFiles = [
+    public static let reportRequiredFiles = [
         "summary.json",
         "summary.md",
     ]
