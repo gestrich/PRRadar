@@ -4,15 +4,14 @@ import SwiftUI
 struct InlineCommentView: View {
 
     let evaluation: RuleEvaluationResult
-
-    @Environment(ReviewModel.self) private var reviewModel
+    let prModel: PRModel
 
     private var isSubmitting: Bool {
-        reviewModel.submittingCommentIds.contains(evaluation.taskId)
+        prModel.submittingCommentIds.contains(evaluation.taskId)
     }
 
     private var isSubmitted: Bool {
-        reviewModel.submittedCommentIds.contains(evaluation.taskId)
+        prModel.submittedCommentIds.contains(evaluation.taskId)
     }
 
     var body: some View {
@@ -64,7 +63,7 @@ struct InlineCommentView: View {
             }
         } else {
             Button("Submit") {
-                Task { await reviewModel.submitSingleComment(evaluation) }
+                Task { await prModel.submitSingleComment(evaluation) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

@@ -213,6 +213,7 @@ struct AnnotatedHunkContentView: View {
     let hunk: Hunk
     let commentsAtLine: [Int: [RuleEvaluationResult]]
     let searchQuery: String
+    var prModel: PRModel? = nil
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
@@ -225,9 +226,10 @@ struct AnnotatedHunkContentView: View {
                 )
 
                 if let newLine = line.newLine,
-                   let comments = commentsAtLine[newLine] {
+                   let comments = commentsAtLine[newLine],
+                   let prModel {
                     ForEach(comments, id: \.taskId) { eval in
-                        InlineCommentView(evaluation: eval)
+                        InlineCommentView(evaluation: eval, prModel: prModel)
                     }
                 }
             }
@@ -243,15 +245,18 @@ struct AnnotatedDiffContentView: View {
     let diff: GitDiff
     let commentMapping: DiffCommentMapping
     let searchQuery: String
+    var prModel: PRModel? = nil
 
     init(
         diff: GitDiff,
         commentMapping: DiffCommentMapping,
-        searchQuery: String = ""
+        searchQuery: String = "",
+        prModel: PRModel? = nil
     ) {
         self.diff = diff
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
+        self.prModel = prModel
     }
 
     var body: some View {
@@ -279,7 +284,8 @@ struct AnnotatedDiffContentView: View {
                         AnnotatedHunkContentView(
                             hunk: hunk,
                             commentsAtLine: commentMapping.commentsByFileAndLine[filePath] ?? [:],
-                            searchQuery: searchQuery
+                            searchQuery: searchQuery,
+                            prModel: prModel
                         )
                     }
                 }
@@ -300,8 +306,10 @@ struct AnnotatedDiffContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.orange.opacity(0.08))
 
-            ForEach(evals, id: \.taskId) { eval in
-                InlineCommentView(evaluation: eval)
+            if let prModel {
+                ForEach(evals, id: \.taskId) { eval in
+                    InlineCommentView(evaluation: eval, prModel: prModel)
+                }
             }
         }
     }

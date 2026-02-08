@@ -6,6 +6,7 @@ struct EvaluationsPhaseView: View {
     let diff: GitDiff?
     let evaluations: [RuleEvaluationResult]
     let summary: EvaluationSummary
+    var prModel: PRModel? = nil
 
     @State private var selectedFile: String?
 
@@ -104,7 +105,8 @@ struct EvaluationsPhaseView: View {
 
         AnnotatedDiffContentView(
             diff: filtered,
-            commentMapping: commentMapping(for: diff)
+            commentMapping: commentMapping(for: diff),
+            prModel: prModel
         )
     }
 

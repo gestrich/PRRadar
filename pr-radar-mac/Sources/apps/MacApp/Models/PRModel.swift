@@ -14,7 +14,15 @@ struct ReviewSnapshot {
 
 @Observable
 @MainActor
-final class PRModel: Identifiable {
+final class PRModel: Identifiable, Hashable {
+
+    nonisolated static func == (lhs: PRModel, rhs: PRModel) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 
     enum AnalysisState {
         case loading

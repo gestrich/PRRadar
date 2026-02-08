@@ -37,7 +37,7 @@ enum NavigationPhase: CaseIterable {
 
 struct PipelineStatusView: View {
 
-    @Environment(ReviewModel.self) private var reviewModel
+    let prModel: PRModel
 
     var body: some View {
         HStack(spacing: 0) {
@@ -56,7 +56,7 @@ struct PipelineStatusView: View {
     @ViewBuilder
     private func phaseNode(_ navPhase: NavigationPhase) -> some View {
         Button {
-            reviewModel.selectedPhase = navPhase.primaryPhase
+            prModel.selectedPhase = navPhase.primaryPhase
         } label: {
             HStack(spacing: 4) {
                 statusIndicator(for: combinedState(navPhase))
@@ -67,7 +67,7 @@ struct PipelineStatusView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                navPhase.representedPhases.contains(reviewModel.selectedPhase)
+                navPhase.representedPhases.contains(prModel.selectedPhase)
                     ? Color.accentColor.opacity(0.15)
                     : Color.clear
             )
@@ -85,7 +85,7 @@ struct PipelineStatusView: View {
     }
 
     @ViewBuilder
-    private func statusIndicator(for state: ReviewModel.PhaseState) -> some View {
+    private func statusIndicator(for state: PRModel.PhaseState) -> some View {
         switch state {
         case .idle:
             Circle()
@@ -106,8 +106,8 @@ struct PipelineStatusView: View {
         }
     }
 
-    private func combinedState(_ navPhase: NavigationPhase) -> ReviewModel.PhaseState {
-        let states = navPhase.representedPhases.map { reviewModel.stateFor($0) }
+    private func combinedState(_ navPhase: NavigationPhase) -> PRModel.PhaseState {
+        let states = navPhase.representedPhases.map { prModel.stateFor($0) }
 
         if states.contains(where: { if case .running = $0 { return true } else { return false } }) {
             return .running(logs: "")

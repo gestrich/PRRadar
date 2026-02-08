@@ -3,7 +3,9 @@ import SwiftUI
 
 struct PRListRow: View {
 
-    let pr: PRMetadata
+    let prModel: PRModel
+
+    private var pr: PRMetadata { prModel.metadata }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -19,6 +21,8 @@ struct PRListRow: View {
                 stateIndicator
 
                 Spacer()
+
+                analysisBadge
 
                 if let relative = relativeTimestamp {
                     Text(relative)
@@ -47,6 +51,31 @@ struct PRListRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    // MARK: - Analysis Badge
+
+    @ViewBuilder
+    private var analysisBadge: some View {
+        switch prModel.analysisState {
+        case .loading:
+            EmptyView()
+        case .loaded(let violationCount, _):
+            if violationCount > 0 {
+                Text("\(violationCount)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(.orange, in: Capsule())
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+            }
+        case .unavailable:
+            EmptyView()
+        }
     }
 
     // MARK: - State Indicator
@@ -96,21 +125,19 @@ struct PRListRow: View {
 
 #Preview("Open PR") {
     PRListRow(
-        pr: PRMetadata(
-            number: 1234,
-            title: "Add three-pane navigation with config sidebar and PR list",
-            author: .init(login: "gestrich", name: "Bill Gestrich"),
-            state: "OPEN",
-            headRefName: "feature/three-pane-nav",
-            createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-2 * 86400))
+        prModel: PRModel(
+            metadata: PRMetadata(
+                number: 1234,
+                title: "Add three-pane navigation with config sidebar and PR list",
+                author: .init(login: "gestrich", name: "Bill Gestrich"),
+                state: "OPEN",
+                headRefName: "feature/three-pane-nav",
+                createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-2 * 86400))
+            ),
+            config: .init(repoPath: "", outputDir: "", bridgeScriptPath: "", githubToken: nil),
+            repoConfig: .init(name: "Test", repoPath: "")
         )
     )
     .frame(width: 260)
     .padding()
-}
-
-#Preview("Fallback PR") {
-    PRListRow(pr: .fallback(number: 567))
-        .frame(width: 260)
-        .padding()
 }

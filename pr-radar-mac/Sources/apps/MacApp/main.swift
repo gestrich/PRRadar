@@ -4,7 +4,7 @@ import SwiftUI
 
 @main
 struct PRRadarMacApp: App {
-    @State private var model: PRReviewModel
+    @State private var allPRs: AllPRsModel
 
     init() {
         let bridgeScriptPath = URL(fileURLWithPath: #filePath)
@@ -14,8 +14,22 @@ struct PRRadarMacApp: App {
             .deletingLastPathComponent() // → pr-radar-mac/
             .appendingPathComponent("bridge/claude_bridge.py")
             .path
-        _model = State(initialValue: PRReviewModel(
-            bridgeScriptPath: bridgeScriptPath
+
+        let settingsService = SettingsService()
+        let settings = settingsService.load()
+        let defaultConfig = settings.defaultConfiguration ?? settings.configurations.first ?? RepoConfiguration(name: "Default", repoPath: "")
+
+        let config = PRRadarConfig(
+            repoPath: defaultConfig.repoPath,
+            outputDir: defaultConfig.outputDir,
+            bridgeScriptPath: bridgeScriptPath,
+            githubToken: defaultConfig.githubToken
+        )
+
+        _allPRs = State(initialValue: AllPRsModel(
+            config: config,
+            repoConfig: defaultConfig,
+            settingsService: settingsService
         ))
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
@@ -24,7 +38,7 @@ struct PRRadarMacApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(model)
+                .environment(allPRs)
         }
         .defaultSize(width: 1200, height: 750)
     }

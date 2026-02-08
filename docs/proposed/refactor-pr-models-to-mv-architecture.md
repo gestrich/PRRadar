@@ -148,7 +148,7 @@ Create the parent model that manages the collection of PRModels.
 - `currentPRModels` computed property extracts the PR list from any active state for use in `refresh()` transitions
 - PRModel creation passes `repoConfig` as third parameter (needed for phase execution in Phase 2)
 
-## - [ ] Phase 4: Update Views to Use New Models
+## - [x] Phase 4: Update Views to Use New Models
 
 Update all views to consume AllPRsModel and PRModel instead of PRReviewModel and ReviewModel.
 
@@ -187,6 +187,16 @@ Update all views to consume AllPRsModel and PRModel instead of PRReviewModel and
 - PR list shows violation badges
 - Detail view loads on-demand
 - App compiles and runs with new architecture
+
+**Technical notes:**
+- `PRModel` gained `Hashable` conformance (with `nonisolated` `==` and `hash(into:)` based on `id`) to support `List(selection:)` binding with `@State private var selectedPR: PRModel?`
+- Views switched from `@Environment(ReviewModel.self)` / `@Environment(PRReviewModel.self)` to explicit `prModel: PRModel` parameters — keeps data flow explicit rather than implicit environment
+- `InlineCommentView` and `CommentApprovalView` now take `prModel` as an init parameter instead of reading from `@Environment`
+- `AnnotatedHunkContentView`, `AnnotatedDiffContentView`, and `EvaluationsPhaseView` gained optional `prModel: PRModel?` parameter to thread through to `InlineCommentView` for comment submission
+- `main.swift` updated to create `AllPRsModel` using `SettingsService` to load the default configuration, constructing `PRRadarConfig` and `RepoConfiguration` from settings
+- `ContentView` selection is now `@State private var selectedPR: PRModel?` (was `PRMetadata?`); `loadDetail()` is called in `onChange(of: selectedPR)` for on-demand loading
+- `SettingsView` compares selected config by `config.id == model.repoConfig.id` (was `model.selectedConfiguration?.id`)
+- Old `PRReviewModel` and `ReviewModel` remain in the project (unused) — to be removed in Phase 6
 
 ## - [ ] Phase 5: Update App Entry Point
 
