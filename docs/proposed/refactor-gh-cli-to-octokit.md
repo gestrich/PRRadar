@@ -127,7 +127,7 @@ Create SDK layer methods for posting comments and other API operations.
 - Field types verified: `line` is `Int`, `commitId` is `String`, `path` is `String` — all match the GitHub API expectations
 - No raw HTTP requests needed for this phase — all operations are natively supported by Octokit.swift
 
-## - [ ] Phase 4: Refactor GitHubService to Use OctokitClient
+## - [x] Phase 4: Refactor GitHubService to Use OctokitClient
 
 Update the service layer to use `OctokitClient` instead of `GhCLI`.
 
@@ -150,6 +150,20 @@ Update the service layer to use `OctokitClient` instead of `GhCLI`.
 - `GitHubService` fully migrated to Octokit.swift
 - Service layer no longer depends on `GhCLI`
 - Owner/repo information properly extracted from git context
+
+**Technical Notes (Phase 4):**
+- `GitHubService` now takes `OctokitClient`, `owner`, and `repo` in its initializer instead of `CLIClient`
+- All `repoPath` parameters removed from `GitHubService`, `CommentService`, and `PRAcquisitionService` method signatures (owner/repo are now stored on the service instance)
+- Comment operations (previously raw `apiPost`/`apiPostWithInt`/`apiGet` calls via `GhCLI`) are now native Octokit methods exposed directly on `GitHubService`: `postIssueComment`, `postReviewComment`, `getPRHeadSHA`
+- `CommentService` simplified — no longer needs to construct API endpoints manually; delegates to `GitHubService` comment methods
+- `getPullRequestComments` fetches issue comments and reviews via separate `OctokitClient` methods (`issueComments` and `listReviews`), since Octokit's `PullRequest` model does not embed these
+- Added `issueComments(owner:repository:number:)` and `listReviews(owner:repository:number:)` to `OctokitClient` (SDK layer)
+- `parseOwnerRepo(from:)` static method on `GitHubService` parses both SSH (`git@github.com:owner/repo.git`) and HTTPS (`https://github.com/owner/repo.git`) remote URL formats
+- Created `GitHubServiceFactory` to centralize service creation: reads `GITHUB_TOKEN` from environment, extracts owner/repo from git remote via `GitOperationsService`, creates `OctokitClient` + `GitHubService`
+- Feature layer use cases updated to use `GitHubServiceFactory.create(repoPath:)` instead of manually constructing `CLIClient` + `GitHubService`
+- `OctoKit` dependency added to `PRRadarCLIService` target in `Package.swift` since `GitHubService` returns Octokit types (`Issue.Comment`, `PullRequest.Comment`) and uses `Openness`
+- `listPullRequests` maps string state values ("open", "closed", "all") to Octokit's `Openness` enum; `Openness` does not have a "merged" state — merged PRs must be fetched via the "closed" state
+- All 230 existing tests continue to pass
 
 ## - [ ] Phase 5: Update Feature Layer Use Cases
 

@@ -1,4 +1,3 @@
-import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService

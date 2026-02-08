@@ -1,4 +1,3 @@
-import CLISDK
 import PRRadarCLIService
 import PRRadarModels
 
@@ -15,8 +14,7 @@ public struct PostSingleCommentUseCase: Sendable {
         commentBody: String,
         repoPath: String
     ) async throws -> Bool {
-        let client = CLIClient()
-        let gitHub = GitHubService(client: client)
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath)
         let commentService = CommentService(githubService: gitHub)
 
         guard let prNum = Int(prNumber) else { return false }
@@ -34,8 +32,7 @@ public struct PostSingleCommentUseCase: Sendable {
             try await commentService.postReviewComment(
                 prNumber: prNum,
                 violation: violation,
-                commitSHA: commitSHA,
-                repoPath: repoPath
+                commitSHA: commitSHA
             )
             return true
         } catch {

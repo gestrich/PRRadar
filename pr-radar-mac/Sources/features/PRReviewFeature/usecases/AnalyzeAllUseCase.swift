@@ -1,4 +1,3 @@
-import CLISDK
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
@@ -30,8 +29,7 @@ public struct AnalyzeAllUseCase: Sendable {
 
             Task {
                 do {
-                    let client = CLIClient()
-                    let gitHub = GitHubService(client: client)
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
 
                     let limitNum = Int(limit ?? "100") ?? 100
                     let stateFilter = state ?? "merged"
@@ -42,9 +40,7 @@ public struct AnalyzeAllUseCase: Sendable {
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
                         state: stateFilter,
-                        repo: repo,
-                        search: searchQuery,
-                        repoPath: config.repoPath
+                        search: searchQuery
                     )
 
                     continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))

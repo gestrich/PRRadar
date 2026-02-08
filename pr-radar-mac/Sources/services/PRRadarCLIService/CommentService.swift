@@ -1,4 +1,3 @@
-import CLISDK
 import Foundation
 import PRRadarModels
 
@@ -9,53 +8,33 @@ public struct CommentService: Sendable {
         self.githubService = githubService
     }
 
-    /// Get the HEAD commit SHA for a PR.
-    public func getPRHeadSHA(prNumber: Int, repoPath: String) async throws -> String {
-        let output = try await githubService.apiGet(
-            endpoint: "repos/{owner}/{repo}/pulls/\(prNumber)",
-            jq: ".head.sha",
-            repoPath: repoPath
-        )
-        return output.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-    }
-
     /// Post an inline review comment on a specific line of a PR.
     public func postReviewComment(
         prNumber: Int,
         violation: CommentableViolation,
-        commitSHA: String,
-        repoPath: String
+        commitSHA: String
     ) async throws {
         let body = violation.composeComment()
 
         if let lineNumber = violation.lineNumber {
-            _ = try await githubService.apiPostWithInt(
-                endpoint: "repos/{owner}/{repo}/pulls/\(prNumber)/comments",
-                stringFields: [
-                    "body": body,
-                    "path": violation.filePath,
-                    "side": "RIGHT",
-                    "commit_id": commitSHA,
-                ],
-                intFields: ["line": lineNumber],
-                repoPath: repoPath
+            try await githubService.postReviewComment(
+                number: prNumber,
+                commitId: commitSHA,
+                path: violation.filePath,
+                line: lineNumber,
+                body: body
             )
         } else {
-            _ = try await githubService.apiPost(
-                endpoint: "repos/{owner}/{repo}/issues/\(prNumber)/comments",
-                fields: ["body": body],
-                repoPath: repoPath
+            try await githubService.postIssueComment(
+                number: prNumber,
+                body: body
             )
         }
     }
 
     /// Post a general comment on a PR (not inline).
-    public func postComment(prNumber: Int, body: String, repoPath: String) async throws {
-        _ = try await githubService.apiPost(
-            endpoint: "repos/{owner}/{repo}/issues/\(prNumber)/comments",
-            fields: ["body": body],
-            repoPath: repoPath
-        )
+    public func postComment(prNumber: Int, body: String) async throws {
+        try await githubService.postIssueComment(number: prNumber, body: body)
     }
 
     /// Post all violations as inline review comments.
@@ -63,10 +42,9 @@ public struct CommentService: Sendable {
     /// Returns (successful, failed) counts.
     public func postViolations(
         violations: [CommentableViolation],
-        prNumber: Int,
-        repoPath: String
+        prNumber: Int
     ) async throws -> (successful: Int, failed: Int) {
-        let commitSHA = try await getPRHeadSHA(prNumber: prNumber, repoPath: repoPath)
+        let commitSHA = try await githubService.getPRHeadSHA(number: prNumber)
 
         var successful = 0
         var failed = 0
@@ -76,8 +54,7 @@ public struct CommentService: Sendable {
                 try await postReviewComment(
                     prNumber: prNumber,
                     violation: v,
-                    commitSHA: commitSHA,
-                    repoPath: repoPath
+                    commitSHA: commitSHA
                 )
                 successful += 1
             } catch {

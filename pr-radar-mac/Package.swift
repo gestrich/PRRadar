@@ -56,6 +56,7 @@ let package = Package(
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                .product(name: "OctoKit", package: "octokit.swift"),
             ],
             path: "Sources/services/PRRadarCLIService"
         ),

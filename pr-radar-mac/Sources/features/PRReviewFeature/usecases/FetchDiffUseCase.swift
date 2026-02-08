@@ -1,4 +1,3 @@
-import CLISDK
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
@@ -53,9 +52,7 @@ public struct FetchDiffUseCase: Sendable {
 
             Task {
                 do {
-                    let client = CLIClient()
-                    let gitHub = GitHubService(client: client)
-                    let gitOps = GitOperationsService(client: client)
+                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
                     let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
 
                     guard let prNum = Int(prNumber) else {

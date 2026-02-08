@@ -1,4 +1,3 @@
-import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -22,8 +21,7 @@ public struct FetchPRListUseCase: Sendable {
 
             Task {
                 do {
-                    let client = CLIClient()
-                    let gitHub = GitHubService(client: client)
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
 
                     continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))
 
@@ -32,9 +30,7 @@ public struct FetchPRListUseCase: Sendable {
 
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: stateFilter,
-                        repo: repoSlug,
-                        repoPath: config.repoPath
+                        state: stateFilter
                     )
 
                     // Write PR data to output dir so PRDiscoveryService can find them

@@ -1,4 +1,3 @@
-import CLISDK
 import Foundation
 import PRRadarConfigService
 import PRRadarModels
@@ -36,12 +35,12 @@ public struct PRAcquisitionService: Sendable {
         )
         try DataPathsService.ensureDirectoryExists(at: phaseDir)
 
-        let repository = try await gitHub.getRepository(repoPath: repoPath)
+        let repository = try await gitHub.getRepository()
 
-        let rawDiff = try await gitHub.getPRDiff(number: prNumber, repoPath: repoPath)
+        let rawDiff = try await gitHub.getPRDiff(number: prNumber)
         try write(rawDiff, to: "\(phaseDir)/diff-raw.diff")
 
-        let pullRequest = try await gitHub.getPullRequest(number: prNumber, repoPath: repoPath)
+        let pullRequest = try await gitHub.getPullRequest(number: prNumber)
         let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
         try write(prJSON, to: "\(phaseDir)/gh-pr.json")
 
@@ -66,7 +65,7 @@ public struct PRAcquisitionService: Sendable {
         let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
         try write(movesJSON, to: "\(phaseDir)/effective-diff-moves.json")
 
-        let comments = try await gitHub.getPullRequestComments(number: prNumber, repoPath: repoPath)
+        let comments = try await gitHub.getPullRequestComments(number: prNumber)
         let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
         try write(commentsJSON, to: "\(phaseDir)/gh-comments.json")
 

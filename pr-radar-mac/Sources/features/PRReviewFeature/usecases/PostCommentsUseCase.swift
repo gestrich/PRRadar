@@ -1,4 +1,3 @@
-import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -74,14 +73,12 @@ public struct PostCommentsUseCase: Sendable {
 
                     continuation.yield(.log(text: "Posting \(violations.count) comments...\n"))
 
-                    let client = CLIClient()
-                    let gitHub = GitHubService(client: client)
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
                     let commentService = CommentService(githubService: gitHub)
 
                     let (successful, failed) = try await commentService.postViolations(
                         violations: violations,
-                        prNumber: prNum,
-                        repoPath: config.repoPath
+                        prNumber: prNum
                     )
 
                     continuation.yield(.log(text: "Posted: \(successful) successful, \(failed) failed\n"))

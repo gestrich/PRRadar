@@ -1,135 +1,156 @@
-import CLISDK
 import Foundation
+@preconcurrency import OctoKit
 import PRRadarMacSDK
 import PRRadarModels
 
 public struct GitHubService: Sendable {
-    private let client: CLIClient
+    private let octokitClient: OctokitClient
+    private let owner: String
+    private let repo: String
 
-    private static let prFields = [
-        "number", "title", "body", "author",
-        "baseRefName", "headRefName", "headRefOid",
-        "state", "isDraft", "url",
-        "createdAt", "updatedAt",
-        "additions", "deletions", "changedFiles",
-        "commits", "labels", "files",
-    ]
-
-    private static let prListFields = [
-        "number", "title", "body", "author",
-        "baseRefName", "headRefName", "headRefOid",
-        "state", "isDraft", "url",
-        "createdAt", "updatedAt",
-        "additions", "deletions", "changedFiles",
-        "labels",
-    ]
-
-    private static let prCommentFields = ["comments", "reviews"]
-
-    private static let repoFields = ["name", "owner", "url", "defaultBranchRef"]
-
-    public init(client: CLIClient) {
-        self.client = client
+    public init(octokitClient: OctokitClient, owner: String, repo: String) {
+        self.octokitClient = octokitClient
+        self.owner = owner
+        self.repo = repo
     }
 
     // MARK: - Pull Request Operations
 
-    public func getPRDiff(number: Int, repoPath: String) async throws -> String {
-        try await client.execute(
-            GhCLI.Pr.Diff(number: String(number)),
-            workingDirectory: repoPath,
-            printCommand: false
-        )
+    public func getPRDiff(number: Int) async throws -> String {
+        try await octokitClient.getPullRequestDiff(owner: owner, repository: repo, number: number)
     }
 
-    public func getPullRequest(number: Int, repoPath: String) async throws -> GitHubPullRequest {
-        let output = try await client.execute(
-            GhCLI.Pr.View(number: String(number), json: Self.prFields.joined(separator: ",")),
-            workingDirectory: repoPath,
-            printCommand: false
-        )
-        return try JSONDecoder().decode(GitHubPullRequest.self, from: Data(output.utf8))
+    public func getPullRequest(number: Int) async throws -> GitHubPullRequest {
+        let pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
+        let files = try await octokitClient.listPullRequestFiles(owner: owner, repository: repo, number: number)
+        return pr.toGitHubPullRequest(files: files)
     }
 
-    public func getPullRequestComments(number: Int, repoPath: String) async throws -> GitHubPullRequestComments {
-        let output = try await client.execute(
-            GhCLI.Pr.View(number: String(number), json: Self.prCommentFields.joined(separator: ",")),
-            workingDirectory: repoPath,
-            printCommand: false
+    public func getPullRequestComments(number: Int) async throws -> GitHubPullRequestComments {
+        let issueComments = try await octokitClient.issueComments(
+            owner: owner, repository: repo, number: number
         )
-        return try JSONDecoder().decode(GitHubPullRequestComments.self, from: Data(output.utf8))
+        let comments = issueComments.map { comment in
+            GitHubComment(
+                id: String(comment.id),
+                body: comment.body,
+                author: comment.user.toGitHubAuthor(),
+                createdAt: formatISO8601(comment.createdAt),
+                url: comment.htmlURL.absoluteString
+            )
+        }
+
+        let reviewList = try await octokitClient.listReviews(
+            owner: owner, repository: repo, number: number
+        )
+        let reviews = reviewList.map { review in
+            GitHubReview(
+                id: String(review.id),
+                body: review.body,
+                state: review.state.rawValue,
+                author: review.user.toGitHubAuthor(),
+                submittedAt: review.submittedAt.map { formatISO8601($0) }
+            )
+        }
+
+        return GitHubPullRequestComments(comments: comments, reviews: reviews)
     }
 
     public func listPullRequests(
         limit: Int,
         state: String,
-        repo: String? = nil,
-        search: String? = nil,
-        repoPath: String
+        search: String? = nil
     ) async throws -> [GitHubPullRequest] {
-        let output = try await client.execute(
-            GhCLI.Pr.List(
-                json: Self.prListFields.joined(separator: ","),
-                limit: String(limit),
-                state: state,
-                repo: repo,
-                search: search
-            ),
-            workingDirectory: repoPath,
-            printCommand: false
+        let openness: Openness
+        switch state.lowercased() {
+        case "closed": openness = .closed
+        case "all": openness = .all
+        default: openness = .open
+        }
+
+        let prs = try await octokitClient.listPullRequests(
+            owner: owner,
+            repository: repo,
+            state: openness,
+            perPage: String(limit)
         )
-        return try JSONDecoder().decode([GitHubPullRequest].self, from: Data(output.utf8))
+
+        return prs.map { $0.toGitHubPullRequest() }
     }
 
-    public func getRepository(repo: String? = nil, repoPath: String) async throws -> GitHubRepository {
-        let output = try await client.execute(
-            GhCLI.Repo.View(repo: repo, json: Self.repoFields.joined(separator: ",")),
-            workingDirectory: repoPath,
-            printCommand: false
-        )
-        return try JSONDecoder().decode(GitHubRepository.self, from: Data(output.utf8))
+    public func getRepository() async throws -> GitHubRepository {
+        let repo = try await octokitClient.repository(owner: owner, name: self.repo)
+        return repo.toGitHubRepository()
     }
 
-    // MARK: - API Operations
+    // MARK: - Comment Operations
 
-    public func apiGet(endpoint: String, jq: String? = nil, repoPath: String) async throws -> String {
-        try await client.execute(
-            GhCLI.Api(endpoint: endpoint, jq: jq),
-            workingDirectory: repoPath,
-            printCommand: false
-        )
+    public func getPRHeadSHA(number: Int) async throws -> String {
+        try await octokitClient.getPullRequestHeadSHA(owner: owner, repository: repo, number: number)
     }
 
-    public func apiPost(endpoint: String, fields: [String: String], repoPath: String) async throws -> String {
-        let fieldArgs = fields.map { "\($0.key)=\($0.value)" }
-        return try await client.execute(
-            GhCLI.Api(endpoint: endpoint, fields: fieldArgs),
-            workingDirectory: repoPath,
-            printCommand: false
-        )
+    @discardableResult
+    public func postIssueComment(number: Int, body: String) async throws -> Issue.Comment {
+        try await octokitClient.postIssueComment(owner: owner, repository: repo, number: number, body: body)
     }
 
-    public func apiPostWithInt(
-        endpoint: String,
-        stringFields: [String: String],
-        intFields: [String: Int],
-        repoPath: String
-    ) async throws -> String {
-        let fArgs = stringFields.map { "\($0.key)=\($0.value)" }
-        let rawArgs = intFields.map { "\($0.key)=\($0.value)" }
-        return try await client.execute(
-            GhCLI.Api(endpoint: endpoint, fields: fArgs, rawFields: rawArgs),
-            workingDirectory: repoPath,
-            printCommand: false
+    @discardableResult
+    public func postReviewComment(
+        number: Int,
+        commitId: String,
+        path: String,
+        line: Int,
+        body: String
+    ) async throws -> PullRequest.Comment {
+        try await octokitClient.postReviewComment(
+            owner: owner,
+            repository: repo,
+            number: number,
+            commitId: commitId,
+            path: path,
+            line: line,
+            body: body
         )
     }
 
-    public func apiPatch(endpoint: String, fields: [String: String], repoPath: String) async throws -> String {
-        let fieldArgs = fields.map { "\($0.key)=\($0.value)" }
-        return try await client.execute(
-            GhCLI.Api(endpoint: endpoint, method: "PATCH", fields: fieldArgs),
-            workingDirectory: repoPath,
-            printCommand: false
-        )
+    // MARK: - Factory
+
+    /// Parse owner and repo name from a git remote URL.
+    ///
+    /// Supports formats:
+    /// - `https://github.com/owner/repo.git`
+    /// - `git@github.com:owner/repo.git`
+    /// - URLs with or without `.git` suffix
+    public static func parseOwnerRepo(from remoteURL: String) -> (owner: String, repo: String)? {
+        let trimmed = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // SSH format: git@github.com:owner/repo.git
+        if trimmed.contains("@") && trimmed.contains(":") {
+            let afterColon = trimmed.split(separator: ":", maxSplits: 1).last.map(String.init) ?? ""
+            let parts = afterColon
+                .replacingOccurrences(of: ".git", with: "")
+                .split(separator: "/")
+            guard parts.count >= 2 else { return nil }
+            return (String(parts[parts.count - 2]), String(parts[parts.count - 1]))
+        }
+
+        // HTTPS format: https://github.com/owner/repo.git
+        if let url = URL(string: trimmed) {
+            let parts = url.pathComponents
+                .filter { $0 != "/" }
+                .map { $0.replacingOccurrences(of: ".git", with: "") }
+            guard parts.count >= 2 else { return nil }
+            return (parts[parts.count - 2], parts[parts.count - 1])
+        }
+
+        return nil
     }
+}
+
+// MARK: - Private
+
+private func formatISO8601(_ date: Date) -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter.string(from: date)
 }

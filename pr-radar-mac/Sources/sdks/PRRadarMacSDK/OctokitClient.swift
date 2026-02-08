@@ -126,6 +126,22 @@ public struct OctokitClient: Sendable {
         )
     }
 
+    public func issueComments(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> [Issue.Comment] {
+        try await client().issueComments(owner: owner, repository: repository, number: number)
+    }
+
+    public func listReviews(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> [Review] {
+        try await client().reviews(owner: owner, repository: repository, pullRequestNumber: number)
+    }
+
     public func getPullRequestHeadSHA(
         owner: String,
         repository: String,
