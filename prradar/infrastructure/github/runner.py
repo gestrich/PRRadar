@@ -196,7 +196,7 @@ class GhCommandRunner:
         return True, PullRequestComments.from_json(result)
 
     def list_pull_requests(
-        self, limit: int = 50, state: str = "open"
+        self, limit: int, state: str
     ) -> tuple[bool, list[PullRequest] | str]:
         """List recent pull requests for the current repository.
 

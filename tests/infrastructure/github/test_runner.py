@@ -47,7 +47,7 @@ class TestListPullRequests(unittest.TestCase):
             {"number": 2, "title": "Second PR", "state": "OPEN"},
         ]
         with patch.object(self.runner, "run", return_value=(True, json.dumps(pr_data))):
-            success, result = self.runner.list_pull_requests()
+            success, result = self.runner.list_pull_requests(limit=50, state="open")
 
         self.assertTrue(success)
         self.assertEqual(len(result), 2)
@@ -58,14 +58,14 @@ class TestListPullRequests(unittest.TestCase):
 
     def test_returns_empty_list_for_no_prs(self):
         with patch.object(self.runner, "run", return_value=(True, "[]")):
-            success, result = self.runner.list_pull_requests()
+            success, result = self.runner.list_pull_requests(limit=50, state="open")
 
         self.assertTrue(success)
         self.assertEqual(result, [])
 
     def test_returns_error_on_command_failure(self):
         with patch.object(self.runner, "run", return_value=(False, "not logged in")):
-            success, result = self.runner.list_pull_requests()
+            success, result = self.runner.list_pull_requests(limit=50, state="open")
 
         self.assertFalse(success)
         self.assertEqual(result, "not logged in")
@@ -73,7 +73,7 @@ class TestListPullRequests(unittest.TestCase):
     def test_preserves_raw_json_on_parsed_prs(self):
         pr_data = [{"number": 5, "title": "Raw JSON test", "author": {"login": "dev"}}]
         with patch.object(self.runner, "run", return_value=(True, json.dumps(pr_data))):
-            success, result = self.runner.list_pull_requests()
+            success, result = self.runner.list_pull_requests(limit=50, state="open")
 
         self.assertTrue(success)
         raw = json.loads(result[0].raw_json)

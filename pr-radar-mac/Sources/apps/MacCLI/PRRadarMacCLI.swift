@@ -60,7 +60,11 @@ enum CLIError: Error, CustomStringConvertible {
     }
 }
 
-func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
+func resolveConfig(
+    configName: String?,
+    repoPath: String?,
+    outputDir: String?
+) throws -> ResolvedConfig {
     let venvBinPath = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent() // PRRadarMacCLI.swift → MacCLI/
         .deletingLastPathComponent() // → apps/
@@ -70,27 +74,35 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
         .appendingPathComponent(".venv/bin")
         .path
 
-    var repoPath = options.repoPath
-    var outputDir = options.outputDir
+    var resolvedRepoPath = repoPath
+    var resolvedOutputDir = outputDir
     var rulesDir: String? = nil
 
-    if let configName = options.config {
+    if let configName {
         let settings = SettingsService().load()
         guard let namedConfig = settings.configurations.first(where: { $0.name == configName }) else {
             throw CLIError.configNotFound(configName)
         }
-        repoPath = repoPath ?? namedConfig.repoPath
-        outputDir = outputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
+        resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
+        resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
         rulesDir = namedConfig.rulesDir.isEmpty ? nil : namedConfig.rulesDir
     }
 
     let config = PRRadarConfig(
         venvBinPath: venvBinPath,
-        repoPath: repoPath ?? FileManager.default.currentDirectoryPath,
-        outputDir: outputDir ?? "code-reviews"
+        repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
+        outputDir: resolvedOutputDir ?? "code-reviews"
     )
 
     return ResolvedConfig(config: config, rulesDir: rulesDir)
+}
+
+func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
+    try resolveConfig(
+        configName: options.config,
+        repoPath: options.repoPath,
+        outputDir: options.outputDir
+    )
 }
 
 func resolveEnvironment(config: PRRadarConfig) -> [String: String] {

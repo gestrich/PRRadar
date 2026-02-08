@@ -122,7 +122,7 @@ Add a CLI command so the Swift CLI can also fetch recent PRs.
 
 **Completed.** Created `RefreshCommand` with its own option properties (no `CLIOptions` `@OptionGroup` since there's no `prNumber`). Config resolution follows the same pattern as `resolveConfigFromOptions` — resolves named config, falls back to CLI overrides, then defaults. The command derives `repoSlug` from the resolved repo path via `PRDiscoveryService.repoSlug()` for filtering. Supports `--json` for structured output (array of PR summaries) and human-readable output listing each PR with number, title, and author. Registered as `RefreshCommand.self` in `PRRadarMacCLI` subcommands.
 
-## - [ ] Phase 7: Architecture Validation
+## - [x] Phase 7: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -143,6 +143,12 @@ Review all commits made during the preceding phases and validate they follow the
 4. For each relevant language, fetch and read ALL skills from the corresponding GitHub repo
 5. Evaluate the changes against each skill's conventions
 6. Fix any violations found
+
+**Completed.** Reviewed all 6 commits (d30d48a–7916568) against 7 Python architecture skills and 2 Swift architecture skills (with 11 companion documents). Two violations found and corrected:
+
+1. **Python — dependency-injection violation:** `GhCommandRunner.list_pull_requests()` had default parameter values (`limit=50, state="open"`) in the infrastructure layer. Per the dependency-injection skill, defaults should only exist at entry points. Removed defaults from the runner method; all callers (including `cmd_list_prs`) already pass explicit values. Updated 4 test methods to pass explicit parameters.
+
+2. **Swift — zero-duplication violation:** `RefreshCommand` duplicated the venvBinPath calculation, named-config lookup, and `PRRadarConfig` construction from `resolveConfigFromOptions`. Extracted a shared `resolveConfig(configName:repoPath:outputDir:)` function in `PRRadarMacCLI.swift` that both `resolveConfigFromOptions` and `RefreshCommand` now call, eliminating ~20 lines of duplication.
 
 ## - [ ] Phase 8: Validation
 

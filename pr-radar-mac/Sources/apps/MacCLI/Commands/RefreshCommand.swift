@@ -29,32 +29,12 @@ struct RefreshCommand: AsyncParsableCommand {
     var json: Bool = false
 
     func run() async throws {
-        var resolvedRepoPath = repoPath
-        var resolvedOutputDir = outputDir
-
-        if let configName = config {
-            let settings = SettingsService().load()
-            guard let namedConfig = settings.configurations.first(where: { $0.name == configName }) else {
-                throw CLIError.configNotFound(configName)
-            }
-            resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
-            resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
-        }
-
-        let venvBinPath = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent(".venv/bin")
-            .path
-
-        let prRadarConfig = PRRadarConfig(
-            venvBinPath: venvBinPath,
-            repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
-            outputDir: resolvedOutputDir ?? "code-reviews"
+        let resolved = try resolveConfig(
+            configName: config,
+            repoPath: repoPath,
+            outputDir: outputDir
         )
+        let prRadarConfig = resolved.config
         let environment = resolveEnvironment(config: prRadarConfig)
 
         let useCase = FetchPRListUseCase(config: prRadarConfig, environment: environment)
