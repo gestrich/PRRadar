@@ -3,9 +3,18 @@ import Foundation
 import PRRadarConfigService
 import PRRadarMacSDK
 
-public enum GitHubServiceError: Error {
+public enum GitHubServiceError: Error, LocalizedError {
     case missingToken
     case cannotParseRemoteURL(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingToken:
+            return "No GitHub token found. Provide one via --github-token, GITHUB_TOKEN env var, or per-repo configuration."
+        case .cannotParseRemoteURL(let url):
+            return "Cannot parse owner/repo from git remote URL: \(url)"
+        }
+    }
 }
 
 public struct GitHubServiceFactory: Sendable {

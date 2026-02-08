@@ -1,12 +1,27 @@
 import Foundation
 @preconcurrency import OctoKit
 
-public enum OctokitClientError: Error, Sendable {
+public enum OctokitClientError: Error, Sendable, LocalizedError {
     case authenticationFailed
     case notFound(String)
     case rateLimitExceeded
     case requestFailed(String)
     case invalidResponse
+
+    public var errorDescription: String? {
+        switch self {
+        case .authenticationFailed:
+            return "GitHub authentication failed. Check your token is valid."
+        case .notFound(let detail):
+            return "GitHub resource not found: \(detail)"
+        case .rateLimitExceeded:
+            return "GitHub API rate limit exceeded or access forbidden. Check your token permissions."
+        case .requestFailed(let detail):
+            return "GitHub API request failed: \(detail)"
+        case .invalidResponse:
+            return "Received an invalid response from GitHub API."
+        }
+    }
 }
 
 public struct OctokitClient: Sendable {
