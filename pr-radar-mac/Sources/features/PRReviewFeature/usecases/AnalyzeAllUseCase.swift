@@ -1,3 +1,4 @@
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
@@ -33,15 +34,23 @@ public struct AnalyzeAllUseCase: Sendable {
 
                     let limitNum = Int(limit ?? "100") ?? 100
                     let stateFilter = state ?? "merged"
-                    let searchQuery = "created:>=\(since)"
 
                     continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(stateFilter))...\n"))
 
-                    let prs = try await gitHub.listPullRequests(
+                    let allPRs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: stateFilter,
-                        search: searchQuery
+                        state: stateFilter
                     )
+
+                    let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")
+                    let prs = allPRs.filter { pr in
+                        guard let sinceDate else { return true }
+                        guard let createdStr = pr.createdAt,
+                              let createdDate = ISO8601DateFormatter().date(from: createdStr) else {
+                            return true
+                        }
+                        return createdDate >= sinceDate
+                    }
 
                     continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))
 

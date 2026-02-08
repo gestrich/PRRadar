@@ -165,7 +165,7 @@ Update the service layer to use `OctokitClient` instead of `GhCLI`.
 - `listPullRequests` maps string state values ("open", "closed", "all") to Octokit's `Openness` enum; `Openness` does not have a "merged" state — merged PRs must be fetched via the "closed" state
 - All 230 existing tests continue to pass
 
-## - [ ] Phase 5: Update Feature Layer Use Cases
+## - [x] Phase 5: Update Feature Layer Use Cases
 
 Update all use cases in the feature layer to work with the refactored service layer.
 
@@ -191,6 +191,15 @@ Update all use cases in the feature layer to work with the refactored service la
 - All use cases work correctly with Octokit-based services
 - No breaking changes to use case interfaces
 - Clean separation of concerns maintained
+
+**Technical Notes (Phase 5):**
+- `FetchDiffUseCase`, `FetchPRListUseCase`, `PostSingleCommentUseCase`, and `PostCommentsUseCase` were already updated in Phase 4 to use `GitHubServiceFactory.create()` — no further changes needed
+- `FetchRulesUseCase` was the main fix: replaced direct `CLIClient()` + `GitOperationsService` instantiation with `GitHubServiceFactory.create()` for consistent service creation and token validation; removed `import CLISDK` since the feature layer should not import SDK modules directly
+- `AnalyzeAllUseCase` updated to filter PRs by creation date client-side (ISO 8601 date comparison) instead of passing an unused `search` query parameter — the GitHub REST API's list pull requests endpoint does not support `gh`-style search queries
+- Removed the `search` parameter from `GitHubService.listPullRequests` since Octokit's PR list API doesn't support it
+- Added "merged" state handling to `GitHubService.listPullRequests`: fetches "closed" PRs from the API, then filters to only those with `mergedAt != nil`
+- Added `mergedAt: String?` field to `GitHubPullRequest` model and corresponding mapping from Octokit's `PullRequest.mergedAt: Date?`
+- All 230 tests pass, build succeeds
 
 ## - [ ] Phase 6: Update Configuration and Environment Setup
 

@@ -26,6 +26,7 @@ extension OctoKit.PullRequest {
             headRefOid: head?.sha,
             createdAt: createdAt.map { formatISO8601($0) },
             updatedAt: updatedAt.map { formatISO8601($0) },
+            mergedAt: mergedAt.map { formatISO8601($0) },
             author: user.map { $0.toGitHubAuthor() },
             labels: labels?.compactMap { $0.toGitHubLabel() },
             files: files?.map { $0.toGitHubFile() }

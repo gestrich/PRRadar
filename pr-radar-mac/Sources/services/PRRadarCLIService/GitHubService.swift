@@ -58,12 +58,13 @@ public struct GitHubService: Sendable {
 
     public func listPullRequests(
         limit: Int,
-        state: String,
-        search: String? = nil
+        state: String
     ) async throws -> [GitHubPullRequest] {
+        let filterMerged = state.lowercased() == "merged"
+
         let openness: Openness
         switch state.lowercased() {
-        case "closed": openness = .closed
+        case "closed", "merged": openness = .closed
         case "all": openness = .all
         default: openness = .open
         }
@@ -75,7 +76,12 @@ public struct GitHubService: Sendable {
             perPage: String(limit)
         )
 
-        return prs.map { $0.toGitHubPullRequest() }
+        let mapped = prs.map { $0.toGitHubPullRequest() }
+
+        if filterMerged {
+            return mapped.filter { $0.mergedAt != nil }
+        }
+        return mapped
     }
 
     public func getRepository() async throws -> GitHubRepository {

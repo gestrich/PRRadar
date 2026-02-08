@@ -1,4 +1,3 @@
-import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -89,8 +88,7 @@ public struct FetchRulesUseCase: Sendable {
 
                     continuation.yield(.log(text: "Loading rules from \(rulesPath)...\n"))
 
-                    let client = CLIClient()
-                    let gitOps = GitOperationsService(client: client)
+                    let (_, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath, repoPath: rulesPath)
 
