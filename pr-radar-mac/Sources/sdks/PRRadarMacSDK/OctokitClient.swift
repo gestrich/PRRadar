@@ -105,6 +105,39 @@ public struct OctokitClient: Sendable {
         try await client().commentIssue(owner: owner, repository: repository, number: number, body: body)
     }
 
+    @discardableResult
+    public func postReviewComment(
+        owner: String,
+        repository: String,
+        number: Int,
+        commitId: String,
+        path: String,
+        line: Int,
+        body: String
+    ) async throws -> PullRequest.Comment {
+        try await client().createPullRequestReviewComment(
+            owner: owner,
+            repository: repository,
+            number: number,
+            commitId: commitId,
+            path: path,
+            line: line,
+            body: body
+        )
+    }
+
+    public func getPullRequestHeadSHA(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> String {
+        let pr = try await pullRequest(owner: owner, repository: repository, number: number)
+        guard let sha = pr.head?.sha else {
+            throw OctokitClientError.requestFailed("Pull request \(number) has no head SHA")
+        }
+        return sha
+    }
+
     // MARK: - Private
 
     private func client() -> Octokit {

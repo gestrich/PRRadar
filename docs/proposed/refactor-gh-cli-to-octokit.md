@@ -98,7 +98,7 @@ Create SDK layer methods for pull request operations using Octokit.swift.
 - Octokit uses `user: User?` where PRRadar uses `author: GitHubAuthor` — mapped via `toGitHubAuthor()` extension
 - Pagination for list operations is passed through to Octokit's native `page`/`perPage` parameters
 
-## - [ ] Phase 3: Implement Comments and API Operations SDK
+## - [x] Phase 3: Implement Comments and API Operations SDK
 
 Create SDK layer methods for posting comments and other API operations.
 
@@ -118,6 +118,14 @@ Create SDK layer methods for posting comments and other API operations.
 - Complete comment posting capabilities in SDK layer
 - Support for both general and inline review comments
 - Proper error handling and type safety
+
+**Technical Notes (Phase 3):**
+- `postIssueComment` was already implemented in Phase 1 — wraps Octokit's `commentIssue` and returns `Issue.Comment`
+- `postReviewComment` wraps Octokit's `createPullRequestReviewComment(owner:repository:number:commitId:path:line:body:)` and returns `PullRequest.Comment`; marked `@discardableResult` since callers typically don't need the returned comment
+- Octokit's review comment router does not include a `side` parameter — the GitHub API defaults to `RIGHT` when not specified, which matches the existing behavior
+- `getPullRequestHeadSHA` reuses the existing `pullRequest()` method to fetch the PR, then extracts `head?.sha`; throws `requestFailed` if the head SHA is missing
+- Field types verified: `line` is `Int`, `commitId` is `String`, `path` is `String` — all match the GitHub API expectations
+- No raw HTTP requests needed for this phase — all operations are natively supported by Octokit.swift
 
 ## - [ ] Phase 4: Refactor GitHubService to Use OctokitClient
 
