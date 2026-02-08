@@ -32,6 +32,8 @@ struct RulesCommand: AsyncParsableCommand {
                 if !options.json {
                     print("  Running \(phase.rawValue)...")
                 }
+            case .progress:
+                break
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
             case .completed(let output):

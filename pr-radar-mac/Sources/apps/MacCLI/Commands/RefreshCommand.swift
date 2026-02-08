@@ -47,6 +47,8 @@ struct RefreshCommand: AsyncParsableCommand {
             switch progress {
             case .running:
                 break
+            case .progress:
+                break
             case .log(let text):
                 if !json { print(text, terminator: "") }
             case .completed(let prs):

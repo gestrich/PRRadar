@@ -66,6 +66,8 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
             switch progress {
             case .running:
                 break
+            case .progress:
+                break
             case .log(let text):
                 print(text, terminator: "")
             case .completed(let output):
