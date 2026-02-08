@@ -20,6 +20,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/gestrich/SwiftCLI.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
+        .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
     ],
     targets: [
         // SDK Layer
@@ -27,6 +28,7 @@ let package = Package(
             name: "PRRadarMacSDK",
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                .product(name: "OctoKit", package: "octokit.swift"),
             ],
             path: "Sources/sdks/PRRadarMacSDK"
         ),
