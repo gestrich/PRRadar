@@ -9,9 +9,9 @@ public enum GitHubServiceError: Error {
 }
 
 public struct GitHubServiceFactory: Sendable {
-    public static func create(repoPath: String) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
+    public static func create(repoPath: String, tokenOverride: String? = nil) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
         let env = PRRadarEnvironment.build()
-        guard let token = env["GITHUB_TOKEN"] else {
+        guard let token = tokenOverride ?? env["GITHUB_TOKEN"] else {
             throw GitHubServiceError.missingToken
         }
 

@@ -12,9 +12,10 @@ public struct PostSingleCommentUseCase: Sendable {
         lineNumber: Int?,
         commitSHA: String,
         commentBody: String,
-        repoPath: String
+        repoPath: String,
+        githubToken: String? = nil
     ) async throws -> Bool {
-        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath)
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath, tokenOverride: githubToken)
         let commentService = CommentService(githubService: gitHub)
 
         guard let prNum = Int(prNumber) else { return false }

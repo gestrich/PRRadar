@@ -52,7 +52,7 @@ public struct FetchDiffUseCase: Sendable {
 
             Task {
                 do {
-                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
+                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
                     let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
 
                     guard let prNum = Int(prNumber) else {

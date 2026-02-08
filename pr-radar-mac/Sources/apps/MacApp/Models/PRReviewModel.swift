@@ -207,7 +207,8 @@ final class PRReviewModel {
         PRRadarConfig(
             repoPath: selected.repoPath,
             outputDir: selected.outputDir,
-            bridgeScriptPath: bridgeScriptPath
+            bridgeScriptPath: bridgeScriptPath,
+            githubToken: selected.githubToken
         )
     }
 

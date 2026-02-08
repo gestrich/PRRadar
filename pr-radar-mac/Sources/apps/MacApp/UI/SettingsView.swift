@@ -128,6 +128,7 @@ private struct ConfigurationRow: View {
 
 private struct ConfigurationEditSheet: View {
     @State var config: RepoConfiguration
+    @State private var tokenText: String = ""
     let isNew: Bool
     let onSave: (RepoConfiguration) -> Void
     let onCancel: () -> Void
@@ -148,6 +149,14 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Output Dir", text: $config.outputDir, placeholder: "~/Desktop/code-reviews")
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
+            LabeledContent("GitHub Token") {
+                SecureField("ghp_...", text: $tokenText)
+                    .textFieldStyle(.roundedBorder)
+            }
+            Text("Optional. Falls back to GITHUB_TOKEN environment variable.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             HStack {
                 Spacer()
                 Button("Cancel") {
@@ -156,6 +165,7 @@ private struct ConfigurationEditSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
                 Button("Save") {
+                    config.githubToken = tokenText.isEmpty ? nil : tokenText
                     onSave(config)
                     dismiss()
                 }
@@ -165,6 +175,9 @@ private struct ConfigurationEditSheet: View {
         }
         .padding()
         .frame(width: 500)
+        .onAppear {
+            tokenText = config.githubToken ?? ""
+        }
     }
 
     private func pathField(label: String, text: Binding<String>, placeholder: String) -> some View {

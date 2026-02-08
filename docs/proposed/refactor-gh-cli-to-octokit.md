@@ -201,7 +201,7 @@ Update all use cases in the feature layer to work with the refactored service la
 - Added `mergedAt: String?` field to `GitHubPullRequest` model and corresponding mapping from Octokit's `PullRequest.mergedAt: Date?`
 - All 230 tests pass, build succeeds
 
-## - [ ] Phase 6: Update Configuration and Environment Setup
+## - [x] Phase 6: Update Configuration and Environment Setup
 
 Update configuration and environment handling to support per-repo GitHub tokens.
 
@@ -232,6 +232,19 @@ Update configuration and environment handling to support per-repo GitHub tokens.
 - Environment variable and CLI override support
 - Secure token handling
 - Configuration supports owner/repo extraction from git remote
+
+**Technical Notes (Phase 6):**
+- Added `githubToken: String?` to both `RepoConfiguration` (persisted per-repo) and `PRRadarConfig` (runtime config passed through use cases)
+- Token priority chain implemented in CLI's `resolveConfig()`: CLI flag `--github-token` > `GITHUB_TOKEN` env var > per-repo `RepoConfiguration.githubToken`
+- `GitHubServiceFactory.create(repoPath:tokenOverride:)` now accepts an optional `tokenOverride` parameter; when provided, it takes precedence over environment variable lookup
+- All 6 use cases that call `GitHubServiceFactory.create` now pass `config.githubToken` as `tokenOverride`
+- `CLIOptions` gains `--github-token` option available to all commands using `@OptionGroup`; `AnalyzeAllCommand` (which has its own options) also gets `--github-token`
+- MacApp `SettingsView` updated with a `SecureField` for per-repo GitHub token in the configuration edit sheet, with helper text noting the env var fallback
+- `RepoConfiguration` uses `Codable` — existing settings files without `githubToken` will decode gracefully (defaults to `nil`) since the field is optional
+- `SettingsService` required no changes — token persistence is handled automatically through `RepoConfiguration`'s `Codable` conformance
+- `PRRadarEnvironment` required no changes — env var resolution is now handled in the CLI resolution layer and `GitHubServiceFactory`
+- Keychain storage deferred — tokens are stored in the JSON settings file for simplicity; Keychain integration can be added in a future iteration if needed
+- All 230 tests pass, build succeeds
 
 ## - [ ] Phase 7: Remove GhCLI Dependencies
 

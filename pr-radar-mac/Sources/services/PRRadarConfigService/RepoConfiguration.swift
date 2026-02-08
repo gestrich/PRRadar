@@ -7,6 +7,7 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
     public var outputDir: String
     public var rulesDir: String
     public var isDefault: Bool
+    public var githubToken: String?
 
     public init(
         id: UUID = UUID(),
@@ -14,7 +15,8 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
         repoPath: String,
         outputDir: String = "",
         rulesDir: String = "",
-        isDefault: Bool = false
+        isDefault: Bool = false,
+        githubToken: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -22,6 +24,7 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
         self.outputDir = outputDir
         self.rulesDir = rulesDir
         self.isDefault = isDefault
+        self.githubToken = githubToken
     }
 }
 

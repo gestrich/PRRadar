@@ -35,6 +35,9 @@ struct CLIOptions: ParsableArguments {
     @Option(name: .long, help: "Output directory for phase results")
     var outputDir: String?
 
+    @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
+    var githubToken: String?
+
     @Flag(name: .long, help: "Output results as JSON")
     var json: Bool = false
 }
@@ -74,11 +77,13 @@ func resolveBridgeScriptPath() -> String {
 func resolveConfig(
     configName: String?,
     repoPath: String?,
-    outputDir: String?
+    outputDir: String?,
+    githubToken: String? = nil
 ) throws -> ResolvedConfig {
     var resolvedRepoPath = repoPath
     var resolvedOutputDir = outputDir
     var rulesDir: String? = nil
+    var configToken: String? = nil
 
     if let configName {
         let settings = SettingsService().load()
@@ -88,12 +93,19 @@ func resolveConfig(
         resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
         resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
         rulesDir = namedConfig.rulesDir.isEmpty ? nil : namedConfig.rulesDir
+        configToken = namedConfig.githubToken
     }
+
+    // Token priority: CLI flag > env var > per-repo config
+    let resolvedToken = githubToken
+        ?? ProcessInfo.processInfo.environment["GITHUB_TOKEN"]
+        ?? configToken
 
     let config = PRRadarConfig(
         repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
         outputDir: resolvedOutputDir ?? "code-reviews",
-        bridgeScriptPath: resolveBridgeScriptPath()
+        bridgeScriptPath: resolveBridgeScriptPath(),
+        githubToken: resolvedToken
     )
 
     return ResolvedConfig(config: config, rulesDir: rulesDir)
@@ -103,7 +115,8 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
     try resolveConfig(
         configName: options.config,
         repoPath: options.repoPath,
-        outputDir: options.outputDir
+        outputDir: options.outputDir,
+        githubToken: options.githubToken
     )
 }
 

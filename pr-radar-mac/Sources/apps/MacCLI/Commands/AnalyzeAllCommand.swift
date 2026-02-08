@@ -39,11 +39,15 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "PR state filter (open, closed, merged, all)")
     var state: String?
 
+    @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
+    var githubToken: String?
+
     func run() async throws {
         let resolved = try resolveConfig(
             configName: config,
             repoPath: repoPath,
-            outputDir: outputDir
+            outputDir: outputDir,
+            githubToken: githubToken
         )
         let prRadarConfig = resolved.config
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
