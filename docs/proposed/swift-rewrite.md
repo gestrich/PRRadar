@@ -185,51 +185,24 @@ Every new file and every modification must conform to these documents. When in d
 
 ---
 
-## - [ ] Phase 4: Infrastructure — Effective Diff Algorithm
+## - [x] Phase 4: Infrastructure — Effective Diff Algorithm ✅
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `Layers.md` (which layer this belongs in), `Principles.md`, and `code-style.md`.
+Ported the entire `effective_diff.py` module (~867 lines) to Swift across 5 source files in `PRRadarModels/EffectiveDiff/`. All 4 algorithm phases implemented:
 
-Port the entire `effective_diff.py` module (~867 lines) to Swift. This is the largest single piece of pure computation. The algorithm has 4 internal phases:
+- **Phase 4a — Line Matching** (`LineMatching.swift`): `TaggedLine`, `LineMatch`, `extractTaggedLines()`, `findExactMatches()` with indexed lookup
+- **Phase 4b — Block Aggregation** (`BlockAggregation.swift`): `MoveCandidate`, `groupMatchesIntoBlocks()`, scoring functions (size, uniqueness, consistency, distance), `findMoveCandidates()`
+- **Phase 4c — Block Extension** (`BlockExtension.swift`): `EffectiveDiffResult`, `RediffFunction` typealias, `extendBlockRange()`, `extractLineRange()`, `trimHunks()`, `computeEffectiveDiffForCandidate()`
+- **Phase 4d — Reconstruction** (`DiffReconstruction.swift`): `EffectiveDiffMoveDetail`/`EffectiveDiffMoveReport` (algorithm-internal types with `toMoveDetail()`/`toMoveReport()` conversion), `classifyHunk()`, `reconstructEffectiveDiff()`, `buildMoveReport()`
+- **Pipeline** (`EffectiveDiffPipeline.swift`): `runEffectiveDiffPipeline()` — chains all 4 phases
 
-### Phase 4a: Line Matching
-- Extract tagged lines from diff hunks (removed lines from old file, added lines from new file)
-- Build index by normalized content (strip whitespace, lowercase)
-- Find exact matches between removed and added lines across files
-- Filter out distance-0 matches (in-place edits, not moves)
-
-### Phase 4b: Block Aggregation and Scoring
-- Group individual line matches into contiguous blocks with gap tolerance N=3
-- Score blocks using: size factor, line uniqueness, match consistency, distance factor
-- Minimum block size: 3 lines
-
-### Phase 4c: Block Extension and Re-diff
-- Extend matched blocks by ±20 context lines
-- Extract regions from source files to temp files
-- Call `git diff --no-index` (via `GitCLI` from Phase 1) to re-diff extracted regions
-- Trim unrelated hunks from the re-diff output
-
-### Phase 4d: Diff Reconstruction
-- Replace move-source hunks with effective diffs showing the actual changes
-- Drop removed-side hunks that were fully moved
-- Produce a new `GitDiff` with the reconstructed hunks
-
-### Key data structures to port:
-- `TaggedLine` (file, line_number, content, normalized_content, line_type)
-- `LineMatch` (removed_line, added_line, distance)
-- `MatchBlock` (matches list, score)
-- `MoveRegion` (source file/lines, dest file/lines)
-- `MoveDetail` / `MoveReport` (already exists in Swift models)
-
-### Files to create:
-- `pr-radar-mac/Sources/services/PRRadarModels/EffectiveDiff/` — new directory with multiple files for each phase
-- Unit tests porting the 144+ Python tests from `tests/infrastructure/effective_diff/`
-- Copy the 13 `.diff` fixture files from `tests/infrastructure/effective_diff/fixtures/`
-
-### Validation:
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
-- All ported unit tests pass
-- Run effective diff against test repo PR #1 diff and compare output to Python version
-- End-to-end fixture tests produce identical results
+### Technical notes:
+- All code lives in `PRRadarModels` (Services layer, Foundation-only) — no CLI dependency
+- `RediffFunction` typealias allows callers to inject `git diff --no-index` execution, keeping the algorithm pure
+- `EffectiveDiffMoveDetail`/`EffectiveDiffMoveReport` are separate from the existing Codable `MoveDetail`/`MoveReport` in `DiffOutput.swift`; conversion methods bridge the two
+- Swift's `components(separatedBy:)` produces a trailing empty element unlike Python's `splitlines()` — handled in `extractLineRange()`
+- All types are `Sendable` and `Equatable` for concurrency safety and testability
+- 234 total tests (5 test files + 1 end-to-end fixture suite), 13 `.diff` fixture files copied
+- Both targets build successfully
 
 ---
 

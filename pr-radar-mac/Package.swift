@@ -106,7 +106,10 @@ let package = Package(
                 .target(name: "PRRadarModels"),
                 .target(name: "PRRadarConfigService"),
             ],
-            path: "Tests/PRRadarModelsTests"
+            path: "Tests/PRRadarModelsTests",
+            resources: [
+                .copy("EffectiveDiffFixtures"),
+            ]
         ),
     ]
 )
