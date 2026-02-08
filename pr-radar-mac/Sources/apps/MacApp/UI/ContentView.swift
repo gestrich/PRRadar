@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var showNewReview = false
     @State private var newPRNumber = ""
     @State private var showAnalyzeAll = false
+    @State private var showAnalyzeAllProgress = false
     @State private var analyzeAllSinceDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: Date()) ?? Date()
     
     let bridgeScriptPath: String
@@ -45,6 +46,11 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             if let model = allPRs {
                 SettingsView(model: model, settings: $settings)
+            }
+        }
+        .sheet(isPresented: $showAnalyzeAllProgress) {
+            if let model = allPRs {
+                AnalyzeAllProgressView(model: model, isPresented: $showAnalyzeAllProgress)
             }
         }
         .alert("Refresh Failed", isPresented: showRefreshError) {
@@ -165,7 +171,11 @@ struct ContentView: View {
             }
             ToolbarItem(placement: .automatic) {
                 Button {
-                    showAnalyzeAll = true
+                    if let model = allPRs, model.analyzeAllState.isRunning {
+                        showAnalyzeAllProgress = true
+                    } else {
+                        showAnalyzeAll = true
+                    }
                 } label: {
                     if let model = allPRs, model.analyzeAllState.isRunning {
                         HStack(spacing: 4) {
@@ -181,8 +191,8 @@ struct ContentView: View {
                         Image(systemName: "sparkles")
                     }
                 }
-                .help("Analyze all PRs since a date")
-                .disabled(allPRs == nil || allPRs?.analyzeAllState.isRunning == true)
+                .help(allPRs?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
+                .disabled(allPRs == nil)
                 .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
                     analyzeAllPopover
                 }
