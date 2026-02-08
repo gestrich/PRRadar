@@ -16,24 +16,35 @@ struct StatusCommand: AsyncParsableCommand {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
 
-        struct PhaseStatus {
+        let allStatuses = DataPathsService.allPhaseStatuses(
+            outputDir: config.absoluteOutputDir,
+            prNumber: options.prNumber
+        )
+
+        struct DisplayStatus {
             let phase: PRRadarPhase
             let status: String
             let fileCount: Int
         }
 
-        var statuses: [PhaseStatus] = []
-
+        var statuses: [DisplayStatus] = []
         for phase in PRRadarPhase.allCases {
-            let files = OutputFileReader.files(in: config, prNumber: options.prNumber, phase: phase)
-            let status: String
-            if files.isEmpty {
-                status = "missing"
+            let phaseStatus = allStatuses[phase]!
+            let statusText: String
+            if !phaseStatus.exists {
+                statusText = "not started"
+            } else if phaseStatus.isComplete {
+                statusText = "complete"
+            } else if phaseStatus.isPartial {
+                statusText = "partial"
             } else {
-                let hasJson = files.contains { $0.hasSuffix(".json") }
-                status = hasJson ? "complete" : "partial"
+                statusText = "failed"
             }
-            statuses.append(PhaseStatus(phase: phase, status: status, fileCount: files.count))
+            statuses.append(DisplayStatus(
+                phase: phase,
+                status: statusText,
+                fileCount: phaseStatus.completedCount
+            ))
         }
 
         if options.json {
@@ -42,7 +53,7 @@ struct StatusCommand: AsyncParsableCommand {
                 jsonOutput.append([
                     "phase": s.phase.rawValue,
                     "status": s.status,
-                    "file_count": s.fileCount,
+                    "artifacts": s.fileCount,
                 ])
             }
             let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
@@ -50,16 +61,17 @@ struct StatusCommand: AsyncParsableCommand {
         } else {
             print("Pipeline status for PR #\(options.prNumber):")
             print("")
-            print(String(format: "  %-30s  %-10s  %s", "Phase", "Status", "Files"))
-            print(String(format: "  %-30s  %-10s  %s", "-----", "------", "-----"))
+            print("  \("Phase".padding(toLength: 30, withPad: " ", startingAt: 0))  \("Status".padding(toLength: 12, withPad: " ", startingAt: 0))  Artifacts")
+            print("  \("-----".padding(toLength: 30, withPad: " ", startingAt: 0))  \("------".padding(toLength: 12, withPad: " ", startingAt: 0))  ---------")
             for s in statuses {
                 let statusIcon: String
                 switch s.status {
                 case "complete": statusIcon = "\u{001B}[32m\u{2713}\u{001B}[0m"
                 case "partial": statusIcon = "\u{001B}[33m~\u{001B}[0m"
+                case "not started": statusIcon = " "
                 default: statusIcon = "\u{001B}[31m\u{2717}\u{001B}[0m"
                 }
-                print("  \(statusIcon) \(String(format: "%-28s", s.phase.rawValue))  \(String(format: "%-10s", s.status))  \(s.fileCount)")
+                print("  \(statusIcon) \(s.phase.rawValue.padding(toLength: 28, withPad: " ", startingAt: 0))  \(s.status.padding(toLength: 12, withPad: " ", startingAt: 0))  \(s.fileCount)")
             }
         }
     }

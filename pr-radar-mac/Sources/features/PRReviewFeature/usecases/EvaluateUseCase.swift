@@ -35,8 +35,39 @@ public struct EvaluateUseCase: Sendable {
                         config: config, prNumber: prNumber, phase: .tasks
                     )
 
-                    guard !tasks.isEmpty else {
-                        continuation.yield(.failed(error: "No tasks found. Run rules phase first.", logs: ""))
+                    // Handle case where no tasks were generated (legitimate scenario)
+                    if tasks.isEmpty {
+                        continuation.yield(.log(text: "No tasks to evaluate (phase completed successfully with 0 tasks)\n"))
+
+                        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+                        try DataPathsService.ensureDirectoryExists(at: evalsDir)
+
+                        let encoder = JSONEncoder()
+                        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+                        // Write empty summary
+                        let summary = EvaluationSummary(
+                            prNumber: Int(prNumber) ?? 0,
+                            evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+                            totalTasks: 0,
+                            violationsFound: 0,
+                            totalCostUsd: 0.0,
+                            totalDurationMs: 0,
+                            results: []
+                        )
+                        let summaryData = try encoder.encode(summary)
+                        try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+
+                        // Write phase_result.json
+                        try PhaseResultWriter.writeSuccess(
+                            phase: .evaluations,
+                            outputDir: config.absoluteOutputDir,
+                            prNumber: prNumber,
+                            stats: PhaseStats(artifactsProduced: 0)
+                        )
+
+                        let output = EvaluationPhaseOutput(evaluations: [], summary: summary)
+                        continuation.yield(.completed(output: output))
                         continuation.finish()
                         return
                     }
@@ -80,6 +111,18 @@ public struct EvaluateUseCase: Sendable {
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                     let summaryData = try encoder.encode(summary)
                     try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+
+                    // Write phase_result.json
+                    try PhaseResultWriter.writeSuccess(
+                        phase: .evaluations,
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        stats: PhaseStats(
+                            artifactsProduced: results.count,
+                            durationMs: durationMs,
+                            costUsd: totalCost
+                        )
+                    )
 
                     continuation.yield(.log(text: "Evaluation complete: \(violationCount) violations found\n"))
 

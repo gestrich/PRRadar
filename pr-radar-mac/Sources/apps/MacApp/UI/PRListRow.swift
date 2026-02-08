@@ -82,25 +82,28 @@ struct PRListRow: View {
 
     @ViewBuilder
     private var stateIndicator: some View {
-        let uppercased = pr.state.uppercased()
-        switch uppercased {
-        case "OPEN":
-            Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
-        case "MERGED":
-            Circle()
-                .fill(.purple)
-                .frame(width: 8, height: 8)
-        case "CLOSED":
-            Circle()
-                .fill(.red)
-                .frame(width: 8, height: 8)
-        default:
-            Circle()
-                .fill(.gray.opacity(0.4))
-                .frame(width: 8, height: 8)
-        }
+        let state = PRState(rawValue: pr.state.uppercased()) ?? .open
+        let (color, label): (Color, String) = {
+            switch state {
+            case .open:
+                return (.green, "Open")
+            case .merged:
+                return (.purple, "Merged")
+            case .closed:
+                return (.red, "Closed")
+            case .draft:
+                return (.orange, "Draft")
+            }
+        }()
+        
+        Text(label)
+            .font(.caption2)
+            .fontWeight(.medium)
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
     }
 
     // MARK: - Helpers

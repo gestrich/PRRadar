@@ -53,7 +53,7 @@ public struct FetchRulesUseCase: Sendable {
                     let focusResults = try await focusGenerator.generateAllFocusAreas(
                         hunks: fullDiff.hunks,
                         prNumber: prNum,
-                        requestedTypes: [.method, .file]
+                        requestedTypes: [.file]
                     )
 
                     let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"
@@ -62,8 +62,10 @@ public struct FetchRulesUseCase: Sendable {
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
                     var allFocusAreas: [FocusArea] = []
+                    var totalCost = 0.0
                     for (focusType, result) in focusResults {
                         allFocusAreas.append(contentsOf: result.focusAreas)
+                        totalCost += result.generationCostUsd
                         let typeOutput = FocusAreaTypeOutput(
                             prNumber: prNum,
                             generatedAt: ISO8601DateFormatter().string(from: Date()),
@@ -75,6 +77,17 @@ public struct FetchRulesUseCase: Sendable {
                         let data = try encoder.encode(typeOutput)
                         try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(focusType.rawValue).json"))
                     }
+
+                    // Write phase_result.json for phase 2 (focus areas)
+                    try PhaseResultWriter.writeSuccess(
+                        phase: .focusAreas,
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        stats: PhaseStats(
+                            artifactsProduced: allFocusAreas.count,
+                            costUsd: totalCost
+                        )
+                    )
 
                     continuation.yield(.running(phase: .rules))
                     continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
@@ -97,6 +110,16 @@ public struct FetchRulesUseCase: Sendable {
                     let rulesData = try encoder.encode(allRules)
                     try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/all-rules.json"))
 
+                    // Write phase_result.json for phase 3 (rules)
+                    try PhaseResultWriter.writeSuccess(
+                        phase: .rules,
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        stats: PhaseStats(
+                            artifactsProduced: allRules.count
+                        )
+                    )
+
                     continuation.yield(.running(phase: .tasks))
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
@@ -106,6 +129,16 @@ public struct FetchRulesUseCase: Sendable {
                         rules: allRules,
                         focusAreas: allFocusAreas,
                         outputDir: prOutputDir
+                    )
+
+                    // Write phase_result.json for phase 4 (tasks)
+                    try PhaseResultWriter.writeSuccess(
+                        phase: .tasks,
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        stats: PhaseStats(
+                            artifactsProduced: tasks.count
+                        )
                     )
 
                     continuation.yield(.log(text: "Tasks created: \(tasks.count)\n"))

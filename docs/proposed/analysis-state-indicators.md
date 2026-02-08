@@ -5,7 +5,21 @@
 The PR list rows show confusing status indicators:
 
 1. **Green circle** - Shows PR is OPEN (GitHub state), not analysis status
-2. **Analysis badge** - Only appears when `summary.json` exists (analysis complete)
+2. Remove green checkmark - Instead use Open/Draft/Merged/Closed
+3. Focus area part too slow.
+   1. When analyzing by file, no AI should be needed.
+
+4. When teh rules phase results in no tasks, the "Evaluate" phase fails with error "No tasks found. Run rules phase first"
+   1. It seems if no tasks generate, that stops the pipeline as no files are written (expectes tasks to be written to suggest phase complete)
+   2. We may need another way to indicate phse complete. Maybe a json file with a simple compltion timestapm and success indicator (Bool). That file can represnt we finished the task phase.
+   3. Then the Evaluet phase would be a pass and simlarly consider something to indicate complete even though no evaluation done.
+   4. A report shoudl still generate in tehse cases.
+Add search filter for PR states: MERGED, CLOSED, OPEN, DRAFT
+
+
+
+
+1. **Analysis badge** - Only appears when `summary.json` exists (analysis complete)
    - Green checkmark = 0 violations found
    - Orange badge with count = violations found
    - Nothing shown = no analysis or loading

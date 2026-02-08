@@ -21,25 +21,8 @@ public struct GitHubService: Sendable {
     }
 
     public func getPullRequest(number: Int) async throws -> GitHubPullRequest {
-        let pr: OctoKit.PullRequest
-        do {
-            pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
-        } catch {
-            throw NSError(domain: "GitHubService", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to fetch PR #\(number) from GitHub API (pullRequest call): \(error.localizedDescription)"
-            ])
-        }
-
-        let files: [OctoKit.PullRequest.File]?
-        do {
-            files = try await octokitClient.listPullRequestFiles(owner: owner, repository: repo, number: number)
-        } catch {
-            // Files list is optional - we can still process the PR without it
-            // The diff parsing will provide file information anyway
-            print("Warning: Could not fetch file list for PR #\(number): \(error.localizedDescription)")
-            files = nil
-        }
-
+        let pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
+        let files = try await octokitClient.listPullRequestFiles(owner: owner, repository: repo, number: number)
         return pr.toGitHubPullRequest(files: files)
     }
 
@@ -75,7 +58,8 @@ public struct GitHubService: Sendable {
 
     public func listPullRequests(
         limit: Int,
-        state: String
+        state: String,
+        since: Date? = nil
     ) async throws -> [GitHubPullRequest] {
         let filterMerged = state.lowercased() == "merged"
 
@@ -86,19 +70,75 @@ public struct GitHubService: Sendable {
         default: openness = .open
         }
 
-        let prs = try await octokitClient.listPullRequests(
-            owner: owner,
-            repository: repo,
-            state: openness,
-            perPage: String(limit)
-        )
-
-        let mapped = prs.map { $0.toGitHubPullRequest() }
-
-        if filterMerged {
-            return mapped.filter { $0.mergedAt != nil }
+        var allPRs: [GitHubPullRequest] = []
+        var page = 1
+        let perPage = 100
+        
+        while true {
+            let prs = try await octokitClient.listPullRequests(
+                owner: owner,
+                repository: repo,
+                state: openness,
+                sort: .created,
+                direction: .desc,
+                page: String(page),
+                perPage: String(perPage)
+            )
+            
+            if prs.isEmpty {
+                break
+            }
+            
+            let mapped = prs.map { $0.toGitHubPullRequest() }
+            
+            // If we have a since date, check if we've hit PRs older than it
+            if let since = since {
+                let formatter = ISO8601DateFormatter()
+                var hitOldPRs = false
+                
+                for pr in mapped {
+                    guard let createdStr = pr.createdAt,
+                          let createdDate = formatter.date(from: createdStr) else {
+                        allPRs.append(pr)
+                        continue
+                    }
+                    
+                    if createdDate >= since {
+                        allPRs.append(pr)
+                    } else {
+                        // This PR is older than our cutoff, and since we're sorted by created desc,
+                        // all remaining PRs will also be older
+                        hitOldPRs = true
+                        break
+                    }
+                }
+                
+                if hitOldPRs {
+                    break
+                }
+            } else {
+                allPRs.append(contentsOf: mapped)
+            }
+            
+            // Stop if we've reached the limit
+            if allPRs.count >= limit {
+                break
+            }
+            
+            // Stop if this page had fewer results than requested (last page)
+            if prs.count < perPage {
+                break
+            }
+            
+            page += 1
         }
-        return mapped
+
+        let result = Array(allPRs.prefix(limit))
+        
+        if filterMerged {
+            return result.filter { $0.mergedAt != nil }
+        }
+        return result
     }
 
     public func getRepository() async throws -> GitHubRepository {

@@ -100,6 +100,17 @@ public struct PRAcquisitionService: Sendable {
         let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
         try write(repoJSON, to: "\(phaseDir)/gh-repo.json")
 
+        // Write phase_result.json to mark successful completion
+        try PhaseResultWriter.writeSuccess(
+            phase: .pullRequest,
+            outputDir: outputDir,
+            prNumber: prNumberStr,
+            stats: PhaseStats(
+                artifactsProduced: 9,  // Number of required files
+                metadata: ["files": String(gitDiff.uniqueFiles.count), "hunks": String(gitDiff.hunks.count)]
+            )
+        )
+
         return AcquisitionResult(
             pullRequest: pullRequest,
             diff: gitDiff,

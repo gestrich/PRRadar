@@ -14,6 +14,7 @@ public struct FetchPRListUseCase: Sendable {
     public func execute(
         limit: String? = nil,
         state: String? = nil,
+        since: Date? = nil,
         repoSlug: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<[PRMetadata]>, Error> {
         AsyncThrowingStream { continuation in
@@ -30,7 +31,8 @@ public struct FetchPRListUseCase: Sendable {
 
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: stateFilter
+                        state: stateFilter,
+                        since: since
                     )
 
                     // Fetch repository info once (needed by PRDiscoveryService when filtering by repoSlug)

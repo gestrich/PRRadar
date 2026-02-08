@@ -1,5 +1,29 @@
 import Foundation
 
+public enum PRState: String, Codable, Sendable, CaseIterable {
+    case open = "OPEN"
+    case closed = "CLOSED"
+    case merged = "MERGED"
+    case draft = "DRAFT"
+    
+    public var displayName: String {
+        switch self {
+        case .open: return "Open"
+        case .closed: return "Closed"
+        case .merged: return "Merged"
+        case .draft: return "Draft"
+        }
+    }
+    
+    public var filterValue: String {
+        switch self {
+        case .open, .draft: return "open"
+        case .closed: return "closed"
+        case .merged: return "merged"
+        }
+    }
+}
+
 public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
     public var id: Int { number }
 

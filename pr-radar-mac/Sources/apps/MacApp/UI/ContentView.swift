@@ -133,14 +133,14 @@ struct ContentView: View {
     private var prListView: some View {
         Group {
             if allPRs != nil {
-                if currentPRModels.isEmpty {
+                if filteredPRModels.isEmpty {
                     ContentUnavailableView(
                         "No Reviews Found",
                         systemImage: "doc.text.magnifyingglass",
-                        description: Text("No PR review data found in the output directory.")
+                        description: Text(allPRs?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
                     )
                 } else {
-                    List(currentPRModels, selection: $selectedPR) { prModel in
+                    List(filteredPRModels, selection: $selectedPR) { prModel in
                         PRListRow(prModel: prModel)
                             .tag(prModel)
                     }
@@ -156,8 +156,24 @@ struct ContentView: View {
         .navigationSplitViewColumnWidth(min: 200, ideal: 280)
         .toolbar {
             ToolbarItem(placement: .automatic) {
+                DatePicker("Since", selection: $analyzeAllSinceDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .help("Filter PRs by date")
+            }
+            ToolbarItem(placement: .automatic) {
+                Toggle(isOn: Binding(
+                    get: { allPRs?.showOnlyWithPendingComments ?? false },
+                    set: { allPRs?.showOnlyWithPendingComments = $0 }
+                )) {
+                    Image(systemName: "text.bubble")
+                }
+                .help("Show only PRs with pending comments")
+                .toggleStyle(.button)
+            }
+            ToolbarItem(placement: .automatic) {
                 Button {
-                    Task { await allPRs?.refresh() }
+                    Task { await allPRs?.refresh(since: analyzeAllSinceDate) }
                 } label: {
                     if let model = allPRs, case .refreshing = model.state {
                         ProgressView()
@@ -267,9 +283,9 @@ struct ContentView: View {
             Text("Analyze All PRs")
                 .font(.headline)
 
-            DatePicker("Since", selection: $analyzeAllSinceDate, displayedComponents: .date)
-                .datePickerStyle(.field)
-                .frame(width: 200)
+            Text("Since: \(formattedSinceDate)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
             Button("Start") {
                 let formatter = DateFormatter()
@@ -281,6 +297,12 @@ struct ContentView: View {
             .keyboardShortcut(.defaultAction)
         }
         .padding()
+    }
+    
+    private var formattedSinceDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: analyzeAllSinceDate)
     }
 
     private func submitNewReview() {
@@ -309,6 +331,14 @@ struct ContentView: View {
         case .failed(_, let prior): return prior ?? []
         default: return []
         }
+    }
+
+    private var filteredPRModels: [PRModel] {
+        let models = currentPRModels
+        guard let allPRs = allPRs, allPRs.showOnlyWithPendingComments else {
+            return models
+        }
+        return models.filter { $0.hasPendingComments }
     }
 
     private var isRefreshing: Bool {

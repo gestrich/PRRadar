@@ -85,10 +85,14 @@ func resolveConfig(
     var rulesDir: String? = nil
     var configToken: String? = nil
 
-    if let configName {
-        let settings = SettingsService().load()
-        guard let namedConfig = settings.configurations.first(where: { $0.name == configName }) else {
-            throw CLIError.configNotFound(configName)
+    let settings = SettingsService().load()
+    
+    // If no config name specified, use the default config if one exists
+    let targetConfigName = configName ?? settings.configurations.first(where: { $0.isDefault })?.name
+    
+    if let targetConfigName {
+        guard let namedConfig = settings.configurations.first(where: { $0.name == targetConfigName }) else {
+            throw CLIError.configNotFound(targetConfigName)
         }
         resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
         resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)

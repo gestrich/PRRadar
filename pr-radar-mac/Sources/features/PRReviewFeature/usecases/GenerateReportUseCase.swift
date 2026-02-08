@@ -47,6 +47,16 @@ public struct GenerateReportUseCase: Sendable {
 
                     let (_, _) = try reportService.saveReport(report: report, outputDir: prOutputDir)
 
+                    // Write phase_result.json
+                    try PhaseResultWriter.writeSuccess(
+                        phase: .report,
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        stats: PhaseStats(
+                            artifactsProduced: report.violations.count
+                        )
+                    )
+
                     let markdown = report.toMarkdown()
                     continuation.yield(.log(text: "Report generated: \(report.violations.count) violations\n"))
 

@@ -37,6 +37,8 @@ final class AllPRsModel {
 
     private(set) var state: State = .uninitialized
     private(set) var analyzeAllState: AnalyzeAllState = .idle
+    var stateFilter: String = "open"
+    var showOnlyWithPendingComments: Bool = false
 
     let config: PRRadarConfig
     let repoConfig: RepoConfiguration
@@ -64,7 +66,7 @@ final class AllPRsModel {
 
     // MARK: - Refresh from GitHub
 
-    func refresh() async {
+    func refresh(since: Date? = nil) async {
         let prior = currentPRModels
         state = .refreshing(prior ?? [])
 
@@ -72,7 +74,7 @@ final class AllPRsModel {
         let useCase = FetchPRListUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(repoSlug: slug) {
+            for try await progress in useCase.execute(since: since, repoSlug: slug) {
                 switch progress {
                 case .running, .log, .progress:
                     break

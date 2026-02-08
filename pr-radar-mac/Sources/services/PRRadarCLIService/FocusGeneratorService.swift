@@ -134,12 +134,12 @@ public struct FocusGeneratorService: Sendable {
     /// - Parameters:
     ///   - hunks: Parsed diff hunks
     ///   - prNumber: PR number being analyzed
-    ///   - requestedTypes: Focus types to generate. Defaults to `[.method]`.
+    ///   - requestedTypes: Focus types to generate. Defaults to `[.file]`.
     /// - Returns: `FocusGenerationResult` per type requested
     public func generateAllFocusAreas(
         hunks: [Hunk],
         prNumber: Int,
-        requestedTypes: Set<FocusType> = [.method]
+        requestedTypes: Set<FocusType> = [.file]
     ) async throws -> [FocusType: FocusGenerationResult] {
         var results: [FocusType: FocusGenerationResult] = [:]
 

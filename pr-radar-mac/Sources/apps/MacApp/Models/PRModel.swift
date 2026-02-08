@@ -69,6 +69,14 @@ final class PRModel: Identifiable, Hashable {
         phaseStates.values.contains { if case .running = $0 { return true } else { return false } }
     }
 
+    var hasPendingComments: Bool {
+        guard case .loaded(let violationCount, _) = analysisState, violationCount > 0 else {
+            return false
+        }
+        // Has violations but comments phase not completed
+        return !isPhaseCompleted(.report) || comments == nil
+    }
+
     // MARK: - Analysis Summary (Lightweight)
 
     private func loadAnalysisSummary() async {
@@ -94,25 +102,30 @@ final class PRModel: Identifiable, Hashable {
         guard case .unloaded = detailState else { return }
         detailState = .loading
 
+        // Load phase states from phase_result.json files (single source of truth)
+        let allPhaseStatuses = DataPathsService.allPhaseStatuses(
+            outputDir: config.absoluteOutputDir,
+            prNumber: prNumber
+        )
+        
+        for (phase, status) in allPhaseStatuses {
+            if status.isComplete {
+                phaseStates[phase] = .completed(logs: "")
+            } else if !status.exists {
+                phaseStates[phase] = .idle
+            } else {
+                // Phase exists but is not complete (partial or failed)
+                let errorMsg = status.missingItems.first ?? "Incomplete"
+                phaseStates[phase] = .failed(error: errorMsg, logs: "")
+            }
+        }
+
+        // Load actual output data for UI display (best effort)
         let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber)
-        if let d = snapshot.diff {
-            self.diff = d
-            phaseStates[.pullRequest] = .completed(logs: "")
-        }
-        if let r = snapshot.rules {
-            self.rules = r
-            phaseStates[.focusAreas] = .completed(logs: "")
-            phaseStates[.rules] = .completed(logs: "")
-            phaseStates[.tasks] = .completed(logs: "")
-        }
-        if let e = snapshot.evaluation {
-            self.evaluation = e
-            phaseStates[.evaluations] = .completed(logs: "")
-        }
-        if let r = snapshot.report {
-            self.report = r
-            phaseStates[.report] = .completed(logs: "")
-        }
+        self.diff = snapshot.diff
+        self.rules = snapshot.rules
+        self.evaluation = snapshot.evaluation
+        self.report = snapshot.report
 
         detailState = .loaded(ReviewSnapshot(
             diff: self.diff,

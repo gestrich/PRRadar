@@ -32,25 +32,17 @@ public struct AnalyzeAllUseCase: Sendable {
                 do {
                     let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
 
-                    let limitNum = Int(limit ?? "100") ?? 100
-                    let stateFilter = state ?? "merged"
+                    let limitNum = Int(limit ?? "10000") ?? 10000
+                    let stateFilter = state ?? "all"
+                    let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")
 
                     continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(stateFilter))...\n"))
 
-                    let allPRs = try await gitHub.listPullRequests(
+                    let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: stateFilter
+                        state: stateFilter,
+                        since: sinceDate
                     )
-
-                    let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")
-                    let prs = allPRs.filter { pr in
-                        guard let sinceDate else { return true }
-                        guard let createdStr = pr.createdAt,
-                              let createdDate = ISO8601DateFormatter().date(from: createdStr) else {
-                            return true
-                        }
-                        return createdDate >= sinceDate
-                    }
 
                     continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))
 
