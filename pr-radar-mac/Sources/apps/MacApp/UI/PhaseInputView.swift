@@ -3,7 +3,7 @@ import SwiftUI
 
 struct PhaseInputView: View {
 
-    @Environment(PRReviewModel.self) private var model
+    @Environment(ReviewModel.self) private var reviewModel
     let phase: PRRadarPhase
 
     var body: some View {
@@ -19,9 +19,7 @@ struct PhaseInputView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if let selected = model.selectedConfiguration {
-                configInfo(selected)
-            }
+            configInfo(reviewModel.repoConfig)
 
             stateView
         }
@@ -34,7 +32,7 @@ struct PhaseInputView: View {
 
     @ViewBuilder
     private var runButton: some View {
-        let state = model.stateFor(phase)
+        let state = reviewModel.stateFor(phase)
         let isRunning = { if case .running = state { return true } else { return false } }()
 
         HStack(spacing: 8) {
@@ -44,9 +42,9 @@ struct PhaseInputView: View {
             }
 
             Button(isRunning ? "Running..." : "Run") {
-                Task { await model.runPhase(phase) }
+                Task { await reviewModel.runPhase(phase) }
             }
-            .disabled(!model.canRunPhase(phase))
+            .disabled(!reviewModel.canRunPhase(phase))
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
         }
@@ -109,9 +107,9 @@ struct PhaseInputView: View {
 
     @ViewBuilder
     private var stateView: some View {
-        switch model.stateFor(phase) {
+        switch reviewModel.stateFor(phase) {
         case .idle:
-            if !model.canRunPhase(phase) && !model.prNumber.isEmpty && model.selectedConfiguration != nil {
+            if !reviewModel.canRunPhase(phase) && !reviewModel.prNumber.isEmpty {
                 Text("Prerequisite phases must complete first.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

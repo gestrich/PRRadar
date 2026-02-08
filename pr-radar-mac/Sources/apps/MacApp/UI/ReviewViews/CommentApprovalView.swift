@@ -8,7 +8,7 @@ struct CommentApprovalView: View {
     let posted: Bool
     var onPost: ((_ dryRun: Bool) -> Void)?
 
-    @Environment(PRReviewModel.self) private var model
+    @Environment(ReviewModel.self) private var reviewModel
     @State private var approvedIds: Set<String> = []
     @State private var selectedViolation: RuleEvaluationResult?
     @State private var editedComments: [String: String] = [:]
@@ -209,7 +209,7 @@ struct CommentApprovalView: View {
             Text("Code Context")
                 .font(.headline)
 
-            if let content = model.readFileFromRepo(result.filePath) {
+            if let content = reviewModel.readFileFromRepo(result.filePath) {
                 CodeView(
                     fileContent: content,
                     fileName: result.filePath,

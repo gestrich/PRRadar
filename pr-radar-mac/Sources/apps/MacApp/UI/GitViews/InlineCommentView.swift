@@ -5,14 +5,14 @@ struct InlineCommentView: View {
 
     let evaluation: RuleEvaluationResult
 
-    @Environment(PRReviewModel.self) private var model
+    @Environment(ReviewModel.self) private var reviewModel
 
     private var isSubmitting: Bool {
-        model.submittingCommentIds.contains(evaluation.taskId)
+        reviewModel.submittingCommentIds.contains(evaluation.taskId)
     }
 
     private var isSubmitted: Bool {
-        model.submittedCommentIds.contains(evaluation.taskId)
+        reviewModel.submittedCommentIds.contains(evaluation.taskId)
     }
 
     var body: some View {
@@ -64,7 +64,7 @@ struct InlineCommentView: View {
             }
         } else {
             Button("Submit") {
-                Task { await model.submitSingleComment(evaluation) }
+                Task { await reviewModel.submitSingleComment(evaluation) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

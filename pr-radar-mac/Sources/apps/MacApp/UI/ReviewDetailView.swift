@@ -5,21 +5,16 @@ import SwiftUI
 
 struct ReviewDetailView: View {
 
-    let config: RepoConfiguration
-    let review: ReviewState
-
-    @Environment(PRReviewModel.self) private var model
+    @Environment(ReviewModel.self) private var reviewModel
     @State private var showEffectiveDiff = false
 
     var body: some View {
         VStack(spacing: 0) {
             PipelineStatusView()
-                .environment(model)
 
             Divider()
 
-            PhaseInputView(phase: review.selectedPhase)
-                .environment(model)
+            PhaseInputView(phase: reviewModel.selectedPhase)
                 .padding()
 
             Divider()
@@ -30,9 +25,9 @@ struct ReviewDetailView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button("Run All") {
-                    Task { await model.runAllPhases() }
+                    Task { await reviewModel.runAllPhases() }
                 }
-                .disabled(model.isAnyPhaseRunning || model.prNumber.isEmpty)
+                .disabled(reviewModel.isAnyPhaseRunning || reviewModel.prNumber.isEmpty)
             }
         }
     }
@@ -41,7 +36,7 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var phaseOutputView: some View {
-        switch review.selectedPhase {
+        switch reviewModel.selectedPhase {
         case .pullRequest:
             diffOutputView
         case .focusAreas, .rules, .tasks:
@@ -55,9 +50,9 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var diffOutputView: some View {
-        if let fullDiff = review.diff?.fullDiff {
+        if let fullDiff = reviewModel.diff?.fullDiff {
             VStack(spacing: 0) {
-                if review.diff?.effectiveDiff != nil {
+                if reviewModel.diff?.effectiveDiff != nil {
                     HStack {
                         Spacer()
                         Button {
@@ -73,25 +68,25 @@ struct ReviewDetailView: View {
 
                 DiffPhaseView(
                     fullDiff: fullDiff,
-                    effectiveDiff: review.diff?.effectiveDiff
+                    effectiveDiff: reviewModel.diff?.effectiveDiff
                 )
             }
             .sheet(isPresented: $showEffectiveDiff) {
-                if let effectiveDiff = review.diff?.effectiveDiff {
+                if let effectiveDiff = reviewModel.diff?.effectiveDiff {
                     EffectiveDiffView(
                         fullDiff: fullDiff,
                         effectiveDiff: effectiveDiff,
-                        moveReport: review.diff?.moveReport
+                        moveReport: reviewModel.diff?.moveReport
                     )
                     .frame(minWidth: 900, minHeight: 600)
                 }
             }
-        } else if let files = review.diff?.files {
+        } else if let files = reviewModel.diff?.files {
             List(files, id: \.self) { file in
                 Text(file)
                     .font(.system(.body, design: .monospaced))
             }
-        } else if case .running(let logs) = model.stateFor(.pullRequest) {
+        } else if case .running(let logs) = reviewModel.stateFor(.pullRequest) {
             runningLogView(logs)
         } else {
             ContentUnavailableView(
@@ -104,13 +99,13 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var rulesOutputView: some View {
-        if let output = review.rules {
+        if let output = reviewModel.rules {
             RulesPhaseView(
                 focusAreas: output.focusAreas,
                 rules: output.rules,
                 tasks: output.tasks
             )
-        } else if case .running(let logs) = model.stateFor(review.selectedPhase) {
+        } else if case .running(let logs) = reviewModel.stateFor(reviewModel.selectedPhase) {
             runningLogView(logs)
         } else {
             ContentUnavailableView(
@@ -123,13 +118,13 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var evaluationsOutputView: some View {
-        if let output = review.evaluation {
+        if let output = reviewModel.evaluation {
             EvaluationsPhaseView(
-                diff: review.diff?.fullDiff,
+                diff: reviewModel.diff?.fullDiff,
                 evaluations: output.evaluations,
                 summary: output.summary
             )
-        } else if case .running(let logs) = model.stateFor(.evaluations) {
+        } else if case .running(let logs) = reviewModel.stateFor(.evaluations) {
             runningLogView(logs)
         } else {
             ContentUnavailableView(
@@ -142,12 +137,12 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var reportOutputView: some View {
-        if let output = review.report {
+        if let output = reviewModel.report {
             ReportPhaseView(
                 report: output.report,
                 markdownContent: output.markdownContent
             )
-        } else if case .running(let logs) = model.stateFor(.report) {
+        } else if case .running(let logs) = reviewModel.stateFor(.report) {
             runningLogView(logs)
         } else {
             ContentUnavailableView(

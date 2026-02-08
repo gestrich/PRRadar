@@ -64,7 +64,7 @@ struct ContentView: View {
         }
         .onChange(of: selectedPR) { _, new in
             if let pr = new {
-                guard pr != model.selectedPR else { return }
+                guard pr != model.reviewModel?.pr else { return }
                 model.selectPR(pr)
                 savedPRNumber = pr.number
             } else {
@@ -190,13 +190,13 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        if let selectedConfig {
+        if selectedConfig != nil {
             if let selectedPR,
-               case .hasConfig(let ctx) = model.state,
-               let review = ctx.review {
-                ReviewDetailView(config: selectedConfig, review: review)
+               let reviewModel = model.reviewModel,
+               reviewModel.pr == selectedPR {
+                ReviewDetailView()
                     .id(selectedPR.number)
-                    .environment(model)
+                    .environment(reviewModel)
             } else {
                 ContentUnavailableView(
                     "Select a Pull Request",
@@ -264,7 +264,7 @@ struct ContentView: View {
         showNewReview = false
         Task {
             await model.startNewReview(prNumber: number)
-            selectedPR = model.selectedPR
+            selectedPR = model.reviewModel?.pr
             if let pr = selectedPR { savedPRNumber = pr.number }
         }
     }
