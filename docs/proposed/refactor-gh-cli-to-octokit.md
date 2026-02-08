@@ -246,7 +246,7 @@ Update configuration and environment handling to support per-repo GitHub tokens.
 - Keychain storage deferred — tokens are stored in the JSON settings file for simplicity; Keychain integration can be added in a future iteration if needed
 - All 230 tests pass, build succeeds
 
-## - [ ] Phase 7: Remove GhCLI Dependencies
+## - [x] Phase 7: Remove GhCLI Dependencies
 
 Clean up by removing the old gh CLI implementation.
 
@@ -268,6 +268,14 @@ Clean up by removing the old gh CLI implementation.
 - Clean codebase with no gh CLI dependencies
 - Potentially reduced dependencies (if SwiftCLI can be removed)
 - Clear separation between git operations (GitCLI) and GitHub API operations (OctokitClient)
+
+**Technical Notes (Phase 7):**
+- Deleted `GhCLI.swift` (49 lines) — the entire `gh` CLI wrapper struct with its `Pr`, `Repo`, and `Api` subcommands
+- No remaining `GhCLI` references exist in any source files; the migration to `OctokitClient` in Phases 1–6 fully replaced all usages
+- SwiftCLI dependency **retained** — still required by `GitCLI.swift` (git operations) and `ClaudeBridge.swift` (Python bridge), both in the SDK layer
+- `CLISDK` import in `GitHubServiceFactory.swift` retained — it uses `CLIClient()` to construct `GitOperationsService` for git remote URL extraction
+- `Package.swift` unchanged — all remaining SwiftCLI/CLISDK dependencies are legitimate (git and claude bridge operations)
+- All 230 tests in 34 suites pass, build succeeds
 
 ## - [ ] Phase 8: Architecture Validation
 
