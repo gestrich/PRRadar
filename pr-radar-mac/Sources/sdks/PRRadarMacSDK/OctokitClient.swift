@@ -6,6 +6,7 @@ public enum OctokitClientError: Error, Sendable {
     case notFound(String)
     case rateLimitExceeded
     case requestFailed(String)
+    case invalidResponse
 }
 
 public struct OctokitClient: Sendable {
@@ -42,6 +43,49 @@ public struct OctokitClient: Sendable {
             page: page,
             perPage: perPage
         )
+    }
+
+    public func listPullRequestFiles(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> [PullRequest.File] {
+        try await client().listPullRequestsFiles(
+            owner: owner,
+            repository: repository,
+            number: number
+        )
+    }
+
+    public func getPullRequestDiff(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> String {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3.diff", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+        switch httpResponse.statusCode {
+        case 200:
+            guard let diff = String(data: data, encoding: .utf8) else {
+                throw OctokitClientError.invalidResponse
+            }
+            return diff
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("Pull request \(number) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
     }
 
     // MARK: - Repository Operations

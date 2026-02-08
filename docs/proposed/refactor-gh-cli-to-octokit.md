@@ -62,7 +62,7 @@ Add Octokit.swift package dependency and create authentication configuration inf
 - `OctokitClientError` enum provides typed errors for auth failures, 404s, rate limits, and general request failures
 - Also pulls in `RequestKit` (3.3.0) as a transitive dependency
 
-## - [ ] Phase 2: Implement Core PR Operations SDK
+## - [x] Phase 2: Implement Core PR Operations SDK
 
 Create SDK layer methods for pull request operations using Octokit.swift.
 
@@ -86,6 +86,17 @@ Create SDK layer methods for pull request operations using Octokit.swift.
 - Complete SDK wrapper for PR operations
 - Clear mapping between Octokit models and PRRadar models
 - Solution identified for PR diff retrieval
+
+**Technical Notes (Phase 2):**
+- Added `listPullRequestFiles(owner:repository:number:)` to `OctokitClient` — wraps Octokit's `listPullRequestsFiles` for fetching changed file metadata
+- Added `getPullRequestDiff(owner:repository:number:)` — Octokit.swift has no native diff endpoint, so this uses a direct HTTP request to GitHub's REST API (`/repos/{owner}/{repo}/pulls/{number}`) with `Accept: application/vnd.github.v3.diff` header, reusing the client's token for auth
+- Added `invalidResponse` case to `OctokitClientError` for the raw HTTP diff request
+- Mapping extensions live in the service layer (`OctokitMapping.swift` in `PRRadarCLIService`) since the SDK layer cannot depend on `PRRadarModels` per architectural rules
+- Field mapping: Octokit's `PullRequest` does not include `additions`, `deletions`, or `changedFiles` — these are available from the GitHub REST API response but not parsed by Octokit's model. File-level stats can be obtained via `listPullRequestFiles`
+- Octokit's `Repository` does not have a `defaultBranch` field — the `defaultBranchRef` mapping will need to be addressed when wiring up the service layer (Phase 4)
+- Dates are converted from `Date` objects to ISO 8601 strings to match the existing `GitHubPullRequest` model's string-based date fields
+- Octokit uses `user: User?` where PRRadar uses `author: GitHubAuthor` — mapped via `toGitHubAuthor()` extension
+- Pagination for list operations is passed through to Octokit's native `page`/`perPage` parameters
 
 ## - [ ] Phase 3: Implement Comments and API Operations SDK
 
