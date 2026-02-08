@@ -3,7 +3,7 @@ import SwiftUI
 
 struct CommentsPhaseView: View {
 
-    let evaluations: [RuleEvaluationResult]
+    let comments: [PRComment]
     let cliOutput: String?
     let posted: Bool
     var onPost: ((_ dryRun: Bool) -> Void)?
@@ -16,7 +16,7 @@ struct CommentsPhaseView: View {
             commentsList
         }
         .onAppear {
-            selectedIds = Set(violations.map(\.taskId))
+            selectedIds = Set(comments.map(\.id))
         }
     }
 
@@ -26,7 +26,7 @@ struct CommentsPhaseView: View {
     private var toolbar: some View {
         HStack {
             PhaseSummaryBar(items: [
-                .init(label: "Comments:", value: "\(violations.count)"),
+                .init(label: "Comments:", value: "\(comments.count)"),
                 .init(label: "Selected:", value: "\(selectedIds.count)"),
             ])
 
@@ -34,7 +34,7 @@ struct CommentsPhaseView: View {
 
             if !posted {
                 Button("Select All") {
-                    selectedIds = Set(violations.map(\.taskId))
+                    selectedIds = Set(comments.map(\.id))
                 }
 
                 Button("Deselect All") {
@@ -59,7 +59,7 @@ struct CommentsPhaseView: View {
 
     @ViewBuilder
     private var commentsList: some View {
-        if violations.isEmpty {
+        if comments.isEmpty {
             ContentUnavailableView(
                 "No Violations",
                 systemImage: "checkmark.circle",
@@ -67,8 +67,8 @@ struct CommentsPhaseView: View {
             )
         } else {
             List {
-                ForEach(violations, id: \.taskId) { result in
-                    commentRow(result)
+                ForEach(comments) { comment in
+                    commentRow(comment)
                 }
 
                 if let output = cliOutput, !output.isEmpty {
@@ -83,16 +83,16 @@ struct CommentsPhaseView: View {
     }
 
     @ViewBuilder
-    private func commentRow(_ result: RuleEvaluationResult) -> some View {
+    private func commentRow(_ comment: PRComment) -> some View {
         HStack(alignment: .top, spacing: 12) {
             if !posted {
                 Toggle("", isOn: Binding(
-                    get: { selectedIds.contains(result.taskId) },
+                    get: { selectedIds.contains(comment.id) },
                     set: { isOn in
                         if isOn {
-                            selectedIds.insert(result.taskId)
+                            selectedIds.insert(comment.id)
                         } else {
-                            selectedIds.remove(result.taskId)
+                            selectedIds.remove(comment.id)
                         }
                     }
                 ))
@@ -101,19 +101,19 @@ struct CommentsPhaseView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    SeverityBadge(score: result.evaluation.score)
+                    SeverityBadge(score: comment.score)
 
-                    Text(result.ruleName)
+                    Text(comment.ruleName)
                         .font(.headline)
 
                     Spacer()
 
-                    Text(fileLocation(result))
+                    Text(fileLocation(comment))
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
 
-                Text(result.evaluation.comment)
+                Text(comment.comment)
                     .font(.body)
             }
         }
@@ -122,14 +122,10 @@ struct CommentsPhaseView: View {
 
     // MARK: - Helpers
 
-    private var violations: [RuleEvaluationResult] {
-        evaluations.filter(\.evaluation.violatesRule)
-    }
-
-    private func fileLocation(_ result: RuleEvaluationResult) -> String {
-        if let line = result.evaluation.lineNumber {
-            return "\(result.filePath):\(line)"
+    private func fileLocation(_ comment: PRComment) -> String {
+        if let line = comment.lineNumber {
+            return "\(comment.filePath):\(line)"
         }
-        return result.filePath
+        return comment.filePath
     }
 }

@@ -131,7 +131,7 @@ struct ReviewDetailView: View {
         if let output = prModel.evaluation {
             EvaluationsPhaseView(
                 diff: prModel.diff?.fullDiff,
-                evaluations: output.evaluations,
+                comments: output.comments,
                 summary: output.summary,
                 prModel: prModel
             )

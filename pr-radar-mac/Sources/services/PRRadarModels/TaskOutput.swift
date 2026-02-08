@@ -10,6 +10,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let model: String?
     public let content: String
     public let documentationLink: String?
+    public let relevantClaudeSkill: String?
+    public let ruleUrl: String?
 
     public init(
         name: String,
@@ -17,7 +19,9 @@ public struct TaskRule: Codable, Sendable, Equatable {
         category: String,
         model: String? = nil,
         content: String,
-        documentationLink: String? = nil
+        documentationLink: String? = nil,
+        relevantClaudeSkill: String? = nil,
+        ruleUrl: String? = nil
     ) {
         self.name = name
         self.description = description
@@ -25,6 +29,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         self.model = model
         self.content = content
         self.documentationLink = documentationLink
+        self.relevantClaudeSkill = relevantClaudeSkill
+        self.ruleUrl = ruleUrl
     }
 
     enum CodingKeys: String, CodingKey {
@@ -34,6 +40,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case model
         case content
         case documentationLink = "documentation_link"
+        case relevantClaudeSkill = "relevant_claude_skill"
+        case ruleUrl = "rule_url"
     }
 }
 
@@ -67,7 +75,9 @@ public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
             category: rule.category,
             model: rule.model,
             content: rule.content,
-            documentationLink: rule.documentationLink
+            documentationLink: rule.documentationLink,
+            relevantClaudeSkill: rule.relevantClaudeSkill,
+            ruleUrl: rule.ruleUrl
         )
         return EvaluationTaskOutput(taskId: taskId, rule: taskRule, focusArea: focusArea)
     }

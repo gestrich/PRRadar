@@ -1,8 +1,11 @@
-# Verify PRRadar Changes Against Test Repo
+---
+name: pr-radar-verify-work
+description: Verify recent PRRadar changes by running the CLI against the test repo
+---
 
 We have a dedicated test repository at `/Users/bill/Developer/personal/PRRadar-TestRepo` that exists solely for validating real changes against actual PRs. You have full access to this repo and the GitHub account associated with it.
 
-When this command is invoked, verify your recent changes by running the PRRadar tools against that test repo. What exactly you run depends on what we're working on or what the user asks for — often this means running the Swift CLI to analyze a PR, but it could be any pipeline phase.
+When this skill is invoked, verify your recent changes by running the PRRadar tools against that test repo. What exactly you run depends on what we're working on or what the user asks for — often this means running the Swift CLI to analyze a PR, but it could be any pipeline phase.
 
 ## Before Running
 
@@ -38,7 +41,6 @@ To see all saved configurations: `swift run PRRadarMacCLI config list`
 The CLI has built-in help. Use these to explore available commands rather than guessing:
 
 ```bash
-# Swift CLI (from pr-radar-mac/)
 swift run PRRadarMacCLI --help
 swift run PRRadarMacCLI diff --help
 swift run PRRadarMacCLI config --help

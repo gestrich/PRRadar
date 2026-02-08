@@ -211,7 +211,7 @@ struct RichDiffContentView: View {
 
 struct AnnotatedHunkContentView: View {
     let hunk: Hunk
-    let commentsAtLine: [Int: [RuleEvaluationResult]]
+    let commentsAtLine: [Int: [PRComment]]
     let searchQuery: String
     var prModel: PRModel? = nil
 
@@ -228,8 +228,8 @@ struct AnnotatedHunkContentView: View {
                 if let newLine = line.newLine,
                    let comments = commentsAtLine[newLine],
                    let prModel {
-                    ForEach(comments, id: \.taskId) { eval in
-                        InlineCommentView(evaluation: eval, prModel: prModel)
+                    ForEach(comments) { comment in
+                        InlineCommentView(comment: comment, prModel: prModel)
                     }
                 }
             }
@@ -296,7 +296,7 @@ struct AnnotatedDiffContentView: View {
     }
 
     @ViewBuilder
-    private func unmatchedSection(_ evals: [RuleEvaluationResult], title: String) -> some View {
+    private func unmatchedSection(_ comments: [PRComment], title: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.caption)
@@ -307,8 +307,8 @@ struct AnnotatedDiffContentView: View {
                 .background(Color.orange.opacity(0.08))
 
             if let prModel {
-                ForEach(evals, id: \.taskId) { eval in
-                    InlineCommentView(evaluation: eval, prModel: prModel)
+                ForEach(comments) { comment in
+                    InlineCommentView(comment: comment, prModel: prModel)
                 }
             }
         }

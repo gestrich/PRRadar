@@ -4,7 +4,7 @@ import SwiftUI
 struct EvaluationsPhaseView: View {
 
     let diff: GitDiff?
-    let evaluations: [RuleEvaluationResult]
+    let comments: [PRComment]
     let summary: EvaluationSummary
     var prModel: PRModel? = nil
 
@@ -70,7 +70,7 @@ struct EvaluationsPhaseView: View {
             if !extraFiles.isEmpty {
                 Section("Files Not in Diff") {
                     ForEach(extraFiles, id: \.self) { file in
-                        let count = (mapping.unmatchedNoFile.filter { $0.evaluation.filePath == file }).count
+                        let count = (mapping.unmatchedNoFile.filter { $0.filePath == file }).count
                         HStack {
                             Text(URL(fileURLWithPath: file).lastPathComponent)
                                 .lineLimit(1)
@@ -114,8 +114,7 @@ struct EvaluationsPhaseView: View {
 
     @ViewBuilder
     private var fallbackListView: some View {
-        let violations = evaluations.filter(\.evaluation.violatesRule)
-        if violations.isEmpty {
+        if comments.isEmpty {
             ContentUnavailableView(
                 "No Violations",
                 systemImage: "checkmark.circle",
@@ -123,18 +122,18 @@ struct EvaluationsPhaseView: View {
             )
         } else {
             List {
-                ForEach(violations, id: \.taskId) { result in
+                ForEach(comments) { comment in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            SeverityBadge(score: result.evaluation.score)
-                            Text(result.ruleName)
+                            SeverityBadge(score: comment.score)
+                            Text(comment.ruleName)
                                 .font(.headline)
                             Spacer()
-                            Text(fileLocation(result))
+                            Text(fileLocation(comment))
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
-                        Text(result.evaluation.comment)
+                        Text(comment.comment)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -147,7 +146,7 @@ struct EvaluationsPhaseView: View {
     // MARK: - Helpers
 
     private func commentMapping(for diff: GitDiff) -> DiffCommentMapping {
-        DiffCommentMapper.map(diff: diff, evaluations: evaluations)
+        DiffCommentMapper.map(diff: diff, comments: comments)
     }
 
     private func filesWithViolationCounts(mapping: DiffCommentMapping) -> [String: Int] {
@@ -155,29 +154,29 @@ struct EvaluationsPhaseView: View {
         for (file, lineMap) in mapping.commentsByFileAndLine {
             counts[file, default: 0] += lineMap.values.reduce(0) { $0 + $1.count }
         }
-        for (file, evals) in mapping.unmatchedByFile {
-            counts[file, default: 0] += evals.count
+        for (file, comments) in mapping.unmatchedByFile {
+            counts[file, default: 0] += comments.count
         }
         return counts
     }
 
     private func filesNotInDiff(mapping: DiffCommentMapping) -> [String] {
-        let files = Set(mapping.unmatchedNoFile.map(\.evaluation.filePath))
+        let files = Set(mapping.unmatchedNoFile.map(\.filePath))
         return files.sorted()
     }
 
     private func maxSeverity(for file: String, mapping: DiffCommentMapping) -> Int {
         var maxScore = 0
         if let lineMap = mapping.commentsByFileAndLine[file] {
-            for evals in lineMap.values {
-                for eval in evals {
-                    maxScore = max(maxScore, eval.evaluation.score)
+            for comments in lineMap.values {
+                for comment in comments {
+                    maxScore = max(maxScore, comment.score)
                 }
             }
         }
-        if let evals = mapping.unmatchedByFile[file] {
-            for eval in evals {
-                maxScore = max(maxScore, eval.evaluation.score)
+        if let comments = mapping.unmatchedByFile[file] {
+            for comment in comments {
+                maxScore = max(maxScore, comment.score)
             }
         }
         return maxScore
@@ -200,10 +199,10 @@ struct EvaluationsPhaseView: View {
             .background(color, in: Capsule())
     }
 
-    private func fileLocation(_ result: RuleEvaluationResult) -> String {
-        if let line = result.evaluation.lineNumber {
-            return "\(result.filePath):\(line)"
+    private func fileLocation(_ comment: PRComment) -> String {
+        if let line = comment.lineNumber {
+            return "\(comment.filePath):\(line)"
         }
-        return result.filePath
+        return comment.filePath
     }
 }

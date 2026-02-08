@@ -8,19 +8,19 @@ public struct CommentService: Sendable {
         self.githubService = githubService
     }
 
-    /// Post an inline review comment on a specific line of a PR.
+    /// Post a review comment for a PRComment on a specific line of a PR.
     public func postReviewComment(
         prNumber: Int,
-        violation: CommentableViolation,
+        comment: PRComment,
         commitSHA: String
     ) async throws {
-        let body = violation.composeComment()
+        let body = comment.toGitHubMarkdown()
 
-        if let lineNumber = violation.lineNumber {
+        if let lineNumber = comment.lineNumber {
             try await githubService.postReviewComment(
                 number: prNumber,
                 commitId: commitSHA,
-                path: violation.filePath,
+                path: comment.filePath,
                 line: lineNumber,
                 body: body
             )
@@ -37,11 +37,11 @@ public struct CommentService: Sendable {
         try await githubService.postIssueComment(number: prNumber, body: body)
     }
 
-    /// Post all violations as inline review comments.
+    /// Post all comments as inline review comments.
     ///
     /// Returns (successful, failed) counts.
     public func postViolations(
-        violations: [CommentableViolation],
+        comments: [PRComment],
         prNumber: Int
     ) async throws -> (successful: Int, failed: Int) {
         let commitSHA = try await githubService.getPRHeadSHA(number: prNumber)
@@ -49,11 +49,11 @@ public struct CommentService: Sendable {
         var successful = 0
         var failed = 0
 
-        for v in violations {
+        for comment in comments {
             do {
                 try await postReviewComment(
                     prNumber: prNumber,
-                    violation: v,
+                    comment: comment,
                     commitSHA: commitSHA
                 )
                 successful += 1

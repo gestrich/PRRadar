@@ -1,6 +1,9 @@
-# Plan Bill Command
+---
+name: pr-radar-plan
+description: Create a phased planning document for a PRRadar feature or change
+---
 
-When the user invokes this command, create a planning document in `docs/proposed/<doc-name>.md` where the doc name reflects the plan appropriately (e.g., `add-user-authentication.md`, `refactor-api-layer.md`).
+Create a planning document in `docs/proposed/<doc-name>.md` where the doc name reflects the plan appropriately (e.g., `add-user-authentication.md`, `refactor-api-layer.md`).
 
 ## Planning Document Format
 
@@ -78,5 +81,3 @@ The `## - [ ]` format makes each phase a markdown section header, improving read
 3. Create the planning document in `docs/proposed/<doc-name>.md`
 4. Present the plan to the user for review
 5. Wait for approval before any implementation
-
-This approach creates clear, actionable plans that can be executed phase by phase with proper validation.

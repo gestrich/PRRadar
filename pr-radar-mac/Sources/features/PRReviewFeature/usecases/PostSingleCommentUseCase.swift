@@ -6,12 +6,9 @@ public struct PostSingleCommentUseCase: Sendable {
     public init() {}
 
     public func execute(
-        repoSlug: String,
-        prNumber: String,
-        filePath: String,
-        lineNumber: Int?,
+        comment: PRComment,
         commitSHA: String,
-        commentBody: String,
+        prNumber: String,
         repoPath: String,
         githubToken: String? = nil
     ) async throws -> Bool {
@@ -20,19 +17,10 @@ public struct PostSingleCommentUseCase: Sendable {
 
         guard let prNum = Int(prNumber) else { return false }
 
-        let violation = CommentableViolation(
-            taskId: "",
-            ruleName: "",
-            filePath: filePath,
-            lineNumber: lineNumber,
-            score: 0,
-            comment: commentBody
-        )
-
         do {
             try await commentService.postReviewComment(
                 prNumber: prNum,
-                violation: violation,
+                comment: comment,
                 commitSHA: commitSHA
             )
             return true

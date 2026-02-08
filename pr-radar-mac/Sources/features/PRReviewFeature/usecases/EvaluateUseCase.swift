@@ -5,11 +5,21 @@ import PRRadarModels
 
 public struct EvaluationPhaseOutput: Sendable {
     public let evaluations: [RuleEvaluationResult]
+    public let tasks: [EvaluationTaskOutput]
     public let summary: EvaluationSummary
 
-    public init(evaluations: [RuleEvaluationResult], summary: EvaluationSummary) {
+    public init(evaluations: [RuleEvaluationResult], tasks: [EvaluationTaskOutput] = [], summary: EvaluationSummary) {
         self.evaluations = evaluations
+        self.tasks = tasks
         self.summary = summary
+    }
+
+    /// Merge evaluations with task metadata into structured comments.
+    public var comments: [PRComment] {
+        let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
+        return evaluations
+            .filter(\.evaluation.violatesRule)
+            .map { PRComment.from(evaluation: $0, task: taskMap[$0.taskId]) }
     }
 }
 
@@ -66,7 +76,7 @@ public struct EvaluateUseCase: Sendable {
                             stats: PhaseStats(artifactsProduced: 0)
                         )
 
-                        let output = EvaluationPhaseOutput(evaluations: [], summary: summary)
+                        let output = EvaluationPhaseOutput(evaluations: [], tasks: [], summary: summary)
                         continuation.yield(.completed(output: output))
                         continuation.finish()
                         return
@@ -126,7 +136,7 @@ public struct EvaluateUseCase: Sendable {
 
                     continuation.yield(.log(text: "Evaluation complete: \(violationCount) violations found\n"))
 
-                    let output = EvaluationPhaseOutput(evaluations: results, summary: summary)
+                    let output = EvaluationPhaseOutput(evaluations: results, tasks: tasks, summary: summary)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
@@ -154,6 +164,10 @@ public struct EvaluateUseCase: Sendable {
             evaluations.append(evaluation)
         }
 
-        return EvaluationPhaseOutput(evaluations: evaluations, summary: summary)
+        let tasks: [EvaluationTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
+            config: config, prNumber: prNumber, phase: .tasks
+        )) ?? []
+
+        return EvaluationPhaseOutput(evaluations: evaluations, tasks: tasks, summary: summary)
     }
 }

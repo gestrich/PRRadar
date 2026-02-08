@@ -6,10 +6,10 @@ import PRRadarModels
 public struct CommentPhaseOutput: Sendable {
     public let successful: Int
     public let failed: Int
-    public let violations: [CommentableViolation]
+    public let violations: [PRComment]
     public let posted: Bool
 
-    public init(successful: Int, failed: Int, violations: [CommentableViolation], posted: Bool) {
+    public init(successful: Int, failed: Int, violations: [PRComment], posted: Bool) {
         self.successful = successful
         self.failed = failed
         self.violations = violations
@@ -77,7 +77,7 @@ public struct PostCommentsUseCase: Sendable {
                     let commentService = CommentService(githubService: gitHub)
 
                     let (successful, failed) = try await commentService.postViolations(
-                        violations: violations,
+                        comments: violations,
                         prNumber: prNum
                     )
 

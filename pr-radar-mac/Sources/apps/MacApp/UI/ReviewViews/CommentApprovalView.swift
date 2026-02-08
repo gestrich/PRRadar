@@ -4,13 +4,13 @@ import SwiftUI
 
 struct CommentApprovalView: View {
 
-    let evaluations: [RuleEvaluationResult]
+    let comments: [PRComment]
     let posted: Bool
     let prModel: PRModel
     var onPost: ((_ dryRun: Bool) -> Void)?
 
     @State private var approvedIds: Set<String> = []
-    @State private var selectedViolation: RuleEvaluationResult?
+    @State private var selectedComment: PRComment?
     @State private var editedComments: [String: String] = [:]
 
     var body: some View {
@@ -18,13 +18,13 @@ struct CommentApprovalView: View {
             toolbar
             Divider()
             HSplitView {
-                violationsList
+                commentsList
                     .frame(minWidth: 280, idealWidth: 320)
                 detailPanel
             }
         }
         .onAppear {
-            approvedIds = Set(violations.map(\.taskId))
+            approvedIds = Set(comments.map(\.id))
         }
     }
 
@@ -33,7 +33,7 @@ struct CommentApprovalView: View {
     @ViewBuilder
     private var toolbar: some View {
         HStack {
-            Text("\(approvedIds.count) of \(violations.count) comments approved")
+            Text("\(approvedIds.count) of \(comments.count) comments approved")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -41,7 +41,7 @@ struct CommentApprovalView: View {
 
             if !posted {
                 Button("Select All") {
-                    approvedIds = Set(violations.map(\.taskId))
+                    approvedIds = Set(comments.map(\.id))
                 }
 
                 Button("Deselect All") {
@@ -64,11 +64,11 @@ struct CommentApprovalView: View {
         .background(.bar)
     }
 
-    // MARK: - Violations List
+    // MARK: - Comments List
 
     @ViewBuilder
-    private var violationsList: some View {
-        if violations.isEmpty {
+    private var commentsList: some View {
+        if comments.isEmpty {
             ContentUnavailableView(
                 "No Violations",
                 systemImage: "checkmark.circle",
@@ -76,12 +76,12 @@ struct CommentApprovalView: View {
             )
         } else {
             List(selection: Binding(
-                get: { selectedViolation?.taskId },
-                set: { id in selectedViolation = violations.first { $0.taskId == id } }
+                get: { selectedComment?.id },
+                set: { id in selectedComment = comments.first { $0.id == id } }
             )) {
-                ForEach(violations, id: \.taskId) { result in
-                    violationRow(result)
-                        .tag(result.taskId)
+                ForEach(comments) { comment in
+                    commentRow(comment)
+                        .tag(comment.id)
                 }
             }
             .listStyle(.sidebar)
@@ -89,14 +89,14 @@ struct CommentApprovalView: View {
     }
 
     @ViewBuilder
-    private func violationRow(_ result: RuleEvaluationResult) -> some View {
+    private func commentRow(_ comment: PRComment) -> some View {
         HStack(spacing: 8) {
             if !posted {
                 Toggle("", isOn: Binding(
-                    get: { approvedIds.contains(result.taskId) },
+                    get: { approvedIds.contains(comment.id) },
                     set: { isOn in
-                        if isOn { approvedIds.insert(result.taskId) }
-                        else { approvedIds.remove(result.taskId) }
+                        if isOn { approvedIds.insert(comment.id) }
+                        else { approvedIds.remove(comment.id) }
                     }
                 ))
                 .labelsHidden()
@@ -105,19 +105,19 @@ struct CommentApprovalView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    SeverityBadge(score: result.evaluation.score)
-                    Text(result.ruleName)
+                    SeverityBadge(score: comment.score)
+                    Text(comment.ruleName)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .lineLimit(1)
                 }
 
-                Text(fileLocation(result))
+                Text(fileLocation(comment))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                Text(result.evaluation.comment)
+                Text(comment.comment)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -130,14 +130,14 @@ struct CommentApprovalView: View {
 
     @ViewBuilder
     private var detailPanel: some View {
-        if let violation = selectedViolation {
+        if let comment = selectedComment {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ruleInfoSection(violation)
+                    ruleInfoSection(comment)
                     Divider()
-                    commentSection(violation)
+                    commentSection(comment)
                     Divider()
-                    codeContextSection(violation)
+                    codeContextSection(comment)
                 }
                 .padding()
             }
@@ -153,46 +153,56 @@ struct CommentApprovalView: View {
     // MARK: - Rule Info
 
     @ViewBuilder
-    private func ruleInfoSection(_ result: RuleEvaluationResult) -> some View {
+    private func ruleInfoSection(_ comment: PRComment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                SeverityBadge(score: result.evaluation.score)
-                Text(result.ruleName)
+                SeverityBadge(score: comment.score)
+                Text(comment.ruleName)
                     .font(.title3)
                     .fontWeight(.semibold)
             }
 
-            Text(fileLocation(result))
+            Text(fileLocation(comment))
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
-                labeledValue("Model", result.modelUsed)
-                labeledValue("Duration", "\(result.durationMs)ms")
-                if let cost = result.costUsd {
-                    labeledValue("Cost", String(format: "$%.4f", cost))
+            if let cost = comment.costUsd {
+                HStack(spacing: 4) {
+                    Text("Cost:")
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "$%.4f", cost))
+                }
+                .font(.caption)
+            }
+
+            if let link = comment.documentationLink, let url = URL(string: link) {
+                HStack(spacing: 4) {
+                    Image(systemName: "book")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Link("Documentation", destination: url)
+                        .font(.caption)
                 }
             }
-            .font(.caption)
         }
     }
 
     // MARK: - Comment Section
 
     @ViewBuilder
-    private func commentSection(_ result: RuleEvaluationResult) -> some View {
+    private func commentSection(_ comment: PRComment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Proposed Comment")
                 .font(.headline)
 
             if posted {
-                Text(result.evaluation.comment)
+                Text(comment.comment)
                     .font(.body)
                     .textSelection(.enabled)
             } else {
                 TextEditor(text: Binding(
-                    get: { editedComments[result.taskId] ?? result.evaluation.comment },
-                    set: { editedComments[result.taskId] = $0 }
+                    get: { editedComments[comment.id] ?? comment.comment },
+                    set: { editedComments[comment.id] = $0 }
                 ))
                 .font(.body)
                 .frame(minHeight: 80)
@@ -204,16 +214,16 @@ struct CommentApprovalView: View {
     // MARK: - Code Context
 
     @ViewBuilder
-    private func codeContextSection(_ result: RuleEvaluationResult) -> some View {
+    private func codeContextSection(_ comment: PRComment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Code Context")
                 .font(.headline)
 
-            if let content = prModel.readFileFromRepo(result.filePath) {
+            if let content = prModel.readFileFromRepo(comment.filePath) {
                 CodeView(
                     fileContent: content,
-                    fileName: result.filePath,
-                    highlightedLine: result.evaluation.lineNumber
+                    fileName: comment.filePath,
+                    highlightedLine: comment.lineNumber
                 )
                 .frame(minHeight: 300, maxHeight: 500)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -225,7 +235,7 @@ struct CommentApprovalView: View {
                 ContentUnavailableView(
                     "File Not Available",
                     systemImage: "doc.questionmark",
-                    description: Text("Could not read \(result.filePath) from the repository.")
+                    description: Text("Could not read \(comment.filePath) from the repository.")
                 )
                 .frame(height: 120)
             }
@@ -234,23 +244,10 @@ struct CommentApprovalView: View {
 
     // MARK: - Helpers
 
-    @ViewBuilder
-    private func labeledValue(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 4) {
-            Text(label + ":")
-                .foregroundStyle(.secondary)
-            Text(value)
+    private func fileLocation(_ comment: PRComment) -> String {
+        if let line = comment.lineNumber {
+            return "\(comment.filePath):\(line)"
         }
-    }
-
-    private var violations: [RuleEvaluationResult] {
-        evaluations.filter(\.evaluation.violatesRule)
-    }
-
-    private func fileLocation(_ result: RuleEvaluationResult) -> String {
-        if let line = result.evaluation.lineNumber {
-            return "\(result.filePath):\(line)"
-        }
-        return result.filePath
+        return comment.filePath
     }
 }

@@ -1,9 +1,9 @@
 import PRRadarModels
 
 struct DiffCommentMapping {
-    let commentsByFileAndLine: [String: [Int: [RuleEvaluationResult]]]
-    let unmatchedByFile: [String: [RuleEvaluationResult]]
-    let unmatchedNoFile: [RuleEvaluationResult]
+    let commentsByFileAndLine: [String: [Int: [PRComment]]]
+    let unmatchedByFile: [String: [PRComment]]
+    let unmatchedNoFile: [PRComment]
 
     static let empty = DiffCommentMapping(
         commentsByFileAndLine: [:],
@@ -14,31 +14,30 @@ struct DiffCommentMapping {
 
 enum DiffCommentMapper {
 
-    static func map(diff: GitDiff, evaluations: [RuleEvaluationResult]) -> DiffCommentMapping {
-        let violations = evaluations.filter(\.evaluation.violatesRule)
+    static func map(diff: GitDiff, comments: [PRComment]) -> DiffCommentMapping {
         let diffFiles = Set(diff.changedFiles)
 
-        var byFileAndLine: [String: [Int: [RuleEvaluationResult]]] = [:]
-        var unmatchedByFile: [String: [RuleEvaluationResult]] = [:]
-        var unmatchedNoFile: [RuleEvaluationResult] = []
+        var byFileAndLine: [String: [Int: [PRComment]]] = [:]
+        var unmatchedByFile: [String: [PRComment]] = [:]
+        var unmatchedNoFile: [PRComment] = []
 
-        for violation in violations {
-            let filePath = violation.evaluation.filePath
+        for comment in comments {
+            let filePath = comment.filePath
 
             guard diffFiles.contains(filePath) else {
-                unmatchedNoFile.append(violation)
+                unmatchedNoFile.append(comment)
                 continue
             }
 
-            guard let lineNumber = violation.evaluation.lineNumber else {
-                unmatchedByFile[filePath, default: []].append(violation)
+            guard let lineNumber = comment.lineNumber else {
+                unmatchedByFile[filePath, default: []].append(comment)
                 continue
             }
 
             if diff.findHunk(containingLine: lineNumber, inFile: filePath) != nil {
-                byFileAndLine[filePath, default: [:]][lineNumber, default: []].append(violation)
+                byFileAndLine[filePath, default: [:]][lineNumber, default: []].append(comment)
             } else {
-                unmatchedByFile[filePath, default: []].append(violation)
+                unmatchedByFile[filePath, default: []].append(comment)
             }
         }
 

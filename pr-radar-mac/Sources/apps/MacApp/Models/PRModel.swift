@@ -256,35 +256,29 @@ final class PRModel: Identifiable, Hashable {
 
     // MARK: - Single Comment Submission
 
-    func submitSingleComment(_ evaluation: RuleEvaluationResult) async {
+    func submitSingleComment(_ comment: PRComment) async {
         guard let fullDiff else { return }
         let commitSHA = fullDiff.commitHash
-        guard let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath) else { return }
 
-        submittingCommentIds.insert(evaluation.taskId)
-
-        let commentBody = "**\(evaluation.ruleName)** (Score: \(evaluation.evaluation.score)/10)\n\n\(evaluation.evaluation.comment)"
+        submittingCommentIds.insert(comment.id)
 
         let useCase = PostSingleCommentUseCase()
 
         do {
             let success = try await useCase.execute(
-                repoSlug: repoSlug,
-                prNumber: prNumber,
-                filePath: evaluation.evaluation.filePath,
-                lineNumber: evaluation.evaluation.lineNumber,
+                comment: comment,
                 commitSHA: commitSHA,
-                commentBody: commentBody,
+                prNumber: prNumber,
                 repoPath: repoConfig.repoPath,
                 githubToken: config.githubToken
             )
 
-            submittingCommentIds.remove(evaluation.taskId)
+            submittingCommentIds.remove(comment.id)
             if success {
-                submittedCommentIds.insert(evaluation.taskId)
+                submittedCommentIds.insert(comment.id)
             }
         } catch {
-            submittingCommentIds.remove(evaluation.taskId)
+            submittingCommentIds.remove(comment.id)
         }
     }
 

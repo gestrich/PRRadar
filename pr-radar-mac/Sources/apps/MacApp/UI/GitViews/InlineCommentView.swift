@@ -3,15 +3,15 @@ import SwiftUI
 
 struct InlineCommentView: View {
 
-    let evaluation: RuleEvaluationResult
+    let comment: PRComment
     let prModel: PRModel
 
     private var isSubmitting: Bool {
-        prModel.submittingCommentIds.contains(evaluation.taskId)
+        prModel.submittingCommentIds.contains(comment.id)
     }
 
     private var isSubmitted: Bool {
-        prModel.submittedCommentIds.contains(evaluation.taskId)
+        prModel.submittedCommentIds.contains(comment.id)
     }
 
     var body: some View {
@@ -22,9 +22,9 @@ struct InlineCommentView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    SeverityBadge(score: evaluation.evaluation.score)
+                    SeverityBadge(score: comment.score)
 
-                    Text(evaluation.ruleName)
+                    Text(comment.ruleName)
                         .font(.subheadline.bold())
 
                     Spacer()
@@ -32,11 +32,21 @@ struct InlineCommentView: View {
                     submitButton
                 }
 
-                Text(evaluation.evaluation.comment)
+                Text(comment.comment)
                     .font(.callout)
                     .foregroundStyle(.primary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if let link = comment.documentationLink, let url = URL(string: link) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "book")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Link("Documentation", destination: url)
+                            .font(.caption)
+                    }
+                }
             }
             .padding(10)
         }
@@ -63,7 +73,7 @@ struct InlineCommentView: View {
             }
         } else {
             Button("Submit") {
-                Task { await prModel.submitSingleComment(evaluation) }
+                Task { await prModel.submitSingleComment(comment) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
