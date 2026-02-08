@@ -95,20 +95,18 @@ public struct GitHubService: Sendable {
         try await octokitClient.getPullRequestHeadSHA(owner: owner, repository: repo, number: number)
     }
 
-    @discardableResult
-    public func postIssueComment(number: Int, body: String) async throws -> Issue.Comment {
-        try await octokitClient.postIssueComment(owner: owner, repository: repo, number: number, body: body)
+    public func postIssueComment(number: Int, body: String) async throws {
+        _ = try await octokitClient.postIssueComment(owner: owner, repository: repo, number: number, body: body)
     }
 
-    @discardableResult
     public func postReviewComment(
         number: Int,
         commitId: String,
         path: String,
         line: Int,
         body: String
-    ) async throws -> PullRequest.Comment {
-        try await octokitClient.postReviewComment(
+    ) async throws {
+        _ = try await octokitClient.postReviewComment(
             owner: owner,
             repository: repo,
             number: number,
@@ -151,12 +149,4 @@ public struct GitHubService: Sendable {
 
         return nil
     }
-}
-
-// MARK: - Private
-
-private func formatISO8601(_ date: Date) -> String {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    return formatter.string(from: date)
 }

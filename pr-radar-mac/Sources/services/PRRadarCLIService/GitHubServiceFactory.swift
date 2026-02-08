@@ -15,8 +15,7 @@ public struct GitHubServiceFactory: Sendable {
             throw GitHubServiceError.missingToken
         }
 
-        let client = CLIClient()
-        let gitOps = GitOperationsService(client: client)
+        let gitOps = createGitOps()
         let remoteURL = try await gitOps.getRemoteURL(path: repoPath)
 
         guard let (owner, repo) = GitHubService.parseOwnerRepo(from: remoteURL) else {
@@ -27,5 +26,9 @@ public struct GitHubServiceFactory: Sendable {
         let gitHub = GitHubService(octokitClient: octokitClient, owner: owner, repo: repo)
 
         return (gitHub, gitOps)
+    }
+
+    public static func createGitOps() -> GitOperationsService {
+        GitOperationsService(client: CLIClient())
     }
 }

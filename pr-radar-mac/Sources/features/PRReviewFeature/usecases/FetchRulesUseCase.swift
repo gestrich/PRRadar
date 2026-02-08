@@ -88,7 +88,7 @@ public struct FetchRulesUseCase: Sendable {
 
                     continuation.yield(.log(text: "Loading rules from \(rulesPath)...\n"))
 
-                    let (_, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
+                    let gitOps = GitHubServiceFactory.createGitOps()
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath, repoPath: rulesPath)
 

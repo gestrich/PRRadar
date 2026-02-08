@@ -4,7 +4,7 @@ import PRRadarModels
 
 // MARK: - Date Formatting
 
-private func formatISO8601(_ date: Date) -> String {
+func formatISO8601(_ date: Date) -> String {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime]
     return formatter.string(from: date)

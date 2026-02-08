@@ -277,7 +277,7 @@ Clean up by removing the old gh CLI implementation.
 - `Package.swift` unchanged — all remaining SwiftCLI/CLISDK dependencies are legitimate (git and claude bridge operations)
 - All 230 tests in 34 suites pass, build succeeds
 
-## - [ ] Phase 8: Architecture Validation
+## - [x] Phase 8: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -302,6 +302,15 @@ Review all commits made during the preceding phases and validate they follow the
 - All code follows swift-app-architecture conventions
 - Clean layer separation maintained
 - No architectural violations introduced
+
+**Technical Notes (Phase 8):**
+- Reviewed all 13 skill documents from `gestrich/swift-app-architecture` (7 swift-architecture + 6 swift-swiftui skills)
+- **Violation 1 — Octokit types leaking through service API**: `GitHubService.postIssueComment` and `postReviewComment` returned `Issue.Comment` and `PullRequest.Comment` (Octokit types) in their public signatures. Fixed by changing return types to `Void` — callers already discarded the return values via `@discardableResult`. Service layer should only expose domain types from `PRRadarModels`, not third-party SDK types.
+- **Violation 2 — Unnecessary token requirement in FetchRulesUseCase**: `FetchRulesUseCase` called `GitHubServiceFactory.create()` (which requires a GitHub token) just to obtain a `GitOperationsService` for local git operations. Fixed by adding `GitHubServiceFactory.createGitOps()` factory method that creates a `GitOperationsService` without requiring authentication.
+- **Violation 3 — Duplicate utility function**: `formatISO8601(_:)` was defined identically in both `GitHubService.swift` and `OctokitMapping.swift` as `private` file-level functions. Consolidated by making the `OctokitMapping.swift` version `internal` (module-scoped) and removing the duplicate from `GitHubService.swift`.
+- `OctokitClient` (SDK layer) correctly follows stateless `Sendable` struct convention — each method wraps a single operation
+- Layer dependencies verified: SDKs have no upward dependencies; Services depend on SDKs only; Features depend on Services and SDKs; Apps depend on all layers
+- All 230 tests in 34 suites pass, build succeeds
 
 ## - [ ] Phase 9: Validation
 
