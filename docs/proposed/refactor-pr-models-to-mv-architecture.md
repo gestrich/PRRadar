@@ -100,7 +100,7 @@ Add the heavy detail state loading to PRModel with on-demand initialization.
 - All phase execution methods, comment submission, file access, and helper methods migrated verbatim from ReviewModel
 - `selectedPhase` property added to PRModel so it can own phase tab selection (previously on ReviewModel)
 
-## - [ ] Phase 3: Create AllPRsModel
+## - [x] Phase 3: Create AllPRsModel
 
 Create the parent model that manages the collection of PRModels.
 
@@ -139,6 +139,14 @@ Create the parent model that manages the collection of PRModels.
 - AllPRsModel manages collection of PRModels
 - Self-initializes and loads PR list on creation
 - Handles GitHub refresh and analyze-all operations
+
+**Technical notes:**
+- `init` takes a third parameter `settingsService: SettingsService` (defaults to `SettingsService()`) to keep configuration management co-located with the model
+- `AnalyzeAllState` enum migrated from `PRReviewModel` with same cases (idle, running, completed, failed)
+- `refresh()` re-discovers PRs from disk after fetch completes (rather than using the fetched metadata directly) to stay consistent with `load()`
+- `analyzeAll()` calls `reloadFromDisk()` after completion to pick up newly-written phase outputs
+- `currentPRModels` computed property extracts the PR list from any active state for use in `refresh()` transitions
+- PRModel creation passes `repoConfig` as third parameter (needed for phase execution in Phase 2)
 
 ## - [ ] Phase 4: Update Views to Use New Models
 
