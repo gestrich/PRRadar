@@ -2,7 +2,8 @@ import PRRadarConfigService
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(AllPRsModel.self) private var model
+    let model: AllPRsModel
+    @Binding var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
     @State private var editingConfig: RepoConfiguration?
     @State private var isAddingNew = false
@@ -23,7 +24,7 @@ struct SettingsView: View {
             }
             .padding()
 
-            if model.settings.configurations.isEmpty {
+            if settings.configurations.isEmpty {
                 ContentUnavailableView(
                     "No Configurations",
                     systemImage: "folder.badge.questionmark",
@@ -32,13 +33,19 @@ struct SettingsView: View {
                 .frame(maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(model.settings.configurations) { config in
+                    ForEach(settings.configurations) { config in
                         ConfigurationRow(
                             config: config,
                             isSelected: config.id == model.repoConfig.id,
                             onEdit: { editingConfig = config },
-                            onSetDefault: { model.setDefault(id: config.id) },
-                            onDelete: { model.removeConfiguration(id: config.id) }
+                            onSetDefault: { 
+                                model.setDefault(id: config.id)
+                                settings = model.settings
+                            },
+                            onDelete: { 
+                                model.removeConfiguration(id: config.id)
+                                settings = model.settings
+                            }
                         )
                     }
                 }
@@ -64,6 +71,7 @@ struct SettingsView: View {
                 } else {
                     model.updateConfiguration(updatedConfig)
                 }
+                settings = model.settings
                 isAddingNew = false
             } onCancel: {
                 isAddingNew = false

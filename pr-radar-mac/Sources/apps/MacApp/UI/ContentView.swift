@@ -4,7 +4,9 @@ import SwiftUI
 
 struct ContentView: View {
 
-    @Environment(AllPRsModel.self) private var allPRs
+    @State private var allPRs: AllPRsModel?
+    @State private var settingsService = SettingsService()
+    @State private var settings: AppSettings
     @State private var selectedConfig: RepoConfiguration?
     @State private var selectedPR: PRModel?
     @AppStorage("selectedConfigID") private var savedConfigID: String = ""
@@ -14,11 +16,20 @@ struct ContentView: View {
     @State private var newPRNumber = ""
     @State private var showAnalyzeAll = false
     @State private var analyzeAllSinceDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: Date()) ?? Date()
+    
+    let bridgeScriptPath: String
+    
+    init(bridgeScriptPath: String) {
+        self.bridgeScriptPath = bridgeScriptPath
+        let service = SettingsService()
+        let loadedSettings = service.load()
+        _settings = State(initialValue: loadedSettings)
+    }
 
     private var showRefreshError: Binding<Bool> {
         Binding(
-            get: { if case .failed = allPRs.state { return true } else { return false } },
-            set: { if !$0 { Task { await allPRs.load() } } }
+            get: { if let model = allPRs, case .failed = model.state { return true } else { return false } },
+            set: { if !$0 { Task { await allPRs?.load() } } }
         )
     }
 
@@ -30,24 +41,23 @@ struct ContentView: View {
         } detail: {
             detailView
         }
+        .id(selectedConfig?.id)
         .sheet(isPresented: $showSettings) {
-            SettingsView()
-                .environment(allPRs)
+            if let model = allPRs {
+                SettingsView(model: model, settings: $settings)
+            }
         }
         .alert("Refresh Failed", isPresented: showRefreshError) {
-            Button("OK") { Task { await allPRs.load() } }
+            Button("OK") { Task { await allPRs?.load() } }
         } message: {
-            if case .failed(let error, _) = allPRs.state {
+            if let model = allPRs, case .failed(let error, _) = model.state {
                 Text(error)
             }
         }
         .task {
-            if let config = allPRs.settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
+            if let config = settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
                 selectedConfig = config
-                if savedPRNumber != 0, let pr = currentPRModels.first(where: { $0.metadata.number == savedPRNumber }) {
-                    selectedPR = pr
-                }
-            } else if let config = allPRs.settings.defaultConfiguration {
+            } else if let config = settings.defaultConfiguration {
                 selectedConfig = config
             }
         }
@@ -56,6 +66,7 @@ struct ContentView: View {
             savedConfigID = config.id.uuidString
             selectedPR = nil
             savedPRNumber = 0
+            createModelForConfig(config)
         }
         .onChange(of: selectedPR) { _, new in
             if let pr = new {
@@ -65,12 +76,17 @@ struct ContentView: View {
                 savedPRNumber = 0
             }
         }
+        .task {
+            if savedPRNumber != 0, let pr = currentPRModels.first(where: { $0.metadata.number == savedPRNumber }) {
+                selectedPR = pr
+            }
+        }
     }
 
     // MARK: - Column 1: Config Sidebar
 
     private var configSidebar: some View {
-        List(allPRs.settings.configurations, selection: $selectedConfig) { config in
+        List(settings.configurations, selection: $selectedConfig) { config in
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(config.name)
@@ -110,7 +126,7 @@ struct ContentView: View {
 
     private var prListView: some View {
         Group {
-            if selectedConfig != nil {
+            if allPRs != nil {
                 if currentPRModels.isEmpty {
                     ContentUnavailableView(
                         "No Reviews Found",
@@ -135,9 +151,9 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
-                    Task { await allPRs.refresh() }
+                    Task { await allPRs?.refresh() }
                 } label: {
-                    if case .refreshing = allPRs.state {
+                    if let model = allPRs, case .refreshing = model.state {
                         ProgressView()
                             .controlSize(.small)
                     } else {
@@ -145,13 +161,13 @@ struct ContentView: View {
                     }
                 }
                 .help("Refresh PR list")
-                .disabled(isRefreshing || selectedConfig == nil)
+                .disabled(isRefreshing || allPRs == nil)
             }
             ToolbarItem(placement: .automatic) {
                 Button {
                     showAnalyzeAll = true
                 } label: {
-                    if allPRs.analyzeAllState.isRunning {
+                    if let model = allPRs, model.analyzeAllState.isRunning {
                         ProgressView()
                             .controlSize(.small)
                     } else {
@@ -159,7 +175,7 @@ struct ContentView: View {
                     }
                 }
                 .help("Analyze all PRs since a date")
-                .disabled(selectedConfig == nil || allPRs.analyzeAllState.isRunning)
+                .disabled(allPRs == nil || allPRs?.analyzeAllState.isRunning == true)
                 .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
                     analyzeAllPopover
                 }
@@ -172,7 +188,7 @@ struct ContentView: View {
                     Image(systemName: "plus")
                 }
                 .help("Start a new PR review")
-                .disabled(selectedConfig == nil)
+                .disabled(allPRs == nil)
                 .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
                     newReviewPopover
                 }
@@ -184,7 +200,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        if selectedConfig != nil {
+        if allPRs != nil {
             if let selectedPR {
                 ReviewDetailView(prModel: selectedPR)
                     .id(selectedPR.metadata.number)
@@ -243,7 +259,7 @@ struct ContentView: View {
                 formatter.dateFormat = "yyyy-MM-dd"
                 let sinceString = formatter.string(from: analyzeAllSinceDate)
                 showAnalyzeAll = false
-                Task { await allPRs.analyzeAll(since: sinceString) }
+                Task { await allPRs?.analyzeAll(since: sinceString) }
             }
             .keyboardShortcut(.defaultAction)
         }
@@ -251,14 +267,14 @@ struct ContentView: View {
     }
 
     private func submitNewReview() {
-        guard let number = Int(newPRNumber) else { return }
+        guard let number = Int(newPRNumber), let model = allPRs else { return }
         showNewReview = false
         Task {
             let fallback = PRMetadata.fallback(number: number)
-            let newPR = PRModel(metadata: fallback, config: allPRs.config, repoConfig: allPRs.repoConfig)
+            let newPR = PRModel(metadata: fallback, config: model.config, repoConfig: model.repoConfig)
             selectedPR = newPR
             await newPR.runDiff()
-            await allPRs.load()
+            await model.load()
             if let updated = currentPRModels.first(where: { $0.metadata.number == number }) {
                 selectedPR = updated
                 updated.loadDetail()
@@ -269,7 +285,8 @@ struct ContentView: View {
     // MARK: - Helpers
 
     private var currentPRModels: [PRModel] {
-        switch allPRs.state {
+        guard let model = allPRs else { return [] }
+        switch model.state {
         case .ready(let models): return models
         case .refreshing(let models): return models
         case .failed(_, let prior): return prior ?? []
@@ -278,17 +295,26 @@ struct ContentView: View {
     }
 
     private var isRefreshing: Bool {
-        if case .refreshing = allPRs.state { return true }
+        guard let model = allPRs else { return false }
+        if case .refreshing = model.state { return true }
         return false
+    }
+    
+    private func createModelForConfig(_ config: RepoConfiguration) {
+        let prRadarConfig = PRRadarConfig(
+            repoPath: config.repoPath,
+            outputDir: config.outputDir,
+            bridgeScriptPath: bridgeScriptPath,
+            githubToken: config.githubToken
+        )
+        allPRs = AllPRsModel(
+            config: prRadarConfig,
+            repoConfig: config,
+            settingsService: settingsService
+        )
     }
 }
 
 #Preview {
-    ContentView()
-        .environment(
-            AllPRsModel(
-                config: .init(repoPath: "", outputDir: "", bridgeScriptPath: "", githubToken: nil),
-                repoConfig: .init(name: "Test", repoPath: "")
-            )
-        )
+    ContentView(bridgeScriptPath: "/tmp/bridge.py")
 }
