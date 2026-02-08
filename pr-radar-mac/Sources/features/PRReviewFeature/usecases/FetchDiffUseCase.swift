@@ -32,25 +32,13 @@ public struct FetchDiffUseCase: Sendable {
             phase: .pullRequest
         )
 
-        let fullDiff: GitDiff? = {
-            guard let diffText = try? PhaseOutputParser.readPhaseTextFile(
-                config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.md"
-            ),
-            let parsed: PRDiffOutput = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.json"
-            ) else { return nil }
-            return GitDiff.fromDiffContent(diffText, commitHash: parsed.commitHash)
-        }()
+        let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.json"
+        )
 
-        let effectiveDiff: GitDiff? = {
-            guard let effectiveText = try? PhaseOutputParser.readPhaseTextFile(
-                config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.md"
-            ),
-            let parsed: PRDiffOutput = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.json"
-            ) else { return nil }
-            return GitDiff.fromDiffContent(effectiveText, commitHash: parsed.commitHash)
-        }()
+        let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.json"
+        )
 
         let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-moves.json"

@@ -2,36 +2,6 @@ import Foundation
 
 // MARK: - Phase 1: Diff Output Models
 
-/// A single hunk from a parsed diff, matching Python's Hunk.to_dict()
-public struct ParsedHunk: Codable, Sendable {
-    public let filePath: String
-    public let content: String
-    public let oldStart: Int
-    public let oldLength: Int
-    public let newStart: Int
-    public let newLength: Int
-
-    enum CodingKeys: String, CodingKey {
-        case filePath = "file_path"
-        case content
-        case oldStart = "old_start"
-        case oldLength = "old_length"
-        case newStart = "new_start"
-        case newLength = "new_length"
-    }
-}
-
-/// Top-level container parsed from diff-parsed.json, matching Python's GitDiff.to_dict()
-public struct PRDiffOutput: Codable, Sendable {
-    public let commitHash: String
-    public let hunks: [ParsedHunk]
-
-    enum CodingKeys: String, CodingKey {
-        case commitHash = "commit_hash"
-        case hunks
-    }
-}
-
 /// A single code move detected by the effective diff algorithm.
 public struct MoveDetail: Codable, Sendable {
     public let sourceFile: String

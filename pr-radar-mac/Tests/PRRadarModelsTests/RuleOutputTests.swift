@@ -156,39 +156,6 @@ struct RuleOutputTests {
         #expect(original.model == decoded.model)
     }
 
-    // MARK: - AllRulesOutput
-
-    @Test("AllRulesOutput decodes wrapper with rules array")
-    func allRulesOutputDecode() throws {
-        let json = """
-        {
-            "rules": [
-                {
-                    "name": "rule-a",
-                    "file_path": "/rules/a.md",
-                    "description": "Rule A",
-                    "category": "style",
-                    "focus_type": "file",
-                    "content": "Content A"
-                },
-                {
-                    "name": "rule-b",
-                    "file_path": "/rules/b.md",
-                    "description": "Rule B",
-                    "category": "reliability",
-                    "focus_type": "method",
-                    "content": "Content B"
-                }
-            ]
-        }
-        """.data(using: .utf8)!
-
-        let output = try JSONDecoder().decode(AllRulesOutput.self, from: json)
-        #expect(output.rules.count == 2)
-        #expect(output.rules[0].name == "rule-a")
-        #expect(output.rules[1].category == "reliability")
-    }
-
     @Test("Bare JSON array decodes as [ReviewRule] (all-rules.json format)")
     func bareRulesArrayDecode() throws {
         let json = """

@@ -5,107 +5,50 @@ import Testing
 @Suite("DiffOutput JSON Parsing")
 struct DiffOutputTests {
 
-    // MARK: - ParsedHunk
+    // MARK: - GitDiff round-trip
 
-    @Test("ParsedHunk decodes from Python's Hunk.to_dict()")
-    func parsedHunkDecode() throws {
-        let json = """
-        {
-            "file_path": "src/api/handler.py",
-            "content": "diff --git a/src/api/handler.py b/src/api/handler.py\\n@@ -10,3 +10,4 @@\\n context\\n+added line",
-            "old_start": 10,
-            "old_length": 3,
-            "new_start": 10,
-            "new_length": 4
-        }
-        """.data(using: .utf8)!
+    @Test("GitDiff round-trips through encode/decode")
+    func gitDiffRoundTrip() throws {
+        let diff = GitDiff(
+            rawContent: "@@ -1,2 +1,3 @@\n context\n+new",
+            hunks: [
+                Hunk(
+                    filePath: "test.swift",
+                    content: "@@ -1,2 +1,3 @@\n context\n+new",
+                    rawHeader: ["diff --git a/test.swift b/test.swift"],
+                    oldStart: 1,
+                    oldLength: 2,
+                    newStart: 1,
+                    newLength: 3
+                )
+            ],
+            commitHash: "abc123"
+        )
 
-        let hunk = try JSONDecoder().decode(ParsedHunk.self, from: json)
-        #expect(hunk.filePath == "src/api/handler.py")
-        #expect(hunk.oldStart == 10)
-        #expect(hunk.oldLength == 3)
-        #expect(hunk.newStart == 10)
-        #expect(hunk.newLength == 4)
-        #expect(hunk.content.contains("added line"))
+        let encoded = try JSONEncoder().encode(diff)
+        let decoded = try JSONDecoder().decode(GitDiff.self, from: encoded)
+
+        #expect(decoded.commitHash == "abc123")
+        #expect(decoded.hunks.count == 1)
+        #expect(decoded.hunks[0].filePath == "test.swift")
+        #expect(decoded.hunks[0].oldStart == 1)
+        #expect(decoded.hunks[0].newLength == 3)
     }
 
-    @Test("ParsedHunk round-trips through encode/decode")
-    func parsedHunkRoundTrip() throws {
-        let json = """
-        {
-            "file_path": "test.swift",
-            "content": "@@ -1,2 +1,3 @@\\n context\\n+new",
-            "old_start": 1,
-            "old_length": 2,
-            "new_start": 1,
-            "new_length": 3
-        }
-        """.data(using: .utf8)!
+    @Test("GitDiff with empty hunks array")
+    func gitDiffEmptyHunks() throws {
+        let diff = GitDiff(rawContent: "", hunks: [], commitHash: "deadbeef")
 
-        let original = try JSONDecoder().decode(ParsedHunk.self, from: json)
-        let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(ParsedHunk.self, from: encoded)
+        let encoded = try JSONEncoder().encode(diff)
+        let decoded = try JSONDecoder().decode(GitDiff.self, from: encoded)
 
-        #expect(original.filePath == decoded.filePath)
-        #expect(original.content == decoded.content)
-        #expect(original.oldStart == decoded.oldStart)
-        #expect(original.oldLength == decoded.oldLength)
-        #expect(original.newStart == decoded.newStart)
-        #expect(original.newLength == decoded.newLength)
-    }
-
-    // MARK: - PRDiffOutput
-
-    @Test("PRDiffOutput decodes from Python's GitDiff.to_dict()")
-    func prDiffOutputDecode() throws {
-        let json = """
-        {
-            "commit_hash": "abc123def456",
-            "hunks": [
-                {
-                    "file_path": "src/main.py",
-                    "content": "@@ -1,5 +1,6 @@\\n def main():\\n+    print('hello')",
-                    "old_start": 1,
-                    "old_length": 5,
-                    "new_start": 1,
-                    "new_length": 6
-                },
-                {
-                    "file_path": "src/utils.py",
-                    "content": "@@ -20,3 +20,4 @@\\n def helper():\\n+    return True",
-                    "old_start": 20,
-                    "old_length": 3,
-                    "new_start": 20,
-                    "new_length": 4
-                }
-            ]
-        }
-        """.data(using: .utf8)!
-
-        let diff = try JSONDecoder().decode(PRDiffOutput.self, from: json)
-        #expect(diff.commitHash == "abc123def456")
-        #expect(diff.hunks.count == 2)
-        #expect(diff.hunks[0].filePath == "src/main.py")
-        #expect(diff.hunks[1].filePath == "src/utils.py")
-    }
-
-    @Test("PRDiffOutput with empty hunks array")
-    func prDiffOutputEmptyHunks() throws {
-        let json = """
-        {
-            "commit_hash": "deadbeef",
-            "hunks": []
-        }
-        """.data(using: .utf8)!
-
-        let diff = try JSONDecoder().decode(PRDiffOutput.self, from: json)
-        #expect(diff.commitHash == "deadbeef")
-        #expect(diff.hunks.isEmpty)
+        #expect(decoded.commitHash == "deadbeef")
+        #expect(decoded.hunks.isEmpty)
     }
 
     // MARK: - MoveDetail
 
-    @Test("MoveDetail decodes from Python's effective diff moves")
+    @Test("MoveDetail decodes from effective diff moves")
     func moveDetailDecode() throws {
         let json = """
         {

@@ -1,4 +1,5 @@
 import Foundation
+import PRRadarConfigService
 
 public enum ClaudeBridgeError: Error {
     case bridgeScriptNotFound(String)
@@ -128,6 +129,7 @@ public struct ClaudeBridgeClient: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: resolvedPython)
         process.arguments = [bridgeScriptPath]
+        process.environment = PRRadarEnvironment.build()
 
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
@@ -184,6 +186,13 @@ public struct ClaudeBridgeClient: Sendable {
     // MARK: - Private
 
     private func resolvePythonPath() throws -> String {
+        // Check for venv adjacent to bridge script first
+        let bridgeDir = (bridgeScriptPath as NSString).deletingLastPathComponent
+        let venvPython = (bridgeDir as NSString).appendingPathComponent(".venv/bin/python3")
+        if FileManager.default.fileExists(atPath: venvPython) {
+            return venvPython
+        }
+
         if pythonPath.hasPrefix("/") {
             guard FileManager.default.fileExists(atPath: pythonPath) else {
                 throw ClaudeBridgeError.pythonNotFound

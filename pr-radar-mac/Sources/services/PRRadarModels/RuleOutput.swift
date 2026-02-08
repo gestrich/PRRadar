@@ -402,11 +402,3 @@ public struct ReviewRule: Codable, Sendable, Equatable {
     }
 }
 
-/// Container for all-rules.json output.
-public struct AllRulesOutput: Codable, Sendable {
-    public let rules: [ReviewRule]
-
-    public init(rules: [ReviewRule]) {
-        self.rules = rules
-    }
-}

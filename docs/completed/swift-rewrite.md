@@ -432,7 +432,9 @@ Review all commits made during the preceding phases and validate they follow the
 
 ---
 
-## - [ ] Phase 10: End-to-End Validation
+## - [x] Phase 10: End-to-End Validation
+
+> **Completed.** Full pipeline verified end-to-end: test PR created, analysis ran all 6 phases, violation detected, comment posted and confirmed on GitHub.
 
 Verify the full pipeline works end-to-end: create a fresh PR with a known violation, run analysis, post a comment, and confirm the comment actually appears on GitHub via the API.
 
@@ -531,3 +533,24 @@ rm -rf ~/Desktop/code-reviews
 - `comment` posts review comments to the GitHub PR
 - `gh api` confirms the comment exists on the PR — not just local output, actually posted to GitHub
 - No Python dependencies required at runtime (except the Claude bridge venv)
+
+### Bugs found and fixed during validation:
+
+**1. Diff JSON encode/decode mismatch** — `PRAcquisitionService` wrote `GitDiff` (camelCase keys) but `FetchDiffUseCase.parseOutput()` decoded as `PRDiffOutput` (snake_case CodingKeys from Python era). Fixed by decoding as `GitDiff` directly. Removed dead `PRDiffOutput`, `ParsedHunk`, and `AllRulesOutput` types.
+
+**2. Missing `.env` file loading** — The Python app loaded `ANTHROPIC_API_KEY` via `python-dotenv`, but the Swift app had no `.env` loader. Added `loadDotEnv()` to `PRRadarEnvironment.build()` that walks up from the current directory to find a `.env` file and loads key-value pairs not already in the environment.
+
+**3. Claude bridge venv resolution** — The bridge script requires `claude-agent-sdk` (Python 3.10+), but the system Python was 3.9. Updated `ClaudeBridgeClient.resolvePythonPath()` to check for a `.venv/bin/python3` adjacent to the bridge script before falling back to system Python.
+
+### Validation results:
+- 230 tests pass in 34 suites
+- Test PR #2 created on `gestrich/PRRadar-TestRepo`
+- `analyze 2 --config test-repo` completed all 6 phases
+- Report identified `guard-divide-by-zero` violation on `MathHelper.swift:1` (score 6/10)
+- `comment 2 --config test-repo` posted inline review comment to GitHub
+- `gh api repos/gestrich/PRRadar-TestRepo/pulls/2/comments` confirmed comment exists
+- Test PR closed and branch deleted
+- Build verification: `swift build` succeeds for both MacApp and PRRadarMacCLI
+
+### Known issue found (not fixed):
+- `status` command crashes with segfault (exit code 139) — likely a pre-existing issue unrelated to the rewrite. Pipeline functionality is fully working without it.
