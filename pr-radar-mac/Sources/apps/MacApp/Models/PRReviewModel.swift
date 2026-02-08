@@ -43,9 +43,22 @@ final class PRReviewModel {
         case failed(error: String, logs: String)
     }
 
+    enum RefreshState {
+        case idle
+        case refreshing
+        case failed(String)
+
+        var isRefreshing: Bool {
+            if case .refreshing = self { return true }
+            return false
+        }
+    }
+
     private(set) var state: ModelState = .noConfig
     private(set) var settings: AppSettings
-    private(set) var isRefreshing = false
+    private(set) var refreshState: RefreshState = .idle
+    private(set) var submittingCommentIds: Set<String> = []
+    private(set) var submittedCommentIds: Set<String> = []
 
     private let venvBinPath: String
     private let environment: [String: String]
@@ -189,7 +202,7 @@ final class PRReviewModel {
     func refreshPRList() async {
         guard let selected = selectedConfiguration else { return }
 
-        isRefreshing = true
+        refreshState = .refreshing
         let config = makeConfig(from: selected)
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: selected.repoPath)
         let useCase = FetchPRListUseCase(config: config, environment: environment)
@@ -205,15 +218,21 @@ final class PRReviewModel {
                     mutateConfigContext { ctx in
                         ctx.prs = prs
                     }
-                case .failed:
-                    break
+                case .failed(let error, _):
+                    refreshState = .failed(error)
                 }
             }
         } catch {
-            // Refresh is best-effort; fall back to disk discovery on failure
+            refreshState = .failed(error.localizedDescription)
         }
 
-        isRefreshing = false
+        if case .refreshing = refreshState {
+            refreshState = .idle
+        }
+    }
+
+    func dismissRefreshError() {
+        refreshState = .idle
     }
 
     private func refreshPRListFromDisk() {
@@ -521,6 +540,38 @@ final class PRReviewModel {
             }
         } catch {
             mutateReview { $0.phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "") }
+        }
+    }
+
+    // MARK: - Single Comment Submission
+
+    func submitSingleComment(_ evaluation: RuleEvaluationResult) async {
+        guard let selected = selectedConfiguration else { return }
+        guard let commitSHA = fullDiff?.commitHash else { return }
+        guard let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: selected.repoPath) else { return }
+
+        submittingCommentIds.insert(evaluation.taskId)
+
+        let commentBody = "**\(evaluation.ruleName)** (Score: \(evaluation.evaluation.score)/10)\n\n\(evaluation.evaluation.comment)"
+
+        let useCase = PostSingleCommentUseCase(environment: environment)
+
+        do {
+            let success = try await useCase.execute(
+                repoSlug: repoSlug,
+                prNumber: prNumber,
+                filePath: evaluation.evaluation.filePath,
+                lineNumber: evaluation.evaluation.lineNumber,
+                commitSHA: commitSHA,
+                commentBody: commentBody
+            )
+
+            submittingCommentIds.remove(evaluation.taskId)
+            if success {
+                submittedCommentIds.insert(evaluation.taskId)
+            }
+        } catch {
+            submittingCommentIds.remove(evaluation.taskId)
         }
     }
 

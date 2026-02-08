@@ -71,6 +71,7 @@ public struct PRRadar {
         public struct ListPrs {
             @Option("--limit") public var limit: String?
             @Option("--state") public var state: String?
+            @Option("--repo") public var repo: String?
         }
     }
 }

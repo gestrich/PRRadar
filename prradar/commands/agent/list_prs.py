@@ -22,13 +22,14 @@ from prradar.services.phase_sequencer import (
 )
 
 
-def cmd_list_prs(output_dir: str, limit: int = 50, state: str = "open") -> int:
+def cmd_list_prs(output_dir: str, limit: int = 50, state: str = "open", repo: str | None = None) -> int:
     """Fetch recent PRs from GitHub and save their metadata.
 
     Args:
         output_dir: Base output directory (PRs saved under {output_dir}/{pr_number}/)
         limit: Maximum number of PRs to fetch
         state: PR state filter (open, closed, merged, all)
+        repo: Repository in owner/name format (auto-detected if None)
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -37,7 +38,7 @@ def cmd_list_prs(output_dir: str, limit: int = 50, state: str = "open") -> int:
     base_dir = Path(output_dir)
 
     print(f"Fetching up to {limit} {state} pull requests...")
-    success, pr_result = gh.list_pull_requests(limit=limit, state=state)
+    success, pr_result = gh.list_pull_requests(limit=limit, state=state, repo=repo)
     if not success:
         print(f"  Error fetching PR list: {pr_result}")
         return 1
@@ -50,7 +51,7 @@ def cmd_list_prs(output_dir: str, limit: int = 50, state: str = "open") -> int:
 
     # Fetch repo metadata once
     print("  Fetching repository metadata...")
-    success, repo_result = gh.get_repository()
+    success, repo_result = gh.get_repository(repo=repo)
     if not success:
         print(f"  Error fetching repository metadata: {repo_result}")
         return 1

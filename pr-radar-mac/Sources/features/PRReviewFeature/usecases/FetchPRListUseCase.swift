@@ -30,7 +30,8 @@ public struct FetchPRListUseCase: Sendable {
                     let runner = PRRadarCLIRunner()
                     let command = PRRadar.Agent.ListPrs(
                         limit: limit,
-                        state: state
+                        state: state,
+                        repo: repoSlug
                     )
 
                     let outputStream = CLIOutputStream()

@@ -1,11 +1,15 @@
 # PRRadar
 
-An AI-powered pull request review system with two applications: a **Python CLI** for running the review pipeline and a **macOS app** for visualizing results and debugging.
+PRRadar is a **Python application** for AI-powered pull request reviews. It fetches PR diffs, applies rule-based filtering, evaluates code with the Claude Agent SDK, and generates structured reports.
 
-## Why Two Apps?
+## Architecture: Python-First
 
-- **Python App** (`prradar/`) — The core review engine. A CLI tool that fetches PR diffs, applies rule-based filtering, evaluates code with the Claude Agent SDK, and generates reports.
-- **Mac App** (`pr-radar-mac/`) — A native macOS SwiftUI application. The Mac UI is useful for visualizing the results produced by the Python app (viewing diffs, reports, evaluation outputs). The Mac app also includes a CLI target, which is important because it allows Claude to run and debug the Mac app via the command line — something that is difficult to do through a GUI alone.
+The **Python CLI** (`prradar/`) is the core of the project. It contains all business logic, pipeline orchestration, rule evaluation, and Claude Agent SDK integration. All new features and foundational work should be implemented here first.
+
+The **Swift Mac app** (`pr-radar-mac/`) is a **thin native client** that wraps the Python CLI. It invokes `prradar` commands, parses their JSON output, and presents results in a macOS-native UI. The Mac app contains minimal business logic — it passes data to and makes requests of the Python app rather than implementing review logic itself. The Mac app has two targets:
+
+- **GUI** — A SwiftUI application for browsing diffs, reports, and evaluation outputs
+- **CLI** — A command-line target mirroring the Python CLI, useful for running and debugging the Mac app without needing a GUI
 
 ## Architecture
 
@@ -283,7 +287,7 @@ PRRadar runs as a sequential pipeline where each phase writes artifacts to disk 
 
 ## Mac App
 
-The Mac app is a native macOS SwiftUI application that wraps the Python CLI, providing a visual interface for reviewing PR analysis results.
+The Mac app is a thin native client that wraps the Python CLI. It should contain no review logic, rule evaluation, or pipeline orchestration — all of that lives in the Python app. When adding new capabilities, implement them in the Python CLI first, then add the corresponding Swift UI/CLI surface.
 
 ### Requirements
 

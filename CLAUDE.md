@@ -2,11 +2,12 @@
 
 ## Project Overview
 
-PRRadar is an AI-powered pull request review system with **two applications**:
+PRRadar is a **Python application** for AI-powered pull request reviews. The Python CLI (`prradar/`) is the core of the project — it contains all business logic, pipeline orchestration, and Claude Agent SDK integration. All new features and foundational work should be implemented in the Python app first.
 
-1. **Python App** (`prradar/`) — CLI tool that runs the review pipeline using the Claude Agent SDK. Fetches PR diffs, applies rule-based filtering, evaluates code with Claude, and generates reports.
+There is also a **Swift Mac app** (`pr-radar-mac/`) that provides a native macOS interface. The Mac app is a **thin client** — it invokes the Python CLI under the hood and presents results visually. It contains minimal business logic of its own; instead it passes data to and makes requests of the Python app. The Mac app has two targets:
 
-2. **Mac App** (`pr-radar-mac/`) — Native macOS SwiftUI application with both a GUI and CLI target. The Mac UI is useful for visualizing the results of the Python app (viewing diffs, reports, and evaluation outputs). The Mac CLI is important because it allows Claude to run and debug the Mac app via the command line, which is difficult to do through a GUI.
+- **MacApp (GUI)** — SwiftUI application for browsing diffs, reports, and evaluation outputs
+- **MacApp (CLI)** — Command-line target that mirrors the Python CLI, useful for Claude to run and debug the Mac app without needing a GUI
 
 ## Architecture Skills
 
@@ -71,6 +72,8 @@ prradar/
 - Uses `gh` CLI for GitHub API calls
 
 ## Mac App
+
+The Mac app is a thin Swift wrapper around the Python CLI. It should contain no review logic, rule evaluation, or pipeline orchestration — all of that lives in the Python app. The Mac app's role is to invoke `prradar` CLI commands, parse their JSON output, and present results in a native UI. When adding new capabilities, implement them in the Python app first, then add the corresponding Swift UI/CLI surface.
 
 ### Requirements
 

@@ -3,26 +3,26 @@ import SwiftUI
 
 struct EvaluationsPhaseView: View {
 
+    let diff: GitDiff?
     let evaluations: [RuleEvaluationResult]
     let summary: EvaluationSummary
 
-    @State private var severityFilter: SeverityFilter = .all
-    @State private var fileFilter: String?
-    @State private var ruleFilter: String?
-    @State private var expandedIds: Set<String> = []
-
-    enum SeverityFilter: String, CaseIterable {
-        case all = "All"
-        case minor = "Minor (1-4)"
-        case moderate = "Moderate (5-7)"
-        case severe = "Severe (8-10)"
-    }
+    @State private var selectedFile: String?
 
     var body: some View {
         VStack(spacing: 0) {
             summaryHeader
-            filterBar
-            evaluationsList
+
+            if let diff {
+                HSplitView {
+                    fileList(diff: diff)
+                        .frame(minWidth: 180, idealWidth: 220)
+
+                    diffContent(diff: diff)
+                }
+            } else {
+                fallbackListView
+            }
         }
     }
 
@@ -38,130 +38,164 @@ struct EvaluationsPhaseView: View {
         .padding(8)
     }
 
-    // MARK: - Filters
+    // MARK: - File Sidebar
 
     @ViewBuilder
-    private var filterBar: some View {
-        HStack(spacing: 12) {
-            Picker("Severity", selection: $severityFilter) {
-                ForEach(SeverityFilter.allCases, id: \.self) { filter in
-                    Text(filter.rawValue).tag(filter)
+    private func fileList(diff: GitDiff) -> some View {
+        let mapping = commentMapping(for: diff)
+        let allFiles = filesWithViolationCounts(mapping: mapping)
+
+        List(selection: $selectedFile) {
+            Section("Changed Files") {
+                ForEach(diff.changedFiles, id: \.self) { file in
+                    let violationCount = allFiles[file] ?? 0
+                    HStack {
+                        Text(URL(fileURLWithPath: file).lastPathComponent)
+                            .lineLimit(1)
+                        Spacer()
+                        if violationCount > 0 {
+                            violationBadge(count: violationCount, file: file, mapping: mapping)
+                        } else {
+                            Text("\(diff.getHunks(byFilePath: file).count)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .tag(file)
                 }
             }
-            .frame(width: 180)
 
-            Picker("File", selection: $fileFilter) {
-                Text("All Files").tag(nil as String?)
-                ForEach(availableFiles, id: \.self) { file in
-                    Text(URL(fileURLWithPath: file).lastPathComponent).tag(file as String?)
-                }
-            }
-            .frame(width: 180)
-
-            Picker("Rule", selection: $ruleFilter) {
-                Text("All Rules").tag(nil as String?)
-                ForEach(availableRules, id: \.self) { rule in
-                    Text(rule).tag(rule as String?)
-                }
-            }
-            .frame(width: 180)
-
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-    }
-
-    // MARK: - List
-
-    @ViewBuilder
-    private var evaluationsList: some View {
-        List {
-            ForEach(filteredEvaluations, id: \.taskId) { result in
-                evaluationRow(result)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func evaluationRow(_ result: RuleEvaluationResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                SeverityBadge(score: result.evaluation.score)
-
-                Text(result.ruleName)
-                    .font(.headline)
-
-                Spacer()
-
-                Text(fileLocation(result))
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(result.evaluation.comment)
-                .font(.subheadline)
-                .lineLimit(expandedIds.contains(result.taskId) ? nil : 2)
-                .foregroundStyle(.secondary)
-
-            if expandedIds.contains(result.taskId) {
-                Divider()
-
-                HStack(spacing: 16) {
-                    labeledValue("Model", result.modelUsed)
-                    labeledValue("Duration", "\(result.durationMs)ms")
-                    if let cost = result.costUsd {
-                        labeledValue("Cost", String(format: "$%.4f", cost))
+            let extraFiles = filesNotInDiff(mapping: mapping)
+            if !extraFiles.isEmpty {
+                Section("Files Not in Diff") {
+                    ForEach(extraFiles, id: \.self) { file in
+                        let count = (mapping.unmatchedNoFile.filter { $0.evaluation.filePath == file }).count
+                        HStack {
+                            Text(URL(fileURLWithPath: file).lastPathComponent)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(count)")
+                                .font(.caption.bold())
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(.orange, in: Capsule())
+                        }
+                        .tag(file)
                     }
                 }
-                .font(.caption)
             }
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if expandedIds.contains(result.taskId) {
-                expandedIds.remove(result.taskId)
-            } else {
-                expandedIds.insert(result.taskId)
+        .listStyle(.sidebar)
+    }
+
+    // MARK: - Diff Content
+
+    @ViewBuilder
+    private func diffContent(diff: GitDiff) -> some View {
+        let filtered: GitDiff = {
+            if let file = selectedFile {
+                let hunks = diff.getHunks(byFilePath: file)
+                let raw = hunks.map(\.content).joined(separator: "\n")
+                return GitDiff(rawContent: raw, hunks: hunks, commitHash: diff.commitHash)
+            }
+            return diff
+        }()
+
+        AnnotatedDiffContentView(
+            diff: filtered,
+            commentMapping: commentMapping(for: diff)
+        )
+    }
+
+    // MARK: - Fallback List (no diff data)
+
+    @ViewBuilder
+    private var fallbackListView: some View {
+        let violations = evaluations.filter(\.evaluation.violatesRule)
+        if violations.isEmpty {
+            ContentUnavailableView(
+                "No Violations",
+                systemImage: "checkmark.circle",
+                description: Text("No rule violations were found.")
+            )
+        } else {
+            List {
+                ForEach(violations, id: \.taskId) { result in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            SeverityBadge(score: result.evaluation.score)
+                            Text(result.ruleName)
+                                .font(.headline)
+                            Spacer()
+                            Text(fileLocation(result))
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(result.evaluation.comment)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
             }
         }
+    }
+
+    // MARK: - Helpers
+
+    private func commentMapping(for diff: GitDiff) -> DiffCommentMapping {
+        DiffCommentMapper.map(diff: diff, evaluations: evaluations)
+    }
+
+    private func filesWithViolationCounts(mapping: DiffCommentMapping) -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for (file, lineMap) in mapping.commentsByFileAndLine {
+            counts[file, default: 0] += lineMap.values.reduce(0) { $0 + $1.count }
+        }
+        for (file, evals) in mapping.unmatchedByFile {
+            counts[file, default: 0] += evals.count
+        }
+        return counts
+    }
+
+    private func filesNotInDiff(mapping: DiffCommentMapping) -> [String] {
+        let files = Set(mapping.unmatchedNoFile.map(\.evaluation.filePath))
+        return files.sorted()
+    }
+
+    private func maxSeverity(for file: String, mapping: DiffCommentMapping) -> Int {
+        var maxScore = 0
+        if let lineMap = mapping.commentsByFileAndLine[file] {
+            for evals in lineMap.values {
+                for eval in evals {
+                    maxScore = max(maxScore, eval.evaluation.score)
+                }
+            }
+        }
+        if let evals = mapping.unmatchedByFile[file] {
+            for eval in evals {
+                maxScore = max(maxScore, eval.evaluation.score)
+            }
+        }
+        return maxScore
     }
 
     @ViewBuilder
-    private func labeledValue(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 4) {
-            Text(label + ":")
-                .foregroundStyle(.secondary)
-            Text(value)
+    private func violationBadge(count: Int, file: String, mapping: DiffCommentMapping) -> some View {
+        let severity = maxSeverity(for: file, mapping: mapping)
+        let color: Color = switch severity {
+        case 8...10: .red
+        case 5...7: .orange
+        default: .yellow
         }
-    }
 
-    // MARK: - Filtering Logic
-
-    private var filteredEvaluations: [RuleEvaluationResult] {
-        evaluations.filter { result in
-            let score = result.evaluation.score
-            let passesSeverity: Bool = switch severityFilter {
-            case .all: true
-            case .minor: score >= 1 && score <= 4
-            case .moderate: score >= 5 && score <= 7
-            case .severe: score >= 8 && score <= 10
-            }
-
-            let passesFile = fileFilter == nil || result.filePath == fileFilter
-            let passesRule = ruleFilter == nil || result.ruleName == ruleFilter
-
-            return passesSeverity && passesFile && passesRule
-        }
-    }
-
-    private var availableFiles: [String] {
-        Array(Set(evaluations.map(\.filePath))).sorted()
-    }
-
-    private var availableRules: [String] {
-        Array(Set(evaluations.map(\.ruleName))).sorted()
+        Text("\(count)")
+            .font(.caption.bold())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(color, in: Capsule())
     }
 
     private func fileLocation(_ result: RuleEvaluationResult) -> String {

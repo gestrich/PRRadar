@@ -10,7 +10,6 @@ struct ReviewDetailView: View {
 
     @Environment(PRReviewModel.self) private var model
     @State private var showEffectiveDiff = false
-    @State private var showCommentApproval = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -125,46 +124,18 @@ struct ReviewDetailView: View {
     @ViewBuilder
     private var evaluationsOutputView: some View {
         if let output = review.evaluation {
-            VStack(spacing: 0) {
-                let hasViolations = output.evaluations.contains { $0.evaluation.violatesRule }
-                if hasViolations {
-                    HStack {
-                        Spacer()
-                        Button {
-                            showCommentApproval = true
-                        } label: {
-                            Label("Review & Approve Comments", systemImage: "text.bubble")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 6)
-                    Divider()
-                }
-
-                EvaluationsPhaseView(
-                    evaluations: output.evaluations,
-                    summary: output.summary
-                )
-            }
-            .sheet(isPresented: $showCommentApproval) {
-                CommentApprovalView(
-                    evaluations: output.evaluations,
-                    posted: review.comments?.posted ?? false,
-                    onPost: { dryRun in
-                        Task { await model.runComments(dryRun: dryRun) }
-                    }
-                )
-                .environment(model)
-                .frame(minWidth: 900, minHeight: 600)
-            }
+            EvaluationsPhaseView(
+                diff: review.diff?.fullDiff,
+                evaluations: output.evaluations,
+                summary: output.summary
+            )
         } else if case .running(let logs) = model.stateFor(.evaluations) {
             runningLogView(logs)
         } else {
             ContentUnavailableView(
                 "No Evaluation Data",
                 systemImage: "brain",
-                description: Text("Run Phase 5 to evaluate the code.")
+                description: Text("Run the evaluations phase first.")
             )
         }
     }

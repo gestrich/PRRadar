@@ -147,39 +147,7 @@ struct HunkContentView: View {
     }
 
     private var diffLineData: [DiffLineData] {
-        let hunkLines = hunk.diffLines
-        var oldLine = hunk.oldStart
-        var newLine = hunk.newStart
-        var lines: [DiffLineData] = []
-
-        for (lineIndex, lineContent) in hunkLines.enumerated() {
-            let oldNum: Int?
-            let newNum: Int?
-
-            if lineContent.hasPrefix("+") {
-                oldNum = nil
-                newNum = newLine
-                newLine += 1
-            } else if lineContent.hasPrefix("-") {
-                oldNum = oldLine
-                newNum = nil
-                oldLine += 1
-            } else {
-                oldNum = oldLine
-                newNum = newLine
-                oldLine += 1
-                newLine += 1
-            }
-
-            lines.append(DiffLineData(
-                id: "\(lineIndex)",
-                content: lineContent,
-                oldLine: oldNum,
-                newLine: newNum
-            ))
-        }
-
-        return lines
+        HunkLineParser.parse(hunk: hunk)
     }
 }
 
@@ -236,5 +204,145 @@ struct RichDiffContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(nsColor: .textBackgroundColor))
+    }
+}
+
+// MARK: - Annotated Views (with inline comments)
+
+struct AnnotatedHunkContentView: View {
+    let hunk: Hunk
+    let commentsAtLine: [Int: [RuleEvaluationResult]]
+    let searchQuery: String
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(diffLineData) { line in
+                DiffLineRowView(
+                    lineContent: line.content,
+                    oldLineNumber: line.oldLine,
+                    newLineNumber: line.newLine,
+                    searchQuery: searchQuery
+                )
+
+                if let newLine = line.newLine,
+                   let comments = commentsAtLine[newLine] {
+                    ForEach(comments, id: \.taskId) { eval in
+                        InlineCommentView(evaluation: eval)
+                    }
+                }
+            }
+        }
+    }
+
+    private var diffLineData: [DiffLineData] {
+        HunkLineParser.parse(hunk: hunk)
+    }
+}
+
+struct AnnotatedDiffContentView: View {
+    let diff: GitDiff
+    let commentMapping: DiffCommentMapping
+    let searchQuery: String
+
+    init(
+        diff: GitDiff,
+        commentMapping: DiffCommentMapping,
+        searchQuery: String = ""
+    ) {
+        self.diff = diff
+        self.commentMapping = commentMapping
+        self.searchQuery = searchQuery
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if !commentMapping.unmatchedNoFile.isEmpty {
+                    unmatchedSection(commentMapping.unmatchedNoFile, title: "General Comments")
+                }
+
+                ForEach(diff.changedFiles, id: \.self) { filePath in
+                    Text(filePath)
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(nsColor: .windowBackgroundColor))
+
+                    if let unmatched = commentMapping.unmatchedByFile[filePath] {
+                        unmatchedSection(unmatched, title: "File-level comments")
+                    }
+
+                    ForEach(diff.getHunks(byFilePath: filePath)) { hunk in
+                        HunkHeaderView(hunk: hunk)
+                        AnnotatedHunkContentView(
+                            hunk: hunk,
+                            commentsAtLine: commentMapping.commentsByFileAndLine[filePath] ?? [:],
+                            searchQuery: searchQuery
+                        )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color(nsColor: .textBackgroundColor))
+    }
+
+    @ViewBuilder
+    private func unmatchedSection(_ evals: [RuleEvaluationResult], title: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.08))
+
+            ForEach(evals, id: \.taskId) { eval in
+                InlineCommentView(evaluation: eval)
+            }
+        }
+    }
+}
+
+// MARK: - Shared Line Parsing
+
+enum HunkLineParser {
+    static func parse(hunk: Hunk) -> [DiffLineData] {
+        let hunkLines = hunk.diffLines
+        var oldLine = hunk.oldStart
+        var newLine = hunk.newStart
+        var lines: [DiffLineData] = []
+
+        for (lineIndex, lineContent) in hunkLines.enumerated() {
+            let oldNum: Int?
+            let newNum: Int?
+
+            if lineContent.hasPrefix("+") {
+                oldNum = nil
+                newNum = newLine
+                newLine += 1
+            } else if lineContent.hasPrefix("-") {
+                oldNum = oldLine
+                newNum = nil
+                oldLine += 1
+            } else {
+                oldNum = oldLine
+                newNum = newLine
+                oldLine += 1
+                newLine += 1
+            }
+
+            lines.append(DiffLineData(
+                id: "\(hunk.id)_\(lineIndex)",
+                content: lineContent,
+                oldLine: oldNum,
+                newLine: newNum
+            ))
+        }
+
+        return lines
     }
 }

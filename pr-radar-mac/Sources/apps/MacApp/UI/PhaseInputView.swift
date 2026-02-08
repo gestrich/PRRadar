@@ -56,12 +56,10 @@ struct PhaseInputView: View {
 
     private var phaseTitle: String {
         switch phase {
-        case .pullRequest: "Phase 1: Fetch PR Diff"
-        case .focusAreas: "Phase 2: Generate Focus Areas"
-        case .rules: "Phase 3: Load Rules"
-        case .tasks: "Phase 4: Create Evaluation Tasks"
-        case .evaluations: "Phase 5: Run Evaluations"
-        case .report: "Phase 6: Generate Report"
+        case .pullRequest: "Fetch PR Diff"
+        case .focusAreas, .rules, .tasks: "Rules & Tasks"
+        case .evaluations: "Run Evaluations"
+        case .report: "Generate Report"
         }
     }
 
@@ -70,14 +68,10 @@ struct PhaseInputView: View {
         switch phase {
         case .pullRequest:
             Text("Fetches the PR diff and parses it into structured data.")
-        case .focusAreas:
-            Text("Analyzes the diff to identify focus areas for review. Runs phases 2-4 together.")
-        case .rules:
-            Text("Loads review rules and matches them to focus areas. Runs phases 2-4 together.")
-        case .tasks:
-            Text("Creates evaluation tasks pairing rules with focus areas. Runs phases 2-4 together.")
+        case .focusAreas, .rules, .tasks:
+            Text("Generates focus areas, loads rules, and creates evaluation tasks.")
         case .evaluations:
-            Text("Runs Claude evaluations for each task. Requires phases 1-4 to be complete.")
+            Text("Runs Claude evaluations for each task.")
         case .report:
             Text("Generates a summary report of all evaluation results.")
         }

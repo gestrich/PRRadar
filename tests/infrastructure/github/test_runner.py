@@ -11,7 +11,7 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
-from prradar.infrastructure.github.runner import GhCommandRunner, _PR_FIELDS
+from prradar.infrastructure.github.runner import GhCommandRunner, _PR_LIST_FIELDS
 
 
 class TestListPullRequests(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestListPullRequests(unittest.TestCase):
 
         mock_run.assert_called_once_with([
             "gh", "pr", "list",
-            "--json", ",".join(_PR_FIELDS),
+            "--json", ",".join(_PR_LIST_FIELDS),
             "--limit", "50",
             "--state", "open",
         ])
@@ -79,6 +79,21 @@ class TestListPullRequests(unittest.TestCase):
         raw = json.loads(result[0].raw_json)
         self.assertEqual(raw["number"], 5)
         self.assertEqual(raw["title"], "Raw JSON test")
+
+    def test_appends_repo_flag_when_specified(self):
+        with patch.object(self.runner, "run", return_value=(True, "[]")) as mock_run:
+            self.runner.list_pull_requests(limit=50, state="open", repo="owner/repo")
+
+        args = mock_run.call_args[0][0]
+        self.assertIn("-R", args)
+        self.assertEqual(args[args.index("-R") + 1], "owner/repo")
+
+    def test_omits_repo_flag_when_none(self):
+        with patch.object(self.runner, "run", return_value=(True, "[]")) as mock_run:
+            self.runner.list_pull_requests(limit=50, state="open")
+
+        args = mock_run.call_args[0][0]
+        self.assertNotIn("-R", args)
 
 
 if __name__ == "__main__":

@@ -1,17 +1,51 @@
 import PRRadarConfigService
 import SwiftUI
 
+enum NavigationPhase: CaseIterable {
+    case diff
+    case rules
+    case evaluate
+    case report
+
+    var displayName: String {
+        switch self {
+        case .diff: "Diff"
+        case .rules: "Rules"
+        case .evaluate: "Evaluate"
+        case .report: "Report"
+        }
+    }
+
+    var primaryPhase: PRRadarPhase {
+        switch self {
+        case .diff: .pullRequest
+        case .rules: .rules
+        case .evaluate: .evaluations
+        case .report: .report
+        }
+    }
+
+    var representedPhases: [PRRadarPhase] {
+        switch self {
+        case .diff: [.pullRequest]
+        case .rules: [.focusAreas, .rules, .tasks]
+        case .evaluate: [.evaluations]
+        case .report: [.report]
+        }
+    }
+}
+
 struct PipelineStatusView: View {
 
     @Environment(PRReviewModel.self) private var model
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(Array(PRRadarPhase.allCases.enumerated()), id: \.element) { index, phase in
+            ForEach(Array(NavigationPhase.allCases.enumerated()), id: \.element) { index, navPhase in
                 if index > 0 {
                     arrow
                 }
-                phaseNode(phase)
+                phaseNode(navPhase)
             }
         }
         .padding(.horizontal, 12)
@@ -20,20 +54,20 @@ struct PipelineStatusView: View {
     }
 
     @ViewBuilder
-    private func phaseNode(_ phase: PRRadarPhase) -> some View {
+    private func phaseNode(_ navPhase: NavigationPhase) -> some View {
         Button {
-            model.selectedPhase = phase
+            model.selectedPhase = navPhase.primaryPhase
         } label: {
             HStack(spacing: 4) {
-                statusIndicator(for: model.stateFor(phase))
-                Text(shortName(for: phase))
+                statusIndicator(for: combinedState(navPhase))
+                Text(navPhase.displayName)
                     .font(.caption)
                     .lineLimit(1)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                model.selectedPhase == phase
+                navPhase.representedPhases.contains(model.selectedPhase)
                     ? Color.accentColor.opacity(0.15)
                     : Color.clear
             )
@@ -72,14 +106,18 @@ struct PipelineStatusView: View {
         }
     }
 
-    private func shortName(for phase: PRRadarPhase) -> String {
-        switch phase {
-        case .pullRequest: "Diff"
-        case .focusAreas: "Focus"
-        case .rules: "Rules"
-        case .tasks: "Tasks"
-        case .evaluations: "Evaluate"
-        case .report: "Report"
+    private func combinedState(_ navPhase: NavigationPhase) -> PRReviewModel.PhaseState {
+        let states = navPhase.representedPhases.map { model.stateFor($0) }
+
+        if states.contains(where: { if case .running = $0 { return true } else { return false } }) {
+            return .running(logs: "")
         }
+        if states.contains(where: { if case .failed = $0 { return true } else { return false } }) {
+            return .failed(error: "", logs: "")
+        }
+        if states.allSatisfy({ if case .completed = $0 { return true } else { return false } }) {
+            return .completed(logs: "")
+        }
+        return .idle
     }
 }

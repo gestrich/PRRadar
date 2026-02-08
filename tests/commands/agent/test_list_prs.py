@@ -94,7 +94,7 @@ class TestCmdListPrs(unittest.TestCase):
         with self._patch_gh():
             cmd_list_prs(self.output_dir, limit=10, state="closed")
 
-        self.mock_gh.list_pull_requests.assert_called_once_with(limit=10, state="closed")
+        self.mock_gh.list_pull_requests.assert_called_once_with(limit=10, state="closed", repo=None)
 
     def test_uses_default_limit_and_state(self):
         self.mock_gh.list_pull_requests.return_value = (True, [])
@@ -102,7 +102,15 @@ class TestCmdListPrs(unittest.TestCase):
         with self._patch_gh():
             cmd_list_prs(self.output_dir)
 
-        self.mock_gh.list_pull_requests.assert_called_once_with(limit=50, state="open")
+        self.mock_gh.list_pull_requests.assert_called_once_with(limit=50, state="open", repo=None)
+
+    def test_passes_repo_to_runner(self):
+        self.mock_gh.list_pull_requests.return_value = (True, [])
+
+        with self._patch_gh():
+            cmd_list_prs(self.output_dir, repo="owner/repo")
+
+        self.mock_gh.list_pull_requests.assert_called_once_with(limit=50, state="open", repo="owner/repo")
 
     def test_returns_zero_for_empty_pr_list(self):
         self.mock_gh.list_pull_requests.return_value = (True, [])

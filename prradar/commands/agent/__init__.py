@@ -248,6 +248,12 @@ inspected and debugged independently.
         choices=["open", "closed", "merged", "all"],
         help="PR state filter (default: open)",
     )
+    list_prs_parser.add_argument(
+        "--repo",
+        type=str,
+        default=None,
+        help="Repository in owner/name format (auto-detected from git remote if omitted)",
+    )
 
 
 def ensure_output_dir(output_dir: str, pr_number: int) -> Path:
@@ -287,6 +293,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
             output_dir=args.output_dir,
             limit=args.limit,
             state=args.state,
+            repo=args.repo,
         )
 
     output_dir = args.output_dir

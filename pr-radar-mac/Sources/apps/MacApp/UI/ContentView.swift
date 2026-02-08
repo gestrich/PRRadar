@@ -13,6 +13,13 @@ struct ContentView: View {
     @State private var showNewReview = false
     @State private var newPRNumber = ""
 
+    private var showRefreshError: Binding<Bool> {
+        Binding(
+            get: { if case .failed = model.refreshState { return true } else { return false } },
+            set: { if !$0 { model.dismissRefreshError() } }
+        )
+    }
+
     var body: some View {
         NavigationSplitView {
             configSidebar
@@ -24,6 +31,13 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environment(model)
+        }
+        .alert("Refresh Failed", isPresented: showRefreshError) {
+            Button("OK") { model.dismissRefreshError() }
+        } message: {
+            if case .failed(let error) = model.refreshState {
+                Text(error)
+            }
         }
         .task {
             if let config = model.settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
@@ -127,7 +141,7 @@ struct ContentView: View {
                 Button {
                     Task { await model.refreshPRList() }
                 } label: {
-                    if model.isRefreshing {
+                    if case .refreshing = model.refreshState {
                         ProgressView()
                             .controlSize(.small)
                     } else {
@@ -135,7 +149,7 @@ struct ContentView: View {
                     }
                 }
                 .help("Refresh PR list")
-                .disabled(model.isRefreshing || selectedConfig == nil)
+                .disabled(model.refreshState.isRefreshing || selectedConfig == nil)
             }
             ToolbarItem(placement: .automatic) {
                 Button {

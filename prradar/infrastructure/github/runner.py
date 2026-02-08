@@ -14,7 +14,7 @@ from typing import Protocol
 
 from prradar.domain.github import PullRequest, PullRequestComments, Repository
 
-# Fields fetched for PR metadata
+# Fields fetched for PR metadata (single PR view)
 _PR_FIELDS = [
     "number",
     "title",
@@ -34,6 +34,27 @@ _PR_FIELDS = [
     "commits",
     "labels",
     "files",
+]
+
+# Lightweight fields for listing multiple PRs (excludes nested connections
+# like "files" and "commits" that cause GraphQL node limit errors on large repos)
+_PR_LIST_FIELDS = [
+    "number",
+    "title",
+    "body",
+    "author",
+    "baseRefName",
+    "headRefName",
+    "headRefOid",
+    "state",
+    "isDraft",
+    "url",
+    "createdAt",
+    "updatedAt",
+    "additions",
+    "deletions",
+    "changedFiles",
+    "labels",
 ]
 
 # Fields fetched for PR comments
@@ -196,39 +217,45 @@ class GhCommandRunner:
         return True, PullRequestComments.from_json(result)
 
     def list_pull_requests(
-        self, limit: int, state: str
+        self, limit: int, state: str, repo: str | None = None
     ) -> tuple[bool, list[PullRequest] | str]:
-        """List recent pull requests for the current repository.
+        """List recent pull requests for a repository.
 
         Args:
             limit: Maximum number of PRs to fetch
             state: PR state filter (open, closed, merged, all)
+            repo: Repository in owner/name format (uses git remote if None)
 
         Returns:
             Tuple of (success, list of PullRequest or error string)
         """
-        success, result = self.run(
-            [
-                "gh", "pr", "list",
-                "--json", ",".join(_PR_FIELDS),
-                "--limit", str(limit),
-                "--state", state,
-            ]
-        )
+        cmd = [
+            "gh", "pr", "list",
+            "--json", ",".join(_PR_LIST_FIELDS),
+            "--limit", str(limit),
+            "--state", state,
+        ]
+        if repo:
+            cmd.extend(["-R", repo])
+        success, result = self.run(cmd)
         if not success:
             return False, result
         data = json.loads(result)
         return True, [PullRequest.from_dict(item) for item in data]
 
-    def get_repository(self) -> tuple[bool, Repository | str]:
-        """Get current repository metadata as a typed model.
+    def get_repository(self, repo: str | None = None) -> tuple[bool, Repository | str]:
+        """Get repository metadata as a typed model.
+
+        Args:
+            repo: Repository in owner/name format (uses git remote if None)
 
         Returns:
             Tuple of (success, Repository or error string)
         """
-        success, result = self.run(
-            ["gh", "repo", "view", "--json", ",".join(_REPO_FIELDS)]
-        )
+        cmd = ["gh", "repo", "view", "--json", ",".join(_REPO_FIELDS)]
+        if repo:
+            cmd.insert(3, repo)
+        success, result = self.run(cmd)
         if not success:
             return False, result
         return True, Repository.from_json(result)
