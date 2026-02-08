@@ -21,8 +21,25 @@ public struct GitHubService: Sendable {
     }
 
     public func getPullRequest(number: Int) async throws -> GitHubPullRequest {
-        let pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
-        let files = try await octokitClient.listPullRequestFiles(owner: owner, repository: repo, number: number)
+        let pr: OctoKit.PullRequest
+        do {
+            pr = try await octokitClient.pullRequest(owner: owner, repository: repo, number: number)
+        } catch {
+            throw NSError(domain: "GitHubService", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to fetch PR #\(number) from GitHub API (pullRequest call): \(error.localizedDescription)"
+            ])
+        }
+
+        let files: [OctoKit.PullRequest.File]?
+        do {
+            files = try await octokitClient.listPullRequestFiles(owner: owner, repository: repo, number: number)
+        } catch {
+            // Files list is optional - we can still process the PR without it
+            // The diff parsing will provide file information anyway
+            print("Warning: Could not fetch file list for PR #\(number): \(error.localizedDescription)")
+            files = nil
+        }
+
         return pr.toGitHubPullRequest(files: files)
     }
 
