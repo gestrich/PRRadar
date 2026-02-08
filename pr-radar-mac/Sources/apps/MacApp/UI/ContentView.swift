@@ -12,6 +12,8 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showNewReview = false
     @State private var newPRNumber = ""
+    @State private var showAnalyzeAll = false
+    @State private var analyzeAllSinceDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: Date()) ?? Date()
 
     private var showRefreshError: Binding<Bool> {
         Binding(
@@ -153,6 +155,23 @@ struct ContentView: View {
             }
             ToolbarItem(placement: .automatic) {
                 Button {
+                    showAnalyzeAll = true
+                } label: {
+                    if model.analyzeAllState.isRunning {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                }
+                .help("Analyze all PRs since a date")
+                .disabled(selectedConfig == nil || model.analyzeAllState.isRunning)
+                .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
+                    analyzeAllPopover
+                }
+            }
+            ToolbarItem(placement: .automatic) {
+                Button {
                     newPRNumber = ""
                     showNewReview = true
                 } label: {
@@ -213,6 +232,28 @@ struct ContentView: View {
                 submitNewReview()
             }
             .disabled(Int(newPRNumber) == nil)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private var analyzeAllPopover: some View {
+        VStack(spacing: 12) {
+            Text("Analyze All PRs")
+                .font(.headline)
+
+            DatePicker("Since", selection: $analyzeAllSinceDate, displayedComponents: .date)
+                .datePickerStyle(.field)
+                .frame(width: 200)
+
+            Button("Start") {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                let sinceString = formatter.string(from: analyzeAllSinceDate)
+                showAnalyzeAll = false
+                Task { await model.analyzeAll(since: sinceString) }
+            }
             .keyboardShortcut(.defaultAction)
         }
         .padding()

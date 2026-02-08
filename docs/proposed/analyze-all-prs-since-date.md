@@ -130,47 +130,29 @@ Add the `analyze-all` command to the Swift SDK layer and Mac CLI.
 - `effectiveRulesDir` resolved from `--rules-dir` flag or named config's `rulesDir`
 - `swift build` compiles cleanly with no warnings
 
-## - [ ] Phase 5: Mac app use case and UI
+## - [x] Phase 5: Mac app use case and UI
 
 Add an `AnalyzeAllUseCase` in the features layer and an "Analyze All" button in the SwiftUI app.
 
-**Files to create:**
-- `pr-radar-mac/Sources/features/PRReviewFeature/usecases/AnalyzeAllUseCase.swift`
+**Files created:**
+- `pr-radar-mac/Sources/features/PRReviewFeature/usecases/AnalyzeAllUseCase.swift` — `AnalyzeAllUseCase` and `AnalyzeAllOutput` structs following the same `PhaseProgress` streaming pattern as `AnalyzeUseCase`
 
-**Use case design:**
-```swift
-public struct AnalyzeAllUseCase: Sendable {
-    public func execute(
-        since: String,
-        rulesDir: String? = nil,
-        repoPath: String? = nil,
-        githubDiff: Bool = false,
-        minScore: String? = nil,
-        repo: String? = nil,
-        comment: Bool = false,
-        limit: String? = nil,
-        state: String? = nil
-    ) -> AsyncThrowingStream<PhaseProgress<AnalyzeAllOutput>, Error>
-}
+**Files modified:**
+- `pr-radar-mac/Sources/apps/MacApp/Models/PRReviewModel.swift` — Added:
+  - `AnalyzeAllState` enum (idle/running/completed/failed) with `isRunning` convenience
+  - `analyzeAllState` property for tracking batch analysis state
+  - `analyzeAll(since:)` async method that invokes `AnalyzeAllUseCase` with config's rulesDir and repo slug, streams logs, and refreshes the PR list from disk on completion
+  - `dismissAnalyzeAllState()` for resetting state
+- `pr-radar-mac/Sources/apps/MacApp/UI/ContentView.swift` — Added:
+  - "Analyze All" toolbar button (sparkles icon) in the PR list column toolbar
+  - Date picker popover defaulting to one week ago
+  - Spinner shown while running, button disabled during analysis
+  - On completion, PR list refreshes automatically via `refreshPRListFromDisk()`
 
-public struct AnalyzeAllOutput: Sendable {
-    public let cliOutput: String
-    public let prNumbers: [Int]
-}
-```
-
-**Files to modify:**
-- `pr-radar-mac/Sources/apps/MacApp/Models/PRReviewModel.swift` — Add:
-  - `analyzeAllState` property (idle/running/completed/failed)
-  - `analyzeAll(since:)` async method that invokes `AnalyzeAllUseCase` and refreshes the PR list on completion
-- `pr-radar-mac/Sources/apps/MacApp/UI/ContentView.swift` — Add "Analyze All" toolbar button (in the PR list column toolbar, alongside the existing Refresh button). Clicking it presents a date picker popover/sheet for selecting the "since" date, then triggers `model.analyzeAll(since:)`. Show a spinner/progress indicator while running.
-
-**UI behavior:**
-- Button labeled "Analyze All" in the PR list toolbar
-- Tapping opens a popover with a date picker and "Start" button
-- While running, button shows spinner and is disabled
-- On completion, automatically refreshes the PR list to show newly analyzed PRs
-- Logs are streamable (same `PhaseProgress` pattern as other use cases)
+**Notes:**
+- `AnalyzeAllOutput` is simplified from the spec — no `prNumbers` field since the Python CLI handles batch output and the Mac app refreshes the PR list from disk to discover results
+- The use case passes `repo` (derived from repo slug) and `rulesDir` (from config) to the Python CLI, matching the same pattern as `AnalyzeUseCase`
+- `swift build` compiles cleanly with no warnings
 
 ## - [ ] Phase 6: Architecture Validation
 

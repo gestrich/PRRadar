@@ -54,9 +54,22 @@ final class PRReviewModel {
         }
     }
 
+    enum AnalyzeAllState {
+        case idle
+        case running(logs: String)
+        case completed(logs: String)
+        case failed(error: String, logs: String)
+
+        var isRunning: Bool {
+            if case .running = self { return true }
+            return false
+        }
+    }
+
     private(set) var state: ModelState = .noConfig
     private(set) var settings: AppSettings
     private(set) var refreshState: RefreshState = .idle
+    private(set) var analyzeAllState: AnalyzeAllState = .idle
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
@@ -233,6 +246,49 @@ final class PRReviewModel {
 
     func dismissRefreshError() {
         refreshState = .idle
+    }
+
+    func analyzeAll(since: String) async {
+        guard let selected = selectedConfiguration else { return }
+
+        analyzeAllState = .running(logs: "Analyzing all PRs since \(since)...\n")
+        let config = makeConfig(from: selected)
+        let rulesDir = selected.rulesDir.isEmpty ? nil : selected.rulesDir
+        let slug = PRDiscoveryService.repoSlug(fromRepoPath: selected.repoPath)
+        let useCase = AnalyzeAllUseCase(config: config, environment: environment)
+
+        do {
+            for try await progress in useCase.execute(since: since, rulesDir: rulesDir, repo: slug) {
+                switch progress {
+                case .running:
+                    break
+                case .log(let text):
+                    if case .running(let logs) = analyzeAllState {
+                        analyzeAllState = .running(logs: logs + text)
+                    }
+                case .completed:
+                    let logs = analyzeAllLogs
+                    analyzeAllState = .completed(logs: logs)
+                case .failed(let error, let errorLogs):
+                    let logs = analyzeAllLogs
+                    analyzeAllState = .failed(error: error, logs: logs + errorLogs)
+                }
+            }
+        } catch {
+            let logs = analyzeAllLogs
+            analyzeAllState = .failed(error: error.localizedDescription, logs: logs)
+        }
+
+        refreshPRListFromDisk()
+    }
+
+    func dismissAnalyzeAllState() {
+        analyzeAllState = .idle
+    }
+
+    private var analyzeAllLogs: String {
+        if case .running(let logs) = analyzeAllState { return logs }
+        return ""
     }
 
     private func refreshPRListFromDisk() {
