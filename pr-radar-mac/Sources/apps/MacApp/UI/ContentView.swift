@@ -16,7 +16,7 @@ struct ContentView: View {
     @State private var newPRNumber = ""
     @State private var showAnalyzeAll = false
     @State private var showAnalyzeAllProgress = false
-    @State private var analyzeAllSinceDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: Date()) ?? Date()
+    @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     
     let bridgeScriptPath: String
     
@@ -156,10 +156,12 @@ struct ContentView: View {
         .navigationSplitViewColumnWidth(min: 200, ideal: 280)
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                DatePicker("Since", selection: $analyzeAllSinceDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-                    .help("Filter PRs by date")
+                Menu("\(daysLookBack)d") {
+                    ForEach([1, 7, 14, 30, 60, 90], id: \.self) { days in
+                        Button("\(days) days") { daysLookBack = days }
+                    }
+                }
+                .help("Days to look back")
             }
             ToolbarItem(placement: .automatic) {
                 Toggle(isOn: Binding(
@@ -173,7 +175,7 @@ struct ContentView: View {
             }
             ToolbarItem(placement: .automatic) {
                 Button {
-                    Task { await allPRs?.refresh(since: analyzeAllSinceDate) }
+                    Task { await allPRs?.refresh(since: sinceDate) }
                 } label: {
                     if let model = allPRs, case .refreshing = model.state {
                         ProgressView()
@@ -283,14 +285,14 @@ struct ContentView: View {
             Text("Analyze All PRs")
                 .font(.headline)
 
-            Text("Since: \(formattedSinceDate)")
+            Text("Last \(daysLookBack) days")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Button("Start") {
                 let formatter = DateFormatter()
                 formatter.dateFormat = "yyyy-MM-dd"
-                let sinceString = formatter.string(from: analyzeAllSinceDate)
+                let sinceString = formatter.string(from: sinceDate)
                 showAnalyzeAll = false
                 Task { await allPRs?.analyzeAll(since: sinceString) }
             }
@@ -298,11 +300,9 @@ struct ContentView: View {
         }
         .padding()
     }
-    
-    private var formattedSinceDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: analyzeAllSinceDate)
+
+    private var sinceDate: Date {
+        Calendar.current.date(byAdding: .day, value: -daysLookBack, to: Date()) ?? Date()
     }
 
     private func submitNewReview() {
