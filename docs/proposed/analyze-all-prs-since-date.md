@@ -87,19 +87,29 @@ def cmd_analyze_all(
 
 **Output structure:** Each PR gets its own subdirectory as usual: `{output_dir}/{pr_number}/`
 
-## - [ ] Phase 3: Tests for `analyze-all` command
+## - [x] Phase 3: Tests for `analyze-all` command
 
-**Files to create:**
-- `tests/commands/agent/test_analyze_all.py`
+**Files created:**
+- `tests/commands/agent/test_analyze_all.py` — 13 tests covering all specified test cases
 
-**Test cases:**
-- Verify `cmd_analyze_all` calls `list_pull_requests` with correct search query (`created:>=YYYY-MM-DD`)
-- Verify each discovered PR triggers `cmd_analyze` with correct parameters
-- Verify `comment=False` (default) results in `dry_run=True, interactive=False`
-- Verify `comment=True` results in `dry_run=False, interactive=False`
-- Verify failure in one PR doesn't stop processing of remaining PRs
-- Verify aggregate exit code reflects any failures
-- Verify `--state` defaults to `all`
+**Test cases (all passing):**
+- `test_passes_correct_search_query_to_list_pull_requests` — verifies search query `created:>=YYYY-MM-DD`
+- `test_each_pr_triggers_cmd_analyze_with_correct_params` — verifies per-PR analyze calls with all params
+- `test_comment_false_sets_dry_run_true` — default comment=False → dry_run=True, interactive=False
+- `test_comment_true_sets_dry_run_false` — comment=True → dry_run=False, interactive=False
+- `test_failure_in_one_pr_does_not_stop_remaining` — exception in PR 2 doesn't prevent PR 3
+- `test_nonzero_exit_code_tracked_as_failure` — non-zero exit code counted as failure
+- `test_returns_zero_when_all_succeed` / `test_returns_one_when_any_fail` — aggregate exit codes
+- `test_default_state_is_all` — state defaults to "all"
+- `test_returns_zero_for_empty_pr_list` — no PRs → exit 0, no cmd_analyze calls
+- `test_returns_one_when_pr_list_fetch_fails` — GitHub fetch error → exit 1
+- `test_custom_limit_and_state_passed_through` — limit/state forwarded to list_pull_requests
+- `test_creates_output_dir_per_pr` — ensure_output_dir called per PR
+
+**Notes:**
+- All 571 tests pass (558 existing + 13 new)
+- Tests mock GhCommandRunner, cmd_analyze, and ensure_output_dir at the module level
+- Follows same patterns as test_list_prs.py (setUp/tearDown with patchers)
 
 ## - [ ] Phase 4: Mac app SDK and CLI command
 
