@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
 import PRReviewFeature
 
 struct CommentCommand: AsyncParsableCommand {
@@ -12,9 +11,6 @@ struct CommentCommand: AsyncParsableCommand {
 
     @OptionGroup var options: CLIOptions
 
-    @Option(name: .long, help: "GitHub repo (owner/name)")
-    var repo: String?
-
     @Option(name: .long, help: "Minimum violation score to post")
     var minScore: String?
 
@@ -24,8 +20,7 @@ struct CommentCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let environment = resolveEnvironment(config: config)
-        let useCase = PostCommentsUseCase(config: config, environment: environment)
+        let useCase = PostCommentsUseCase(config: config)
 
         if dryRun {
             print("Dry run: previewing comments for PR #\(options.prNumber)...")
@@ -37,7 +32,6 @@ struct CommentCommand: AsyncParsableCommand {
 
         for try await progress in useCase.execute(
             prNumber: options.prNumber,
-            repo: repo,
             minScore: minScore,
             dryRun: dryRun
         ) {
@@ -60,14 +54,10 @@ struct CommentCommand: AsyncParsableCommand {
             throw CLIError.phaseFailed("Comment phase produced no output")
         }
 
-        if !output.cliOutput.isEmpty {
-            print(output.cliOutput)
-        }
-
         if output.posted {
-            print("Comments posted successfully.")
+            print("\(output.successful) comments posted, \(output.failed) failed.")
         } else {
-            print("Dry run complete. No comments posted.")
+            print("Dry run complete. \(output.violations.count) comments would be posted.")
         }
     }
 }

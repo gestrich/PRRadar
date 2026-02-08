@@ -1,27 +1,33 @@
 import CLISDK
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
 import PRRadarModels
 
 public struct CommentPhaseOutput: Sendable {
-    public let cliOutput: String
+    public let successful: Int
+    public let failed: Int
+    public let violations: [CommentableViolation]
     public let posted: Bool
+
+    public init(successful: Int, failed: Int, violations: [CommentableViolation], posted: Bool) {
+        self.successful = successful
+        self.failed = failed
+        self.violations = violations
+        self.posted = posted
+    }
 }
 
 public struct PostCommentsUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(config: PRRadarConfig, environment: [String: String]) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
     public func execute(
         prNumber: String,
-        repo: String? = nil,
         minScore: String? = nil,
         dryRun: Bool = true
     ) -> AsyncThrowingStream<PhaseProgress<CommentPhaseOutput>, Error> {
@@ -30,46 +36,63 @@ public struct PostCommentsUseCase: Sendable {
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.Comment(
-                        prNumber: prNumber,
-                        repo: repo,
-                        minScore: minScore,
-                        noInteractive: true,
-                        dryRun: dryRun
-                    )
-
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
-                                continuation.yield(.log(text: text))
-                            }
-                        }
+                    guard let prNum = Int(prNumber) else {
+                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
+                        continuation.finish()
+                        return
                     }
 
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let scoreThreshold = Int(minScore ?? "5") ?? 5
+
+                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+                    let tasksDir = "\(prOutputDir)/\(PRRadarPhase.tasks.rawValue)"
+                    let violations = ViolationService.loadViolations(
+                        evaluationsDir: evalsDir,
+                        tasksDir: tasksDir,
+                        minScore: scoreThreshold
                     )
 
-                    await outputStream.finishAll()
-                    _ = await logTask.result
-
-                    if result.isSuccess {
-                        let output = CommentPhaseOutput(
-                            cliOutput: result.output,
-                            posted: !dryRun
-                        )
+                    if violations.isEmpty {
+                        continuation.yield(.log(text: "No violations found above score threshold \(scoreThreshold)\n"))
+                        let output = CommentPhaseOutput(successful: 0, failed: 0, violations: [], posted: false)
                         continuation.yield(.completed(output: output))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "Comment phase failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
+                        continuation.finish()
+                        return
                     }
+
+                    if dryRun {
+                        continuation.yield(.log(text: "Dry run: \(violations.count) comments would be posted\n"))
+                        for v in violations {
+                            continuation.yield(.log(text: "  [\(v.score)/10] \(v.ruleName) - \(v.filePath):\(v.lineNumber ?? 0)\n"))
+                        }
+                        let output = CommentPhaseOutput(successful: 0, failed: 0, violations: violations, posted: false)
+                        continuation.yield(.completed(output: output))
+                        continuation.finish()
+                        return
+                    }
+
+                    continuation.yield(.log(text: "Posting \(violations.count) comments...\n"))
+
+                    let client = CLIClient()
+                    let gitHub = GitHubService(client: client)
+                    let commentService = CommentService(githubService: gitHub)
+
+                    let (successful, failed) = try await commentService.postViolations(
+                        violations: violations,
+                        prNumber: prNum,
+                        repoPath: config.repoPath
+                    )
+
+                    continuation.yield(.log(text: "Posted: \(successful) successful, \(failed) failed\n"))
+
+                    let output = CommentPhaseOutput(
+                        successful: successful,
+                        failed: failed,
+                        violations: violations,
+                        posted: true
+                    )
+                    continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))

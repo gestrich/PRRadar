@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
 import PRReviewFeature
 
 struct ReportCommand: AsyncParsableCommand {
@@ -18,8 +17,7 @@ struct ReportCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let environment = resolveEnvironment(config: config)
-        let useCase = GenerateReportUseCase(config: config, environment: environment)
+        let useCase = GenerateReportUseCase(config: config)
 
         if !options.json {
             print("Generating report for PR #\(options.prNumber)...")

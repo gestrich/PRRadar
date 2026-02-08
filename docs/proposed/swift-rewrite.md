@@ -308,66 +308,59 @@ Ported the entire `effective_diff.py` module (~867 lines) to Swift across 5 sour
 
 ---
 
-## - [ ] Phase 7: Feature and App Layer Integration
+## - [x] Phase 7: Feature and App Layer Integration
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `FeatureStructure.md` (use case patterns), `Layers.md` (Features and Apps layer rules), `swift-ui.md` (observable model patterns), and `Dependencies.md`.
+> **Completed.** All use cases rewritten to use native services, Python-bridge code removed, both targets build.
 
-Update the Feature layer use cases and App layer (both CLI and GUI) to use the new native Swift services instead of invoking the Python CLI.
+### What was implemented:
 
-### Feature Layer Changes
+**Use cases rewritten** (all 10 in `Sources/features/PRReviewFeature/usecases/`):
+- `FetchDiffUseCase` → uses `PRAcquisitionService` directly via `CLIClient` + `GitHubService` + `GitOperationsService`
+- `FetchRulesUseCase` → orchestrates `FocusGeneratorService` + `RuleLoaderService` + `TaskCreatorService`, writes focus area and rule output files directly
+- `EvaluateUseCase` → uses `EvaluationService.runBatchEvaluation()` via `ClaudeBridgeClient`, writes `summary.json`
+- `GenerateReportUseCase` → uses `ReportGeneratorService` directly
+- `PostCommentsUseCase` → uses `ViolationService.loadViolations()` + `CommentService.postViolations()` with dry-run support
+- `PostSingleCommentUseCase` → uses `CommentService.postReviewComment()` directly
+- `FetchPRListUseCase` → uses `GitHubService.listPullRequests()`, writes `gh-pr.json` per PR for `PRDiscoveryService`
+- `AnalyzeUseCase` → orchestrates full pipeline: Diff → Rules → Evaluate → Report → (optional) Comments
+- `AnalyzeAllUseCase` → uses `GitHubService.listPullRequests()` + `AnalyzeUseCase` per PR
+- `LoadExistingOutputsUseCase` → minimal changes (already used static parsers)
 
-Each use case currently follows this pattern:
-1. Build a `PRRadar.Agent.Xxx` SDK command
-2. Call `PRRadarCLIRunner.execute()` (invokes Python CLI)
-3. Parse JSON output files with `PhaseOutputParser`
+**Python-bridge code removed:**
+- Deleted `PRRadarMacSDK/PRRadar.swift` — the `@CLIProgram("prradar")` SDK binding to the Python CLI
+- Deleted `PRRadarCLIService/PRRadarCLIRunner.swift` — the Python CLI executor
 
-Change to:
-1. Call the corresponding native Swift service directly
-2. Services use `Codable` models and `JSONEncoder` to write output files — no need to match the old Python JSON format exactly; reshape as needed
-3. Remove `PhaseOutputParser` and `PRRadarCLIRunner` — they only existed to bridge Python CLI output. Replace with direct `Codable` decoding in the services that read cross-phase data
+**Configuration simplified:**
+- `PRRadarConfig` — removed `venvBinPath` and `prradarPath`, added `bridgeScriptPath` for the Claude bridge Python script
+- `PRRadarEnvironment.build()` — removed `venvBinPath` parameter (no longer needs to add venv to PATH)
 
-Update these use cases:
-- `FetchDiffUseCase` → use `PRAcquisitionService` + effective diff
-- `FetchRulesUseCase` → use `FocusGeneratorService` + `RuleLoaderService` + `TaskCreatorService`
-- `EvaluateUseCase` → use `EvaluationService`
-- `GenerateReportUseCase` → use `ReportGeneratorService`
-- `PostCommentsUseCase` → use `CommentService`
-- `FetchPRListUseCase` → use `GitHubService.listPullRequests()` + `PRDiscoveryService`
-- `AnalyzeUseCase` → use `PhaseSequencer` (full pipeline)
+**CLI commands updated** (all 10 in `Sources/apps/MacCLI/Commands/`):
+- Removed `resolveEnvironment()` calls and `environment` parameter from all commands
+- `AnalyzeCommand` — removed `githubDiff`, `stopAfter`, `skipTo`, `repo` options (handled natively)
+- `CommentCommand` — removed `repo` option, updated output to use `CommentPhaseOutput.successful`/`.failed` counts
+- `EvaluateCommand` — removed `rules` filter option
+- `AnalyzeAllCommand` — fully rewritten to use `AnalyzeAllUseCase` instead of `PRRadarCLIRunner`
 
-### CLI Target Changes
+**GUI models updated:**
+- `PRReviewModel` — replaced `venvBinPath`/`environment` with `bridgeScriptPath`, updated `makeConfig()` and all use case constructors
+- `ReviewModel` — removed `environment` parameter, updated all use case constructors
+- `ContentView` preview — updated to use new `PRReviewModel(bridgeScriptPath:)` init
+- `main.swift` — computes `bridgeScriptPath` via `#filePath` instead of `venvBinPath`
 
-Update CLI commands (`DiffCommand`, `RulesCommand`, `EvaluateCommand`, etc.) to call the updated use cases. The commands themselves shouldn't change much since they already consume `AsyncThrowingStream<PhaseProgress>`.
+**Package.swift changes:**
+- Removed `PRRadarMacSDK` from `PRReviewFeature` dependencies (use cases no longer need SDK command types)
+- Removed `CLISDK` from `MacApp` dependencies (GUI no longer imports CLISDK)
 
-### GUI Target Changes
+**Model fixes:**
+- Added explicit `public init(...)` to `EvaluationSummary` — required for cross-module construction since the implicit memberwise init is `internal`
 
-The GUI models (`PRReviewModel`, `ReviewModel`) already call use cases, so they should work with minimal changes once the use cases are updated.
-
-### Remove Python-bridge code:
-- Delete `PRRadarMacSDK/PRRadar.swift` (the `@CLIProgram("prradar")` bindings to the Python CLI)
-- Delete or repurpose `PRRadarCLIRunner.swift` (the Python CLI executor)
-- The `PRRadarConfig.prradarPath` (path to Python binary) is no longer needed
-
-### Package.swift changes:
-- The `PRRadarMacSDK` target now contains `GitCLI`, `GhCLI`, `ClaudeBridge` instead of `PRRadar`
-- Service targets gain new source files
-- May need to reorganize targets if service layer grows too large
-
-### Files to modify:
-- All 10 use case files in `Sources/features/PRReviewFeature/usecases/`
-- CLI commands in `Sources/apps/MacCLI/`
-- `PRReviewModel.swift`, `ReviewModel.swift` in `Sources/apps/MacApp/Models/`
-- `PRRadarConfig.swift` — remove Python-specific config (venvBinPath, prradarPath)
-- `PRRadarEnvironment.swift` — simplify (no longer need venv path in PATH)
-- `main.swift` — remove venv path computation
-- `Package.swift` — update target dependencies
-- Delete `PRRadarMacSDK/PRRadar.swift`
-
-### Validation:
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
-- Swift CLI `diff 1 --config test-repo` produces output
-- Swift CLI `status 1 --config test-repo` shows correct phase statuses
-- `swift run MacApp` launches and shows PR data
+### Technical notes:
+- All use cases now follow the pattern: `init(config: PRRadarConfig)` with no `environment` parameter
+- Use cases still write output files to disk (for resume support and status checking), but now do so directly via Foundation `JSONEncoder` + `FileManager` instead of relying on Python CLI side effects
+- `PhaseOutputParser` and `OutputFileReader` are retained — they're used for reading cross-phase output files (e.g., EvaluateUseCase reads tasks from phase-4 via `PhaseOutputParser.parseAllPhaseFiles`)
+- `CommentPhaseOutput` reshaped: was `(cliOutput: String, posted: Bool)`, now `(successful: Int, failed: Int, violations: [CommentableViolation], posted: Bool)`
+- `AnalyzePhaseOutput` reshaped: was `(cliOutput: String, files: [...])`, now `(files: [...], report: ReportPhaseOutput?)`
+- Both targets build successfully: `swift build` (MacApp + PRRadarMacCLI)
 
 ---
 

@@ -1,14 +1,13 @@
 import Foundation
 
 public enum PRRadarEnvironment {
-    public static func build(venvBinPath: String) -> [String: String] {
+    public static func build() -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         if env["HOME"] == nil {
             env["HOME"] = NSHomeDirectory()
         }
         let currentPath = env["PATH"] ?? ""
         let extraPaths = [
-            venvBinPath,
             "/opt/homebrew/bin",
             "/opt/homebrew/sbin",
             "/usr/local/bin",

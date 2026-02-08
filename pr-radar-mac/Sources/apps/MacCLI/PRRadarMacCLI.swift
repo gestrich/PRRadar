@@ -61,20 +61,21 @@ enum CLIError: Error, CustomStringConvertible {
     }
 }
 
+func resolveBridgeScriptPath() -> String {
+    URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent() // PRRadarMacCLI.swift → MacCLI/
+        .deletingLastPathComponent() // → apps/
+        .deletingLastPathComponent() // → Sources/
+        .deletingLastPathComponent() // → pr-radar-mac/
+        .appendingPathComponent("bridge/claude_bridge.py")
+        .path
+}
+
 func resolveConfig(
     configName: String?,
     repoPath: String?,
     outputDir: String?
 ) throws -> ResolvedConfig {
-    let venvBinPath = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent() // PRRadarMacCLI.swift → MacCLI/
-        .deletingLastPathComponent() // → apps/
-        .deletingLastPathComponent() // → Sources/
-        .deletingLastPathComponent() // → pr-radar-mac/
-        .deletingLastPathComponent() // → repo root
-        .appendingPathComponent(".venv/bin")
-        .path
-
     var resolvedRepoPath = repoPath
     var resolvedOutputDir = outputDir
     var rulesDir: String? = nil
@@ -90,9 +91,9 @@ func resolveConfig(
     }
 
     let config = PRRadarConfig(
-        venvBinPath: venvBinPath,
         repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
-        outputDir: resolvedOutputDir ?? "code-reviews"
+        outputDir: resolvedOutputDir ?? "code-reviews",
+        bridgeScriptPath: resolveBridgeScriptPath()
     )
 
     return ResolvedConfig(config: config, rulesDir: rulesDir)
@@ -104,10 +105,6 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
         repoPath: options.repoPath,
         outputDir: options.outputDir
     )
-}
-
-func resolveEnvironment(config: PRRadarConfig) -> [String: String] {
-    PRRadarEnvironment.build(venvBinPath: config.venvBinPath)
 }
 
 func printError(_ message: String) {

@@ -1,20 +1,15 @@
 import CLISDK
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
 import PRRadarModels
 
 public struct FetchPRListUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(
-        config: PRRadarConfig,
-        environment: [String: String]
-    ) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
     public func execute(
@@ -27,44 +22,41 @@ public struct FetchPRListUseCase: Sendable {
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.ListPrs(
-                        limit: limit,
-                        state: state,
-                        repo: repoSlug
+                    let client = CLIClient()
+                    let gitHub = GitHubService(client: client)
+
+                    continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))
+
+                    let limitNum = Int(limit ?? "30") ?? 30
+                    let stateFilter = state ?? "open"
+
+                    let prs = try await gitHub.listPullRequests(
+                        limit: limitNum,
+                        state: stateFilter,
+                        repo: repoSlug,
+                        repoPath: config.repoPath
                     )
 
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
-                                continuation.yield(.log(text: text))
-                            }
-                        }
-                    }
+                    // Write PR data to output dir so PRDiscoveryService can find them
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
-                    )
-
-                    await outputStream.finishAll()
-                    _ = await logTask.result
-
-                    if result.isSuccess {
-                        let prs = PRDiscoveryService.discoverPRs(
+                    for pr in prs {
+                        let prDir = DataPathsService.phaseDirectory(
                             outputDir: config.absoluteOutputDir,
-                            repoSlug: repoSlug
+                            prNumber: String(pr.number),
+                            phase: .pullRequest
                         )
-                        continuation.yield(.completed(output: prs))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "list-prs failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
+                        try DataPathsService.ensureDirectoryExists(at: prDir)
+                        let data = try encoder.encode(pr)
+                        try data.write(to: URL(fileURLWithPath: "\(prDir)/gh-pr.json"))
                     }
+
+                    let discoveredPRs = PRDiscoveryService.discoverPRs(
+                        outputDir: config.absoluteOutputDir,
+                        repoSlug: repoSlug
+                    )
+                    continuation.yield(.completed(output: discoveredPRs))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))

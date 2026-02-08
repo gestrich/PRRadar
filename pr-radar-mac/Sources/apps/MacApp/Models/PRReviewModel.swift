@@ -38,13 +38,11 @@ final class PRReviewModel {
     private(set) var refreshState: RefreshState = .idle
     private(set) var analyzeAllState: AnalyzeAllState = .idle
 
-    private let venvBinPath: String
-    private let environment: [String: String]
+    private let bridgeScriptPath: String
     private let settingsService: SettingsService
 
-    init(venvBinPath: String, environment: [String: String], settingsService: SettingsService = SettingsService()) {
-        self.venvBinPath = venvBinPath
-        self.environment = environment
+    init(bridgeScriptPath: String, settingsService: SettingsService = SettingsService()) {
+        self.bridgeScriptPath = bridgeScriptPath
         self.settingsService = settingsService
         self.settings = settingsService.load()
     }
@@ -61,7 +59,7 @@ final class PRReviewModel {
     func selectPR(_ pr: PRMetadata) {
         guard let selected = selectedConfiguration else { return }
         let config = makeConfig(from: selected)
-        let review = ReviewModel(pr: pr, config: config, repoConfig: selected, environment: environment)
+        let review = ReviewModel(pr: pr, config: config, repoConfig: selected)
         review.loadExistingOutputs()
         reviewModel = review
     }
@@ -74,7 +72,7 @@ final class PRReviewModel {
         refreshState = .refreshing
         let config = makeConfig(from: selected)
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: selected.repoPath)
-        let useCase = FetchPRListUseCase(config: config, environment: environment)
+        let useCase = FetchPRListUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(repoSlug: slug) {
@@ -111,7 +109,7 @@ final class PRReviewModel {
         let config = makeConfig(from: selected)
         let rulesDir = selected.rulesDir.isEmpty ? nil : selected.rulesDir
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: selected.repoPath)
-        let useCase = AnalyzeAllUseCase(config: config, environment: environment)
+        let useCase = AnalyzeAllUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(since: since, rulesDir: rulesDir, repo: slug) {
@@ -207,9 +205,9 @@ final class PRReviewModel {
 
     private func makeConfig(from selected: RepoConfiguration) -> PRRadarConfig {
         PRRadarConfig(
-            venvBinPath: venvBinPath,
             repoPath: selected.repoPath,
-            outputDir: selected.outputDir
+            outputDir: selected.outputDir,
+            bridgeScriptPath: bridgeScriptPath
         )
     }
 

@@ -1,8 +1,7 @@
 import ArgumentParser
 import Foundation
-import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
+import PRReviewFeature
 
 struct AnalyzeAllCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -24,9 +23,6 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
 
     @Option(name: .long, help: "Path to rules directory")
     var rulesDir: String?
-
-    @Flag(name: .long, help: "Use GitHub diff instead of local")
-    var githubDiff: Bool = false
 
     @Option(name: .long, help: "Minimum violation score")
     var minScore: String?
@@ -50,30 +46,30 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
             outputDir: outputDir
         )
         let prRadarConfig = resolved.config
-        let environment = resolveEnvironment(config: prRadarConfig)
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
-        let runner = PRRadarCLIRunner()
-        let command = PRRadar.Agent.AnalyzeAll(
+        let useCase = AnalyzeAllUseCase(config: prRadarConfig)
+
+        for try await progress in useCase.execute(
             since: since,
             rulesDir: effectiveRulesDir,
-            repoPath: repoPath,
-            githubDiff: githubDiff,
             minScore: minScore,
             repo: repo,
             comment: comment,
             limit: limit,
             state: state
-        )
-
-        let result = try await runner.execute(
-            command: command,
-            config: prRadarConfig,
-            environment: environment
-        )
-
-        if !result.isSuccess {
-            throw CLIError.phaseFailed("analyze-all failed (exit code \(result.exitCode))")
+        ) {
+            switch progress {
+            case .running:
+                break
+            case .log(let text):
+                print(text, terminator: "")
+            case .completed(let output):
+                print("\nAnalyze-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
+            case .failed(let error, let logs):
+                if !logs.isEmpty { printError(logs) }
+                throw CLIError.phaseFailed("analyze-all failed: \(error)")
+            }
         }
     }
 }

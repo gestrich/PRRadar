@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
 import PRReviewFeature
 
 struct EvaluateCommand: AsyncParsableCommand {
@@ -12,14 +11,10 @@ struct EvaluateCommand: AsyncParsableCommand {
 
     @OptionGroup var options: CLIOptions
 
-    @Option(name: .long, help: "Filter to specific rules (comma-separated)")
-    var rules: String?
-
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let environment = resolveEnvironment(config: config)
-        let useCase = EvaluateUseCase(config: config, environment: environment)
+        let useCase = EvaluateUseCase(config: config)
 
         if !options.json {
             print("Running evaluations for PR #\(options.prNumber)...")
@@ -27,7 +22,7 @@ struct EvaluateCommand: AsyncParsableCommand {
 
         var result: EvaluationPhaseOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, rules: rules, repoPath: options.repoPath) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath) {
             switch progress {
             case .running(let phase):
                 if !options.json {

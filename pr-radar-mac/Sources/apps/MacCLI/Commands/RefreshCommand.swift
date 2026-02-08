@@ -35,9 +35,8 @@ struct RefreshCommand: AsyncParsableCommand {
             outputDir: outputDir
         )
         let prRadarConfig = resolved.config
-        let environment = resolveEnvironment(config: prRadarConfig)
 
-        let useCase = FetchPRListUseCase(config: prRadarConfig, environment: environment)
+        let useCase = FetchPRListUseCase(config: prRadarConfig)
         let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: prRadarConfig.repoPath)
 
         if !json {

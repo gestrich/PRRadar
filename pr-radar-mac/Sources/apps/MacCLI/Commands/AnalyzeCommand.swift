@@ -15,29 +15,16 @@ struct AnalyzeCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Path to rules directory")
     var rulesDir: String?
 
-    @Flag(name: .long, help: "Use GitHub diff instead of local")
-    var githubDiff: Bool = false
-
-    @Option(name: .long, help: "Stop after this phase (diff, rules, evaluate, report)")
-    var stopAfter: String?
-
-    @Option(name: .long, help: "Skip to this phase (rules, evaluate, report, comment)")
-    var skipTo: String?
-
     @Flag(name: .long, help: "Post comments without dry-run")
     var noDryRun: Bool = false
 
     @Option(name: .long, help: "Minimum violation score")
     var minScore: String?
 
-    @Option(name: .long, help: "GitHub repo (owner/name)")
-    var repo: String?
-
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let environment = resolveEnvironment(config: config)
-        let useCase = AnalyzeUseCase(config: config, environment: environment)
+        let useCase = AnalyzeUseCase(config: config)
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         if !options.json {
@@ -50,12 +37,8 @@ struct AnalyzeCommand: AsyncParsableCommand {
             prNumber: options.prNumber,
             rulesDir: effectiveRulesDir,
             repoPath: options.repoPath,
-            githubDiff: githubDiff,
-            stopAfter: stopAfter,
-            skipTo: skipTo,
             noDryRun: noDryRun,
-            minScore: minScore,
-            repo: repo
+            minScore: minScore
         ) {
             switch progress {
             case .running(let phase):
@@ -91,11 +74,6 @@ struct AnalyzeCommand: AsyncParsableCommand {
                 if let files = output.files[phase] {
                     print("  \(phase.rawValue): \(files.count) files")
                 }
-            }
-
-            if !output.cliOutput.isEmpty {
-                print("\n--- CLI Output ---")
-                print(output.cliOutput)
             }
         }
     }

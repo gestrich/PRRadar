@@ -18,7 +18,6 @@ final class ReviewModel {
     let pr: PRMetadata
     let config: PRRadarConfig
     let repoConfig: RepoConfiguration
-    private let environment: [String: String]
 
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
     var selectedPhase: PRRadarPhase = .pullRequest
@@ -32,11 +31,10 @@ final class ReviewModel {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
-    init(pr: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration, environment: [String: String]) {
+    init(pr: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
         self.pr = pr
         self.config = config
         self.repoConfig = repoConfig
-        self.environment = environment
     }
 
     // MARK: - Computed Properties
@@ -170,7 +168,7 @@ final class ReviewModel {
     func runDiff() async {
         phaseStates[.pullRequest] = .running(logs: "Running diff for PR #\(prNumber)...\n")
 
-        let useCase = FetchDiffUseCase(config: config, environment: environment)
+        let useCase = FetchDiffUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber) {
@@ -200,7 +198,7 @@ final class ReviewModel {
             phaseStates[phase] = .running(logs: "")
         }
 
-        let useCase = FetchRulesUseCase(config: config, environment: environment)
+        let useCase = FetchRulesUseCase(config: config)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
 
         do {
@@ -231,7 +229,7 @@ final class ReviewModel {
     private func runEvaluate() async {
         phaseStates[.evaluations] = .running(logs: "Running evaluations...\n")
 
-        let useCase = EvaluateUseCase(config: config, environment: environment)
+        let useCase = EvaluateUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber) {
@@ -257,7 +255,7 @@ final class ReviewModel {
     private func runReport() async {
         phaseStates[.report] = .running(logs: "Generating report...\n")
 
-        let useCase = GenerateReportUseCase(config: config, environment: environment)
+        let useCase = GenerateReportUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber) {
@@ -283,7 +281,7 @@ final class ReviewModel {
     func runComments(dryRun: Bool) async {
         phaseStates[.evaluations] = .running(logs: "Posting comments...\n")
 
-        let useCase = PostCommentsUseCase(config: config, environment: environment)
+        let useCase = PostCommentsUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber, dryRun: dryRun) {
@@ -316,7 +314,7 @@ final class ReviewModel {
 
         let commentBody = "**\(evaluation.ruleName)** (Score: \(evaluation.evaluation.score)/10)\n\n\(evaluation.evaluation.comment)"
 
-        let useCase = PostSingleCommentUseCase(environment: environment)
+        let useCase = PostSingleCommentUseCase()
 
         do {
             let success = try await useCase.execute(
@@ -325,7 +323,8 @@ final class ReviewModel {
                 filePath: evaluation.evaluation.filePath,
                 lineNumber: evaluation.evaluation.lineNumber,
                 commitSHA: commitSHA,
-                commentBody: commentBody
+                commentBody: commentBody,
+                repoPath: repoConfig.repoPath
             )
 
             submittingCommentIds.remove(evaluation.taskId)

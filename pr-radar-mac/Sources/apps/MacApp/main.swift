@@ -7,18 +7,15 @@ struct PRRadarMacApp: App {
     @State private var model: PRReviewModel
 
     init() {
-        let venvBinPath = URL(fileURLWithPath: #filePath)
+        let bridgeScriptPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // main.swift → MacApp/
             .deletingLastPathComponent() // → apps/
             .deletingLastPathComponent() // → Sources/
             .deletingLastPathComponent() // → pr-radar-mac/
-            .deletingLastPathComponent() // → repo root
-            .appendingPathComponent(".venv/bin")
+            .appendingPathComponent("bridge/claude_bridge.py")
             .path
-        let environment = PRRadarEnvironment.build(venvBinPath: venvBinPath)
         _model = State(initialValue: PRReviewModel(
-            venvBinPath: venvBinPath,
-            environment: environment
+            bridgeScriptPath: bridgeScriptPath
         ))
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)

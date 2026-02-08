@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
 import PRReviewFeature
 
 struct RulesCommand: AsyncParsableCommand {
@@ -18,8 +17,7 @@ struct RulesCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let environment = resolveEnvironment(config: config)
-        let useCase = FetchRulesUseCase(config: config, environment: environment)
+        let useCase = FetchRulesUseCase(config: config)
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         if !options.json {

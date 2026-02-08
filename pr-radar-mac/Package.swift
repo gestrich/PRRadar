@@ -64,7 +64,6 @@ let package = Package(
             dependencies: [
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRRadarConfigService"),
-                .target(name: "PRRadarMacSDK"),
                 .target(name: "PRRadarModels"),
             ],
             path: "Sources/features/PRReviewFeature"
@@ -78,7 +77,6 @@ let package = Package(
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
-                .product(name: "CLISDK", package: "SwiftCLI"),
             ],
             path: "Sources/apps/MacApp",
             swiftSettings: [

@@ -1,7 +1,6 @@
 import CLISDK
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
 import PRRadarModels
 
 public struct DiffPhaseSnapshot: Sendable {
@@ -21,14 +20,9 @@ public struct DiffPhaseSnapshot: Sendable {
 public struct FetchDiffUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(
-        config: PRRadarConfig,
-        environment: [String: String]
-    ) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
     public static func parseOutput(config: PRRadarConfig, prNumber: String) -> DiffPhaseSnapshot {
@@ -71,40 +65,29 @@ public struct FetchDiffUseCase: Sendable {
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.Diff(
-                        prNumber: prNumber,
-                        repoPath: config.repoPath
-                    )
+                    let client = CLIClient()
+                    let gitHub = GitHubService(client: client)
+                    let gitOps = GitOperationsService(client: client)
+                    let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
 
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
-                                continuation.yield(.log(text: text))
-                            }
-                        }
+                    guard let prNum = Int(prNumber) else {
+                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
+                        continuation.finish()
+                        return
                     }
 
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
+                    continuation.yield(.log(text: "Fetching PR #\(prNumber) from GitHub...\n"))
+
+                    let result = try await acquisition.acquire(
+                        prNumber: prNum,
+                        repoPath: config.repoPath,
+                        outputDir: config.absoluteOutputDir
                     )
 
-                    await outputStream.finishAll()
-                    _ = await logTask.result
+                    continuation.yield(.log(text: "Diff acquired: \(result.diff.hunks.count) hunks across \(result.diff.uniqueFiles.count) files\n"))
 
-                    if result.isSuccess {
-                        let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
-                        continuation.yield(.completed(output: snapshot))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "Phase 1 failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
-                    }
+                    let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
+                    continuation.yield(.completed(output: snapshot))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))

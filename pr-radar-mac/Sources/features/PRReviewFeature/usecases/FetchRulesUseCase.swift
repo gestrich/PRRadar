@@ -1,7 +1,7 @@
 import CLISDK
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
 import PRRadarModels
 
 public struct RulesPhaseOutput: Sendable {
@@ -19,53 +19,101 @@ public struct RulesPhaseOutput: Sendable {
 public struct FetchRulesUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(config: PRRadarConfig, environment: [String: String]) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
     public func execute(prNumber: String, rulesDir: String?) -> AsyncThrowingStream<PhaseProgress<RulesPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .rules))
+            continuation.yield(.running(phase: .focusAreas))
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.Rules(
-                        prNumber: prNumber,
-                        rulesDir: rulesDir
-                    )
-
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
-                                continuation.yield(.log(text: text))
-                            }
-                        }
+                    guard let prNum = Int(prNumber) else {
+                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
+                        continuation.finish()
+                        return
                     }
 
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+
+                    // Phase 2: Generate focus areas
+                    continuation.yield(.log(text: "Generating focus areas...\n"))
+
+                    let diffSnapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
+                    guard let fullDiff = diffSnapshot.effectiveDiff ?? diffSnapshot.fullDiff else {
+                        continuation.yield(.failed(error: "No diff data found. Run diff phase first.", logs: ""))
+                        continuation.finish()
+                        return
+                    }
+
+                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath)
+                    let focusGenerator = FocusGeneratorService(bridgeClient: bridgeClient)
+
+                    let focusResults = try await focusGenerator.generateAllFocusAreas(
+                        hunks: fullDiff.hunks,
+                        prNumber: prNum,
+                        requestedTypes: [.method, .file]
                     )
 
-                    await outputStream.finishAll()
-                    _ = await logTask.result
+                    let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"
+                    try FileManager.default.createDirectory(atPath: focusDir, withIntermediateDirectories: true)
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-                    if result.isSuccess {
-                        let output = try Self.parseOutput(config: config, prNumber: prNumber)
-                        continuation.yield(.completed(output: output))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "Rules phase failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
+                    var allFocusAreas: [FocusArea] = []
+                    for (focusType, result) in focusResults {
+                        allFocusAreas.append(contentsOf: result.focusAreas)
+                        let typeOutput = FocusAreaTypeOutput(
+                            prNumber: prNum,
+                            generatedAt: ISO8601DateFormatter().string(from: Date()),
+                            focusType: focusType.rawValue,
+                            focusAreas: result.focusAreas,
+                            totalHunksProcessed: result.totalHunksProcessed,
+                            generationCostUsd: result.generationCostUsd
+                        )
+                        let data = try encoder.encode(typeOutput)
+                        try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(focusType.rawValue).json"))
                     }
+
+                    continuation.yield(.running(phase: .rules))
+                    continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
+
+                    // Phase 3: Load rules
+                    guard let rulesPath = rulesDir, !rulesPath.isEmpty else {
+                        continuation.yield(.failed(error: "No rules directory specified", logs: ""))
+                        continuation.finish()
+                        return
+                    }
+
+                    continuation.yield(.log(text: "Loading rules from \(rulesPath)...\n"))
+
+                    let client = CLIClient()
+                    let gitOps = GitOperationsService(client: client)
+                    let ruleLoader = RuleLoaderService(gitOps: gitOps)
+                    let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath, repoPath: rulesPath)
+
+                    let rulesOutputDir = "\(prOutputDir)/\(PRRadarPhase.rules.rawValue)"
+                    try FileManager.default.createDirectory(atPath: rulesOutputDir, withIntermediateDirectories: true)
+                    let rulesData = try encoder.encode(allRules)
+                    try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/all-rules.json"))
+
+                    continuation.yield(.running(phase: .tasks))
+                    continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
+
+                    // Phase 4: Create tasks
+                    let taskCreator = TaskCreatorService(ruleLoader: ruleLoader)
+                    let tasks = try taskCreator.createAndWriteTasks(
+                        rules: allRules,
+                        focusAreas: allFocusAreas,
+                        outputDir: prOutputDir
+                    )
+
+                    continuation.yield(.log(text: "Tasks created: \(tasks.count)\n"))
+
+                    let output = RulesPhaseOutput(focusAreas: allFocusAreas, rules: allRules, tasks: tasks)
+                    continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
@@ -76,7 +124,6 @@ public struct FetchRulesUseCase: Sendable {
     }
 
     public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> RulesPhaseOutput {
-        // Parse focus areas from phase-2 (per-type JSON files)
         let focusFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .focusAreas
         ).filter { $0.hasSuffix(".json") }
@@ -89,12 +136,10 @@ public struct FetchRulesUseCase: Sendable {
             allFocusAreas.append(contentsOf: typeOutput.focusAreas)
         }
 
-        // Parse rules from phase-3 (all-rules.json is a bare array)
         let rules: [ReviewRule] = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .rules, filename: "all-rules.json"
         )
 
-        // Parse tasks from phase-4 (one JSON per task)
         let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
             config: config, prNumber: prNumber, phase: .tasks
         )

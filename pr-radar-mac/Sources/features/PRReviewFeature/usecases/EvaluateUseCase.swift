@@ -1,7 +1,6 @@
-import CLISDK
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
 import PRRadarModels
 
 public struct EvaluationPhaseOutput: Sendable {
@@ -17,54 +16,75 @@ public struct EvaluationPhaseOutput: Sendable {
 public struct EvaluateUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(config: PRRadarConfig, environment: [String: String]) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
-    public func execute(prNumber: String, rules: String? = nil, repoPath: String? = nil) -> AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error> {
+    public func execute(prNumber: String, repoPath: String? = nil) -> AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .evaluations))
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.Evaluate(
-                        prNumber: prNumber,
-                        rules: rules,
-                        repoPath: repoPath
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let effectiveRepoPath = repoPath ?? config.repoPath
+
+                    // Load tasks from phase-4
+                    let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+                        config: config, prNumber: prNumber, phase: .tasks
                     )
 
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
-                                continuation.yield(.log(text: text))
-                            }
+                    guard !tasks.isEmpty else {
+                        continuation.yield(.failed(error: "No tasks found. Run rules phase first.", logs: ""))
+                        continuation.finish()
+                        return
+                    }
+
+                    continuation.yield(.log(text: "Evaluating \(tasks.count) tasks...\n"))
+
+                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath)
+                    let evaluationService = EvaluationService(bridgeClient: bridgeClient)
+
+                    let startTime = Date()
+                    let results = try await evaluationService.runBatchEvaluation(
+                        tasks: tasks,
+                        outputDir: prOutputDir,
+                        repoPath: effectiveRepoPath,
+                        onStart: { index, total, task in
+                            continuation.yield(.log(text: "[\(index)/\(total)] Evaluating \(task.rule.name)...\n"))
+                        },
+                        onResult: { index, total, result in
+                            let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+                            continuation.yield(.log(text: "[\(index)/\(total)] \(status)\n"))
                         }
-                    }
-
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
                     )
 
-                    await outputStream.finishAll()
-                    _ = await logTask.result
+                    let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
+                    let totalCost = results.compactMap(\.costUsd).reduce(0, +)
+                    let violationCount = results.filter(\.evaluation.violatesRule).count
 
-                    if result.isSuccess {
-                        let output = try Self.parseOutput(config: config, prNumber: prNumber)
-                        continuation.yield(.completed(output: output))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "Evaluate phase failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
-                    }
+                    let summary = EvaluationSummary(
+                        prNumber: Int(prNumber) ?? 0,
+                        evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+                        totalTasks: results.count,
+                        violationsFound: violationCount,
+                        totalCostUsd: totalCost,
+                        totalDurationMs: durationMs,
+                        results: results
+                    )
+
+                    // Write summary
+                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                    let summaryData = try encoder.encode(summary)
+                    try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+
+                    continuation.yield(.log(text: "Evaluation complete: \(violationCount) violations found\n"))
+
+                    let output = EvaluationPhaseOutput(evaluations: results, summary: summary)
+                    continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
@@ -79,7 +99,6 @@ public struct EvaluateUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .evaluations, filename: "summary.json"
         )
 
-        // Individual evaluation files (exclude summary.json)
         let evalFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .evaluations
         ).filter { $0.hasSuffix(".json") && $0 != "summary.json" }

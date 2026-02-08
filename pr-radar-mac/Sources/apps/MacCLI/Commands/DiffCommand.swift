@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
-import PRRadarModels
 import PRReviewFeature
 
 struct DiffCommand: AsyncParsableCommand {
@@ -18,8 +17,7 @@ struct DiffCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let environment = resolveEnvironment(config: config)
-        let useCase = FetchDiffUseCase(config: config, environment: environment)
+        let useCase = FetchDiffUseCase(config: config)
 
         if !options.json {
             print("Fetching diff for PR #\(options.prNumber)...")

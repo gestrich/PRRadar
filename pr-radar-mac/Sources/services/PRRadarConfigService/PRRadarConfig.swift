@@ -1,18 +1,14 @@
 import Foundation
 
 public struct PRRadarConfig: Sendable {
-    public let venvBinPath: String
     public let repoPath: String
     public let outputDir: String
+    public let bridgeScriptPath: String
 
-    public init(venvBinPath: String, repoPath: String, outputDir: String) {
-        self.venvBinPath = venvBinPath
+    public init(repoPath: String, outputDir: String, bridgeScriptPath: String) {
         self.repoPath = repoPath
         self.outputDir = outputDir
-    }
-
-    public var prradarPath: String {
-        "\(venvBinPath)/prradar"
+        self.bridgeScriptPath = bridgeScriptPath
     }
 
     public var resolvedOutputDir: String {

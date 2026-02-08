@@ -1,7 +1,6 @@
-import CLISDK
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
 import PRRadarModels
 
 public struct ReportPhaseOutput: Sendable {
@@ -17,11 +16,9 @@ public struct ReportPhaseOutput: Sendable {
 public struct GenerateReportUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(config: PRRadarConfig, environment: [String: String]) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
     public func execute(prNumber: String, minScore: String? = nil) -> AsyncThrowingStream<PhaseProgress<ReportPhaseOutput>, Error> {
@@ -30,40 +27,31 @@ public struct GenerateReportUseCase: Sendable {
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.Report(
-                        prNumber: prNumber,
-                        minScore: minScore
-                    )
-
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
-                                continuation.yield(.log(text: text))
-                            }
-                        }
+                    guard let prNum = Int(prNumber) else {
+                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
+                        continuation.finish()
+                        return
                     }
 
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let scoreThreshold = Int(minScore ?? "5") ?? 5
+
+                    continuation.yield(.log(text: "Generating report (min score: \(scoreThreshold))...\n"))
+
+                    let reportService = ReportGeneratorService()
+                    let report = try reportService.generateReport(
+                        prNumber: prNum,
+                        minScore: scoreThreshold,
+                        outputDir: prOutputDir
                     )
 
-                    await outputStream.finishAll()
-                    _ = await logTask.result
+                    let (_, _) = try reportService.saveReport(report: report, outputDir: prOutputDir)
 
-                    if result.isSuccess {
-                        let output = try Self.parseOutput(config: config, prNumber: prNumber)
-                        continuation.yield(.completed(output: output))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "Report phase failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
-                    }
+                    let markdown = report.toMarkdown()
+                    continuation.yield(.log(text: "Report generated: \(report.violations.count) violations\n"))
+
+                    let output = ReportPhaseOutput(report: report, markdownContent: markdown)
+                    continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))

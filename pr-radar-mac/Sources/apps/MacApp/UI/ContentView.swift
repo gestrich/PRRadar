@@ -272,5 +272,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environment(PRReviewModel(venvBinPath: "", environment: [:]))
+        .environment(PRReviewModel(bridgeScriptPath: ""))
 }

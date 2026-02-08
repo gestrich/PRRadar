@@ -1,27 +1,24 @@
 import CLISDK
 import PRRadarCLIService
 import PRRadarConfigService
-import PRRadarMacSDK
+import PRRadarModels
 
 public struct AnalyzeAllOutput: Sendable {
-    public let cliOutput: String
+    public let analyzedCount: Int
+    public let failedCount: Int
 }
 
 public struct AnalyzeAllUseCase: Sendable {
 
     private let config: PRRadarConfig
-    private let environment: [String: String]
 
-    public init(config: PRRadarConfig, environment: [String: String]) {
+    public init(config: PRRadarConfig) {
         self.config = config
-        self.environment = environment
     }
 
     public func execute(
         since: String,
         rulesDir: String? = nil,
-        repoPath: String? = nil,
-        githubDiff: Bool = false,
         minScore: String? = nil,
         repo: String? = nil,
         comment: Bool = false,
@@ -33,47 +30,63 @@ public struct AnalyzeAllUseCase: Sendable {
 
             Task {
                 do {
-                    let runner = PRRadarCLIRunner()
-                    let command = PRRadar.Agent.AnalyzeAll(
-                        since: since,
-                        rulesDir: rulesDir,
-                        repoPath: repoPath,
-                        githubDiff: githubDiff,
-                        minScore: minScore,
+                    let client = CLIClient()
+                    let gitHub = GitHubService(client: client)
+
+                    let limitNum = Int(limit ?? "100") ?? 100
+                    let stateFilter = state ?? "merged"
+                    let searchQuery = "created:>=\(since)"
+
+                    continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(stateFilter))...\n"))
+
+                    let prs = try await gitHub.listPullRequests(
+                        limit: limitNum,
+                        state: stateFilter,
                         repo: repo,
-                        comment: comment,
-                        limit: limit,
-                        state: state
+                        search: searchQuery,
+                        repoPath: config.repoPath
                     )
 
-                    let outputStream = CLIOutputStream()
-                    let logTask = Task {
-                        for await event in await outputStream.makeStream() {
-                            if let text = event.text, !event.isCommand {
+                    continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))
+
+                    var analyzedCount = 0
+                    var failedCount = 0
+
+                    for pr in prs {
+                        let prNumber = String(pr.number)
+                        continuation.yield(.log(text: "\n--- PR #\(prNumber): \(pr.title) ---\n"))
+
+                        let analyzeUseCase = AnalyzeUseCase(config: config)
+                        var succeeded = false
+
+                        for try await progress in analyzeUseCase.execute(
+                            prNumber: prNumber,
+                            rulesDir: rulesDir,
+                            noDryRun: comment,
+                            minScore: minScore
+                        ) {
+                            switch progress {
+                            case .running: break
+                            case .log(let text):
                                 continuation.yield(.log(text: text))
+                            case .completed:
+                                succeeded = true
+                            case .failed(let error, _):
+                                continuation.yield(.log(text: "  Failed: \(error)\n"))
                             }
+                        }
+
+                        if succeeded {
+                            analyzedCount += 1
+                        } else {
+                            failedCount += 1
                         }
                     }
 
-                    let result = try await runner.execute(
-                        command: command,
-                        config: config,
-                        environment: environment,
-                        output: outputStream
-                    )
+                    continuation.yield(.log(text: "\nAnalyze-all complete: \(analyzedCount) succeeded, \(failedCount) failed\n"))
 
-                    await outputStream.finishAll()
-                    _ = await logTask.result
-
-                    if result.isSuccess {
-                        let output = AnalyzeAllOutput(cliOutput: result.output)
-                        continuation.yield(.completed(output: output))
-                    } else {
-                        continuation.yield(.failed(
-                            error: "Analyze-all failed (exit code \(result.exitCode))",
-                            logs: result.errorOutput
-                        ))
-                    }
+                    let output = AnalyzeAllOutput(analyzedCount: analyzedCount, failedCount: failedCount)
+                    continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))

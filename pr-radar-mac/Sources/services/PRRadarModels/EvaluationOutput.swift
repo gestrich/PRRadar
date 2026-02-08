@@ -80,6 +80,24 @@ public struct EvaluationSummary: Codable, Sendable {
     public let totalDurationMs: Int
     public let results: [RuleEvaluationResult]
 
+    public init(
+        prNumber: Int,
+        evaluatedAt: String,
+        totalTasks: Int,
+        violationsFound: Int,
+        totalCostUsd: Double,
+        totalDurationMs: Int,
+        results: [RuleEvaluationResult]
+    ) {
+        self.prNumber = prNumber
+        self.evaluatedAt = evaluatedAt
+        self.totalTasks = totalTasks
+        self.violationsFound = violationsFound
+        self.totalCostUsd = totalCostUsd
+        self.totalDurationMs = totalDurationMs
+        self.results = results
+    }
+
     enum CodingKeys: String, CodingKey {
         case prNumber = "pr_number"
         case evaluatedAt = "evaluated_at"
