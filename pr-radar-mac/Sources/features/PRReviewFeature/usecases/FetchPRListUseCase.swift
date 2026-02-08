@@ -33,6 +33,9 @@ public struct FetchPRListUseCase: Sendable {
                         state: stateFilter
                     )
 
+                    // Fetch repository info once (needed by PRDiscoveryService when filtering by repoSlug)
+                    let repo = try await gitHub.getRepository()
+
                     // Write PR data to output dir so PRDiscoveryService can find them
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -44,8 +47,11 @@ public struct FetchPRListUseCase: Sendable {
                             phase: .pullRequest
                         )
                         try DataPathsService.ensureDirectoryExists(at: prDir)
-                        let data = try encoder.encode(pr)
-                        try data.write(to: URL(fileURLWithPath: "\(prDir)/gh-pr.json"))
+                        let prData = try encoder.encode(pr)
+                        try prData.write(to: URL(fileURLWithPath: "\(prDir)/gh-pr.json"))
+                        
+                        let repoData = try encoder.encode(repo)
+                        try repoData.write(to: URL(fileURLWithPath: "\(prDir)/gh-repo.json"))
                     }
 
                     let discoveredPRs = PRDiscoveryService.discoverPRs(
