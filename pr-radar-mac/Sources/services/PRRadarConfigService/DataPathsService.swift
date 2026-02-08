@@ -80,6 +80,8 @@ public struct PhaseStatus: Sendable {
 // MARK: - DataPathsService
 
 public enum DataPathsService {
+    public static let phaseResultFilename = "phase_result.json"
+    
     public static func phaseDirectory(
         outputDir: String,
         prNumber: String,
@@ -131,26 +133,10 @@ public enum DataPathsService {
 
     // MARK: - Phase Completion Checking
 
-    /// Phase 1 required artifact filenames.
-    public static let pullRequestRequiredFiles = [
-        "diff-raw.diff",
-        "diff-parsed.json",
-        "diff-parsed.md",
-        "gh-pr.json",
-        "gh-comments.json",
-        "gh-repo.json",
-        "effective-diff-parsed.json",
-        "effective-diff-parsed.md",
-        "effective-diff-moves.json",
-    ]
-
-    /// Phase 6 required artifact filenames.
-    public static let reportRequiredFiles = [
-        "summary.json",
-        "summary.md",
-    ]
-
     /// Get detailed completion status for a single phase.
+    ///
+    /// Checks for phase_result.json as the source of truth for phase completion.
+    /// If the file is missing, the phase is considered not started.
     public static func phaseStatus(
         _ phase: PRRadarPhase,
         outputDir: String,
@@ -158,19 +144,39 @@ public enum DataPathsService {
     ) -> PhaseStatus {
         let dir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase)
 
-        switch phase {
-        case .pullRequest:
-            return fixedFileStatus(phase: phase, directory: dir, requiredFiles: pullRequestRequiredFiles)
-        case .focusAreas:
-            return jsonFileCountStatus(phase: phase, directory: dir)
-        case .rules:
-            return fixedFileStatus(phase: phase, directory: dir, requiredFiles: ["all-rules.json"])
-        case .tasks:
-            return jsonFileCountStatus(phase: phase, directory: dir)
-        case .evaluations:
-            return evaluationsStatus(directory: dir, outputDir: outputDir, prNumber: prNumber)
-        case .report:
-            return fixedFileStatus(phase: phase, directory: dir, requiredFiles: reportRequiredFiles)
+        guard let phaseResult = readPhaseResult(directory: dir, phase: phase) else {
+            // No phase_result.json means phase hasn't been run
+            return PhaseStatus(
+                phase: phase,
+                exists: false,
+                isComplete: false,
+                completedCount: 0,
+                totalCount: 1,
+                missingItems: [phaseResultFilename]
+            )
+        }
+
+        if phaseResult.status == .success {
+            // Phase completed successfully - trust the result file
+            let artifactCount = phaseResult.stats?.artifactsProduced ?? 0
+            return PhaseStatus(
+                phase: phase,
+                exists: true,
+                isComplete: true,
+                completedCount: artifactCount,
+                totalCount: artifactCount,
+                missingItems: []
+            )
+        } else {
+            // Phase failed - report the error
+            return PhaseStatus(
+                phase: phase,
+                exists: true,
+                isComplete: false,
+                completedCount: 0,
+                totalCount: 1,
+                missingItems: [phaseResult.errorMessage ?? "Unknown error"]
+            )
         }
     }
 
@@ -188,92 +194,78 @@ public enum DataPathsService {
 
     // MARK: - Private Helpers
 
-    private static func fixedFileStatus(
-        phase: PRRadarPhase,
-        directory: String,
-        requiredFiles: [String]
-    ) -> PhaseStatus {
-        let fm = FileManager.default
-        var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: directory, isDirectory: &isDir), isDir.boolValue else {
-            return PhaseStatus(
-                phase: phase, exists: false, isComplete: false,
-                completedCount: 0, totalCount: requiredFiles.count,
-                missingItems: requiredFiles
-            )
+    /// Read phase_result.json from a phase directory if it exists.
+    private static func readPhaseResult(directory: String, phase: PRRadarPhase) -> PhaseResult? {
+        let path = "\(directory)/\(phaseResultFilename)"
+        guard let data = FileManager.default.contents(atPath: path) else {
+            return nil
         }
+        return try? JSONDecoder().decode(PhaseResult.self, from: data)
+    }
+}
 
-        let missing = requiredFiles.filter { !fm.fileExists(atPath: "\(directory)/\($0)") }
-        return PhaseStatus(
-            phase: phase, exists: true, isComplete: missing.isEmpty,
-            completedCount: requiredFiles.count - missing.count, totalCount: requiredFiles.count,
-            missingItems: missing
-        )
+// MARK: - PhaseResult Model
+
+/// Standard result file written at the end of every phase to indicate completion status.
+public struct PhaseResult: Codable, Sendable {
+    public let phase: String
+    public let status: PhaseResultStatus
+    public let completedAt: String
+    public let errorMessage: String?
+    public let stats: PhaseStats?
+
+    public init(
+        phase: String,
+        status: PhaseResultStatus,
+        completedAt: String = ISO8601DateFormatter().string(from: Date()),
+        errorMessage: String? = nil,
+        stats: PhaseStats? = nil
+    ) {
+        self.phase = phase
+        self.status = status
+        self.completedAt = completedAt
+        self.errorMessage = errorMessage
+        self.stats = stats
     }
 
-    private static func jsonFileCountStatus(
-        phase: PRRadarPhase,
-        directory: String
-    ) -> PhaseStatus {
-        let fm = FileManager.default
-        var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: directory, isDirectory: &isDir), isDir.boolValue else {
-            return PhaseStatus(
-                phase: phase, exists: false, isComplete: false,
-                completedCount: 0, totalCount: 1, missingItems: []
-            )
-        }
+    enum CodingKeys: String, CodingKey {
+        case phase
+        case status
+        case completedAt = "completed_at"
+        case errorMessage = "error_message"
+        case stats
+    }
+}
 
-        let files = ((try? fm.contentsOfDirectory(atPath: directory)) ?? [])
-            .filter { $0.hasSuffix(".json") }
-        return PhaseStatus(
-            phase: phase, exists: true, isComplete: !files.isEmpty,
-            completedCount: files.count, totalCount: max(files.count, 1),
-            missingItems: files.isEmpty ? ["<type>.json"] : []
-        )
+/// Phase completion status
+public enum PhaseResultStatus: String, Codable, Sendable {
+    case success
+    case failed
+}
+
+/// Optional statistics about phase execution
+public struct PhaseStats: Codable, Sendable {
+    public let artifactsProduced: Int?
+    public let durationMs: Int?
+    public let costUsd: Double?
+    public let metadata: [String: String]?
+
+    public init(
+        artifactsProduced: Int? = nil,
+        durationMs: Int? = nil,
+        costUsd: Double? = nil,
+        metadata: [String: String]? = nil
+    ) {
+        self.artifactsProduced = artifactsProduced
+        self.durationMs = durationMs
+        self.costUsd = costUsd
+        self.metadata = metadata
     }
 
-    private static func evaluationsStatus(
-        directory: String,
-        outputDir: String,
-        prNumber: String
-    ) -> PhaseStatus {
-        let fm = FileManager.default
-        var isDir: ObjCBool = false
-        let tasksDir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: .tasks)
-
-        guard fm.fileExists(atPath: directory, isDirectory: &isDir), isDir.boolValue else {
-            let taskCount = ((try? fm.contentsOfDirectory(atPath: tasksDir)) ?? [])
-                .filter { $0.hasSuffix(".json") }.count
-            return PhaseStatus(
-                phase: .evaluations, exists: false, isComplete: false,
-                completedCount: 0, totalCount: taskCount, missingItems: []
-            )
-        }
-
-        // Find expected task IDs
-        var expectedIds = Set<String>()
-        if let taskFiles = try? fm.contentsOfDirectory(atPath: tasksDir) {
-            for file in taskFiles where file.hasSuffix(".json") {
-                let path = "\(tasksDir)/\(file)"
-                if let data = fm.contents(atPath: path),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let taskId = json["task_id"] as? String {
-                    expectedIds.insert(taskId)
-                }
-            }
-        }
-
-        let completedFiles = ((try? fm.contentsOfDirectory(atPath: directory)) ?? [])
-            .filter { $0.hasSuffix(".json") && $0 != "summary.json" }
-        let completedIds = Set(completedFiles.map { ($0 as NSString).deletingPathExtension })
-        let missing = expectedIds.subtracting(completedIds).sorted()
-
-        return PhaseStatus(
-            phase: .evaluations, exists: true,
-            isComplete: missing.isEmpty && !expectedIds.isEmpty,
-            completedCount: completedIds.count, totalCount: expectedIds.count,
-            missingItems: missing
-        )
+    enum CodingKeys: String, CodingKey {
+        case artifactsProduced = "artifacts_produced"
+        case durationMs = "duration_ms"
+        case costUsd = "cost_usd"
+        case metadata
     }
 }
