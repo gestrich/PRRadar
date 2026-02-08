@@ -25,7 +25,7 @@ The refactor will enable showing violation count badges in the PR list by loadin
 
 ## Phases
 
-## - [ ] Phase 1: Create PRModel with Lightweight Analysis State
+## - [x] Phase 1: Create PRModel with Lightweight Analysis State
 
 Create the new `PRModel` class that represents a single PR with self-initializing analysis status.
 
@@ -52,6 +52,10 @@ Create the new `PRModel` class that represents a single PR with self-initializin
 **Expected outcome:**
 - PRModel exists and self-loads lightweight analysis status on init
 - Analysis state can be observed by views for badge display
+
+**Technical notes:**
+- `id` property requires `nonisolated` keyword for Swift 6.2 strict concurrency — `Identifiable` conformance on `@MainActor` classes needs nonisolated `id` since the protocol requirement is nonisolated
+- Uses `PhaseOutputParser.parsePhaseOutput` to decode `EvaluationSummary` from `summary.json`, catching any error (file not found, decode failure) as `.unavailable`
 
 ## - [ ] Phase 2: Add Detail State to PRModel
 
