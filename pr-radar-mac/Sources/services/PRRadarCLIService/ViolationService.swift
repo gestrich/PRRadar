@@ -1,4 +1,5 @@
 import Foundation
+import PRRadarConfigService
 import PRRadarModels
 
 /// Represents a violation ready for posting as a GitHub comment.
@@ -128,7 +129,7 @@ public struct ViolationService: Sendable {
         // Load task metadata
         var taskMetadata: [String: EvaluationTaskOutput] = [:]
         if let taskFiles = try? fm.contentsOfDirectory(atPath: tasksDir) {
-            for file in taskFiles where file.hasSuffix(".json") {
+            for file in taskFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
                 let path = "\(tasksDir)/\(file)"
                 guard let data = fm.contents(atPath: path),
                       let task = try? JSONDecoder().decode(EvaluationTaskOutput.self, from: data) else { continue }
@@ -138,7 +139,7 @@ public struct ViolationService: Sendable {
 
         guard let evalFiles = try? fm.contentsOfDirectory(atPath: evaluationsDir) else { return violations }
 
-        for file in evalFiles where file.hasSuffix(".json") && file != "summary.json" {
+        for file in evalFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(evaluationsDir)/\(file)"
             guard let data = fm.contents(atPath: path),
                   let result = try? JSONDecoder().decode(RuleEvaluationResult.self, from: data) else { continue }

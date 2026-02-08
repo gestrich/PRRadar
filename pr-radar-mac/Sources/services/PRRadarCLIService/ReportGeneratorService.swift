@@ -79,7 +79,7 @@ public struct ReportGeneratorService: Sendable {
             return (violations, totalTasks, totalCost)
         }
 
-        for file in evalFiles where file.hasSuffix(".json") && file != "summary.json" {
+        for file in evalFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(evaluationsDir)/\(file)"
             guard let data = fm.contents(atPath: path) else { continue }
 
@@ -129,7 +129,7 @@ public struct ReportGeneratorService: Sendable {
         guard let files = try? fm.contentsOfDirectory(atPath: focusAreasDir) else { return 0.0 }
 
         var total = 0.0
-        for file in files where file.hasSuffix(".json") {
+        for file in files where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(focusAreasDir)/\(file)"
             guard let data = fm.contents(atPath: path),
                   let typeOutput = try? JSONDecoder().decode(FocusAreaTypeOutput.self, from: data) else { continue }
@@ -143,7 +143,7 @@ public struct ReportGeneratorService: Sendable {
         guard let files = try? fm.contentsOfDirectory(atPath: tasksDir) else { return [:] }
 
         var metadata: [String: EvaluationTaskOutput] = [:]
-        for file in files where file.hasSuffix(".json") {
+        for file in files where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(tasksDir)/\(file)"
             guard let data = fm.contents(atPath: path),
                   let task = try? JSONDecoder().decode(EvaluationTaskOutput.self, from: data) else { continue }

@@ -81,6 +81,7 @@ public struct PhaseStatus: Sendable {
 
 public enum DataPathsService {
     public static let phaseResultFilename = "phase_result.json"
+    public static let dataFilePrefix = "data-"
     
     public static func phaseDirectory(
         outputDir: String,

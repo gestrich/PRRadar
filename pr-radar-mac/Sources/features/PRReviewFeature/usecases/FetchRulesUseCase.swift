@@ -75,7 +75,7 @@ public struct FetchRulesUseCase: Sendable {
                             generationCostUsd: result.generationCostUsd
                         )
                         let data = try encoder.encode(typeOutput)
-                        try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(focusType.rawValue).json"))
+                        try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(DataPathsService.dataFilePrefix)\(focusType.rawValue).json"))
                     }
 
                     // Write phase_result.json for phase 2 (focus areas)
@@ -157,7 +157,7 @@ public struct FetchRulesUseCase: Sendable {
     public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> RulesPhaseOutput {
         let focusFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .focusAreas
-        ).filter { $0.hasSuffix(".json") }
+        ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var allFocusAreas: [FocusArea] = []
         for file in focusFiles {

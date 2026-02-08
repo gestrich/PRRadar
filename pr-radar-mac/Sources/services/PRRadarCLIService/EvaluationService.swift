@@ -183,7 +183,7 @@ public struct EvaluationService: Sendable {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(result)
-            let resultPath = "\(evalsDir)/\(task.taskId).json"
+            let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
             try data.write(to: URL(fileURLWithPath: resultPath))
 
             onResult?(index, total, result)

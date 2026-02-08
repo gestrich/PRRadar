@@ -58,37 +58,18 @@ public enum PhaseOutputParser {
         return text
     }
 
-    /// Decode all data artifact JSON files in a phase directory, returning an array.
-    ///
-    /// Only includes files matching the data artifact pattern (excludes metadata like `phase_result.json`).
-    /// By default, includes all `.json` files except known metadata files.
+    /// Decode all data artifact JSON files (those with the `data-` prefix) in a phase directory.
     public static func parseAllPhaseFiles<T: Decodable>(
         config: PRRadarConfig,
         prNumber: String,
-        phase: PRRadarPhase,
-        fileExtension: String = ".json",
-        includePredicate: ((String) -> Bool)? = nil
+        phase: PRRadarPhase
     ) throws -> [T] {
-        let files = listPhaseFiles(config: config, prNumber: prNumber, phase: phase)
-            .filter { $0.hasSuffix(fileExtension) }
-
-        let dataFiles: [String]
-        if let predicate = includePredicate {
-            // Use custom predicate if provided
-            dataFiles = files.filter(predicate)
-        } else {
-            // Default: exclude known metadata files
-            dataFiles = files.filter { !isMetadataFile($0) }
-        }
+        let dataFiles = listPhaseFiles(config: config, prNumber: prNumber, phase: phase)
+            .filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         return try dataFiles.compactMap { filename in
             try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, filename: filename) as T
         }
-    }
-
-    /// Check if a filename is a known metadata file (not a data artifact).
-    private static func isMetadataFile(_ filename: String) -> Bool {
-        filename == DataPathsService.phaseResultFilename || filename == "summary.json"
     }
 }
 

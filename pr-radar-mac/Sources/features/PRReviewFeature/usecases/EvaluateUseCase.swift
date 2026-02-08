@@ -144,7 +144,7 @@ public struct EvaluateUseCase: Sendable {
 
         let evalFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .evaluations
-        ).filter { $0.hasSuffix(".json") && $0 != "summary.json" }
+        ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var evaluations: [RuleEvaluationResult] = []
         for file in evalFiles {
