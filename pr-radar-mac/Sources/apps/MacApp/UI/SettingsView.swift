@@ -1,5 +1,5 @@
-import SwiftUI
 import PRRadarConfigService
+import SwiftUI
 
 struct SettingsView: View {
     @Environment(AllPRsModel.self) private var model

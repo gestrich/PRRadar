@@ -244,7 +244,7 @@ Delete the old PRReviewModel and ReviewModel files now that they're replaced.
 - No unused imports to clean up; the old models were completely isolated
 - Build verified clean with no errors or new warnings
 
-## - [ ] Phase 7: Architecture Validation
+## - [x] Phase 7: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -266,6 +266,15 @@ Review all commits made during the preceding phases and validate they follow the
 3. Fetch and read ALL skills from the swift-app-architecture repo
 4. Evaluate the changes against each skill's conventions
 5. Fix any violations found
+
+**Technical notes:**
+- Reviewed all 13 skill files across both `swift-architecture` and `swift-swiftui` skill directories
+- All major MV conventions validated: `@Observable` only in Apps layer, `@MainActor` on all models, enum-based state, self-initialization on init, parent-holds-child composition, no ViewModels
+- Two code-style violations fixed:
+  1. `SettingsView.swift` — imports reordered to alphabetical (`PRRadarConfigService` before `SwiftUI`)
+  2. `PRModel.swift` — file reorganized to follow convention: stored properties → init → computed properties → methods → nested types (enums) at bottom; Hashable conformance moved after methods
+- `AllPRsModel.init` default parameter (`settingsService: SettingsService = SettingsService()`) retained — acceptable DI convenience pattern consistent with use case conventions
+- Build verified clean, all 230 tests pass
 
 ## - [ ] Phase 8: Validation
 

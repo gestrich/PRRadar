@@ -16,34 +16,6 @@ struct ReviewSnapshot {
 @MainActor
 final class PRModel: Identifiable, Hashable {
 
-    nonisolated static func == (lhs: PRModel, rhs: PRModel) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    nonisolated func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    enum AnalysisState {
-        case loading
-        case loaded(violationCount: Int, evaluatedAt: String)
-        case unavailable
-    }
-
-    enum DetailState {
-        case unloaded
-        case loading
-        case loaded(ReviewSnapshot)
-        case failed(String)
-    }
-
-    enum PhaseState: Sendable {
-        case idle
-        case running(logs: String)
-        case completed(logs: String)
-        case failed(error: String, logs: String)
-    }
-
     let metadata: PRMetadata
     let config: PRRadarConfig
     let repoConfig: RepoConfiguration
@@ -91,6 +63,10 @@ final class PRModel: Identifiable, Hashable {
 
     var diffFiles: [String]? {
         diff?.files
+    }
+
+    var isAnyPhaseRunning: Bool {
+        phaseStates.values.contains { if case .running = $0 { return true } else { return false } }
     }
 
     // MARK: - Analysis Summary (Lightweight)
@@ -151,10 +127,6 @@ final class PRModel: Identifiable, Hashable {
 
     func stateFor(_ phase: PRRadarPhase) -> PhaseState {
         phaseStates[phase] ?? .idle
-    }
-
-    var isAnyPhaseRunning: Bool {
-        phaseStates.values.contains { if case .running = $0 { return true } else { return false } }
     }
 
     func canRunPhase(_ phase: PRRadarPhase) -> Bool {
@@ -238,6 +210,99 @@ final class PRModel: Identifiable, Hashable {
             let logs = runningLogs(for: .pullRequest)
             phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
         }
+    }
+
+    func runComments(dryRun: Bool) async {
+        phaseStates[.evaluations] = .running(logs: "Posting comments...\n")
+
+        let useCase = PostCommentsUseCase(config: config)
+
+        do {
+            for try await progress in useCase.execute(prNumber: prNumber, dryRun: dryRun) {
+                switch progress {
+                case .running:
+                    break
+                case .log(let text):
+                    appendLog(text, to: .evaluations)
+                case .completed(let output):
+                    comments = output
+                    let logs = runningLogs(for: .evaluations)
+                    phaseStates[.evaluations] = .completed(logs: logs)
+                case .failed(let error, let logs):
+                    phaseStates[.evaluations] = .failed(error: error, logs: logs)
+                }
+            }
+        } catch {
+            phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "")
+        }
+    }
+
+    // MARK: - Single Comment Submission
+
+    func submitSingleComment(_ evaluation: RuleEvaluationResult) async {
+        guard let fullDiff else { return }
+        let commitSHA = fullDiff.commitHash
+        guard let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath) else { return }
+
+        submittingCommentIds.insert(evaluation.taskId)
+
+        let commentBody = "**\(evaluation.ruleName)** (Score: \(evaluation.evaluation.score)/10)\n\n\(evaluation.evaluation.comment)"
+
+        let useCase = PostSingleCommentUseCase()
+
+        do {
+            let success = try await useCase.execute(
+                repoSlug: repoSlug,
+                prNumber: prNumber,
+                filePath: evaluation.evaluation.filePath,
+                lineNumber: evaluation.evaluation.lineNumber,
+                commitSHA: commitSHA,
+                commentBody: commentBody,
+                repoPath: repoConfig.repoPath,
+                githubToken: config.githubToken
+            )
+
+            submittingCommentIds.remove(evaluation.taskId)
+            if success {
+                submittedCommentIds.insert(evaluation.taskId)
+            }
+        } catch {
+            submittingCommentIds.remove(evaluation.taskId)
+        }
+    }
+
+    // MARK: - File Access
+
+    func readFileFromRepo(_ relativePath: String) -> String? {
+        let fullPath = "\(repoConfig.repoPath)/\(relativePath)"
+        return try? String(contentsOfFile: fullPath, encoding: .utf8)
+    }
+
+    // MARK: - Hashable
+
+    nonisolated static func == (lhs: PRModel, rhs: PRModel) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    // MARK: - Helpers
+
+    private func runningLogs(for phase: PRRadarPhase) -> String {
+        if case .running(let logs) = phaseStates[phase] { return logs }
+        return ""
+    }
+
+    private func appendLog(_ text: String, to phase: PRRadarPhase) {
+        let existing: String
+        if case .running(let logs) = phaseStates[phase] {
+            existing = logs
+        } else {
+            existing = ""
+        }
+        phaseStates[phase] = .running(logs: existing + text)
     }
 
     private func runRules() async {
@@ -326,86 +391,25 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func runComments(dryRun: Bool) async {
-        phaseStates[.evaluations] = .running(logs: "Posting comments...\n")
+    // MARK: - Nested Types
 
-        let useCase = PostCommentsUseCase(config: config)
-
-        do {
-            for try await progress in useCase.execute(prNumber: prNumber, dryRun: dryRun) {
-                switch progress {
-                case .running:
-                    break
-                case .log(let text):
-                    appendLog(text, to: .evaluations)
-                case .completed(let output):
-                    comments = output
-                    let logs = runningLogs(for: .evaluations)
-                    phaseStates[.evaluations] = .completed(logs: logs)
-                case .failed(let error, let logs):
-                    phaseStates[.evaluations] = .failed(error: error, logs: logs)
-                }
-            }
-        } catch {
-            phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "")
-        }
+    enum AnalysisState {
+        case loading
+        case loaded(violationCount: Int, evaluatedAt: String)
+        case unavailable
     }
 
-    // MARK: - Single Comment Submission
-
-    func submitSingleComment(_ evaluation: RuleEvaluationResult) async {
-        guard let fullDiff else { return }
-        let commitSHA = fullDiff.commitHash
-        guard let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath) else { return }
-
-        submittingCommentIds.insert(evaluation.taskId)
-
-        let commentBody = "**\(evaluation.ruleName)** (Score: \(evaluation.evaluation.score)/10)\n\n\(evaluation.evaluation.comment)"
-
-        let useCase = PostSingleCommentUseCase()
-
-        do {
-            let success = try await useCase.execute(
-                repoSlug: repoSlug,
-                prNumber: prNumber,
-                filePath: evaluation.evaluation.filePath,
-                lineNumber: evaluation.evaluation.lineNumber,
-                commitSHA: commitSHA,
-                commentBody: commentBody,
-                repoPath: repoConfig.repoPath,
-                githubToken: config.githubToken
-            )
-
-            submittingCommentIds.remove(evaluation.taskId)
-            if success {
-                submittedCommentIds.insert(evaluation.taskId)
-            }
-        } catch {
-            submittingCommentIds.remove(evaluation.taskId)
-        }
+    enum DetailState {
+        case unloaded
+        case loading
+        case loaded(ReviewSnapshot)
+        case failed(String)
     }
 
-    // MARK: - File Access
-
-    func readFileFromRepo(_ relativePath: String) -> String? {
-        let fullPath = "\(repoConfig.repoPath)/\(relativePath)"
-        return try? String(contentsOfFile: fullPath, encoding: .utf8)
-    }
-
-    // MARK: - Helpers
-
-    private func runningLogs(for phase: PRRadarPhase) -> String {
-        if case .running(let logs) = phaseStates[phase] { return logs }
-        return ""
-    }
-
-    private func appendLog(_ text: String, to phase: PRRadarPhase) {
-        let existing: String
-        if case .running(let logs) = phaseStates[phase] {
-            existing = logs
-        } else {
-            existing = ""
-        }
-        phaseStates[phase] = .running(logs: existing + text)
+    enum PhaseState: Sendable {
+        case idle
+        case running(logs: String)
+        case completed(logs: String)
+        case failed(error: String, logs: String)
     }
 }
