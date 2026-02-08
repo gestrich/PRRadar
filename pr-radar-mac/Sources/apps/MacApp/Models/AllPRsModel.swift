@@ -18,13 +18,20 @@ final class AllPRsModel {
 
     enum AnalyzeAllState {
         case idle
-        case running(logs: String)
+        case running(logs: String, current: Int, total: Int)
         case completed(logs: String)
         case failed(error: String, logs: String)
 
         var isRunning: Bool {
             if case .running = self { return true }
             return false
+        }
+        
+        var progressText: String? {
+            if case .running(_, let current, let total) = self {
+                return "\(current)/\(total)"
+            }
+            return nil
         }
     }
 
@@ -67,7 +74,7 @@ final class AllPRsModel {
         do {
             for try await progress in useCase.execute(repoSlug: slug) {
                 switch progress {
-                case .running, .log:
+                case .running, .log, .progress:
                     break
                 case .completed:
                     let metadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
@@ -85,7 +92,7 @@ final class AllPRsModel {
     // MARK: - Analyze All
 
     func analyzeAll(since: String) async {
-        analyzeAllState = .running(logs: "Analyzing all PRs since \(since)...\n")
+        analyzeAllState = .running(logs: "Analyzing all PRs since \(since)...\n", current: 0, total: 0)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
         let useCase = AnalyzeAllUseCase(config: config)
@@ -95,9 +102,13 @@ final class AllPRsModel {
                 switch progress {
                 case .running:
                     break
+                case .progress(let current, let total):
+                    if case .running(let logs, _, _) = analyzeAllState {
+                        analyzeAllState = .running(logs: logs, current: current, total: total)
+                    }
                 case .log(let text):
-                    if case .running(let logs) = analyzeAllState {
-                        analyzeAllState = .running(logs: logs + text)
+                    if case .running(let logs, let current, let total) = analyzeAllState {
+                        analyzeAllState = .running(logs: logs + text, current: current, total: total)
                     }
                 case .completed:
                     let logs = analyzeAllLogs
@@ -162,7 +173,7 @@ final class AllPRsModel {
     }
 
     private var analyzeAllLogs: String {
-        if case .running(let logs) = analyzeAllState { return logs }
+        if case .running(let logs, _, _) = analyzeAllState { return logs }
         return ""
     }
 

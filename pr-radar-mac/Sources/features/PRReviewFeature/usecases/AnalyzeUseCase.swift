@@ -40,6 +40,7 @@ public struct AnalyzeUseCase: Sendable {
                     for try await progress in diffUseCase.execute(prNumber: prNumber) {
                         switch progress {
                         case .running: break
+                        case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
                         case .completed:
@@ -65,6 +66,7 @@ public struct AnalyzeUseCase: Sendable {
                         switch progress {
                         case .running(let phase):
                             continuation.yield(.running(phase: phase))
+                        case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
                         case .completed:
@@ -89,6 +91,7 @@ public struct AnalyzeUseCase: Sendable {
                     for try await progress in evalUseCase.execute(prNumber: prNumber, repoPath: repoPath) {
                         switch progress {
                         case .running: break
+                        case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
                         case .completed:
@@ -113,6 +116,7 @@ public struct AnalyzeUseCase: Sendable {
                     for try await progress in reportUseCase.execute(prNumber: prNumber, minScore: minScore) {
                         switch progress {
                         case .running: break
+                        case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
                         case .completed(let output):
@@ -131,6 +135,7 @@ public struct AnalyzeUseCase: Sendable {
                         for try await progress in commentUseCase.execute(prNumber: prNumber, minScore: minScore, dryRun: false) {
                             switch progress {
                             case .running: break
+                            case .progress: break
                             case .log(let text):
                                 continuation.yield(.log(text: text))
                             case .completed: break

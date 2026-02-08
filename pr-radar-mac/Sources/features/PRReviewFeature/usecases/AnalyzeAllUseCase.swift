@@ -56,10 +56,13 @@ public struct AnalyzeAllUseCase: Sendable {
 
                     var analyzedCount = 0
                     var failedCount = 0
+                    let totalCount = prs.count
 
-                    for pr in prs {
+                    for (index, pr) in prs.enumerated() {
                         let prNumber = String(pr.number)
-                        continuation.yield(.log(text: "\n--- PR #\(prNumber): \(pr.title) ---\n"))
+                        let current = index + 1
+                        continuation.yield(.progress(current: current, total: totalCount))
+                        continuation.yield(.log(text: "\n[\(current)/\(totalCount)] PR #\(prNumber): \(pr.title)\n"))
 
                         let analyzeUseCase = AnalyzeUseCase(config: config)
                         var succeeded = false
@@ -72,6 +75,7 @@ public struct AnalyzeAllUseCase: Sendable {
                         ) {
                             switch progress {
                             case .running: break
+                            case .progress: break
                             case .log(let text):
                                 continuation.yield(.log(text: text))
                             case .completed:

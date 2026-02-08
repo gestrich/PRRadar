@@ -168,8 +168,15 @@ struct ContentView: View {
                     showAnalyzeAll = true
                 } label: {
                     if let model = allPRs, model.analyzeAllState.isRunning {
-                        ProgressView()
-                            .controlSize(.small)
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            if let progressText = model.analyzeAllState.progressText {
+                                Text(progressText)
+                                    .font(.caption)
+                                    .monospacedDigit()
+                            }
+                        }
                     } else {
                         Image(systemName: "sparkles")
                     }

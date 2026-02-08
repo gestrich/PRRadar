@@ -195,6 +195,8 @@ final class PRModel: Identifiable, Hashable {
                 switch progress {
                 case .running:
                     break
+                case .progress:
+                    break
                 case .log(let text):
                     appendLog(text, to: .pullRequest)
                 case .completed(let snapshot):
@@ -221,6 +223,8 @@ final class PRModel: Identifiable, Hashable {
             for try await progress in useCase.execute(prNumber: prNumber, dryRun: dryRun) {
                 switch progress {
                 case .running:
+                    break
+                case .progress:
                     break
                 case .log(let text):
                     appendLog(text, to: .evaluations)
@@ -319,6 +323,8 @@ final class PRModel: Identifiable, Hashable {
                 switch progress {
                 case .running(let phase):
                     phaseStates[phase] = .running(logs: "Running \(phase.rawValue)...\n")
+                case .progress:
+                    break
                 case .log(let text):
                     appendLog(text, to: .rules)
                 case .completed(let output):
@@ -349,6 +355,8 @@ final class PRModel: Identifiable, Hashable {
                 switch progress {
                 case .running:
                     break
+                case .progress:
+                    break
                 case .log(let text):
                     appendLog(text, to: .evaluations)
                 case .completed(let output):
@@ -374,6 +382,8 @@ final class PRModel: Identifiable, Hashable {
             for try await progress in useCase.execute(prNumber: prNumber) {
                 switch progress {
                 case .running:
+                    break
+                case .progress:
                     break
                 case .log(let text):
                     appendLog(text, to: .report)
