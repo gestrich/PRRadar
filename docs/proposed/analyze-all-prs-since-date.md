@@ -25,15 +25,15 @@ Add a `search` parameter to `GhCommandRunner.list_pull_requests()` so it can pas
 - All 558 tests pass after changes
 - Existing callers unaffected since `search` defaults to `None`
 
-## - [ ] Phase 2: Add `analyze-all` Python CLI command
+## - [x] Phase 2: Add `analyze-all` Python CLI command
 
 Create the `analyze-all` subcommand that fetches PRs since a date and runs the full pipeline on each.
 
-**Files to create:**
-- `prradar/commands/agent/analyze_all.py` — New command module
+**Files created:**
+- `prradar/commands/agent/analyze_all.py` — New command module with `cmd_analyze_all()` function
 
-**Files to modify:**
-- `prradar/commands/agent/__init__.py` — Register the `analyze-all` subparser and wire up `cmd_agent()` dispatch
+**Files modified:**
+- `prradar/commands/agent/__init__.py` — Registered `analyze-all` subparser with all arguments and wired up `cmd_agent()` dispatch (handled before `ensure_output_dir` since there's no `pr_number`, same pattern as `list-prs`)
 
 **CLI interface:**
 ```
@@ -78,6 +78,12 @@ def cmd_analyze_all(
    - All other params passed through
 5. Track per-PR success/failure, print aggregate summary at end
 6. Return 0 if all succeeded, 1 if any failed
+
+**Notes:**
+- All 558 existing tests pass after changes
+- Per-PR exceptions are caught and tracked without stopping the batch
+- Dispatch follows the same pattern as `list-prs` (handled before `ensure_output_dir` since no `pr_number`)
+- Each PR uses `ensure_output_dir` to create its own subdirectory: `{output_dir}/{pr_number}/`
 
 **Output structure:** Each PR gets its own subdirectory as usual: `{output_dir}/{pr_number}/`
 

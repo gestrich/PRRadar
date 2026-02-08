@@ -5,13 +5,14 @@ the Claude Agent SDK with structured outputs for deterministic, pipeline-based
 code review.
 
 Commands:
-    diff      - Fetch and store PR diff artifacts
-    rules     - Collect and filter applicable rules
-    evaluate  - Run rule evaluations using agent subprocesses
-    report    - Generate review report from evaluations
-    comment   - Post review comments to GitHub
-    analyze   - Run the full pipeline
-    status    - Show pipeline status for a PR
+    diff        - Fetch and store PR diff artifacts
+    rules       - Collect and filter applicable rules
+    evaluate    - Run rule evaluations using agent subprocesses
+    report      - Generate review report from evaluations
+    comment     - Post review comments to GitHub
+    analyze     - Run the full pipeline
+    analyze-all - Batch analyze PRs since a given date
+    status      - Show pipeline status for a PR
 """
 
 import argparse
@@ -219,6 +220,64 @@ inspected and debugged independently.
         help="Repository in owner/repo format (auto-detected if not provided)",
     )
 
+    # analyze-all command (batch analysis)
+    analyze_all_parser = agent_subparsers.add_parser(
+        "analyze-all",
+        help="Analyze all PRs created since a given date",
+    )
+    analyze_all_parser.add_argument(
+        "--since",
+        type=str,
+        required=True,
+        help="Date in YYYY-MM-DD format (fetches PRs created on or after this date)",
+    )
+    analyze_all_parser.add_argument(
+        "--rules-dir",
+        type=str,
+        default="code-review-rules",
+        help="Directory containing review rules (default: code-review-rules/)",
+    )
+    analyze_all_parser.add_argument(
+        "--repo-path",
+        type=str,
+        default=".",
+        help="Path to local git repo (default: current directory)",
+    )
+    analyze_all_parser.add_argument(
+        "--repo",
+        type=str,
+        help="Repository in owner/repo format (auto-detected if not provided)",
+    )
+    analyze_all_parser.add_argument(
+        "--github-diff",
+        action="store_true",
+        help="Use GitHub API for diff text instead of local git",
+    )
+    analyze_all_parser.add_argument(
+        "--min-score",
+        type=int,
+        default=5,
+        help="Minimum score threshold for posting comments (default: 5)",
+    )
+    analyze_all_parser.add_argument(
+        "--comment",
+        action="store_true",
+        help="Post comments to GitHub (default: dry-run, no commenting)",
+    )
+    analyze_all_parser.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum number of PRs to process (default: 50)",
+    )
+    analyze_all_parser.add_argument(
+        "--state",
+        type=str,
+        default="all",
+        choices=["open", "closed", "merged", "all"],
+        help="PR state filter (default: all)",
+    )
+
     # status command
     status_parser = agent_subparsers.add_parser(
         "status",
@@ -294,6 +353,38 @@ def cmd_agent(args: argparse.Namespace) -> int:
             limit=args.limit,
             state=args.state,
             repo=args.repo,
+        )
+
+    # analyze-all has no pr_number — handle before ensure_output_dir
+    if args.agent_command == "analyze-all":
+        from prradar.commands.agent.analyze_all import cmd_analyze_all
+
+        # Get repo from args or auto-detect
+        repo = args.repo
+        if not repo:
+            from prradar.infrastructure.github.runner import GhCommandRunner
+
+            gh = GhCommandRunner()
+            success, result = gh.get_repository()
+            if success:
+                repo = result.full_name
+            else:
+                print("  Error: Could not detect repository. Use --repo to specify.")
+                return 1
+
+        diff_source = DiffSource.GITHUB if args.github_diff else DiffSource.LOCAL
+
+        return cmd_analyze_all(
+            output_dir=args.output_dir,
+            since=args.since,
+            rules_dir=args.rules_dir,
+            repo=repo,
+            comment=args.comment,
+            limit=args.limit,
+            state=args.state,
+            min_score=args.min_score,
+            source=diff_source,
+            repo_path=args.repo_path,
         )
 
     output_dir = args.output_dir
