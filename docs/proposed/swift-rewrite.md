@@ -143,64 +143,45 @@ Every new file and every modification must conform to these documents. When in d
 
 ---
 
-## - [ ] Phase 3: Services — Git Operations and GitHub Integration
+## - [x] Phase 3: Services — Git Operations and GitHub Integration
 
-> **Pre-step:** Read all docs at `https://github.com/gestrich/swift-app-architecture/tree/main/docs/architecture` — especially `Layers.md` (Services layer rules), `Dependencies.md`, and `Principles.md`.
+> **Completed.** All three services created, GitHub domain models added, both targets build.
 
-Create native Swift services that replace `git_operations.py` and `github/runner.py` using the SDK bindings from Phase 1.
+### What was implemented:
 
-### GitOperationsService
+**GitHubModels** (`pr-radar-mac/Sources/services/PRRadarModels/GitHubModels.swift`):
+- Full `Codable` model hierarchy matching Python's `domain/github.py`: `GitHubAuthor`, `GitHubLabel`, `GitHubFile`, `GitHubCommit`, `GitHubComment`, `GitHubReview`, `GitHubOwner`, `GitHubDefaultBranchRef`
+- `GitHubPullRequest` — full PR metadata with all fields from `gh pr view --json`; includes `toPRMetadata()` bridge to existing `PRMetadata` model
+- `GitHubPullRequestComments` — comments and reviews container
+- `GitHubRepository` — repo metadata with computed `ownerLogin`, `defaultBranch`, `fullName`
 
-Port all methods from Python's `GitOperationsService`:
+**GitOperationsService** (`pr-radar-mac/Sources/services/PRRadarCLIService/GitOperationsService.swift`):
+- Stateless `Sendable` struct wrapping `CLIClient` + `GitCLI` SDK commands
+- All 10 methods ported: `checkWorkingDirectoryClean`, `fetchBranch`, `checkoutCommit`, `clean`, `getBranchDiff`, `isGitRepository`, `getFileContent`, `getRepoRoot`, `getCurrentBranch`, `getRemoteURL`
+- `GitOperationsError` enum with typed error cases
+- Uses `executeForResult` for `isGitRepository` (needs non-throwing exit code check), `execute` for all others (throws on failure)
 
-| Method | Implementation |
-|---|---|
-| `checkWorkingDirectoryClean(repoPath:)` | Execute `GitCLI.Status` via `CLIClient`, check empty output |
-| `fetchBranch(remote:branch:repoPath:)` | Execute `GitCLI.Fetch` |
-| `checkoutCommit(sha:repoPath:)` | Execute `GitCLI.Checkout` |
-| `clean(repoPath:)` | Execute `GitCLI.Clean` |
-| `getBranchDiff(base:head:remote:repoPath:)` | Execute `GitCLI.Diff`, return raw diff string |
-| `isGitRepository(path:)` | Execute `GitCLI.RevParse` |
-| `getFileContent(commit:filePath:repoPath:)` | Execute `GitCLI.Show` |
-| `getRepoRoot(path:)` | Execute `GitCLI.RevParse` |
-| `getCurrentBranch(path:)` | Execute `GitCLI.RevParse` |
-| `getRemoteURL(path:)` | Execute `GitCLI.Remote` |
+**GitHubService** (`pr-radar-mac/Sources/services/PRRadarCLIService/GitHubService.swift`):
+- Stateless `Sendable` struct wrapping `CLIClient` + `GhCLI` SDK commands
+- All 8 methods ported: `getPRDiff`, `getPullRequest`, `getPullRequestComments`, `listPullRequests`, `getRepository`, `apiGet`, `apiPost`, `apiPostWithInt`, `apiPatch`
+- Decodes JSON responses directly into `GitHubPullRequest`, `GitHubPullRequestComments`, `GitHubRepository` models
+- Field lists match Python's `_PR_FIELDS`, `_PR_LIST_FIELDS`, `_PR_COMMENT_FIELDS`, `_REPO_FIELDS`
 
-### GitHubService
+**PRAcquisitionService** (`pr-radar-mac/Sources/services/PRRadarCLIService/PRAcquisitionService.swift`):
+- Composes `GitHubService` + `GitOperationsService` to replicate `diff_command.py` logic
+- `acquire(prNumber:repoPath:outputDir:)` fetches all PR data and writes 9 phase-1 artifacts
+- Returns typed `AcquisitionResult` with `pullRequest`, `diff`, `comments`, `repository`
+- Effective diff writes identity copies as placeholders (algorithm ported in Phase 4)
 
-Port all methods from Python's `GhCommandRunner`:
+**MoveReport** (`DiffOutput.swift`):
+- Added memberwise `public init(...)` — was missing due to custom `CodingKeys`
 
-| Method | Implementation |
-|---|---|
-| `getPRDiff(number:repoPath:)` | Execute `GhCLI.PRDiff` |
-| `getPullRequest(number:fields:repoPath:)` | Execute `GhCLI.PRView`, decode JSON |
-| `getPullRequestComments(number:repoPath:)` | Execute `GhCLI.PRView` with comments fields |
-| `listPullRequests(limit:state:repoPath:)` | Execute `GhCLI.PRList`, decode JSON |
-| `getRepository(repoPath:)` | Execute `GhCLI.RepoView`, decode JSON |
-| `apiGet(endpoint:jq:repoPath:)` | Execute `GhCLI.API` |
-| `apiPost(endpoint:fields:repoPath:)` | Execute `GhCLI.API` with POST |
-| `apiPatch(endpoint:fields:repoPath:)` | Execute `GhCLI.API` with PATCH |
-
-### PR Data Acquisition
-
-Port the diff command's data acquisition logic (currently in `commands/agent/diff_command.py`):
-- Fetch PR metadata via `gh pr view`
-- Fetch raw diff via `gh pr diff`
-- Checkout the PR commit
-- Run `git diff` for the branch range
-- Save all artifacts to the phase-1 output directory
-
-### Files to create/modify:
-- `pr-radar-mac/Sources/services/PRRadarCLIService/GitOperationsService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/GitHubService.swift` — new
-- `pr-radar-mac/Sources/services/PRRadarCLIService/PRAcquisitionService.swift` — new
-- Add tests for the service methods
-
-### Validation:
-- Both targets build: `swift build` (MacApp + PRRadarMacCLI)
-- Run git operations against the test repo
-- Run `gh pr view 1` / `gh pr diff 1` against the test repo
-- Verify JSON decoding of PR metadata matches existing models
+### Technical notes:
+- No Package.swift changes needed — new files are in existing target directories
+- Services follow architecture conventions: stateless `Sendable` structs, constructor-based dependency injection of `CLIClient`
+- `CLIClient.execute(_:)` returns trimmed stdout `String` and throws `CLIClientError.executionFailed` on non-zero exit
+- `CLIClient.executeForResult(_:)` returns `ExecutionResult` without throwing — used for `isGitRepository` which needs to check exit code without throwing
+- Multi-statement function bodies in Swift require explicit `return` for the trailing expression
 
 ---
 

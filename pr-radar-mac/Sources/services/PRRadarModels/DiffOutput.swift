@@ -64,6 +64,18 @@ public struct MoveReport: Codable, Sendable {
     public let totalLinesEffectivelyChanged: Int
     public let moves: [MoveDetail]
 
+    public init(
+        movesDetected: Int,
+        totalLinesMoved: Int,
+        totalLinesEffectivelyChanged: Int,
+        moves: [MoveDetail]
+    ) {
+        self.movesDetected = movesDetected
+        self.totalLinesMoved = totalLinesMoved
+        self.totalLinesEffectivelyChanged = totalLinesEffectivelyChanged
+        self.moves = moves
+    }
+
     enum CodingKeys: String, CodingKey {
         case movesDetected = "moves_detected"
         case totalLinesMoved = "total_lines_moved"
