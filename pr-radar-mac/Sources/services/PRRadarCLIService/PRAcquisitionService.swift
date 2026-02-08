@@ -35,12 +35,33 @@ public struct PRAcquisitionService: Sendable {
         )
         try DataPathsService.ensureDirectoryExists(at: phaseDir)
 
-        let repository = try await gitHub.getRepository()
+        let repository: GitHubRepository
+        do {
+            repository = try await gitHub.getRepository()
+        } catch {
+            throw NSError(domain: "PRAcquisition", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to fetch repository info: \(error.localizedDescription)"
+            ])
+        }
 
-        let rawDiff = try await gitHub.getPRDiff(number: prNumber)
-        try write(rawDiff, to: "\(phaseDir)/diff-raw.diff")
+        let rawDiff: String
+        do {
+            rawDiff = try await gitHub.getPRDiff(number: prNumber)
+            try write(rawDiff, to: "\(phaseDir)/diff-raw.diff")
+        } catch {
+            throw NSError(domain: "PRAcquisition", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to fetch PR diff: \(error.localizedDescription)"
+            ])
+        }
 
-        let pullRequest = try await gitHub.getPullRequest(number: prNumber)
+        let pullRequest: GitHubPullRequest
+        do {
+            pullRequest = try await gitHub.getPullRequest(number: prNumber)
+        } catch {
+            throw NSError(domain: "PRAcquisition", code: 3, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to fetch PR metadata: \(error.localizedDescription)"
+            ])
+        }
         let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
         try write(prJSON, to: "\(phaseDir)/gh-pr.json")
 
@@ -65,9 +86,16 @@ public struct PRAcquisitionService: Sendable {
         let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
         try write(movesJSON, to: "\(phaseDir)/effective-diff-moves.json")
 
-        let comments = try await gitHub.getPullRequestComments(number: prNumber)
-        let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
-        try write(commentsJSON, to: "\(phaseDir)/gh-comments.json")
+        let comments: GitHubPullRequestComments
+        do {
+            comments = try await gitHub.getPullRequestComments(number: prNumber)
+            let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
+            try write(commentsJSON, to: "\(phaseDir)/gh-comments.json")
+        } catch {
+            throw NSError(domain: "PRAcquisition", code: 4, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to fetch PR comments: \(error.localizedDescription)"
+            ])
+        }
 
         let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
         try write(repoJSON, to: "\(phaseDir)/gh-repo.json")
