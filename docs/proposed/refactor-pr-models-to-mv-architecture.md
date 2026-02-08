@@ -220,7 +220,7 @@ Update the main app entry point to initialize AllPRsModel instead of PRReviewMod
 - `main.swift` creates `SettingsService`, loads the default `RepoConfiguration`, constructs `PRRadarConfig`, and passes all three to `AllPRsModel(config:repoConfig:settingsService:)`
 - `AllPRsModel` is passed to `ContentView` via `.environment(allPRs)` and held as `@State private var allPRs: AllPRsModel` in the App struct
 
-## - [ ] Phase 6: Remove Old Models
+## - [x] Phase 6: Remove Old Models
 
 Delete the old PRReviewModel and ReviewModel files now that they're replaced.
 
@@ -238,6 +238,11 @@ Delete the old PRReviewModel and ReviewModel files now that they're replaced.
 - Old models removed
 - Clean architecture with only new models
 - No compilation errors
+
+**Technical notes:**
+- No remaining references to `PRReviewModel` or `ReviewModel` existed outside the two deleted files — all views were already migrated to `AllPRsModel`/`PRModel` in Phase 4
+- No unused imports to clean up; the old models were completely isolated
+- Build verified clean with no errors or new warnings
 
 ## - [ ] Phase 7: Architecture Validation
 
