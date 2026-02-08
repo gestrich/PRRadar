@@ -217,7 +217,11 @@ class GhCommandRunner:
         return True, PullRequestComments.from_json(result)
 
     def list_pull_requests(
-        self, limit: int, state: str, repo: str | None = None
+        self,
+        limit: int,
+        state: str,
+        repo: str | None = None,
+        search: str | None = None,
     ) -> tuple[bool, list[PullRequest] | str]:
         """List recent pull requests for a repository.
 
@@ -225,6 +229,7 @@ class GhCommandRunner:
             limit: Maximum number of PRs to fetch
             state: PR state filter (open, closed, merged, all)
             repo: Repository in owner/name format (uses git remote if None)
+            search: Raw GitHub search query string (e.g., "created:>=2025-01-15")
 
         Returns:
             Tuple of (success, list of PullRequest or error string)
@@ -237,6 +242,8 @@ class GhCommandRunner:
         ]
         if repo:
             cmd.extend(["-R", repo])
+        if search:
+            cmd.extend(["--search", search])
         success, result = self.run(cmd)
         if not success:
             return False, result

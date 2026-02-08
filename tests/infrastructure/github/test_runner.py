@@ -95,6 +95,21 @@ class TestListPullRequests(unittest.TestCase):
         args = mock_run.call_args[0][0]
         self.assertNotIn("-R", args)
 
+    def test_appends_search_flag_when_specified(self):
+        with patch.object(self.runner, "run", return_value=(True, "[]")) as mock_run:
+            self.runner.list_pull_requests(limit=50, state="open", search="created:>=2025-01-15")
+
+        args = mock_run.call_args[0][0]
+        self.assertIn("--search", args)
+        self.assertEqual(args[args.index("--search") + 1], "created:>=2025-01-15")
+
+    def test_omits_search_flag_when_none(self):
+        with patch.object(self.runner, "run", return_value=(True, "[]")) as mock_run:
+            self.runner.list_pull_requests(limit=50, state="open")
+
+        args = mock_run.call_args[0][0]
+        self.assertNotIn("--search", args)
+
 
 if __name__ == "__main__":
     unittest.main()
