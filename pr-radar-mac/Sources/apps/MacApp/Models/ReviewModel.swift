@@ -308,7 +308,8 @@ final class ReviewModel {
     // MARK: - Single Comment Submission
 
     func submitSingleComment(_ evaluation: RuleEvaluationResult) async {
-        guard let commitSHA = fullDiff?.commitHash else { return }
+        guard let fullDiff else { return }
+        let commitSHA = fullDiff.commitHash
         guard let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath) else { return }
 
         submittingCommentIds.insert(evaluation.taskId)

@@ -471,6 +471,8 @@ class GitDiff:
         parts: list[str] = []
 
         parts.append(f"# Diff Summary\n")
+        if self.commit_hash:
+            parts.append(f"**Commit:** {self.commit_hash}  ")
         parts.append(f"**Files changed:** {len(unique_files)}  ")
         parts.append(f"**Total hunks:** {len(self.hunks)}\n")
 

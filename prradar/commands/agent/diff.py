@@ -96,18 +96,7 @@ def cmd_diff(
     raw_diff_path.write_text(diff_content)
     print(f"  Wrote {raw_diff_path}")
 
-    # Parse diff into structured format
-    git_diff = GitDiff.from_diff_content(diff_content)
-    parsed_diff = git_diff.to_dict(annotate_lines=True)
-    parsed_diff_path = diff_dir / DIFF_PARSED_JSON_FILENAME
-    parsed_diff_path.write_text(json.dumps(parsed_diff, indent=2))
-    print(f"  Wrote {parsed_diff_path} ({len(git_diff.hunks)} hunks)")
-
-    parsed_md_path = diff_dir / DIFF_PARSED_MD_FILENAME
-    parsed_md_path.write_text(git_diff.to_markdown())
-    print(f"  Wrote {parsed_md_path}")
-
-    # Fetch PR metadata
+    # Fetch PR metadata (needed for commit hash and effective diff)
     print("  Fetching PR metadata...")
     success, pr_result = gh.get_pull_request(pr_number)
     if not success:
@@ -119,6 +108,17 @@ def cmd_diff(
     pr_path = diff_dir / GH_PR_FILENAME
     pr_path.write_text(pr.raw_json)
     print(f"  Wrote {pr_path}")
+
+    # Parse diff into structured format
+    git_diff = GitDiff.from_diff_content(diff_content, commit_hash=pr.head_ref_oid)
+    parsed_diff = git_diff.to_dict(annotate_lines=True)
+    parsed_diff_path = diff_dir / DIFF_PARSED_JSON_FILENAME
+    parsed_diff_path.write_text(json.dumps(parsed_diff, indent=2))
+    print(f"  Wrote {parsed_diff_path} ({len(git_diff.hunks)} hunks)")
+
+    parsed_md_path = diff_dir / DIFF_PARSED_MD_FILENAME
+    parsed_md_path.write_text(git_diff.to_markdown())
+    print(f"  Wrote {parsed_md_path}")
 
     # Run effective diff pipeline
     print("  Running effective diff analysis...")

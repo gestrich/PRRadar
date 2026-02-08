@@ -41,15 +41,21 @@ public struct FetchDiffUseCase: Sendable {
         let fullDiff: GitDiff? = {
             guard let diffText = try? PhaseOutputParser.readPhaseTextFile(
                 config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.md"
+            ),
+            let parsed: PRDiffOutput = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.json"
             ) else { return nil }
-            return GitDiff.fromDiffContent(diffText)
+            return GitDiff.fromDiffContent(diffText, commitHash: parsed.commitHash)
         }()
 
         let effectiveDiff: GitDiff? = {
             guard let effectiveText = try? PhaseOutputParser.readPhaseTextFile(
                 config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.md"
+            ),
+            let parsed: PRDiffOutput = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.json"
             ) else { return nil }
-            return GitDiff.fromDiffContent(effectiveText)
+            return GitDiff.fromDiffContent(effectiveText, commitHash: parsed.commitHash)
         }()
 
         let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(

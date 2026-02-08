@@ -6,17 +6,17 @@ import Foundation
     public let rawContent: String
     /// List of parsed hunks
     public let hunks: [Hunk]
-    /// The git commit hash for this diff (optional)
-    public let commitHash: String?
+    /// The git commit hash for this diff
+    public let commitHash: String
 
-    public init(rawContent: String, hunks: [Hunk], commitHash: String? = nil) {
+    public init(rawContent: String, hunks: [Hunk], commitHash: String) {
         self.rawContent = rawContent
         self.hunks = hunks
         self.commitHash = commitHash
     }
 
     /// Parse diff content into a GitDiff structure
-    public static func fromDiffContent(_ diffContent: String, commitHash: String? = nil) -> GitDiff {
+    public static func fromDiffContent(_ diffContent: String, commitHash: String) -> GitDiff {
         let lines = diffContent.components(separatedBy: .newlines)
         var currentHunk: [String] = []
         var fileHeader: [String] = []
