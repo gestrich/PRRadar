@@ -154,7 +154,7 @@ Add an `AnalyzeAllUseCase` in the features layer and an "Analyze All" button in 
 - The use case passes `repo` (derived from repo slug) and `rulesDir` (from config) to the Python CLI, matching the same pattern as `AnalyzeUseCase`
 - `swift build` compiles cleanly with no warnings
 
-## - [ ] Phase 6: Architecture Validation
+## - [x] Phase 6: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -175,6 +175,28 @@ Review all commits made during the preceding phases and validate they follow the
 4. For each relevant language, fetch and read ALL skills from the corresponding GitHub repo
 5. Evaluate the changes against each skill's conventions
 6. Fix any violations found
+
+**Commits reviewed:** `58abc9d..236df56` (5 commits across Phases 1–5)
+
+**Python skills validated (7 skills from gestrich/python-architecture):**
+- cli-architecture: Command dispatcher pattern, explicit parameters ✅
+- creating-services: Service layer pattern, constructor-based DI ✅
+- dependency-injection: Required dependencies, fail-fast, config flows downward ✅
+- domain-modeling: Parse-once principle, typed domain models ✅
+- identifying-layer-placement: Correct layer for each file ✅
+- python-code-style: Method ordering, type annotations, imports ✅
+- testing-services: AAA pattern, mock at boundaries, real domain models ✅
+
+**Swift skills validated (2 skills from gestrich/swift-app-architecture):**
+- swift-architecture: 4-layer architecture, dependency flow, use case pattern ✅
+- swift-swiftui: Model-View pattern, enum-based state, @Observable conventions ✅
+
+**Fixes applied:**
+- Removed unused `from pathlib import Path` import in `prradar/commands/agent/analyze_all.py`
+
+**Verification:**
+- All 571 Python tests pass
+- Swift builds cleanly with no warnings
 
 ## - [ ] Phase 7: Validation
 

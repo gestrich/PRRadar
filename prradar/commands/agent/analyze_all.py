@@ -12,8 +12,6 @@ Features:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from prradar.commands.agent import ensure_output_dir
 from prradar.commands.agent.analyze import cmd_analyze
 from prradar.domain.diff_source import DiffSource
