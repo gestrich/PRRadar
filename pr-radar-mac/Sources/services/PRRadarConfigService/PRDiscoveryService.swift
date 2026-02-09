@@ -34,7 +34,7 @@ public enum PRDiscoveryService {
                         login: ghPR.author?.login ?? "",
                         name: ghPR.author?.name ?? ""
                     ),
-                    state: ghPR.state ?? "",
+                    state: ghPR.enhancedState.rawValue,
                     headRefName: ghPR.headRefName ?? "",
                     createdAt: ghPR.createdAt ?? "",
                     url: ghPR.url

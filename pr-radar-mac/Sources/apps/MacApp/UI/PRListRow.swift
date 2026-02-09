@@ -86,13 +86,13 @@ struct PRListRow: View {
         let (color, label): (Color, String) = {
             switch state {
             case .open:
-                return (.green, "Open")
+                return (Color(red: 35/255, green: 134/255, blue: 54/255), "Open")
             case .merged:
-                return (.purple, "Merged")
+                return (Color(red: 138/255, green: 86/255, blue: 221/255), "Merged")
             case .closed:
-                return (.red, "Closed")
+                return (Color(red: 218/255, green: 55/255, blue: 51/255), "Closed")
             case .draft:
-                return (.orange, "Draft")
+                return (Color(red: 101/255, green: 108/255, blue: 118/255), "Draft")
             }
         }()
         

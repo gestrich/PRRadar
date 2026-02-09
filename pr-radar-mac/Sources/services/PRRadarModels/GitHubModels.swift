@@ -189,6 +189,17 @@ public struct GitHubPullRequest: Codable, Sendable {
         self.commits = commits
     }
 
+    public var enhancedState: PRState {
+        switch (state ?? "").lowercased() {
+        case "open":
+            return (isDraft == true) ? .draft : .open
+        case "closed":
+            return (mergedAt != nil) ? .merged : .closed
+        default:
+            return .open
+        }
+    }
+
     public func toPRMetadata() -> PRMetadata {
         PRMetadata(
             number: number,
@@ -198,7 +209,7 @@ public struct GitHubPullRequest: Codable, Sendable {
                 login: author?.login ?? "",
                 name: author?.name ?? ""
             ),
-            state: state ?? "",
+            state: enhancedState.rawValue,
             headRefName: headRefName ?? "",
             createdAt: createdAt ?? "",
             url: url
