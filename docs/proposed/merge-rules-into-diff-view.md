@@ -100,7 +100,7 @@ When no file is selected in the sidebar, the tasks section should show a summary
 - Tapping a file row sets `selectedFile`, navigating to that file's diff and per-file task details
 - Reuses the existing `taskBadge` helper for consistent styling
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -120,6 +120,21 @@ Review all commits made during the preceding phases and validate they follow the
    - Enum-based state patterns
    - Proper use of `DisclosureGroup`, `@State`, and view composition
 5. Fix any violations found
+
+**Completion notes:**
+- Reviewed all 13 skill files from `swift-app-architecture` (7 architecture + 6 SwiftUI)
+- Evaluated 4 changed/new files across 3 commits (812a108, 69a839e, dc84c85)
+- **No violations found.** All changes conform to conventions:
+  - All modified/new files are Views in the Apps layer (`apps/MacApp/UI/`)
+  - Dependencies flow downward only (imports: `PRRadarModels`, `PRRadarConfigService`, `PRReviewFeature`, `SwiftUI`)
+  - No new `@Observable` models — views receive data as parameters
+  - `@State` used correctly for local UI state (`showTasks`, `isExpanded`, `selectedFile`)
+  - `DisclosureGroup` used consistently for collapsible sections
+  - `TaskRowView` properly extracted as a separate view for composition
+  - `NavigationPhase` enum cleanly updated (`.rules` removed, phases consolidated into `.diff`)
+  - Import ordering alphabetical in all files
+  - File organization follows Properties → init → computed → methods convention
+- Build succeeds, all 265 tests pass
 
 ## - [ ] Phase 6: Validation
 
