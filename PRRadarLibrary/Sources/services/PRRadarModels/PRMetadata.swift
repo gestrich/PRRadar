@@ -47,6 +47,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
     public var id: Int { number }
 
     public let number: Int
+    public var displayNumber: String { "#\(number)" }
     public let title: String
     public let body: String?
     public let author: Author

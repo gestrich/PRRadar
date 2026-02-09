@@ -26,7 +26,7 @@ struct SummaryPhaseView: View {
     private var prInfoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("#\(metadata.number)")
+                Text(metadata.displayNumber)
                     .font(.title.bold())
                     .foregroundStyle(.secondary)
 

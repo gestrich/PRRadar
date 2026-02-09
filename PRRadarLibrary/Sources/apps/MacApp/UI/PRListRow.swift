@@ -10,7 +10,7 @@ struct PRListRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text("#\(pr.number)")
+                Text(pr.displayNumber)
                     .font(.caption)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 5)

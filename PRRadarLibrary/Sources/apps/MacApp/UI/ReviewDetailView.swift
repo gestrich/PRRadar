@@ -49,7 +49,7 @@ struct ReviewDetailView: View {
         let pr = prModel.metadata
         if !pr.title.isEmpty || !pr.author.login.isEmpty {
             HStack(spacing: 8) {
-                Text("#\(pr.number)")
+                Text(pr.displayNumber)
                     .font(.headline)
                     .foregroundStyle(.secondary)
 

@@ -131,39 +131,38 @@ final class AllPRsModel {
 
     // MARK: - Analyze All
 
-    func analyzeAll(since: String, state prState: PRState? = nil) async {
-        analyzeAllState = .running(logs: "Analyzing all PRs since \(since)...\n", current: 0, total: 0)
-        let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
-        let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
-        let useCase = AnalyzeAllUseCase(config: config)
+    func analyzeAll(since: Date, state prState: PRState? = nil) async {
+        guard let models = currentPRModels else { return }
 
-        do {
-            for try await progress in useCase.execute(since: since, rulesDir: rulesDir, repo: slug, state: prState) {
-                switch progress {
-                case .running:
-                    break
-                case .progress(let current, let total):
-                    if case .running(let logs, _, _) = analyzeAllState {
-                        analyzeAllState = .running(logs: logs, current: current, total: total)
-                    }
-                case .log(let text):
-                    if case .running(let logs, let current, let total) = analyzeAllState {
-                        analyzeAllState = .running(logs: logs + text, current: current, total: total)
-                    }
-                case .completed:
-                    let logs = analyzeAllLogs
-                    analyzeAllState = .completed(logs: logs)
-                case .failed(let error, let errorLogs):
-                    let logs = analyzeAllLogs
-                    analyzeAllState = .failed(error: error, logs: logs + errorLogs)
-                }
+        let prsToAnalyze = filteredPRs(models, since: since, state: prState)
+        let total = prsToAnalyze.count
+
+        analyzeAllState = .running(logs: "Analyzing \(total) PRs...\n", current: 0, total: total)
+
+        var analyzedCount = 0
+        var failedCount = 0
+
+        for (index, pr) in prsToAnalyze.enumerated() {
+            let current = index + 1
+            if case .running(let logs, _, _) = analyzeAllState {
+                analyzeAllState = .running(
+                    logs: logs + "[\(current)/\(total)] PR #\(pr.prNumber): \(pr.metadata.title)\n",
+                    current: current,
+                    total: total
+                )
             }
-        } catch {
-            let logs = analyzeAllLogs
-            analyzeAllState = .failed(error: error.localizedDescription, logs: logs)
+
+            if await pr.runAnalysis() {
+                analyzedCount += 1
+            } else {
+                failedCount += 1
+            }
         }
 
-        await reloadFromDisk()
+        let logs = analyzeAllLogs
+        analyzeAllState = .completed(
+            logs: logs + "\nAnalyze-all complete: \(analyzedCount) succeeded, \(failedCount) failed\n"
+        )
     }
 
     func dismissAnalyzeAllState() {

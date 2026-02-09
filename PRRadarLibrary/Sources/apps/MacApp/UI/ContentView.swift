@@ -355,12 +355,9 @@ public struct ContentView: View {
                 .foregroundStyle(.secondary)
 
             Button("Start") {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
-                let sinceString = formatter.string(from: sinceDate)
                 let state = selectedPRStateFilter
                 showAnalyzeAll = false
-                Task { await allPRs?.analyzeAll(since: sinceString, state: state) }
+                Task { await allPRs?.analyzeAll(since: sinceDate, state: state) }
             }
             .keyboardShortcut(.defaultAction)
         }

@@ -333,7 +333,9 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func runAnalysis() async {
+    @discardableResult
+    func runAnalysis() async -> Bool {
+        loadDetail()
         operationMode = .analyzing
         defer { operationMode = .idle }
         let phases: [PRRadarPhase] = [.rules, .evaluations, .report]
@@ -342,6 +344,8 @@ final class PRModel: Identifiable, Hashable {
             await runPhase(phase)
             if case .failed = stateFor(phase) { break }
         }
+        await loadAnalysisSummary()
+        return isPhaseCompleted(.report)
     }
 
     func resetPhase(_ phase: PRRadarPhase) {
