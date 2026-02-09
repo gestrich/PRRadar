@@ -126,7 +126,7 @@ Modify `RichContentView` to rewrite image URLs to local file paths before render
 - All new parameters use default values (`nil`), so existing callers are unaffected
 - Image data is threaded through both the summary view chain (PR body + issue comments) and the diff view chain (inline review comments)
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -147,6 +147,15 @@ Review all commits made during the preceding phases and validate they follow the
 - Service doesn't import App-layer types
 - No @Observable outside the Apps layer
 - `ImageDownloadService` follows existing service patterns (struct, async methods)
+
+**Technical notes:**
+- All 13 skill files from `swift-architecture` (7) and `swift-swiftui` (6) reviewed against the 4 commits (a1eb327..6c6aab0)
+- No architecture violations found — all changes comply with the 4-layer conventions
+- SDK: `OctokitClient.pullRequestBodyHTML` is stateless, Sendable, single-operation wrapper using existing `URLSession.shared` pattern
+- Services: `ImageDownloadService` is a Sendable struct with injectable `URLSession`, no App-layer imports; `GitHubService.fetchBodyHTML` is single delegation to SDK
+- Apps: `@Observable` only on `PRModel`; image data threaded through views as parameters following prerequisite data pattern
+- Import ordering alphabetical in all modified files; file structure follows conventions
+- Build verified: `swift build` succeeds
 
 ## - [ ] Phase 6: Validation
 
