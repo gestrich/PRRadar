@@ -52,6 +52,8 @@ public struct FetchDiffUseCase: Sendable {
 
             Task {
                 do {
+                    try Task.checkCancellation()
+
                     let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
                     let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
                     let authorCache = AuthorCacheService()
@@ -62,6 +64,8 @@ public struct FetchDiffUseCase: Sendable {
                         return
                     }
 
+                    try Task.checkCancellation()
+
                     continuation.yield(.log(text: "Fetching PR #\(prNumber) from GitHub...\n"))
 
                     let result = try await acquisition.acquire(
@@ -71,11 +75,15 @@ public struct FetchDiffUseCase: Sendable {
                         authorCache: authorCache
                     )
 
+                    try Task.checkCancellation()
+
                     continuation.yield(.log(text: "Diff acquired: \(result.diff.hunks.count) hunks across \(result.diff.uniqueFiles.count) files\n"))
 
                     let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
                     continuation.yield(.completed(output: snapshot))
                     continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish(throwing: CancellationError())
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
                     continuation.finish()

@@ -115,9 +115,11 @@ struct ContentView: View {
             savedPRNumber = 0
             createModelForConfig(config)
         }
-        .onChange(of: selectedPR) { _, new in
+        .onChange(of: selectedPR) { old, new in
+            old?.cancelRefresh()
             if let pr = new {
                 pr.loadDetail()
+                Task { await pr.refreshDiff() }
                 savedPRNumber = pr.metadata.number
             } else {
                 savedPRNumber = 0
@@ -363,12 +365,12 @@ struct ContentView: View {
         Task {
             let fallback = PRMetadata.fallback(number: number)
             let newPR = PRModel(metadata: fallback, config: model.config, repoConfig: model.repoConfig)
+            // Setting selectedPR triggers .onChange → loadDetail + refreshDiff (auto-fetches since no cache)
             selectedPR = newPR
-            await newPR.runDiff()
+            await newPR.refreshDiff(force: true)
             await model.load()
             if let updated = currentPRModels.first(where: { $0.metadata.number == number }) {
                 selectedPR = updated
-                updated.loadDetail()
             }
         }
     }

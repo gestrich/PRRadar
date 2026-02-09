@@ -41,6 +41,8 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
+    private var refreshTask: Task<Void, Never>?
+
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
         self.metadata = metadata
         self.config = config
@@ -165,6 +167,8 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Diff Refresh
 
     func refreshDiff(force: Bool = false) async {
+        refreshTask?.cancel()
+
         // Step 1: Load cached diff from disk for immediate display
         loadCachedDiff()
 
@@ -191,27 +195,49 @@ final class PRModel: Identifiable, Hashable {
 
         let useCase = FetchDiffUseCase(config: config)
 
-        do {
-            for try await progress in useCase.execute(prNumber: prNumber) {
-                switch progress {
-                case .running:
-                    break
-                case .progress:
-                    break
-                case .log(let text):
-                    appendLog(text, to: .pullRequest)
-                case .completed(let snapshot):
-                    diff = snapshot
-                    let logs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .completed(logs: logs)
-                case .failed(let error, let logs):
-                    let existingLogs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
+        let task = Task {
+            do {
+                for try await progress in useCase.execute(prNumber: prNumber) {
+                    try Task.checkCancellation()
+                    switch progress {
+                    case .running:
+                        break
+                    case .progress:
+                        break
+                    case .log(let text):
+                        appendLog(text, to: .pullRequest)
+                    case .completed(let snapshot):
+                        diff = snapshot
+                        let logs = runningLogs(for: .pullRequest)
+                        phaseStates[.pullRequest] = .completed(logs: logs)
+                    case .failed(let error, let logs):
+                        let existingLogs = runningLogs(for: .pullRequest)
+                        phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
+                    }
                 }
+            } catch is CancellationError {
+                // Task was cancelled — restore state
+                if diff != nil {
+                    phaseStates[.pullRequest] = .completed(logs: "")
+                } else {
+                    phaseStates[.pullRequest] = .idle
+                }
+            } catch {
+                let logs = runningLogs(for: .pullRequest)
+                phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
             }
-        } catch {
-            let logs = runningLogs(for: .pullRequest)
-            phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
+        }
+        refreshTask = task
+        await task.value
+    }
+
+    func cancelRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        if diff != nil {
+            phaseStates[.pullRequest] = .completed(logs: "")
+        } else {
+            phaseStates[.pullRequest] = .idle
         }
     }
 

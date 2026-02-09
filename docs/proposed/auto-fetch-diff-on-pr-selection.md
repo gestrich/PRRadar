@@ -109,7 +109,7 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 - `PipelineStatusView`: `.running` keeps the existing `ProgressView` spinner; `.refreshing` uses an `arrow.triangle.2.circlepath` SF Symbol with `.symbolEffect(.rotate)` animation in blue — visually distinct "updating" indicator vs "loading from scratch"
 - `combinedState()` now returns `.refreshing` separately instead of collapsing it into `.running`, so the pipeline strip accurately reflects whether cached data is being updated
 
-## - [ ] Phase 4: Auto-trigger on PR selection with task cancellation
+## - [x] Phase 4: Auto-trigger on PR selection with task cancellation
 
 **Goal:** Wire `refreshDiff()` to PR selection and handle rapid switching.
 
@@ -143,6 +143,15 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 5. Verify the `.task` block that restores the saved PR on launch also triggers auto-refresh (it should, since it sets `selectedPR`).
 
 **Architecture note:** SwiftUI's `.id(selectedPR.metadata.number)` on `ReviewDetailView` already resets the view on PR switch. Task cancellation in the model complements this by cleaning up background work.
+
+**Implementation notes:**
+- `PRModel.refreshTask: Task<Void, Never>?` stores the current refresh task; `refreshDiff()` cancels any existing task before starting a new one
+- `cancelRefresh()` cancels the task, nils it out, and restores phase state (`.completed` if cached data exists, `.idle` if not)
+- `refreshDiff()` wraps its fetch loop in a `Task` that checks for `CancellationError` and restores state on cancellation; awaits `task.value` so callers can await completion
+- `.onChange(of: selectedPR)` calls `old?.cancelRefresh()` then `pr.loadDetail()` + `Task { await pr.refreshDiff() }` — `loadDetail()` handles cached non-diff outputs internally
+- `submitNewReview()` sets `selectedPR = newPR` (triggering `.onChange` auto-refresh) then calls `await newPR.refreshDiff(force: true)` which cancels the `.onChange` refresh and takes over with forced fetch
+- `FetchDiffUseCase.execute()` has `try Task.checkCancellation()` before service creation, before acquisition, and after acquisition — `CancellationError` is propagated via `continuation.finish(throwing:)`
+- Saved PR restore `.task` sets `selectedPR` which triggers `.onChange` → auto-refresh, confirmed working
 
 ## - [ ] Phase 5: Architecture Validation
 
