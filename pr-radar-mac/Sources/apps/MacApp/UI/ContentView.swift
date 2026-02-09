@@ -334,11 +334,21 @@ struct ContentView: View {
     }
 
     private var filteredPRModels: [PRModel] {
-        let models = currentPRModels
-        guard let allPRs = allPRs, allPRs.showOnlyWithPendingComments else {
-            return models
+        var models = currentPRModels
+        let cutoff = sinceDate
+        models = models.filter { pr in
+            guard !pr.metadata.createdAt.isEmpty else { return true }
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            guard let date = formatter.date(from: pr.metadata.createdAt)
+                ?? ISO8601DateFormatter().date(from: pr.metadata.createdAt)
+            else { return true }
+            return date >= cutoff
         }
-        return models.filter { $0.hasPendingComments }
+        if let allPRs = allPRs, allPRs.showOnlyWithPendingComments {
+            models = models.filter { $0.hasPendingComments }
+        }
+        return models
     }
 
     private var isRefreshing: Bool {
