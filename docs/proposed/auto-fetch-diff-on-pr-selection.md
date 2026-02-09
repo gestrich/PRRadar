@@ -186,7 +186,7 @@ Review all commits made during the preceding phases and validate they follow the
 - Zero duplication: PASS — `FetchDiffUseCase` shared between CLI and Mac app
 - No violations found; no corrections needed
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 **Automated testing:**
 - Run `swift build` to ensure the project compiles
@@ -213,3 +213,8 @@ Review all commits made during the preceding phases and validate they follow the
 - Views auto-update from model changes (no reload hacks)
 - Rapid PR switching cancels stale fetches
 - All tests pass
+
+**Validation results:**
+- `swift build`: PASS — compiles with no errors
+- `swift test`: PASS — 273 tests in 39 suites, all passing
+- Manual verification deferred to Bill for interactive testing
