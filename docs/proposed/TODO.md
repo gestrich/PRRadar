@@ -38,6 +38,18 @@
 - [ ] Show GitHub real name in UI alongside handle
   Display the user's full name (from GitHub profile) in addition to their handle
   where author info is shown, if available via the GitHub API.
+- [ ] Show all GitHub comment details in Mac app comment preview
+  The comment preview in the Mac diff view is missing details that appear in the
+  posted GitHub comments — specifically the "PR Radar" link and the cost to run.
+  Ensure all metadata shown in the GitHub comment is also displayed in the app's
+  comment preview.
+- [ ] Show model used in report and cost displays
+  Wherever we show cost (e.g., report output, comment preview, CLI summary), also
+  display the AI model that was used for the evaluation. Helps with understanding
+  cost differences and reproducing results.
+- [ ] Hide PR-level comments from file view
+  PR-level comments (not associated with a specific file) should not appear in the
+  per-file comment view. Only file-level comments should be shown there.
 - [ ] Posted comments badge indicators
   Show a badge on each PR in the list view indicating the number of posted
   (not pending) comments, styled with a different color than pending comments.
@@ -61,6 +73,12 @@
   is done. Keep the rules view as-is.
 - [ ] Skip already-analyzed tasks during evaluation
   The analysis pipeline should detect when a specific rule/task has already been evaluated and skip re-running it. Still check whether the task was previously analyzed, but avoid re-invoking the AI if it was. This saves AI costs by not re-evaluating unchanged work across repeated runs.
+- [ ] Audit PullRequests app for reusable ideas
+  Audit `/Users/bill/Developer/work/swift/PullRequests` for features and patterns
+  worth adopting in PRRadar. Likely candidates: better UI patterns (possible
+  markdown rendering support), optimized fetching strategies that avoid
+  over-fetching data, and any other polished UX or architecture ideas. Document
+  findings and create follow-up TODO items for anything worth extracting.
 - [ ] PR summary tab
   Add a summary view when opening a PR, mirroring GitHub's summary tab. Show
   the PR title, description, and any posted comments. This should be the
