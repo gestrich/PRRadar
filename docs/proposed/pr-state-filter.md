@@ -116,7 +116,7 @@ Connect the UI state filter to the analyze-all and refresh operations.
 
 **Completed.** Updated `AllPRsModel` with `state prState: PRState? = nil` parameters on both `analyzeAll(since:state:)` and `refresh(since:state:)`, using external/internal parameter naming to avoid shadowing the `self.state` property. Removed the unused `stateFilter: String` property. Updated `ContentView` to pass `selectedPRStateFilter` to both refresh and analyze-all calls. The analyze-all popover now displays the current state alongside the date range (e.g., "Last 7 days · State: Open").
 
-## - [ ] Phase 6: Architecture Validation
+## - [x] Phase 6: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -138,6 +138,16 @@ Review all commits made during the preceding phases and validate they follow the
 - Shared types in Services layer (`PRRadarModels`)
 - No upward dependencies between layers
 - `PRState?` flows down through layers correctly (Apps → Features → Services)
+
+**Completed.** Reviewed all 13 skill files from `swift-app-architecture` (7 architecture + 6 SwiftUI) against 5 commits (Phases 1–5). All changes conform to conventions:
+- Layer dependencies are strictly downward (SDKs ← Services ← Features ← Apps)
+- `@Observable` only on `AllPRsModel` in Apps layer; use cases are `Sendable` structs in Features
+- `PRState` shared type lives in `PRRadarModels` (Services layer)
+- `PRState?` flows correctly: Apps (`ContentView`/CLI commands) → Features (`AnalyzeAllUseCase`/`FetchPRListUseCase`) → Services (`GitHubService`)
+- Imports are alphabetically ordered in all changed files
+- `parseStateFilter` CLI parsing helper correctly placed in Apps layer
+- `@AppStorage` used for UI filter preference per MV pattern
+- No violations found; no corrections needed. Build passes.
 
 ## - [ ] Phase 7: Validation
 
