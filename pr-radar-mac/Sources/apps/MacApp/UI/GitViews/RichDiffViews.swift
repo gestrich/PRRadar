@@ -187,17 +187,23 @@ struct RichDiffContentView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(diff.changedFiles, id: \.self) { filePath in
-                    Text(filePath)
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .windowBackgroundColor))
-
                     let hunks = diff.getHunks(byFilePath: filePath)
-                    if let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom {
-                        RenameHeaderView(oldPath: oldPath, isPureRename: hunks.allSatisfy { $0.diffLines.isEmpty })
+                    let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
+
+                    if let oldPath {
+                        RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
+                    } else {
+                        Text(filePath)
+                            .font(.system(.body, design: .monospaced))
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                    }
+
+                    if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
+                        PureRenameContentView()
                     }
 
                     ForEach(hunks) { hunk in
@@ -214,46 +220,46 @@ struct RichDiffContentView: View {
     }
 }
 
-// MARK: - Rename Header
+// MARK: - Rename Views
 
-struct RenameHeaderView: View {
+struct RenameFileHeaderView: View {
     let oldPath: String
-    let isPureRename: Bool
+    let newPath: String
 
     var body: some View {
-        if isPureRename {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.right.arrow.left")
-                    .foregroundStyle(.secondary)
-                Text("File renamed from")
-                    .foregroundStyle(.secondary)
-                Text(oldPath)
-                    .fontWeight(.medium)
-                Text("— no content changes")
-                    .foregroundStyle(.tertiary)
-                Spacer()
-            }
-            .font(.callout)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.blue.opacity(0.06))
-        } else {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.right")
-                    .foregroundStyle(.secondary)
-                Text("Renamed from")
-                    .foregroundStyle(.secondary)
-                Text(oldPath)
-                    .fontWeight(.medium)
-                Spacer()
-            }
-            .font(.callout)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.blue.opacity(0.06))
+        HStack(spacing: 0) {
+            Text(oldPath)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            Text(" \u{2192} ")
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .fixedSize()
+            Text(newPath)
+                .font(.system(.body, design: .monospaced))
+                .fontWeight(.bold)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+struct PureRenameContentView: View {
+    var body: some View {
+        Text("File renamed without changes.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -355,17 +361,23 @@ struct AnnotatedDiffContentView: View {
                 }
 
                 ForEach(diff.changedFiles, id: \.self) { filePath in
-                    Text(filePath)
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .windowBackgroundColor))
-
                     let hunks = diff.getHunks(byFilePath: filePath)
-                    if let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom {
-                        RenameHeaderView(oldPath: oldPath, isPureRename: hunks.allSatisfy { $0.diffLines.isEmpty })
+                    let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
+
+                    if let oldPath {
+                        RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
+                    } else {
+                        Text(filePath)
+                            .font(.system(.body, design: .monospaced))
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                    }
+
+                    if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
+                        PureRenameContentView()
                     }
 
                     if let postedUnmatched = commentMapping.postedUnmatchedByFile[filePath] {

@@ -93,11 +93,11 @@ struct DiffPhaseView: View {
             Text(URL(fileURLWithPath: file).lastPathComponent)
                 .lineLimit(1)
             if let renameFrom {
-                Text("\u{2190} \(renameFrom)")
+                Text("\u{2190} \(URL(fileURLWithPath: renameFrom).lastPathComponent)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .help("Renamed from \(renameFrom)")
+                    .help(renameFrom)
             }
         }
     }
