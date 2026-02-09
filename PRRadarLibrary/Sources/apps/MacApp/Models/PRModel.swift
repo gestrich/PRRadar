@@ -16,11 +16,11 @@ struct ReviewSnapshot {
 @MainActor
 final class PRModel: Identifiable, Hashable {
 
-    let metadata: PRMetadata
+    private(set) var metadata: PRMetadata
     let config: PRRadarConfig
     let repoConfig: RepoConfiguration
 
-    nonisolated var id: Int { metadata.id }
+    nonisolated let id: Int
 
     private(set) var analysisState: AnalysisState = .loading
     private(set) var detailState: DetailState = .unloaded
@@ -44,6 +44,7 @@ final class PRModel: Identifiable, Hashable {
     private var refreshTask: Task<Void, Never>?
 
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
+        self.id = metadata.id
         self.metadata = metadata
         self.config = config
         self.repoConfig = repoConfig
@@ -88,6 +89,10 @@ final class PRModel: Identifiable, Hashable {
         }
         // Has violations but comments phase not completed
         return !isPhaseCompleted(.report) || comments == nil
+    }
+
+    func updateMetadata(_ newMetadata: PRMetadata) {
+        metadata = newMetadata
     }
 
     // MARK: - Analysis Summary (Lightweight)

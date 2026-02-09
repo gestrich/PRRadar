@@ -20,6 +20,11 @@ struct PRListRow: View {
 
                 stateIndicator
 
+                if prModel.operationMode != .idle {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
                 Spacer()
 
                 analysisBadge

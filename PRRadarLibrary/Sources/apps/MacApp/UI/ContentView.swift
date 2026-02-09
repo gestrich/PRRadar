@@ -14,6 +14,7 @@ public struct ContentView: View {
     @State private var newPRNumber = ""
     @State private var showAnalyzeAll = false
     @State private var showAnalyzeAllProgress = false
+    @State private var showRefreshProgress = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("selectedPRState") private var selectedPRStateString: String = "ALL"
 
@@ -106,6 +107,11 @@ public struct ContentView: View {
         .sheet(isPresented: $showAnalyzeAllProgress) {
             if let model = allPRs {
                 AnalyzeAllProgressView(model: model, isPresented: $showAnalyzeAllProgress)
+            }
+        }
+        .sheet(isPresented: $showRefreshProgress) {
+            if let model = allPRs {
+                RefreshAllProgressView(model: model, isPresented: $showRefreshProgress)
             }
         }
         .alert("Refresh Failed", isPresented: showRefreshError) {
@@ -233,7 +239,11 @@ public struct ContentView: View {
             .toggleStyle(.button)
 
             Button {
-                Task { await allPRs?.refresh(since: sinceDate, state: selectedPRStateFilter) }
+                if let model = allPRs, model.refreshAllState.isRunning {
+                    showRefreshProgress = true
+                } else {
+                    Task { await allPRs?.refresh(since: sinceDate, state: selectedPRStateFilter) }
+                }
             } label: {
                 if let model = allPRs, model.refreshAllState.isRunning {
                     HStack(spacing: 4) {
@@ -249,8 +259,7 @@ public struct ContentView: View {
                     Image(systemName: "arrow.clockwise")
                 }
             }
-            .help("Refresh PR list")
-            .disabled(isRefreshing)
+            .help(allPRs?.refreshAllState.isRunning == true ? "Show progress" : "Refresh PR list")
 
             Spacer()
 
