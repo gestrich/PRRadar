@@ -8,6 +8,7 @@ struct ReviewDetailView: View {
     let prModel: PRModel
     @State private var selectedNavPhase: NavigationPhase = .summary
     @State private var showEffectiveDiff = false
+    @State private var showAIOutput = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,20 +27,23 @@ struct ReviewDetailView: View {
                     imageBaseDir: prModel.imageBaseDir
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .diff, .report:
+            case .diff:
+                diffToolbar
+
+                Divider()
+
+                phaseOutputView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .report:
                 PhaseInputView(
                     prModel: prModel,
-                    phase: selectedNavPhase.primaryPhase,
-                    secondaryPhase: selectedNavPhase == .diff ? .rules : nil
+                    phase: selectedNavPhase.primaryPhase
                 )
                     .padding()
 
                 Divider()
 
                 phaseOutputView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .aiOutput:
-                aiOutputView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -86,8 +90,6 @@ struct ReviewDetailView: View {
             diffOutputView
         case .report:
             reportOutputView
-        case .aiOutput:
-            EmptyView()
         }
     }
 
@@ -95,13 +97,28 @@ struct ReviewDetailView: View {
     private var diffOutputView: some View {
         if let fullDiff = prModel.diff?.fullDiff {
             VStack(spacing: 0) {
-                if prModel.diff?.effectiveDiff != nil {
+                if hasAIOutput || prModel.diff?.effectiveDiff != nil {
                     HStack {
+                        if hasAIOutput {
+                            Button {
+                                showAIOutput = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if prModel.isAIPhaseRunning {
+                                        ProgressView()
+                                            .controlSize(.mini)
+                                    }
+                                    Label("AI Output", systemImage: "text.bubble")
+                                }
+                            }
+                        }
                         Spacer()
-                        Button {
-                            showEffectiveDiff = true
-                        } label: {
-                            Label("View Effective Diff", systemImage: "doc.text.magnifyingglass")
+                        if prModel.diff?.effectiveDiff != nil {
+                            Button {
+                                showEffectiveDiff = true
+                            } label: {
+                                Label("View Effective Diff", systemImage: "doc.text.magnifyingglass")
+                            }
                         }
                     }
                     .padding(.horizontal)
@@ -134,6 +151,10 @@ struct ReviewDetailView: View {
                     .frame(minWidth: 900, minHeight: 600)
                 }
             }
+            .sheet(isPresented: $showAIOutput) {
+                aiOutputView
+                    .frame(minWidth: 800, minHeight: 500)
+            }
         } else if let files = prModel.diff?.files {
             List(files, id: \.self) { file in
                 Text(file)
@@ -155,6 +176,10 @@ struct ReviewDetailView: View {
                 description: Text("Run Phase 1 to fetch the PR diff.")
             )
         }
+    }
+
+    private var hasAIOutput: Bool {
+        prModel.isAIPhaseRunning || !prModel.savedTranscripts.isEmpty || !prModel.aiOutputText.isEmpty
     }
 
     @ViewBuilder
@@ -198,6 +223,51 @@ struct ReviewDetailView: View {
                 description: Text("Run Phase 6 to generate the report.")
             )
         }
+    }
+
+    // MARK: - Diff Toolbar
+
+    @ViewBuilder
+    private var diffToolbar: some View {
+        HStack(spacing: 12) {
+            compactPhaseButton(phase: .pullRequest, label: "Fetch Diff", icon: "arrow.down.doc")
+            compactPhaseButton(phase: .rules, label: "Rules & Tasks", icon: "list.bullet.clipboard")
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private func compactPhaseButton(phase: PRRadarPhase, label: String, icon: String) -> some View {
+        let state = prModel.stateFor(phase)
+        let isRunning: Bool = {
+            switch state {
+            case .running, .refreshing: return true
+            default: return false
+            }
+        }()
+        let isCompleted: Bool = {
+            if case .completed = state { return true }
+            return false
+        }()
+
+        Button {
+            Task { await prModel.runPhase(phase) }
+        } label: {
+            HStack(spacing: 4) {
+                if isRunning {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else if isCompleted {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                Label(label, systemImage: icon)
+            }
+        }
+        .disabled(!prModel.canRunPhase(phase))
+        .controlSize(.small)
     }
 
     // MARK: - Loading Indicators
