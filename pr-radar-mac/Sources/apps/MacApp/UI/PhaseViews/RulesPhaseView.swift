@@ -3,18 +3,21 @@ import SwiftUI
 
 struct RulesPhaseView: View {
 
+    private struct SectionID: Hashable {
+        let section: String
+        let value: String
+    }
+
     let focusAreas: [FocusArea]
     let rules: [ReviewRule]
     let tasks: [EvaluationTaskOutput]
-
-    @State private var expandedRules: Set<String> = []
 
     var body: some View {
         VStack(spacing: 0) {
             PhaseSummaryBar(items: [
                 .init(label: "Focus areas:", value: "\(focusAreas.count)"),
-                .init(label: "Rules:", value: "\(rules.count)"),
-                .init(label: "Tasks:", value: "\(tasks.count)"),
+                .init(label: "Available Rules:", value: "\(rules.count)"),
+                .init(label: "Evaluation Tasks:", value: "\(tasks.count)"),
             ])
             .padding(8)
 
@@ -60,27 +63,10 @@ struct RulesPhaseView: View {
 
     @ViewBuilder
     private var rulesSection: some View {
-        Section("Rules") {
+        Section("Available Rules") {
             ForEach(rules, id: \.name) { rule in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(rule.name)
-                            .font(.headline)
-                        Spacer()
-                        Text(rule.category)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(.quaternary)
-                            .clipShape(Capsule())
-                    }
-
-                    Text(rule.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    if expandedRules.contains(rule.name) {
-                        Divider()
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text(rule.content)
                             .font(.system(.caption, design: .monospaced))
                             .padding(8)
@@ -97,13 +83,23 @@ struct RulesPhaseView: View {
                             .font(.caption)
                         }
                     }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if expandedRules.contains(rule.name) {
-                        expandedRules.remove(rule.name)
-                    } else {
-                        expandedRules.insert(rule.name)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(rule.name)
+                                .font(.headline)
+                            Spacer()
+                            Text(rule.category)
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(.quaternary)
+                                .clipShape(Capsule())
+                        }
+
+                        Text(rule.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -116,14 +112,32 @@ struct RulesPhaseView: View {
     private var tasksSection: some View {
         Section("Evaluation Tasks") {
             let grouped = Dictionary(grouping: tasks, by: \.rule.name)
-            ForEach(grouped.keys.sorted(), id: \.self) { ruleName in
-                HStack {
-                    Text(ruleName)
-                        .font(.body)
-                    Spacer()
-                    Text("\(grouped[ruleName]!.count) tasks")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            let taskGroupIds = grouped.keys.sorted().map { SectionID(section: "tasks", value: $0) }
+            ForEach(taskGroupIds, id: \.self) { groupId in
+                DisclosureGroup {
+                    ForEach(grouped[groupId.value]!, id: \.taskId) { task in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(task.focusArea.description)
+                                .font(.body)
+                            HStack {
+                                Text(task.focusArea.filePath)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Lines \(task.focusArea.startLine)-\(task.focusArea.endLine)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(groupId.value)
+                            .font(.body)
+                        Spacer()
+                        Text("\(grouped[groupId.value]!.count) tasks")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }

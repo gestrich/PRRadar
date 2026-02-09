@@ -48,6 +48,11 @@
   The links to the associated rule in posted comments are broken. May be caused
   by using a custom output folder on the Desktop. Needs investigation to confirm
   root cause and fix the URL/path generation.
+- [ ] Auto-fetch PR data when opening a PR
+  When a PR is selected in the Mac app, automatically fetch the latest diff,
+  comments, and metadata (phase 1 / DIFF phase). Currently this requires a
+  manual action. The data should start downloading as soon as the PR is opened
+  so the user sees up-to-date information immediately.
 - [ ] Differentiate PR status in PR list view
   Show visual differences between PR states: merged vs closed (not merged), and
   open vs draft. Use distinct colors or icons so the status is immediately clear
