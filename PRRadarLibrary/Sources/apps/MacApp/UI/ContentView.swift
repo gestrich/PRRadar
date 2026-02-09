@@ -405,17 +405,11 @@ public struct ContentView: View {
     // MARK: - Helpers
 
     private var currentPRModels: [PRModel] {
-        guard let model = allPRs else { return [] }
-        switch model.state {
-        case .ready(let models): return models
-        case .refreshing(let models): return models
-        case .failed(_, let prior): return prior ?? []
-        default: return []
-        }
+        allPRs?.currentPRModels ?? []
     }
 
     private var filteredPRModels: [PRModel] {
-        allPRs?.filteredPRs(currentPRModels, since: sinceDate, state: selectedPRStateFilter) ?? []
+        allPRs?.filteredPRModels(since: sinceDate, state: selectedPRStateFilter) ?? []
     }
 
     private var isRefreshing: Bool {

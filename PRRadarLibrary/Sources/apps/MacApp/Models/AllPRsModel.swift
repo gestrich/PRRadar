@@ -201,6 +201,11 @@ final class AllPRsModel {
 
     // MARK: - Filtering
 
+    func filteredPRModels(since: Date? = nil, state prState: PRState? = nil) -> [PRModel] {
+        guard let models = currentPRModels else { return [] }
+        return filteredPRs(models, since: since, state: prState)
+    }
+
     func filteredPRs(_ models: [PRModel], since: Date? = nil, state prState: PRState? = nil) -> [PRModel] {
         var result = models
         if let since {
@@ -227,7 +232,7 @@ final class AllPRsModel {
 
     // MARK: - Helpers
 
-    private var currentPRModels: [PRModel]? {
+    var currentPRModels: [PRModel]? {
         switch state {
         case .ready(let models): return models
         case .refreshing(let models): return models

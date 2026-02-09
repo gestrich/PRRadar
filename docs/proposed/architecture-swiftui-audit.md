@@ -84,7 +84,7 @@ Supporting files: `PRRadar/PRRadarApp.swift`, `ReviewDetailView.swift`
 - The compound toolbar check `pr.isPullRequestPhaseRunning && !pr.isAnalyzing` is replaced by the single check `pr.operationMode == .refreshing`, eliminating the possibility of conflicting boolean states
 - `isPullRequestPhaseRunning` removed — `operationMode` captures the same intent more precisely
 
-## - [ ] Phase 3: Eliminate duplicated state extraction — expose filtered PRs from model
+## - [x] Phase 3: Eliminate duplicated state extraction — expose filtered PRs from model
 
 **Violation**: `model-composition.md` says "Parent models must not duplicate child state — access through the child model reference."
 
@@ -108,6 +108,14 @@ Currently `ContentView` has its own `currentPRModels` computed property (line 40
 4. **Update `filteredPRs()` signature** — make the `models` parameter optional with a default of `currentPRModels`, so callers don't need to extract state themselves.
 
 **References**: `model-composition.md` (single source of truth), `model-state.md` (state ownership)
+
+**Technical notes:**
+- `AllPRsModel.currentPRModels` changed from `private` to `internal` so `ContentView` can access it directly
+- Added `filteredPRModels(since:state:)` method on `AllPRsModel` that internally calls `currentPRModels` and delegates to existing `filteredPRs(_:since:state:)` — this keeps the model as the single source of truth for state extraction
+- `ContentView.currentPRModels` simplified to a one-line delegation: `allPRs?.currentPRModels ?? []`
+- `ContentView.filteredPRModels` simplified to delegate to `allPRs?.filteredPRModels(since:state:) ?? []`
+- Filter values (`sinceDate`, `selectedPRStateFilter`) remain on `ContentView` as `@AppStorage`-derived properties since they are view-level persistence concerns; the model accepts them as parameters rather than owning them
+- The existing `filteredPRs(_:since:state:)` method is preserved for internal callers (e.g., `refresh(since:state:)`) that already have an explicit model array
 
 ## - [ ] Phase 4: Remove dead code and fix misused state
 
