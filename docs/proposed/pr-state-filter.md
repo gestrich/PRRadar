@@ -40,7 +40,7 @@ Update `GitHubService` to accept `PRState?` instead of a raw `String`, leveragin
 
 **Completed.** Also updated `FetchPRListUseCase` and `AnalyzeAllUseCase` callers to use `PRState?` via `fromCLIString` to keep the build passing. These callers still accept `String?` parameters (formal signature change deferred to Phase 2).
 
-## - [ ] Phase 2: Feature Layer — Update Use Cases
+## - [x] Phase 2: Feature Layer — Update Use Cases
 
 Update `AnalyzeAllUseCase` and `FetchPRListUseCase` to use `PRState?` instead of `String?`.
 
@@ -50,11 +50,13 @@ Update `AnalyzeAllUseCase` and `FetchPRListUseCase` to use `PRState?` instead of
 - Pass through to `GitHubService.listPullRequests(state:)`
 
 **FetchPRListUseCase** (`PRReviewFeature/usecases/FetchPRListUseCase.swift`):
-- Change `state: String? = nil` parameter to `state: PRState? = nil`
-- `nil` means "all" for this use case as well (the UI/CLI caller decides the default)
+- Change `state: String? = nil` parameter to `state: PRState? = .open`
+- Default is `.open` (preserving existing behavior where FetchPRListUseCase defaulted to open)
 - Pass through to `GitHubService`
 
 **Architecture notes (per swift-architecture):** Use cases in the Features layer orchestrate but don't contain business logic. The parameter type change keeps them as simple pass-throughs to Services.
+
+**Completed.** Both use cases now accept `PRState?` directly. CLI callers (`AnalyzeAllCommand`, `RefreshCommand`) convert `String?` → `PRState?` via `fromCLIString` at the call site. `AllPRsModel` uses defaults (no explicit `state:` argument yet — wiring deferred to Phase 5).
 
 ## - [ ] Phase 3: CLI — Update `--state` Option to Include "draft"
 

@@ -23,7 +23,7 @@ public struct AnalyzeAllUseCase: Sendable {
         repo: String? = nil,
         comment: Bool = false,
         limit: String? = nil,
-        state: String? = nil
+        state: PRState? = nil
     ) -> AsyncThrowingStream<PhaseProgress<AnalyzeAllOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .pullRequest))
@@ -33,14 +33,13 @@ public struct AnalyzeAllUseCase: Sendable {
                     let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
 
                     let limitNum = Int(limit ?? "10000") ?? 10000
-                    let stateFilter: PRState? = state.flatMap { PRState.fromCLIString($0) }
                     let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")
 
-                    continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(stateFilter?.displayName ?? "all"))...\n"))
+                    continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(state?.displayName ?? "all"))...\n"))
 
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: stateFilter,
+                        state: state,
                         since: sinceDate
                     )
 

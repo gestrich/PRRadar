@@ -43,7 +43,8 @@ struct RefreshCommand: AsyncParsableCommand {
             print("Fetching recent PRs from GitHub...")
         }
 
-        for try await progress in useCase.execute(limit: limit, state: state, repoSlug: repoSlug) {
+        let stateFilter: PRState? = state.flatMap { PRState.fromCLIString($0) } ?? .open
+        for try await progress in useCase.execute(limit: limit, state: stateFilter, repoSlug: repoSlug) {
             switch progress {
             case .running:
                 break

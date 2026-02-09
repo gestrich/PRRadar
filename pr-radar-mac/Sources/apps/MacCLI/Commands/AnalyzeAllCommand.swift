@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
+import PRRadarModels
 import PRReviewFeature
 
 struct AnalyzeAllCommand: AsyncParsableCommand {
@@ -53,6 +54,7 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         let useCase = AnalyzeAllUseCase(config: prRadarConfig)
+        let stateFilter: PRState? = state.flatMap { PRState.fromCLIString($0) }
 
         for try await progress in useCase.execute(
             since: since,
@@ -61,7 +63,7 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
             repo: repo,
             comment: comment,
             limit: limit,
-            state: state
+            state: stateFilter
         ) {
             switch progress {
             case .running:
