@@ -58,7 +58,7 @@ OctoKit's `PullRequest.Comment` model is missing the `path` field, so we need th
 
 **Verification**: `swift build` compiles.
 
-## - [ ] Phase 3: UI — Posted Comment View and Diff Rendering
+## - [x] Phase 3: UI — Posted Comment View and Diff Rendering
 
 **New file**: `Sources/apps/MacApp/UI/GitViews/InlinePostedCommentView.swift`
 - Green-themed card (vs blue for pending): green left border, green tinted background

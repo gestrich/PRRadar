@@ -212,8 +212,23 @@ struct RichDiffContentView: View {
 struct AnnotatedHunkContentView: View {
     let hunk: Hunk
     let commentsAtLine: [Int: [PRComment]]
+    let postedAtLine: [Int: [GitHubReviewComment]]
     let searchQuery: String
     var prModel: PRModel? = nil
+
+    init(
+        hunk: Hunk,
+        commentsAtLine: [Int: [PRComment]],
+        postedAtLine: [Int: [GitHubReviewComment]] = [:],
+        searchQuery: String,
+        prModel: PRModel? = nil
+    ) {
+        self.hunk = hunk
+        self.commentsAtLine = commentsAtLine
+        self.postedAtLine = postedAtLine
+        self.searchQuery = searchQuery
+        self.prModel = prModel
+    }
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
@@ -225,11 +240,18 @@ struct AnnotatedHunkContentView: View {
                     searchQuery: searchQuery
                 )
 
-                if let newLine = line.newLine,
-                   let comments = commentsAtLine[newLine],
-                   let prModel {
-                    ForEach(comments) { comment in
-                        InlineCommentView(comment: comment, prModel: prModel)
+                if let newLine = line.newLine {
+                    if let posted = postedAtLine[newLine] {
+                        ForEach(posted) { comment in
+                            InlinePostedCommentView(comment: comment)
+                        }
+                    }
+
+                    if let comments = commentsAtLine[newLine],
+                       let prModel {
+                        ForEach(comments) { comment in
+                            InlineCommentView(comment: comment, prModel: prModel)
+                        }
                     }
                 }
             }
@@ -262,6 +284,10 @@ struct AnnotatedDiffContentView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
+                if !commentMapping.postedGeneral.isEmpty {
+                    postedGeneralSection(commentMapping.postedGeneral)
+                }
+
                 if !commentMapping.unmatchedNoFile.isEmpty {
                     unmatchedSection(commentMapping.unmatchedNoFile, title: "General Comments")
                 }
@@ -275,6 +301,10 @@ struct AnnotatedDiffContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(nsColor: .windowBackgroundColor))
 
+                    if let postedUnmatched = commentMapping.postedUnmatchedByFile[filePath] {
+                        postedFileLevelSection(postedUnmatched)
+                    }
+
                     if let unmatched = commentMapping.unmatchedByFile[filePath] {
                         unmatchedSection(unmatched, title: "File-level comments")
                     }
@@ -284,6 +314,7 @@ struct AnnotatedDiffContentView: View {
                         AnnotatedHunkContentView(
                             hunk: hunk,
                             commentsAtLine: commentMapping.commentsByFileAndLine[filePath] ?? [:],
+                            postedAtLine: commentMapping.postedByFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
                             prModel: prModel
                         )
@@ -293,6 +324,47 @@ struct AnnotatedDiffContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(nsColor: .textBackgroundColor))
+    }
+
+    @ViewBuilder
+    private func postedGeneralSection(_ comments: [GitHubComment]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Posted Comments")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.08))
+
+            ForEach(comments, id: \.id) { comment in
+                InlinePostedCommentView(comment: GitHubReviewComment(
+                    id: comment.id,
+                    body: comment.body,
+                    path: "",
+                    author: comment.author,
+                    createdAt: comment.createdAt,
+                    url: comment.url
+                ))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func postedFileLevelSection(_ comments: [GitHubReviewComment]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Posted file-level comments")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.08))
+
+            ForEach(comments) { comment in
+                InlinePostedCommentView(comment: comment)
+            }
+        }
     }
 
     @ViewBuilder
