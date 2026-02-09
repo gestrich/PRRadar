@@ -25,7 +25,11 @@ struct ReviewDetailView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .diff, .rules, .report:
-                PhaseInputView(prModel: prModel, phase: selectedNavPhase.primaryPhase)
+                PhaseInputView(
+                    prModel: prModel,
+                    phase: selectedNavPhase.primaryPhase,
+                    secondaryPhase: selectedNavPhase == .diff ? .evaluations : nil
+                )
                     .padding()
 
                 Divider()

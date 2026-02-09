@@ -5,6 +5,7 @@ struct PhaseInputView: View {
 
     let prModel: PRModel
     let phase: PRRadarPhase
+    var secondaryPhase: PRRadarPhase? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -12,7 +13,7 @@ struct PhaseInputView: View {
                 Text(phaseTitle)
                     .font(.headline)
                 Spacer()
-                runButton
+                runButton(for: phase)
             }
 
             phaseDescription
@@ -21,7 +22,24 @@ struct PhaseInputView: View {
 
             configInfo(prModel.repoConfig)
 
-            stateView
+            stateView(for: phase)
+
+            if let secondary = secondaryPhase {
+                Divider()
+
+                HStack {
+                    Text(phaseTitle(for: secondary))
+                        .font(.headline)
+                    Spacer()
+                    runButton(for: secondary)
+                }
+
+                phaseDescription(for: secondary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                stateView(for: secondary)
+            }
         }
         .padding()
         .background(Color(nsColor: .controlBackgroundColor))
@@ -31,8 +49,8 @@ struct PhaseInputView: View {
     // MARK: - Run Button
 
     @ViewBuilder
-    private var runButton: some View {
-        let state = prModel.stateFor(phase)
+    private func runButton(for targetPhase: PRRadarPhase) -> some View {
+        let state = prModel.stateFor(targetPhase)
         let isRunning = { if case .running = state { return true } else { return false } }()
 
         HStack(spacing: 8) {
@@ -42,9 +60,9 @@ struct PhaseInputView: View {
             }
 
             Button(isRunning ? "Running..." : "Run") {
-                Task { await prModel.runPhase(phase) }
+                Task { await prModel.runPhase(targetPhase) }
             }
-            .disabled(!prModel.canRunPhase(phase))
+            .disabled(!prModel.canRunPhase(targetPhase))
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
         }
@@ -53,7 +71,11 @@ struct PhaseInputView: View {
     // MARK: - Phase Info
 
     private var phaseTitle: String {
-        switch phase {
+        phaseTitle(for: phase)
+    }
+
+    private func phaseTitle(for targetPhase: PRRadarPhase) -> String {
+        switch targetPhase {
         case .pullRequest: "Fetch PR Diff"
         case .focusAreas, .rules, .tasks: "Rules & Tasks"
         case .evaluations: "Run Evaluations"
@@ -63,7 +85,12 @@ struct PhaseInputView: View {
 
     @ViewBuilder
     private var phaseDescription: some View {
-        switch phase {
+        phaseDescription(for: phase)
+    }
+
+    @ViewBuilder
+    private func phaseDescription(for targetPhase: PRRadarPhase) -> some View {
+        switch targetPhase {
         case .pullRequest:
             Text("Fetches the PR diff and parses it into structured data.")
         case .focusAreas, .rules, .tasks:
@@ -106,10 +133,10 @@ struct PhaseInputView: View {
     // MARK: - State View
 
     @ViewBuilder
-    private var stateView: some View {
-        switch prModel.stateFor(phase) {
+    private func stateView(for targetPhase: PRRadarPhase) -> some View {
+        switch prModel.stateFor(targetPhase) {
         case .idle:
-            if !prModel.canRunPhase(phase) && !prModel.prNumber.isEmpty {
+            if !prModel.canRunPhase(targetPhase) && !prModel.prNumber.isEmpty {
                 Text("Prerequisite phases must complete first.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

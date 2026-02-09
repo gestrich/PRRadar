@@ -85,7 +85,7 @@ Remove the "Evaluate" tab from the pipeline navigation since its content is now 
 - `PhaseInputView` needed no changes — it still receives `.pullRequest` as the primary phase for the diff tab; "Run All" continues to trigger all phases including evaluation. Phase 3 will address adding an explicit "Run Evaluate" button to the diff tab's input view
 - All 231 tests pass, build succeeds
 
-## - [ ] Phase 3: Pipeline Status Handling for Combined Diff+Evaluate
+## - [x] Phase 3: Pipeline Status Handling for Combined Diff+Evaluate
 
 Ensure the `PhaseInputView` and pipeline controls work correctly for the combined diff tab.
 
@@ -103,6 +103,14 @@ Ensure the `PhaseInputView` and pipeline controls work correctly for the combine
 ### Files to modify
 - `Sources/apps/MacApp/UI/PhaseInputView.swift` — Add evaluate phase support to the diff tab
 - `Sources/apps/MacApp/UI/PipelineStatusView.swift` — Verify combined state logic
+
+### Completion notes
+- Added `secondaryPhase: PRRadarPhase?` optional parameter to `PhaseInputView`. When provided, the view renders a second section below the primary phase with its own title, description, run button, and state display — separated by a divider
+- Refactored `runButton`, `stateView`, `phaseTitle`, and `phaseDescription` from computed properties to parameterized methods (`for targetPhase:`) so they can render for either the primary or secondary phase
+- `ReviewDetailView` passes `secondaryPhase: .evaluations` only for the `.diff` tab; other tabs pass `nil`
+- `PipelineStatusView.combinedState` already correctly handles `[.pullRequest, .evaluations]` — no changes needed
+- "Run All" (`prModel.runAllPhases()`) is model-level and unaffected by tab changes — verified still works
+- All 231 tests pass, build succeeds
 
 ## - [ ] Phase 4: Clean Up Removed Code
 
