@@ -19,9 +19,10 @@ struct EvaluationsPhaseView: View {
             if let diff {
                 HSplitView {
                     fileList(diff: diff)
-                        .frame(minWidth: 180, idealWidth: 220)
+                        .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
 
                     diffContent(diff: diff)
+                        .frame(minWidth: 400)
                 }
             } else {
                 fallbackListView
