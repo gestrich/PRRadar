@@ -81,7 +81,7 @@ Posted comment data (`gh-comments.json`) is currently only loaded during `loadDe
 
 **Completed:** Added `postedCommentCountsByFile(mapping:)` helper that aggregates counts from both `postedByFileAndLine` and `postedUnmatchedByFile`. Added `postedCommentBadge(count:)` green capsule view matching the same font/padding style as existing badges. In `annotatedFileList`, the posted badge appears after violation badges; the hunk count fallback now only shows when both violation and posted counts are 0. In `plainFileList`, posted counts are computed from the comment mapping (only when `postedReviewComments` is non-empty) and the green badge displays before the hunk count.
 
-## - [ ] Phase 4: Architecture Validation
+## - [x] Phase 4: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -96,6 +96,18 @@ Review all commits made during the preceding phases and validate they follow the
 3. Fetch and read ALL skills from the swift-app-architecture repo
 4. Evaluate the changes against each skill's conventions
 5. Fix any violations found
+
+**Completed:** Reviewed all 14 skill files (7 swift-architecture, 7 swift-swiftui) from the local swift-app-architecture clone. Evaluated all Phase 1-3 changes (3 commits across 4 files) against every convention:
+- **Layer placement**: All changes in Apps layer (models + views) — correct ✅
+- **Dependency flow**: Apps → Services/Features only, no upward deps ✅
+- **@Observable at App layer only**: `PRModel` is the only observable, lives in Apps ✅
+- **Enum-based state**: `AnalysisState.loaded` extended with associated value, not separate properties ✅
+- **Code style**: Imports alphabetical, file organization follows property→init→computed→method→nested-type order ✅
+- **Fallback values**: `postedCommentCount` defaults to 0 for genuinely absent `gh-comments.json` — expected behavior, not masking errors ✅
+- **Depth over width**: No multi-step orchestration in models, just lightweight file parsing for UI ✅
+- **Zero duplication**: Single source of truth for counts, no logic duplicated between views ✅
+- **View state vs model state**: Selection remains `@State`, data remains in `@Observable` model ✅
+No violations found. Build verified clean.
 
 ## - [ ] Phase 5: Validation
 
