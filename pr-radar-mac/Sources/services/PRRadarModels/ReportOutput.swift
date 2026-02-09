@@ -156,6 +156,10 @@ public struct ReviewReport: Codable, Sendable {
         if summary.totalCostUsd > 0 {
             lines.append("- **Total Cost:** $\(String(format: "%.4f", summary.totalCostUsd))")
         }
+        if !summary.modelsUsed.isEmpty {
+            let modelNames = summary.modelsUsed.map { displayName(forModelId: $0) }.joined(separator: ", ")
+            lines.append("- **Models Used:** \(modelNames)")
+        }
         lines.append("")
 
         if !summary.bySeverity.isEmpty {

@@ -27,6 +27,10 @@ struct ReportPhaseView: View {
             summaryCard("Violations", "\(report.summary.violationsFound)")
             summaryCard("Highest Severity", "\(report.summary.highestSeverity)")
             summaryCard("Cost", String(format: "$%.4f", report.summary.totalCostUsd))
+            if !report.summary.modelsUsed.isEmpty {
+                let modelNames = report.summary.modelsUsed.map { displayName(forModelId: $0) }.joined(separator: ", ")
+                summaryCard("Model", modelNames)
+            }
 
             Spacer()
 

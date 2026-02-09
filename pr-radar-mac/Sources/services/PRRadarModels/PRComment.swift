@@ -86,9 +86,16 @@ public struct PRComment: Sendable, Identifiable {
             lines.append("Related Documentation: [Docs](\(documentationLink))")
         }
 
-        let costStr = costUsd.map { String(format: " (cost $%.4f)", $0) } ?? ""
+        var metaParts: [String] = []
+        if let cost = costUsd {
+            metaParts.append(String(format: "cost $%.4f", cost))
+        }
+        if let model = modelUsed {
+            metaParts.append(displayName(forModelId: model))
+        }
+        let metaStr = metaParts.isEmpty ? "" : " (\(metaParts.joined(separator: " · ")))"
         lines.append("")
-        lines.append("*Assisted by [PR Radar](https://github.com/gestrich/PRRadar)\(costStr)*")
+        lines.append("*Assisted by [PR Radar](https://github.com/gestrich/PRRadar)\(metaStr)*")
 
         return lines.joined(separator: "\n")
     }
