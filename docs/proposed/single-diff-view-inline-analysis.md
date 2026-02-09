@@ -112,7 +112,7 @@ Ensure the `PhaseInputView` and pipeline controls work correctly for the combine
 - "Run All" (`prModel.runAllPhases()`) is model-level and unaffected by tab changes — verified still works
 - All 231 tests pass, build succeeds
 
-## - [ ] Phase 4: Clean Up Removed Code
+## - [x] Phase 4: Clean Up Removed Code
 
 Remove `EvaluationsPhaseView` and any dead code left over from the merge.
 
@@ -125,6 +125,11 @@ Remove `EvaluationsPhaseView` and any dead code left over from the merge.
 ### Files to modify
 - `Sources/apps/MacApp/UI/PhaseViews/EvaluationsPhaseView.swift` — Delete
 - Any files that import or reference `EvaluationsPhaseView`
+
+### Completion notes
+- `EvaluationsPhaseView.swift` deleted — no source code references remained outside the file itself (all call sites were removed in Phase 2)
+- No unused helper methods found — all helpers (`commentMapping`, `filesWithViolationCounts`, `maxSeverity`, `violationBadge`, etc.) were already migrated to `DiffPhaseView` in Phase 1
+- All 231 tests pass, build succeeds
 
 ## - [ ] Phase 5: Architecture Validation
 
