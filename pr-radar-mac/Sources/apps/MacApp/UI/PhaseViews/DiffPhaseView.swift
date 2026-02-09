@@ -104,15 +104,25 @@ struct DiffPhaseView: View {
 
     @ViewBuilder
     private func plainFileList(for diff: GitDiff) -> some View {
+        let postedCounts: [String: Int] = {
+            guard !postedReviewComments.isEmpty else { return [:] }
+            let mapping = commentMapping(for: diff)
+            return postedCommentCountsByFile(mapping: mapping)
+        }()
+
         List(selection: $selectedFile) {
             Section("Changed Files") {
                 ForEach(diff.changedFiles, id: \.self) { file in
                     let hunkCount = diff.getHunks(byFilePath: file).count
+                    let postedCount = postedCounts[file] ?? 0
                     HStack {
                         fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
                         if let taskCount = taskCountsByFile[file], taskCount > 0 {
                             taskBadge(count: taskCount)
+                        }
+                        if postedCount > 0 {
+                            postedCommentBadge(count: postedCount)
                         }
                         Text("\(hunkCount)")
                             .font(.caption)
@@ -129,11 +139,13 @@ struct DiffPhaseView: View {
     private func annotatedFileList(for diff: GitDiff) -> some View {
         let mapping = commentMapping(for: diff)
         let allFiles = filesWithViolationCounts(mapping: mapping)
+        let postedCounts = postedCommentCountsByFile(mapping: mapping)
 
         List(selection: $selectedFile) {
             Section("Changed Files") {
                 ForEach(diff.changedFiles, id: \.self) { file in
                     let violationCount = allFiles[file] ?? 0
+                    let postedCount = postedCounts[file] ?? 0
                     HStack {
                         fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
@@ -142,7 +154,11 @@ struct DiffPhaseView: View {
                         }
                         if violationCount > 0 {
                             violationBadge(count: violationCount, file: file, mapping: mapping)
-                        } else {
+                        }
+                        if postedCount > 0 {
+                            postedCommentBadge(count: postedCount)
+                        }
+                        if violationCount == 0 && postedCount == 0 {
                             Text("\(diff.getHunks(byFilePath: file).count)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -292,6 +308,27 @@ struct DiffPhaseView: View {
             }
         }
         return maxScore
+    }
+
+    private func postedCommentCountsByFile(mapping: DiffCommentMapping) -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for (file, lineMap) in mapping.postedByFileAndLine {
+            counts[file, default: 0] += lineMap.values.reduce(0) { $0 + $1.count }
+        }
+        for (file, comments) in mapping.postedUnmatchedByFile {
+            counts[file, default: 0] += comments.count
+        }
+        return counts
+    }
+
+    @ViewBuilder
+    private func postedCommentBadge(count: Int) -> some View {
+        Text("\(count)")
+            .font(.caption.bold())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(.green, in: Capsule())
     }
 
     @ViewBuilder

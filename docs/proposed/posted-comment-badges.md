@@ -60,7 +60,7 @@ Posted comment data (`gh-comments.json`) is currently only loaded during `loadDe
 
 **Completed:** Added `postedCommentsBadge` computed property using a `switch` with a `where` guard on `postedCommentCount > 0`. The badge uses a green capsule (`.background(.green, in: Capsule())`) matching the same font/padding style as the existing orange violation badge. Placed between `analysisBadge` and the timestamp in the HStack. When `postedCommentCount` is 0 or analysis state is not `.loaded`, renders `EmptyView()`.
 
-## - [ ] Phase 3: Add Posted Comment Badges Per File in Diff View
+## - [x] Phase 3: Add Posted Comment Badges Per File in Diff View
 
 **Goal:** Show a per-file badge in the file list sidebar indicating how many posted review comments exist for that file.
 
@@ -78,6 +78,8 @@ Posted comment data (`gh-comments.json`) is currently only loaded during `loadDe
 
 **Architecture notes:**
 - The `DiffCommentMapping` already has `postedByFileAndLine` and `postedUnmatchedByFile` populated by the mapper, so this is purely a view-layer change aggregating existing data.
+
+**Completed:** Added `postedCommentCountsByFile(mapping:)` helper that aggregates counts from both `postedByFileAndLine` and `postedUnmatchedByFile`. Added `postedCommentBadge(count:)` green capsule view matching the same font/padding style as existing badges. In `annotatedFileList`, the posted badge appears after violation badges; the hunk count fallback now only shows when both violation and posted counts are 0. In `plainFileList`, posted counts are computed from the comment mapping (only when `postedReviewComments` is non-empty) and the green badge displays before the hunk count.
 
 ## - [ ] Phase 4: Architecture Validation
 
