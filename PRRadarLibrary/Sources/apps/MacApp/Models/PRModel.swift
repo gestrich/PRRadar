@@ -164,6 +164,15 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
+    // MARK: - Refresh PR Data
+
+    func refreshPRData() async {
+        await refreshDiff(force: true)
+        if isPhaseCompleted(.pullRequest) {
+            loadCachedNonDiffOutputs()
+        }
+    }
+
     // MARK: - Diff Refresh
 
     func refreshDiff(force: Bool = false) async {
