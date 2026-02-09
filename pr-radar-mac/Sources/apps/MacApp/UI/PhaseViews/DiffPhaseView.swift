@@ -56,6 +56,11 @@ struct DiffPhaseView: View {
                 .init(label: "Violations:", value: "\(summary.violationsFound)"),
                 .init(label: "Cost:", value: String(format: "$%.4f", summary.totalCostUsd)),
             ])
+            let models = summary.modelsUsed
+            if !models.isEmpty {
+                let modelNames = models.map { displayName(forModelId: $0) }.joined(separator: ", ")
+                items.append(.init(label: "Model:", value: modelNames))
+            }
         }
         return items
     }

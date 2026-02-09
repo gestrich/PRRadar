@@ -171,6 +171,11 @@ struct CommentApprovalView: View {
                     Text("Cost:")
                         .foregroundStyle(.secondary)
                     Text(String(format: "$%.4f", cost))
+                    if let model = comment.modelUsed {
+                        Text("·")
+                            .foregroundStyle(.secondary)
+                        Text(displayName(forModelId: model))
+                    }
                 }
                 .font(.caption)
             }
