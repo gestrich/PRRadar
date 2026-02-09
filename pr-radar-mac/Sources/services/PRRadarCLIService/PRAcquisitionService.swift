@@ -5,10 +5,12 @@ import PRRadarModels
 public struct PRAcquisitionService: Sendable {
     private let gitHub: GitHubService
     private let gitOps: GitOperationsService
+    private let imageDownload: ImageDownloadService
 
-    public init(gitHub: GitHubService, gitOps: GitOperationsService) {
+    public init(gitHub: GitHubService, gitOps: GitOperationsService, imageDownload: ImageDownloadService = ImageDownloadService()) {
         self.gitHub = gitHub
         self.gitOps = gitOps
+        self.imageDownload = imageDownload
     }
 
     public struct AcquisitionResult: Sendable {
@@ -100,6 +102,18 @@ public struct PRAcquisitionService: Sendable {
         let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
         try write(repoJSON, to: "\(phaseDir)/gh-repo.json")
 
+        // Download images from PR body and comments
+        let imageURLMap = await downloadImages(
+            prNumber: prNumber,
+            pullRequest: pullRequest,
+            comments: comments,
+            phaseDir: phaseDir
+        )
+        if !imageURLMap.isEmpty {
+            let mapJSON = try JSONEncoder.prettyPrinted.encode(imageURLMap)
+            try write(mapJSON, to: "\(phaseDir)/image-url-map.json")
+        }
+
         // Write phase_result.json to mark successful completion
         try PhaseResultWriter.writeSuccess(
             phase: .pullRequest,
@@ -120,6 +134,39 @@ public struct PRAcquisitionService: Sendable {
     }
 
     // MARK: - Private
+
+    private func downloadImages(
+        prNumber: Int,
+        pullRequest: GitHubPullRequest,
+        comments: GitHubPullRequestComments,
+        phaseDir: String
+    ) async -> [String: String] {
+        do {
+            let bodyHTML = try await gitHub.fetchBodyHTML(number: prNumber)
+            let imagesDir = "\(phaseDir)/images"
+
+            var allResolved: [String: URL] = [:]
+
+            // Resolve images from PR body
+            if let body = pullRequest.body {
+                let resolved = imageDownload.resolveImageURLs(body: body, bodyHTML: bodyHTML)
+                allResolved.merge(resolved) { _, new in new }
+            }
+
+            // Resolve images from issue comments
+            for comment in comments.comments {
+                let resolved = imageDownload.resolveImageURLs(body: comment.body, bodyHTML: bodyHTML)
+                allResolved.merge(resolved) { _, new in new }
+            }
+
+            guard !allResolved.isEmpty else { return [:] }
+
+            return try await imageDownload.downloadImages(urls: allResolved, to: imagesDir)
+        } catch {
+            // Image download failures are non-fatal
+            return [:]
+        }
+    }
 
     private func write(_ string: String, to path: String) throws {
         try string.write(toFile: path, atomically: true, encoding: .utf8)

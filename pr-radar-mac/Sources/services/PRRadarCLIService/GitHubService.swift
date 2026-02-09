@@ -163,6 +163,12 @@ public struct GitHubService: Sendable {
         return repo.toGitHubRepository()
     }
 
+    // MARK: - GraphQL Operations
+
+    public func fetchBodyHTML(number: Int) async throws -> String {
+        try await octokitClient.pullRequestBodyHTML(owner: owner, repository: repo, number: number)
+    }
+
     // MARK: - Comment Operations
 
     public func getPRHeadSHA(number: Int) async throws -> String {

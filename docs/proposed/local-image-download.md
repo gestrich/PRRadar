@@ -58,17 +58,17 @@ Create an image resolution and download service that:
 - Download failures are silently skipped (non-fatal) — the original URL stays in place, matching the graceful degradation requirement
 - Regex-based extraction: `NSRegularExpression` for both markdown body URL parsing and HTML `<img src>` parsing
 
-## - [ ] Phase 3: Integrate Image Download into PR Acquisition
+## - [x] Phase 3: Integrate Image Download into PR Acquisition
 
 Wire the image download into `PRAcquisitionService` so images are fetched and stored during the pull-request acquisition phase.
 
-**Files to modify:**
+**Files modified:**
 - `Sources/services/PRRadarCLIService/PRAcquisitionService.swift`
 - `Sources/services/PRRadarCLIService/GitHubService.swift`
 
 **Tasks:**
-- In `GitHubService`, add a method to fetch `bodyHTML` for a PR (delegates to `OctokitClient.pullRequestBodyHTML`)
-- In `PRAcquisitionService.acquire()`, after writing `gh-pr.json`:
+- [x] In `GitHubService`, add a method to fetch `bodyHTML` for a PR (delegates to `OctokitClient.pullRequestBodyHTML`)
+- [x] In `PRAcquisitionService.acquire()`, after writing `gh-pr.json`:
   1. Fetch `bodyHTML` via `GitHubService`
   2. Call `ImageDownloadService.resolveImageURLs()` for the PR body
   3. Do the same for each comment body in `gh-comments.json` (comments can also have images)
@@ -87,6 +87,13 @@ phase-1-pull-request/
 ```
 
 **Error handling:** Image download failures should be logged but not block acquisition. Missing images degrade gracefully (the original URL stays, same as current behavior).
+
+**Technical notes:**
+- `ImageDownloadService` added as an injectable dependency on `PRAcquisitionService` with a default value, so existing callers are unaffected
+- `GitHubService.fetchBodyHTML(number:)` delegates to `OctokitClient.pullRequestBodyHTML` — placed under a new `// MARK: - GraphQL Operations` section
+- The single `bodyHTML` response is used to resolve URLs for both the PR body and issue comments (comments reference the same `user-attachments` URLs that appear in the resolved HTML)
+- `image-url-map.json` is only written when images are actually found and downloaded
+- The entire image download flow is wrapped in a do/catch that returns an empty map on failure — acquisition continues regardless
 
 ## - [ ] Phase 4: Update RichContentView to Use Local Images
 
