@@ -2,12 +2,9 @@
 
 ## Small
 
-- [ ] Fix task counts display on rules view
-  The task counts shown are confusing.
-- [ ] Filter tasks/rules list by selected file
-  The rules phase view shows tasks but not filtered to the selected file.
-  Should show file-specific tasks expandable with rule description and focus
-  area details.
+
+- [ ] Combine rules info in diff view
+  The rules phase can be merged into the diff view. We can do this with a buton above each file in diff view that show that tasks that were run on it. That would show al lthe details (rule info, and results)
 - [ ] Persist AI output as artifacts and support viewing in app/CLI
   AI output from each pipeline step should be saved to a file alongside the other
   artifacts. When browsing results in the MacApp or CLI, the AI output from the run
@@ -22,28 +19,11 @@
 - [ ] Show GitHub real name in UI alongside handle
   Display the user's full name (from GitHub profile) in addition to their handle
   where author info is shown, if available via the GitHub API.
-- [ ] Show all GitHub comment details in Mac app comment preview
-  The comment preview in the Mac diff view is missing details that appear in the
-  posted GitHub comments — specifically the "PR Radar" link and the cost to run.
-  Ensure all metadata shown in the GitHub comment is also displayed in the app's
-  comment preview.
-- [x] Show model used in report and cost displays
-  Wherever we show cost (e.g., report output, comment preview, CLI summary), also
-  display the AI model that was used for the evaluation. Helps with understanding
-  cost differences and reproducing results.
-- [ ] Hide PR-level comments from file view
-  PR-level comments (not associated with a specific file) should not appear in the
-  per-file comment view. Only file-level comments should be shown there.
 - [ ] Posted comments badge indicators
   Show a badge on each PR in the list view indicating the number of posted
   (not pending) comments, styled with a different color than pending comments.
   Also show a per-file badge in the file list indicating how many posted
   comments exist for that file.
-- [ ] Render pending comments as markdown using the same views as posted comments
-  Pending comments should display using the exact markdown string that will be
-  posted to the PR. This means reusing the same comment rendering views used for
-  posted GitHub comments, giving a consistent look and a true preview of what
-  will appear on the PR.
 - [ ] Fix broken rule links in posted PR comments
   The links to the associated rule in posted comments are broken. May be caused
   by using a custom output folder on the Desktop. Needs investigation to confirm
@@ -53,10 +33,11 @@
   comments, and metadata (phase 1 / DIFF phase). Currently this requires a
   manual action. The data should start downloading as soon as the PR is opened
   so the user sees up-to-date information immediately.
-- [ ] Differentiate PR status in PR list view
-  Show visual differences between PR states: merged vs closed (not merged), and
-  open vs draft. Use distinct colors or icons so the status is immediately clear
-  at a glance in the list view.
+- [ ] GitHub-style continuous scroll diff view
+  Replace the current file-by-file diff navigation with a single continuous
+  scrolling list showing all files in one view, similar to GitHub's PR diff
+  page. The file list sidebar should act as scroll anchors — tapping a file
+  name scrolls to that file's section within the unified scroll view.
 
 ## Medium
 

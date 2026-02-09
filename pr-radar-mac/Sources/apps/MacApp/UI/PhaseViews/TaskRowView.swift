@@ -5,8 +5,6 @@ struct TaskRowView: View {
 
     let task: EvaluationTaskOutput
 
-    @State private var isExpanded = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -39,27 +37,23 @@ struct TaskRowView: View {
                     .clipShape(Capsule())
             }
 
-            DisclosureGroup("Rule Content", isExpanded: $isExpanded) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(task.rule.content)
-                        .font(.system(.caption, design: .monospaced))
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                    if let link = task.rule.documentationLink {
-                        HStack(spacing: 4) {
-                            Text("Docs:")
-                                .foregroundStyle(.secondary)
-                            Text(link)
-                                .foregroundStyle(.blue)
-                        }
-                        .font(.caption)
-                    }
-                }
+            if !task.rule.content.isEmpty {
+                Text(task.rule.content)
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
             }
-            .font(.caption)
+
+            if let link = task.rule.documentationLink, let url = URL(string: link) {
+                HStack(spacing: 4) {
+                    Text("Docs:")
+                        .foregroundStyle(.secondary)
+                    Link(link, destination: url)
+                }
+                .font(.caption)
+            }
         }
     }
 }

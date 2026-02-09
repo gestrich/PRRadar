@@ -13,26 +13,15 @@ struct DiffPhaseView: View {
 
     @State private var selectedTab = 0
     @State private var selectedFile: String?
-    @State private var showTasks = false
+    @State private var showTasksForFile: String?
 
     private var hasEvaluationData: Bool {
         comments != nil && evaluationSummary != nil
     }
 
-    private var tasksForSelectedFile: [EvaluationTaskOutput] {
-        guard let file = selectedFile else { return [] }
-        return tasks.filter { $0.focusArea.filePath == file }
-    }
-
     private var taskCountsByFile: [String: Int] {
         Dictionary(grouping: tasks, by: \.focusArea.filePath)
             .mapValues(\.count)
-    }
-
-    private var tasksByFile: [(file: String, tasks: [EvaluationTaskOutput])] {
-        Dictionary(grouping: tasks, by: \.focusArea.filePath)
-            .sorted { $0.value.count > $1.value.count }
-            .map { (file: $0.key, tasks: $0.value) }
     }
 
     var body: some View {
@@ -184,13 +173,19 @@ struct DiffPhaseView: View {
         }()
 
         VStack(spacing: 0) {
-            if selectedFile == nil && !tasks.isEmpty {
-                allFilesTaskSummary()
-            }
-
-            let fileTasks = tasksForSelectedFile
-            if !fileTasks.isEmpty {
-                tasksSection(fileTasks)
+            if let file = selectedFile, let taskCount = taskCountsByFile[file], taskCount > 0 {
+                HStack {
+                    Button {
+                        showTasksForFile = file
+                    } label: {
+                        Label("\(taskCount) \(taskCount == 1 ? "Task" : "Tasks")", systemImage: "list.clipboard")
+                            .font(.callout)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+                .background(.bar)
                 Divider()
             }
 
@@ -206,69 +201,27 @@ struct DiffPhaseView: View {
                 RichDiffContentView(diff: filtered)
             }
         }
-    }
-
-    // MARK: - Tasks Section
-
-    @ViewBuilder
-    private func tasksSection(_ fileTasks: [EvaluationTaskOutput]) -> some View {
-        DisclosureGroup(isExpanded: $showTasks) {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(fileTasks, id: \.taskId) { task in
-                    taskRow(task)
-                    if task.taskId != fileTasks.last?.taskId {
-                        Divider()
-                    }
-                }
-            }
-        } label: {
-            Text("Tasks (\(fileTasks.count))")
-                .font(.headline)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-    }
-
-    @ViewBuilder
-    private func allFilesTaskSummary() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Tasks by File")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(tasksByFile, id: \.file) { entry in
-                        Button {
-                            selectedFile = entry.file
-                        } label: {
-                            HStack {
-                                Text(URL(fileURLWithPath: entry.file).lastPathComponent)
-                                    .lineLimit(1)
-                                Spacer()
-                                taskBadge(count: entry.tasks.count)
-                            }
-                            .padding(.horizontal)
-                            .padding(.vertical, 6)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-
-                        if entry.file != tasksByFile.last?.file {
-                            Divider().padding(.horizontal)
-                        }
-                    }
-                }
+        .sheet(isPresented: Binding(
+            get: { showTasksForFile != nil },
+            set: { if !$0 { showTasksForFile = nil } }
+        )) {
+            if let file = showTasksForFile {
+                tasksSheet(for: file)
             }
         }
     }
 
+    // MARK: - Tasks
+
     @ViewBuilder
-    private func taskRow(_ task: EvaluationTaskOutput) -> some View {
-        TaskRowView(task: task)
-            .padding(.vertical, 6)
+    private func tasksSheet(for file: String) -> some View {
+        let fileTasks = tasks.filter { $0.focusArea.filePath == file }
+        TasksPagerView(
+            fileName: URL(fileURLWithPath: file).lastPathComponent,
+            tasks: fileTasks,
+            onDismiss: { showTasksForFile = nil }
+        )
+        .frame(minWidth: 500, minHeight: 300)
     }
 
     @ViewBuilder
