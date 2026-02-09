@@ -204,15 +204,64 @@ public struct GitHubPullRequest: Codable, Sendable {
     }
 }
 
+// MARK: - Review Comments (inline code comments with path/line)
+
+public struct GitHubReviewComment: Codable, Sendable, Identifiable {
+    public let id: String
+    public let body: String
+    public let path: String
+    public let line: Int?
+    public let startLine: Int?
+    public let author: GitHubAuthor?
+    public let createdAt: String?
+    public let url: String?
+    public let inReplyToId: String?
+
+    public init(
+        id: String,
+        body: String,
+        path: String,
+        line: Int? = nil,
+        startLine: Int? = nil,
+        author: GitHubAuthor? = nil,
+        createdAt: String? = nil,
+        url: String? = nil,
+        inReplyToId: String? = nil
+    ) {
+        self.id = id
+        self.body = body
+        self.path = path
+        self.line = line
+        self.startLine = startLine
+        self.author = author
+        self.createdAt = createdAt
+        self.url = url
+        self.inReplyToId = inReplyToId
+    }
+}
+
 // MARK: - Pull Request Comments
 
 public struct GitHubPullRequestComments: Codable, Sendable {
     public let comments: [GitHubComment]
     public let reviews: [GitHubReview]
+    public let reviewComments: [GitHubReviewComment]
 
-    public init(comments: [GitHubComment] = [], reviews: [GitHubReview] = []) {
+    public init(
+        comments: [GitHubComment] = [],
+        reviews: [GitHubReview] = [],
+        reviewComments: [GitHubReviewComment] = []
+    ) {
         self.comments = comments
         self.reviews = reviews
+        self.reviewComments = reviewComments
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        comments = try container.decode([GitHubComment].self, forKey: .comments)
+        reviews = try container.decode([GitHubReview].self, forKey: .reviews)
+        reviewComments = try container.decodeIfPresent([GitHubReviewComment].self, forKey: .reviewComments) ?? []
     }
 }
 

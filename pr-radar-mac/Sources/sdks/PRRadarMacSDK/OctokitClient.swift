@@ -98,6 +98,44 @@ private struct PullRequestFile: Codable {
     }
 }
 
+private struct ReviewCommentResponse: Codable {
+    let id: Int
+    let body: String
+    let path: String
+    let line: Int?
+    let startLine: Int?
+    let createdAt: String?
+    let htmlUrl: String?
+    let inReplyToId: Int?
+    let user: ReviewCommentUser?
+
+    struct ReviewCommentUser: Codable {
+        let login: String
+        let id: Int
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, body, path, line, user
+        case startLine = "start_line"
+        case createdAt = "created_at"
+        case htmlUrl = "html_url"
+        case inReplyToId = "in_reply_to_id"
+    }
+}
+
+public struct ReviewCommentData: Sendable {
+    public let id: Int
+    public let body: String
+    public let path: String
+    public let line: Int?
+    public let startLine: Int?
+    public let createdAt: String?
+    public let htmlUrl: String?
+    public let inReplyToId: Int?
+    public let userLogin: String?
+    public let userId: Int?
+}
+
 public struct OctokitClient: Sendable {
     private let token: String
     private let apiEndpoint: String?
@@ -181,6 +219,51 @@ public struct OctokitClient: Sendable {
             throw OctokitClientError.authenticationFailed
         case 404:
             throw OctokitClientError.notFound("Pull request \(number) files not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    public func listPullRequestReviewComments(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> [ReviewCommentData] {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)/comments")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            let responses = try decoder.decode([ReviewCommentResponse].self, from: data)
+            return responses.map { r in
+                ReviewCommentData(
+                    id: r.id,
+                    body: r.body,
+                    path: r.path,
+                    line: r.line,
+                    startLine: r.startLine,
+                    createdAt: r.createdAt,
+                    htmlUrl: r.htmlUrl,
+                    inReplyToId: r.inReplyToId,
+                    userLogin: r.user?.login,
+                    userId: r.user?.id
+                )
+            }
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("Pull request \(number) review comments not found")
         case 403:
             throw OctokitClientError.rateLimitExceeded
         default:

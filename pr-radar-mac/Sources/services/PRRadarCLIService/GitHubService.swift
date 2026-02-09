@@ -53,7 +53,24 @@ public struct GitHubService: Sendable {
             )
         }
 
-        return GitHubPullRequestComments(comments: comments, reviews: reviews)
+        let reviewCommentList = try await octokitClient.listPullRequestReviewComments(
+            owner: owner, repository: repo, number: number
+        )
+        let reviewComments = reviewCommentList.map { rc in
+            GitHubReviewComment(
+                id: String(rc.id),
+                body: rc.body,
+                path: rc.path,
+                line: rc.line,
+                startLine: rc.startLine,
+                author: rc.userLogin.map { GitHubAuthor(login: $0, id: rc.userId.map(String.init)) },
+                createdAt: rc.createdAt,
+                url: rc.htmlUrl,
+                inReplyToId: rc.inReplyToId.map(String.init)
+            )
+        }
+
+        return GitHubPullRequestComments(comments: comments, reviews: reviews, reviewComments: reviewComments)
     }
 
     public func listPullRequests(
