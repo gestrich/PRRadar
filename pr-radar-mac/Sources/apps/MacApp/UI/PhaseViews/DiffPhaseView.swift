@@ -190,23 +190,6 @@ struct DiffPhaseView: View {
         }()
 
         VStack(spacing: 0) {
-            if let file = selectedFile, let oldPath = renameFrom(for: file, in: diff) {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.right")
-                        .foregroundStyle(.secondary)
-                    Text("Renamed from")
-                        .foregroundStyle(.secondary)
-                    Text(oldPath)
-                        .fontWeight(.medium)
-                    Spacer()
-                }
-                .font(.callout)
-                .padding(.horizontal)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.08))
-                Divider()
-            }
-
             if let file = selectedFile, let taskCount = taskCountsByFile[file], taskCount > 0 {
                 HStack {
                     Button {

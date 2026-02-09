@@ -115,27 +115,17 @@ Add unit tests in `PRRadarModelsTests` for:
 - `@State` for `selectedFile` is appropriate for transient UI selection
 - No @Observable model needed since `GitDiff` is a parameter
 
-## - [ ] Phase 3: Architecture Validation
+## - [x] Phase 3: Architecture Validation
 
-Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
+**Completed**: Reviewed all Phase 1–2 commits (`fc4ac71`, `e83692f`) against the `swift-architecture` and `swift-swiftui` skills from `gestrich/swift-app-architecture`. Found and fixed one violation: duplicate rename header in `DiffPhaseView.diffContent()` that repeated what `RichDiffContentView`/`AnnotatedDiffContentView` already display (Zero Duplication principle). All other conventions validated — layer placement, dependency flow, @Observable confinement, SwiftUI Model-View pattern, code style. Build succeeds, all 273 tests pass.
 
-**For Swift changes** (`pr-radar-mac/`):
-- Re-read the `swift-architecture` and `swift-swiftui` skills from `https://github.com/gestrich/swift-app-architecture` (`plugin/skills/`)
-- Compare the commits made against the conventions described in each skill
-- If any code violates the conventions, make corrections
-
-**Process:**
-1. Run `git log` to identify all commits made during this plan's execution
-2. Run `git diff` against the starting commit to see all changes
-3. Fetch and read ALL skills from the swift-app-architecture repo
-4. Evaluate the changes against each skill's conventions
-5. Fix any violations found
-
-Key validations:
-- `Hunk.renameFrom` is in the Services/Models layer (correct for shared data models)
-- No @Observable annotations outside the Apps layer
-- UI changes are in the Apps layer only
-- No unnecessary new types or abstractions
+**Validation results:**
+- `Hunk.renameFrom` in Services/PRRadarModels — correct (shared data model)
+- `GitDiff.renamedFiles` computed property in Services/PRRadarModels — correct
+- `RenameHeaderView` in Apps/MacApp — correct (UI only, reused by both `RichDiffContentView` and `AnnotatedDiffContentView`)
+- No @Observable outside Apps layer — confirmed
+- No upward dependencies — confirmed
+- `DiffPhaseView` inline rename header removed — was duplicating `RenameHeaderView` shown by child views
 
 ## - [ ] Phase 4: Validation
 
