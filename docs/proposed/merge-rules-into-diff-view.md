@@ -53,7 +53,7 @@ Pass the tasks data from `PRModel.rules?.tasks` into `DiffPhaseView` through `Re
 - `ReviewDetailView` already has access to `prModel` which holds both `diff` and `rules` data
 - This is a simple wiring change — the model already loads both phase outputs in `loadDetail()`
 
-## - [ ] Phase 3: Remove the standalone Rules navigation tab
+## - [x] Phase 3: Remove the standalone Rules navigation tab
 
 Since all rules/tasks information is now accessible from the Diff view, remove the Rules tab from the navigation.
 
@@ -71,6 +71,13 @@ Since all rules/tasks information is now accessible from the Diff view, remove t
 **Architecture notes:**
 - The `NavigationPhase` enum drives the tab bar — removing a case cleanly removes the tab
 - Phase states for `.focusAreas`, `.rules`, `.tasks` should roll up into the `.diff` navigation phase so the status indicator still shows when those pipeline phases are running/completed/failed
+
+**Completion notes:**
+- Removed `.rules` case from `NavigationPhase` enum (3 tabs now: Summary, Diff, Report)
+- Merged `.focusAreas`, `.rules`, `.tasks` into `.diff`'s `representedPhases` so the Diff tab status indicator reflects those pipeline phases
+- Changed `PhaseInputView` secondary phase from `.evaluations` to `.rules` — the Diff tab now shows a "Rules & Tasks" run button alongside the diff fetch
+- Removed `rulesOutputView` and its `.rules` case from `phaseOutputView` in `ReviewDetailView`
+- `RulesPhaseView.swift` retained as planned
 
 ## - [ ] Phase 4: Show "all files" task summary when no file is selected
 

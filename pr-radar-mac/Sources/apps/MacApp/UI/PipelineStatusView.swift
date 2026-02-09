@@ -4,14 +4,12 @@ import SwiftUI
 enum NavigationPhase: CaseIterable {
     case summary
     case diff
-    case rules
     case report
 
     var displayName: String {
         switch self {
         case .summary: "Summary"
         case .diff: "Diff"
-        case .rules: "Rules"
         case .report: "Report"
         }
     }
@@ -20,7 +18,6 @@ enum NavigationPhase: CaseIterable {
         switch self {
         case .summary: .pullRequest
         case .diff: .pullRequest
-        case .rules: .rules
         case .report: .report
         }
     }
@@ -28,8 +25,7 @@ enum NavigationPhase: CaseIterable {
     var representedPhases: [PRRadarPhase] {
         switch self {
         case .summary: []
-        case .diff: [.pullRequest, .evaluations]
-        case .rules: [.focusAreas, .rules, .tasks]
+        case .diff: [.pullRequest, .focusAreas, .rules, .tasks, .evaluations]
         case .report: [.report]
         }
     }

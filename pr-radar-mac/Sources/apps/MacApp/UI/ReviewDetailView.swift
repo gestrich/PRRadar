@@ -26,11 +26,11 @@ struct ReviewDetailView: View {
                     imageBaseDir: prModel.imageBaseDir
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .diff, .rules, .report:
+            case .diff, .report:
                 PhaseInputView(
                     prModel: prModel,
                     phase: selectedNavPhase.primaryPhase,
-                    secondaryPhase: selectedNavPhase == .diff ? .evaluations : nil
+                    secondaryPhase: selectedNavPhase == .diff ? .rules : nil
                 )
                     .padding()
 
@@ -86,8 +86,6 @@ struct ReviewDetailView: View {
             EmptyView()
         case .diff:
             diffOutputView
-        case .rules:
-            rulesOutputView
         case .report:
             reportOutputView
         }
@@ -143,25 +141,6 @@ struct ReviewDetailView: View {
                 "No Diff Data",
                 systemImage: "doc.text",
                 description: Text("Run Phase 1 to fetch the PR diff.")
-            )
-        }
-    }
-
-    @ViewBuilder
-    private var rulesOutputView: some View {
-        if let output = prModel.rules {
-            RulesPhaseView(
-                focusAreas: output.focusAreas,
-                rules: output.rules,
-                tasks: output.tasks
-            )
-        } else if case .running(let logs) = prModel.stateFor(prModel.selectedPhase) {
-            runningLogView(logs)
-        } else {
-            ContentUnavailableView(
-                "No Rules Data",
-                systemImage: "list.clipboard",
-                description: Text("Run Phases 2-4 to generate focus areas, rules, and tasks.")
             )
         }
     }
