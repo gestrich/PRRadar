@@ -101,7 +101,7 @@ OctoKit's `PullRequest.Comment` model is missing the `path` field, so we need th
 
 **Verification**: `swift build` compiles. Run `swift run MacApp`, open a PR with existing GitHub review comments, navigate to evaluations phase — posted comments should appear inline with green styling alongside pending comments in blue.
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -116,6 +116,14 @@ Review all commits made during the preceding phases and validate they follow the
 3. Fetch and read ALL skills from the swift-app-architecture GitHub repo
 4. Evaluate the changes against each skill's conventions
 5. Fix any violations found
+
+> **Validation results:** All 13 skill files from both `swift-architecture` and `swift-swiftui` skills were reviewed. No violations found:
+> - **Layer placement**: SDK types in SDKs, domain model in Services, mapping in Services, views/mapper/model in Apps. Dependency flow is downward only.
+> - **Code style**: Imports alphabetically ordered in all files. File structure follows properties → init → computed → methods → nested types convention.
+> - **Default values**: Used only for genuinely optional parameters and backward compatibility (documented in phase notes). No silent fallbacks masking errors.
+> - **SDK statelessness**: `ReviewCommentData` is a `Sendable` struct with no mutable state. `OctokitClient` wraps a single API call.
+> - **@Observable in Apps only**: Only `PRModel` uses `@Observable`.
+> - **SwiftUI patterns**: `InlinePostedCommentView` uses prerequisite data pattern (non-optional `let`), pure rendering with no model. Matches existing `InlineCommentView` structure.
 
 ## - [ ] Phase 6: Validation
 
