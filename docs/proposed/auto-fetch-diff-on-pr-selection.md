@@ -153,7 +153,7 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 - `FetchDiffUseCase.execute()` has `try Task.checkCancellation()` before service creation, before acquisition, and after acquisition — `CancellationError` is propagated via `continuation.finish(throwing:)`
 - Saved PR restore `.task` sets `selectedPR` which triggers `.onChange` → auto-refresh, confirmed working
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -173,6 +173,18 @@ Review all commits made during the preceding phases and validate they follow the
    - No separate `@State` booleans for loading when the model already has the state
    - Task cancellation uses cooperative structured concurrency
 5. Fix any violations found
+
+**Validation results:**
+- `@Observable` only in Apps layer: PASS — `PRModel` in `apps/MacApp/Models/`, no `@Observable` in SDK/Services/Features
+- Use cases in Features layer: PASS — `FetchDiffUseCase` handles multi-step orchestration; `PRModel.isStale()` is a single-call prerequisite check (not multi-step orchestration), acceptable in the model
+- SDK stateless single-operation: PASS — `OctokitClient.pullRequestUpdatedAt()` is a single GraphQL query, matches existing `pullRequestBodyHTML()` pattern, `OctokitClient` is a `Sendable` struct
+- No `@State` loading booleans: PASS — all views drive loading indicators from `PRModel.PhaseState` enum via pattern matching
+- Cooperative structured concurrency: PASS — `refreshDiff()` cancels previous task, `FetchDiffUseCase` has `Task.checkCancellation()` at 3 points, `CancellationError` caught and handled
+- Dependency flow (Apps→Features→Services→SDKs): PASS — no upward dependencies
+- Enum-based state: PASS — `.refreshing(logs:)` follows existing `PhaseState` pattern, views use exhaustive `switch`
+- Code style: PASS — imports alphabetical, file organization correct, default parameters used only for genuinely optional cases
+- Zero duplication: PASS — `FetchDiffUseCase` shared between CLI and Mac app
+- No violations found; no corrections needed
 
 ## - [ ] Phase 6: Validation
 
