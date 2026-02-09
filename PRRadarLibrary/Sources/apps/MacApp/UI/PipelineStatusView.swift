@@ -5,12 +5,14 @@ enum NavigationPhase: CaseIterable {
     case summary
     case diff
     case report
+    case aiOutput
 
     var displayName: String {
         switch self {
         case .summary: "Summary"
         case .diff: "Diff"
         case .report: "Report"
+        case .aiOutput: "AI Output"
         }
     }
 
@@ -19,6 +21,7 @@ enum NavigationPhase: CaseIterable {
         case .summary: .pullRequest
         case .diff: .pullRequest
         case .report: .report
+        case .aiOutput: .evaluations
         }
     }
 
@@ -27,6 +30,7 @@ enum NavigationPhase: CaseIterable {
         case .summary: []
         case .diff: [.pullRequest, .focusAreas, .rules, .tasks, .evaluations]
         case .report: [.report]
+        case .aiOutput: [.focusAreas, .evaluations]
         }
     }
 }

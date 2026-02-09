@@ -38,6 +38,9 @@ struct ReviewDetailView: View {
 
                 phaseOutputView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .aiOutput:
+                aiOutputView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -83,6 +86,8 @@ struct ReviewDetailView: View {
             diffOutputView
         case .report:
             reportOutputView
+        case .aiOutput:
+            EmptyView()
         }
     }
 
@@ -148,6 +153,29 @@ struct ReviewDetailView: View {
                 "No Diff Data",
                 systemImage: "doc.text",
                 description: Text("Run Phase 1 to fetch the PR diff.")
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var aiOutputView: some View {
+        if prModel.isAIPhaseRunning {
+            AIOutputStreamView(
+                text: prModel.aiOutputText,
+                isRunning: true
+            )
+        } else if !prModel.savedTranscripts.isEmpty {
+            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts)
+        } else if !prModel.aiOutputText.isEmpty {
+            AIOutputStreamView(
+                text: prModel.aiOutputText,
+                isRunning: false
+            )
+        } else {
+            ContentUnavailableView(
+                "No AI Output",
+                systemImage: "text.bubble",
+                description: Text("Run Focus Areas or Evaluations to see AI output.")
             )
         }
     }

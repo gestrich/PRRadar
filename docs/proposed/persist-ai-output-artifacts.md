@@ -176,7 +176,7 @@ Update the Feature-layer use cases to surface AI text output through the `PhaseP
 - All MacApp model switch sites updated with `case .aiOutput: break` (Phase 5 will add proper UI handling)
 - Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
-## - [ ] Phase 5: MacApp UI — Transcript Viewing and Streaming
+## - [x] Phase 5: MacApp UI — Transcript Viewing and Streaming
 
 Add AI transcript browsing and real-time streaming display to the MacApp.
 
@@ -210,6 +210,17 @@ Add AI transcript browsing and real-time streaming display to the MacApp.
 **Architecture notes:**
 - Per the swift-swiftui conventions, `@Observable` models (like `PRModel`) live in the Apps layer and are `@MainActor`. Views connect directly to models — no separate ViewModels.
 - The `AITranscriptView` and `AIOutputStreamView` are pure views that take data as parameters. State is managed in `PRModel`.
+
+**Completion notes:**
+- `PRModel` updated with `aiOutputText: String` and `savedTranscripts: [PRRadarPhase: [BridgeTranscript]]` properties
+- `runRules()` and `runEvaluate()` now accumulate `.aiOutput(text:)` into `aiOutputText` (reset at phase start), and reload saved transcripts on completion
+- `loadSavedTranscripts()` added to read `ai-transcript-*.json` files from focus areas and evaluations phase directories using `PhaseOutputParser` (JSON decoder with `.iso8601` date strategy)
+- `isAIPhaseRunning` computed property checks if focus areas or evaluations are in `.running` state
+- `AITranscriptView` provides HSplitView with phase picker (segmented control), transcript list sidebar (identifier, model, cost), and detail pane showing events (text as monospaced blocks, tool use as `DisclosureGroup`, results as green-labeled code) plus metadata header
+- `AIOutputStreamView` uses `ScrollViewReader` with auto-scroll to bottom on text change, plus a running indicator banner
+- `NavigationPhase.aiOutput` added as fourth tab in `PipelineStatusView`, representing `.focusAreas` and `.evaluations` phases
+- `ReviewDetailView` routes `.aiOutput` to `AIOutputStreamView` during live runs, `AITranscriptView` for completed transcripts, or `ContentUnavailableView` when empty
+- Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
 ## - [ ] Phase 6: CLI — Transcript Display
 

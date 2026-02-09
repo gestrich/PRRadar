@@ -40,6 +40,9 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
+    private(set) var aiOutputText: String = ""
+    private(set) var savedTranscripts: [PRRadarPhase: [BridgeTranscript]] = [:]
+
     private(set) var operationMode: OperationMode = .idle
     private var refreshTask: Task<Void, Never>?
 
@@ -79,6 +82,14 @@ final class PRModel: Identifiable, Hashable {
             case .running, .refreshing: return true
             default: return false
             }
+        }
+    }
+
+    var isAIPhaseRunning: Bool {
+        let aiPhases: [PRRadarPhase] = [.focusAreas, .evaluations]
+        return aiPhases.contains { phase in
+            if case .running = stateFor(phase) { return true }
+            return false
         }
     }
 
@@ -133,6 +144,7 @@ final class PRModel: Identifiable, Hashable {
         loadPhaseStates()
         loadCachedDiff()
         loadCachedNonDiffOutputs()
+        loadSavedTranscripts()
 
         detailState = .loaded(ReviewSnapshot(
             diff: self.diff,
@@ -256,6 +268,33 @@ final class PRModel: Identifiable, Hashable {
             phaseStates[.pullRequest] = .completed(logs: "")
         } else {
             phaseStates[.pullRequest] = .idle
+        }
+    }
+
+    private func loadSavedTranscripts() {
+        let aiPhases: [PRRadarPhase] = [.focusAreas, .evaluations]
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        for phase in aiPhases {
+            let files = PhaseOutputParser.listPhaseFiles(
+                config: config, prNumber: prNumber, phase: phase
+            )
+            let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
+
+            var transcripts: [BridgeTranscript] = []
+            for filename in transcriptFiles {
+                if let data = try? PhaseOutputParser.readPhaseFile(
+                    config: config, prNumber: prNumber, phase: phase, filename: filename
+                ),
+                   let transcript = try? decoder.decode(BridgeTranscript.self, from: data)
+                {
+                    transcripts.append(transcript)
+                }
+            }
+            if !transcripts.isEmpty {
+                savedTranscripts[phase] = transcripts
+            }
         }
     }
 
@@ -493,6 +532,7 @@ final class PRModel: Identifiable, Hashable {
         for phase in rulesPhases {
             phaseStates[phase] = .running(logs: "")
         }
+        aiOutputText = ""
 
         let useCase = FetchRulesUseCase(config: config)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
@@ -506,12 +546,14 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendLog(text, to: .rules)
-                case .aiOutput: break
+                case .aiOutput(let text):
+                    aiOutputText += text
                 case .completed(let output):
                     rules = output
                     for phase in rulesPhases {
                         phaseStates[phase] = .completed(logs: "")
                     }
+                    loadSavedTranscripts()
                 case .failed(let error, let logs):
                     for phase in rulesPhases {
                         phaseStates[phase] = .failed(error: error, logs: logs)
@@ -527,6 +569,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func runEvaluate() async {
         phaseStates[.evaluations] = .running(logs: "Running evaluations...\n")
+        aiOutputText = ""
 
         let useCase = EvaluateUseCase(config: config)
 
@@ -539,11 +582,13 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendLog(text, to: .evaluations)
-                case .aiOutput: break
+                case .aiOutput(let text):
+                    aiOutputText += text
                 case .completed(let output):
                     evaluation = output
                     let logs = runningLogs(for: .evaluations)
                     phaseStates[.evaluations] = .completed(logs: logs)
+                    loadSavedTranscripts()
                 case .failed(let error, let logs):
                     phaseStates[.evaluations] = .failed(error: error, logs: logs)
                 }
