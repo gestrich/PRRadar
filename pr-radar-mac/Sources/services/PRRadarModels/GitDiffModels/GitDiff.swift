@@ -21,21 +21,36 @@ import Foundation
         var currentHunk: [String] = []
         var fileHeader: [String] = []
         var currentFile: String?
+        var currentRenameFrom: String?
         var inHunk = false
         var hunks: [Hunk] = []
+
+        func flushCurrentFile() {
+            if !currentHunk.isEmpty, let file = currentFile {
+                if let hunk = Hunk.fromHunkData(fileHeader: fileHeader, hunkLines: currentHunk, filePath: file, renameFrom: currentRenameFrom) {
+                    hunks.append(hunk)
+                }
+            } else if currentRenameFrom != nil, let file = currentFile {
+                // Pure rename with no @@ hunks — create a hunk from headers only
+                let content = fileHeader.joined(separator: "\n")
+                hunks.append(Hunk(
+                    filePath: file,
+                    content: content,
+                    rawHeader: fileHeader,
+                    renameFrom: currentRenameFrom
+                ))
+            }
+        }
 
         var i = 0
         while i < lines.count {
             let line = lines[i]
 
             if line.hasPrefix("diff --git") {
-                if !currentHunk.isEmpty, let file = currentFile {
-                    if let hunk = Hunk.fromHunkData(fileHeader: fileHeader, hunkLines: currentHunk, filePath: file) {
-                        hunks.append(hunk)
-                    }
-                    currentHunk = []
-                    fileHeader = []
-                }
+                flushCurrentFile()
+                currentHunk = []
+                fileHeader = []
+                currentRenameFrom = nil
 
                 currentFile = extractFilePath(from: line)
                 fileHeader = [line]
@@ -44,9 +59,14 @@ import Foundation
                         || line.hasPrefix("new file") || line.hasPrefix("deleted file")
                         || line.hasPrefix("similarity") {
                 fileHeader.append(line)
+            } else if line.hasPrefix("rename from ") {
+                fileHeader.append(line)
+                currentRenameFrom = String(line.dropFirst("rename from ".count))
+            } else if line.hasPrefix("rename to ") {
+                fileHeader.append(line)
             } else if line.hasPrefix("@@") {
                 if !currentHunk.isEmpty, let file = currentFile {
-                    if let hunk = Hunk.fromHunkData(fileHeader: fileHeader, hunkLines: currentHunk, filePath: file) {
+                    if let hunk = Hunk.fromHunkData(fileHeader: fileHeader, hunkLines: currentHunk, filePath: file, renameFrom: currentRenameFrom) {
                         hunks.append(hunk)
                     }
                     currentHunk = []
@@ -60,11 +80,7 @@ import Foundation
             i += 1
         }
 
-        if !currentHunk.isEmpty, let file = currentFile {
-            if let hunk = Hunk.fromHunkData(fileHeader: fileHeader, hunkLines: currentHunk, filePath: file) {
-                hunks.append(hunk)
-            }
-        }
+        flushCurrentFile()
 
         return GitDiff(rawContent: diffContent, hunks: hunks, commitHash: commitHash)
     }
@@ -97,6 +113,12 @@ import Foundation
 
     public var changedFiles: [String] {
         Array(Set(hunks.map(\.filePath))).sorted()
+    }
+
+    public var renamedFiles: [(from: String, to: String)] {
+        hunks.compactMap { hunk in
+            hunk.renameFrom.map { (from: $0, to: hunk.filePath) }
+        }
     }
 
     public func diffSections() -> [DisplayDiffSection] {

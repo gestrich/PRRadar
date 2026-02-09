@@ -54,6 +54,8 @@ public struct DiffLine: Sendable {
     public let newStart: Int
     /// Number of lines in the new file section
     public let newLength: Int
+    /// The original path before rename, if this file was renamed (from `rename from` header)
+    public let renameFrom: String?
 
     public init(
         filePath: String,
@@ -62,7 +64,8 @@ public struct DiffLine: Sendable {
         oldStart: Int = 0,
         oldLength: Int = 0,
         newStart: Int = 0,
-        newLength: Int = 0
+        newLength: Int = 0,
+        renameFrom: String? = nil
     ) {
         self.filePath = filePath
         self.content = content
@@ -71,6 +74,7 @@ public struct DiffLine: Sendable {
         self.oldLength = oldLength
         self.newStart = newStart
         self.newLength = newLength
+        self.renameFrom = renameFrom
     }
 
     public var id: String {
@@ -118,7 +122,7 @@ public struct DiffLine: Sendable {
     }
 
     /// Create a Hunk from raw diff data
-    public static func fromHunkData(fileHeader: [String], hunkLines: [String], filePath: String?) -> Hunk? {
+    public static func fromHunkData(fileHeader: [String], hunkLines: [String], filePath: String?, renameFrom: String? = nil) -> Hunk? {
         guard let filePath, !filePath.isEmpty else { return nil }
 
         var oldStart = 0
@@ -163,7 +167,8 @@ public struct DiffLine: Sendable {
             oldStart: oldStart,
             oldLength: oldLength,
             newStart: newStart,
-            newLength: newLength
+            newLength: newLength,
+            renameFrom: renameFrom
         )
     }
 
