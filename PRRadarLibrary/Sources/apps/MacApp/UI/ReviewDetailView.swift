@@ -40,11 +40,6 @@ struct ReviewDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .onChange(of: selectedNavPhase) {
-            if selectedNavPhase != .summary {
-                prModel.selectedPhase = selectedNavPhase.primaryPhase
-            }
-        }
     }
 
     // MARK: - PR Header

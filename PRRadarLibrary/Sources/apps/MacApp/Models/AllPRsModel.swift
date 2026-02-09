@@ -66,7 +66,7 @@ final class AllPRsModel {
     private let settingsService: SettingsService
     private(set) var settings: AppSettings
 
-    init(config: PRRadarConfig, repoConfig: RepoConfiguration, settingsService: SettingsService = SettingsService()) {
+    init(config: PRRadarConfig, repoConfig: RepoConfiguration, settingsService: SettingsService) {
         self.config = config
         self.repoConfig = repoConfig
         self.settingsService = settingsService

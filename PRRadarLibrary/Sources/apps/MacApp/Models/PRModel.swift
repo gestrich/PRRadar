@@ -25,8 +25,6 @@ final class PRModel: Identifiable, Hashable {
     private(set) var analysisState: AnalysisState = .loading
     private(set) var detailState: DetailState = .unloaded
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
-    var selectedPhase: PRRadarPhase = .pullRequest
-
     private(set) var diff: DiffPhaseSnapshot?
     private(set) var rules: RulesPhaseOutput?
     private(set) var evaluation: EvaluationPhaseOutput?
@@ -38,6 +36,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var imageURLMap: [String: String] = [:]
     private(set) var imageBaseDir: String?
 
+    private(set) var commentPostingState: CommentPostingState = .idle
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
@@ -367,7 +366,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func runComments(dryRun: Bool) async {
-        phaseStates[.evaluations] = .running(logs: "Posting comments...\n")
+        commentPostingState = .running(logs: "Posting comments...\n")
 
         let useCase = PostCommentsUseCase(config: config)
 
@@ -379,17 +378,18 @@ final class PRModel: Identifiable, Hashable {
                 case .progress:
                     break
                 case .log(let text):
-                    appendLog(text, to: .evaluations)
+                    appendCommentLog(text)
                 case .completed(let output):
                     comments = output
-                    let logs = runningLogs(for: .evaluations)
-                    phaseStates[.evaluations] = .completed(logs: logs)
+                    let logs = commentPostingLogs
+                    commentPostingState = .completed(logs: logs)
                 case .failed(let error, let logs):
-                    phaseStates[.evaluations] = .failed(error: error, logs: logs)
+                    commentPostingState = .failed(error: error, logs: logs)
                 }
             }
         } catch {
-            phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: "")
+            let logs = commentPostingLogs
+            commentPostingState = .failed(error: error.localizedDescription, logs: logs)
         }
     }
 
@@ -466,6 +466,16 @@ final class PRModel: Identifiable, Hashable {
         } else {
             phaseStates[phase] = .running(logs: existing + text)
         }
+    }
+
+    private var commentPostingLogs: String {
+        if case .running(let logs) = commentPostingState { return logs }
+        return ""
+    }
+
+    private func appendCommentLog(_ text: String) {
+        let existing = commentPostingLogs
+        commentPostingState = .running(logs: existing + text)
     }
 
     private func runRules() async {
@@ -585,6 +595,13 @@ final class PRModel: Identifiable, Hashable {
         case idle
         case running(logs: String)
         case refreshing(logs: String)
+        case completed(logs: String)
+        case failed(error: String, logs: String)
+    }
+
+    enum CommentPostingState {
+        case idle
+        case running(logs: String)
         case completed(logs: String)
         case failed(error: String, logs: String)
     }

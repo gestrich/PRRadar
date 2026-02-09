@@ -117,7 +117,7 @@ Currently `ContentView` has its own `currentPRModels` computed property (line 40
 - Filter values (`sinceDate`, `selectedPRStateFilter`) remain on `ContentView` as `@AppStorage`-derived properties since they are view-level persistence concerns; the model accepts them as parameters rather than owning them
 - The existing `filteredPRs(_:since:state:)` method is preserved for internal callers (e.g., `refresh(since:state:)`) that already have an explicit model array
 
-## - [ ] Phase 4: Remove dead code and fix misused state
+## - [x] Phase 4: Remove dead code and fix misused state
 
 **Violations found during audit:**
 
@@ -131,6 +131,12 @@ Currently `ContentView` has its own `currentPRModels` computed property (line 40
    - **Fix**: Remove the default value. All callers should pass the service explicitly.
 
 **References**: `code-style.md` (no default parameter values), `model-state.md` (enum-based state)
+
+**Technical notes:**
+- `selectedPhase` removed from `PRModel`; the `.onChange(of: selectedNavPhase)` handler in `ReviewDetailView` that wrote to it was also removed since `selectedNavPhase` (a `@State` on the view) already drives navigation correctly
+- `runComments()` now uses a dedicated `commentPostingState: CommentPostingState` property instead of hijacking `phaseStates[.evaluations]`, with a new `CommentPostingState` enum (`.idle`, `.running`, `.completed`, `.failed`) mirroring the subset of `PhaseState` cases needed for comment posting
+- Private helpers `commentPostingLogs` and `appendCommentLog(_:)` added to manage log accumulation for the comment posting state, paralleling the existing `runningLogs(for:)` and `appendLog(_:to:)` pattern
+- Default value removed from `AllPRsModel.init(config:repoConfig:settingsService:)` — the only caller (`AppModel.selectedConfig.didSet`) already passes `settingsService` explicitly
 
 ## - [ ] Phase 5: Architecture Validation
 
