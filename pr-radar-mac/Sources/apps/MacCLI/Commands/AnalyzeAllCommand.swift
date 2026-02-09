@@ -37,13 +37,15 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Maximum number of PRs to process")
     var limit: String?
 
-    @Option(name: .long, help: "PR state filter (open, closed, merged, all)")
+    @Option(name: .long, help: "PR state filter (open, draft, closed, merged, all). Default: all")
     var state: String?
 
     @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
     var githubToken: String?
 
     func run() async throws {
+        let stateFilter: PRState? = try parseStateFilter(state)
+
         let resolved = try resolveConfig(
             configName: config,
             repoPath: repoPath,
@@ -54,7 +56,6 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         let useCase = AnalyzeAllUseCase(config: prRadarConfig)
-        let stateFilter: PRState? = state.flatMap { PRState.fromCLIString($0) }
 
         for try await progress in useCase.execute(
             since: since,

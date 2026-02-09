@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
+import PRRadarModels
 
 @main
 struct PRRadarMacCLI: AsyncParsableCommand {
@@ -122,6 +123,15 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
         outputDir: options.outputDir,
         githubToken: options.githubToken
     )
+}
+
+func parseStateFilter(_ value: String?) throws -> PRState? {
+    guard let value else { return nil }
+    if value.lowercased() == "all" { return nil }
+    guard let parsed = PRState.fromCLIString(value) else {
+        throw ValidationError("Invalid state '\(value)'. Valid values: open, draft, closed, merged, all")
+    }
+    return parsed
 }
 
 func printError(_ message: String) {

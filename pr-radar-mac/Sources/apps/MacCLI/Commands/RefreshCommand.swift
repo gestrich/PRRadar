@@ -22,13 +22,15 @@ struct RefreshCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Maximum number of PRs to fetch")
     var limit: String?
 
-    @Option(name: .long, help: "PR state filter (open, closed, merged, all)")
+    @Option(name: .long, help: "PR state filter (open, draft, closed, merged, all). Default: open")
     var state: String?
 
     @Flag(name: .long, help: "Output results as JSON")
     var json: Bool = false
 
     func run() async throws {
+        let stateFilter: PRState? = try parseStateFilter(state) ?? .open
+
         let resolved = try resolveConfig(
             configName: config,
             repoPath: repoPath,
@@ -42,8 +44,6 @@ struct RefreshCommand: AsyncParsableCommand {
         if !json {
             print("Fetching recent PRs from GitHub...")
         }
-
-        let stateFilter: PRState? = state.flatMap { PRState.fromCLIString($0) } ?? .open
         for try await progress in useCase.execute(limit: limit, state: stateFilter, repoSlug: repoSlug) {
             switch progress {
             case .running:

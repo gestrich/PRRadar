@@ -58,7 +58,7 @@ Update `AnalyzeAllUseCase` and `FetchPRListUseCase` to use `PRState?` instead of
 
 **Completed.** Both use cases now accept `PRState?` directly. CLI callers (`AnalyzeAllCommand`, `RefreshCommand`) convert `String?` → `PRState?` via `fromCLIString` at the call site. `AllPRsModel` uses defaults (no explicit `state:` argument yet — wiring deferred to Phase 5).
 
-## - [ ] Phase 3: CLI — Update `--state` Option to Include "draft"
+## - [x] Phase 3: CLI — Update `--state` Option to Include "draft"
 
 The CLI already accepts `--state` as a single value. Just add "draft" as a recognized option and wire to the typed enum.
 
@@ -72,6 +72,8 @@ The CLI already accepts `--state` as a single value. Just add "draft" as a recog
   - `"merged"` → `.merged`
   - Unrecognized → validation error listing valid values
 - Pass the parsed `PRState?` to `AnalyzeAllUseCase.execute(state:)`
+
+**Completed.** Added shared `parseStateFilter(_:)` helper in `PRRadarMacCLI.swift` that both `AnalyzeAllCommand` and `RefreshCommand` use. The helper maps `"all"` or `nil` → `nil`, valid state strings → `PRState`, and unrecognized values → `ValidationError` with a message listing valid options. Updated help text on both commands to include "draft". `RefreshCommand` defaults to `.open` when no `--state` is provided (preserving existing behavior).
 
 ## - [ ] Phase 4: MacApp UI — State Filter in Filter Bar
 
