@@ -9,7 +9,6 @@ struct DiffPhaseView: View {
     var evaluationSummary: EvaluationSummary? = nil
     var prModel: PRModel? = nil
     var postedReviewComments: [GitHubReviewComment] = []
-    var postedGeneralComments: [GitHubComment] = []
 
     @State private var selectedTab = 0
     @State private var selectedFile: String?
@@ -172,8 +171,7 @@ struct DiffPhaseView: View {
         DiffCommentMapper.map(
             diff: diff,
             comments: comments ?? [],
-            postedReviewComments: postedReviewComments,
-            postedGeneralComments: postedGeneralComments
+            postedReviewComments: postedReviewComments
         )
     }
 

@@ -115,8 +115,7 @@ struct ReviewDetailView: View {
                     comments: prModel.evaluation?.comments,
                     evaluationSummary: prModel.evaluation?.summary,
                     prModel: prModel,
-                    postedReviewComments: prModel.postedComments?.reviewComments ?? [],
-                    postedGeneralComments: prModel.postedComments?.comments ?? []
+                    postedReviewComments: prModel.postedComments?.reviewComments ?? []
                 )
             }
             .sheet(isPresented: $showEffectiveDiff) {

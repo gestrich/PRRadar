@@ -284,10 +284,6 @@ struct AnnotatedDiffContentView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                if !commentMapping.postedGeneral.isEmpty {
-                    postedGeneralSection(commentMapping.postedGeneral)
-                }
-
                 if !commentMapping.unmatchedNoFile.isEmpty {
                     unmatchedSection(commentMapping.unmatchedNoFile, title: "General Comments")
                 }
@@ -324,30 +320,6 @@ struct AnnotatedDiffContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(nsColor: .textBackgroundColor))
-    }
-
-    @ViewBuilder
-    private func postedGeneralSection(_ comments: [GitHubComment]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Posted Comments")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.green.opacity(0.08))
-
-            ForEach(comments, id: \.id) { comment in
-                InlinePostedCommentView(comment: GitHubReviewComment(
-                    id: comment.id,
-                    body: comment.body,
-                    path: "",
-                    author: comment.author,
-                    createdAt: comment.createdAt,
-                    url: comment.url
-                ))
-            }
-        }
     }
 
     @ViewBuilder

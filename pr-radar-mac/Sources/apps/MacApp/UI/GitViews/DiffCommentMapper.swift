@@ -6,15 +6,13 @@ struct DiffCommentMapping {
     let unmatchedNoFile: [PRComment]
     let postedByFileAndLine: [String: [Int: [GitHubReviewComment]]]
     let postedUnmatchedByFile: [String: [GitHubReviewComment]]
-    let postedGeneral: [GitHubComment]
 
     static let empty = DiffCommentMapping(
         commentsByFileAndLine: [:],
         unmatchedByFile: [:],
         unmatchedNoFile: [],
         postedByFileAndLine: [:],
-        postedUnmatchedByFile: [:],
-        postedGeneral: []
+        postedUnmatchedByFile: [:]
     )
 }
 
@@ -23,8 +21,7 @@ enum DiffCommentMapper {
     static func map(
         diff: GitDiff,
         comments: [PRComment],
-        postedReviewComments: [GitHubReviewComment] = [],
-        postedGeneralComments: [GitHubComment] = []
+        postedReviewComments: [GitHubReviewComment] = []
     ) -> DiffCommentMapping {
         let diffFiles = Set(diff.changedFiles)
 
@@ -79,8 +76,7 @@ enum DiffCommentMapper {
             unmatchedByFile: unmatchedByFile,
             unmatchedNoFile: unmatchedNoFile,
             postedByFileAndLine: postedByFileAndLine,
-            postedUnmatchedByFile: postedUnmatchedByFile,
-            postedGeneral: postedGeneralComments
+            postedUnmatchedByFile: postedUnmatchedByFile
         )
     }
 }
