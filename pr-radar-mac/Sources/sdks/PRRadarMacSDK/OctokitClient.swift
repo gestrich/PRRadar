@@ -429,6 +429,67 @@ public struct OctokitClient: Sendable {
         }
     }
 
+    /// Fetches only the `updatedAt` timestamp for a pull request via GraphQL.
+    /// This is a lightweight call for staleness checking without fetching full PR data.
+    public func pullRequestUpdatedAt(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> String {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let url = URL(string: "\(baseURL)/graphql")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let query = """
+        query($owner: String!, $name: String!, $number: Int!) {
+          repository(owner: $owner, name: $name) {
+            pullRequest(number: $number) {
+              updatedAt
+            }
+          }
+        }
+        """
+        let body: [String: Any] = [
+            "query": query,
+            "variables": [
+                "owner": owner,
+                "name": repository,
+                "number": number
+            ]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if let errors = json?["errors"] as? [[String: Any]],
+               let message = errors.first?["message"] as? String {
+                throw OctokitClientError.requestFailed("GraphQL error: \(message)")
+            }
+            guard let dataObj = json?["data"] as? [String: Any],
+                  let repo = dataObj["repository"] as? [String: Any],
+                  let pr = repo["pullRequest"] as? [String: Any],
+                  let updatedAt = pr["updatedAt"] as? String else {
+                throw OctokitClientError.invalidResponse
+            }
+            return updatedAt
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
     // MARK: - User Operations
 
     public func getUser(login: String) async throws -> OctoKit.User {

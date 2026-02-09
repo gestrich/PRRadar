@@ -212,6 +212,7 @@ public struct GitHubPullRequest: Codable, Sendable {
             state: enhancedState.rawValue,
             headRefName: headRefName ?? "",
             createdAt: createdAt ?? "",
+            updatedAt: updatedAt,
             url: url
         )
     }

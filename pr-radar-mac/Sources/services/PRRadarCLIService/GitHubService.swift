@@ -159,6 +159,10 @@ public struct GitHubService: Sendable {
         return result
     }
 
+    public func getPRUpdatedAt(number: Int) async throws -> String {
+        try await octokitClient.pullRequestUpdatedAt(owner: owner, repository: repo, number: number)
+    }
+
     public func getRepository() async throws -> GitHubRepository {
         let repo = try await octokitClient.repository(owner: owner, name: self.repo)
         return repo.toGitHubRepository()

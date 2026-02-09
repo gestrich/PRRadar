@@ -53,6 +53,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
     public let state: String
     public let headRefName: String
     public let createdAt: String
+    public let updatedAt: String?
     public let url: String?
 
     public init(
@@ -63,6 +64,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         state: String,
         headRefName: String,
         createdAt: String,
+        updatedAt: String? = nil,
         url: String? = nil
     ) {
         self.number = number
@@ -72,6 +74,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         self.state = state
         self.headRefName = headRefName
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
         self.url = url
     }
 

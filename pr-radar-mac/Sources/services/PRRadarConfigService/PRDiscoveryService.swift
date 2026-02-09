@@ -37,6 +37,7 @@ public enum PRDiscoveryService {
                     state: ghPR.enhancedState.rawValue,
                     headRefName: ghPR.headRefName ?? "",
                     createdAt: ghPR.createdAt ?? "",
+                    updatedAt: ghPR.updatedAt,
                     url: ghPR.url
                 )
             } else if let prMeta = try? JSONDecoder().decode(PRMetadata.self, from: data) {
