@@ -39,7 +39,7 @@ OctoKit's `PullRequest.Comment` model is missing the `path` field, so we need th
 
 **Verification**: `swift build` compiles. Run `swift run PRRadarMacCLI diff 1 --config test-repo` and inspect `gh-comments.json` to confirm `reviewComments` array is present.
 
-## - [ ] Phase 2: Comment Mapping — Extend DiffCommentMapper
+## - [x] Phase 2: Comment Mapping — Extend DiffCommentMapper
 
 **File**: `Sources/apps/MacApp/UI/GitViews/DiffCommentMapper.swift`
 
@@ -47,6 +47,8 @@ OctoKit's `PullRequest.Comment` model is missing the `path` field, so we need th
 - Update `DiffCommentMapping.empty` with new fields defaulting to empty
 - Update `DiffCommentMapper.map()` to accept `postedReviewComments: [GitHubReviewComment]` and `postedGeneralComments: [GitHubComment]` parameters (default `[]`)
 - Map posted review comments by file/line using the same `findHunk` logic used for pending comments
+
+> **Technical notes:** Review comments whose `path` doesn't match any file in the diff are silently dropped (unlike pending comments which go to `unmatchedNoFile`), since posted review comments always have a file path and there's no meaningful "no file" category for them. Existing call sites remain unchanged due to default `= []` parameters.
 
 > **Architecture notes:**
 >

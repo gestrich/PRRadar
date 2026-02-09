@@ -4,17 +4,28 @@ struct DiffCommentMapping {
     let commentsByFileAndLine: [String: [Int: [PRComment]]]
     let unmatchedByFile: [String: [PRComment]]
     let unmatchedNoFile: [PRComment]
+    let postedByFileAndLine: [String: [Int: [GitHubReviewComment]]]
+    let postedUnmatchedByFile: [String: [GitHubReviewComment]]
+    let postedGeneral: [GitHubComment]
 
     static let empty = DiffCommentMapping(
         commentsByFileAndLine: [:],
         unmatchedByFile: [:],
-        unmatchedNoFile: []
+        unmatchedNoFile: [],
+        postedByFileAndLine: [:],
+        postedUnmatchedByFile: [:],
+        postedGeneral: []
     )
 }
 
 enum DiffCommentMapper {
 
-    static func map(diff: GitDiff, comments: [PRComment]) -> DiffCommentMapping {
+    static func map(
+        diff: GitDiff,
+        comments: [PRComment],
+        postedReviewComments: [GitHubReviewComment] = [],
+        postedGeneralComments: [GitHubComment] = []
+    ) -> DiffCommentMapping {
         let diffFiles = Set(diff.changedFiles)
 
         var byFileAndLine: [String: [Int: [PRComment]]] = [:]
@@ -41,10 +52,35 @@ enum DiffCommentMapper {
             }
         }
 
+        var postedByFileAndLine: [String: [Int: [GitHubReviewComment]]] = [:]
+        var postedUnmatchedByFile: [String: [GitHubReviewComment]] = [:]
+
+        for reviewComment in postedReviewComments {
+            let filePath = reviewComment.path
+
+            guard diffFiles.contains(filePath) else {
+                continue
+            }
+
+            guard let lineNumber = reviewComment.line else {
+                postedUnmatchedByFile[filePath, default: []].append(reviewComment)
+                continue
+            }
+
+            if diff.findHunk(containingLine: lineNumber, inFile: filePath) != nil {
+                postedByFileAndLine[filePath, default: [:]][lineNumber, default: []].append(reviewComment)
+            } else {
+                postedUnmatchedByFile[filePath, default: []].append(reviewComment)
+            }
+        }
+
         return DiffCommentMapping(
             commentsByFileAndLine: byFileAndLine,
             unmatchedByFile: unmatchedByFile,
-            unmatchedNoFile: unmatchedNoFile
+            unmatchedNoFile: unmatchedNoFile,
+            postedByFileAndLine: postedByFileAndLine,
+            postedUnmatchedByFile: postedUnmatchedByFile,
+            postedGeneral: postedGeneralComments
         )
     }
 }
