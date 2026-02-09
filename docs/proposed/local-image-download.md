@@ -33,23 +33,30 @@ Add a method to `OctokitClient` (SDK layer) that fetches a PR's `bodyHTML` via t
 - Supports enterprise API endpoints via existing `apiEndpoint` configuration
 - Added under a new `// MARK: - GraphQL Operations` section
 
-## - [ ] Phase 2: Add Image URL Resolution and Download to Service Layer
+## - [x] Phase 2: Add Image URL Resolution and Download to Service Layer
 
 Create an image resolution and download service that:
 1. Extracts image URLs from the raw body text
 2. Matches them against resolved URLs from `bodyHTML`
 3. Downloads images to a local directory
 
-**Files to modify:**
+**Files modified:**
 - `Sources/services/PRRadarCLIService/ImageDownloadService.swift` (new file)
 
 **Tasks:**
-- Create `ImageDownloadService` struct with methods:
-  - `resolveImageURLs(body:bodyHTML:) -> [String: URL]` — Parses the raw body for `github.com/user-attachments/assets/` URLs, finds corresponding resolved URLs in `bodyHTML`, returns a mapping of `originalURL → resolvedSignedURL`
-  - `downloadImages(urls:[String: URL], to directory:String) async throws -> [String: String]` — Downloads each image from its signed URL, saves with a deterministic filename (the UUID from the original URL + detected extension), returns mapping of `originalURL → localFilename`
-  - `rewriteBody(_:urlMap:[String: String], baseDir:String) -> String` — Replaces original URLs in the body text with local file paths
+- [x] Create `ImageDownloadService` struct with methods:
+  - [x] `resolveImageURLs(body:bodyHTML:) -> [String: URL]` — Parses the raw body for `github.com/user-attachments/assets/` URLs, finds corresponding resolved URLs in `bodyHTML`, returns a mapping of `originalURL → resolvedSignedURL`
+  - [x] `downloadImages(urls:[String: URL], to directory:String) async throws -> [String: String]` — Downloads each image from its signed URL, saves with a deterministic filename (the UUID from the original URL + detected extension), returns mapping of `originalURL → localFilename`
+  - [x] `rewriteBody(_:urlMap:[String: String], baseDir:String) -> String` — Replaces original URLs in the body text with local file paths
 
 **Architecture note (Services layer):** This coordinates multiple operations (parse, download, rewrite) using SDK-level primitives. It's a shared stateless utility, not multi-step orchestration, so Services is the correct layer.
+
+**Technical notes:**
+- `Sendable` struct with injectable `URLSession` (defaults to `.shared`)
+- URL matching uses UUID extraction: original URLs contain a UUID in `github.com/user-attachments/assets/<UUID>`, and the resolved `bodyHTML` img src URLs also contain the same UUID — this is used to correlate them
+- File extension detection uses MIME type from the HTTP response with magic byte fallback (PNG, JPEG, GIF, WebP)
+- Download failures are silently skipped (non-fatal) — the original URL stays in place, matching the graceful degradation requirement
+- Regex-based extraction: `NSRegularExpression` for both markdown body URL parsing and HTML `<img src>` parsing
 
 ## - [ ] Phase 3: Integrate Image Download into PR Acquisition
 
