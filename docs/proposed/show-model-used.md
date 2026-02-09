@@ -118,17 +118,108 @@ ClaudeBridgeClient → EvaluationService (sets modelUsed on RuleEvaluationResult
 - `@Observable` only in Apps layer
 - SDKs are stateless `Sendable` structs
 
-## - [ ] Phase 3: Plan the Implementation
+## - [x] Phase 3: Plan the Implementation
 
-When executed, this phase will:
+### Implementation Overview
 
-1. Use findings from Phases 1 and 2 to create concrete implementation steps.
-2. Append new phases (Phase 4 through N) to this document, each with:
-   - What to implement
-   - Which files to modify
-   - Which architectural documents to reference
-   - Acceptance criteria
-3. Scale the number of phases to the size of the change (likely 1-2 implementation phases for a small TODO item).
-4. Append a Testing/Verification phase that runs `swift build` and `swift test`.
-5. Append a Create Pull Request phase using `gh auth switch -u gestrich` followed by `gh pr create --draft`.
-6. Mark the TODO item as done in `docs/proposed/TODO.md`.
+The feature threads `modelUsed` from `RuleEvaluationResult` through to all cost display locations. There are two main data paths:
+
+1. **Per-comment path**: `RuleEvaluationResult.modelUsed` → `PRComment.modelUsed` → individual comment UIs (CommentApprovalView, toGitHubMarkdown)
+2. **Aggregate path**: `EvaluationSummary.results[*].modelUsed` → collect distinct models → summary UIs (DiffPhaseView, ReportPhaseView, EvaluateCommand, ReportOutput.toMarkdown)
+
+A model display name helper converts raw API IDs (e.g. `"claude-sonnet-4-20250514"`) to human-readable names (e.g. `"Sonnet 4"`).
+
+### Phases
+
+## - [ ] Phase 4: Add model display name helper and thread `modelUsed` through models
+
+### What to implement
+
+1. **Model display name helper** in `PRRadarModels` — a function `displayName(forModelId:)` that maps raw API model IDs to short human-readable names. Examples:
+   - `"claude-sonnet-4-20250514"` → `"Sonnet 4"`
+   - `"claude-haiku-4-5-20251001"` → `"Haiku 4.5"`
+   - `"claude-opus-4-20250514"` → `"Opus 4"`
+   - Unknown IDs → return the raw ID as-is
+
+2. **Add `modelUsed: String?` to `PRComment`** — new optional property, populated from `RuleEvaluationResult.modelUsed` in the `from()` factory method.
+
+3. **Add `modelsUsed: [String]` computed property to `EvaluationSummary`** — returns the sorted distinct set of `modelUsed` values from `results`. This is a computed property, not stored/coded, since the data is already in `results`.
+
+4. **Add `modelsUsed: [String]` to `ReportSummary`** — a stored property (needs to be Codable) that captures the distinct models. Populated by `ReportGeneratorService.calculateSummary()`.
+
+### Files to modify
+
+| File | Change |
+|------|--------|
+| `Sources/services/PRRadarModels/ModelDisplayName.swift` | **New file** — `public func displayName(forModelId:) -> String` |
+| `Sources/services/PRRadarModels/PRComment.swift` | Add `modelUsed: String?` property, update `init`, update `from()` to copy `evaluation.modelUsed` |
+| `Sources/services/PRRadarModels/EvaluationOutput.swift` | Add computed `modelsUsed` on `EvaluationSummary` |
+| `Sources/services/PRRadarModels/ReportOutput.swift` | Add `modelsUsed: [String]` to `ReportSummary`, update `init` and `CodingKeys` |
+| `Sources/services/PRRadarCLIService/ReportGeneratorService.swift` | Collect distinct models in `loadViolations` and pass to `calculateSummary` |
+
+### Acceptance criteria
+
+- `PRComment.from()` copies `modelUsed` from the evaluation result
+- `EvaluationSummary.modelsUsed` returns distinct sorted model IDs from results
+- `ReportSummary.modelsUsed` populated by `ReportGeneratorService`
+- `displayName(forModelId:)` returns short names for known models
+- Unit tests pass for `PRComment.from()` model copying, display name helper, and `EvaluationSummary.modelsUsed`
+
+## - [ ] Phase 5: Display model in all UI and CLI locations
+
+### What to implement
+
+Add model display to all 6 locations where cost is currently shown:
+
+1. **CommentApprovalView** (`ruleInfoSection`) — show model next to cost: `"Cost: $0.0045 · Sonnet 4"`
+2. **DiffPhaseView** (`summaryItems`) — add a `"Model:"` item showing the distinct models (e.g. `"Sonnet 4"` or `"Sonnet 4, Haiku 4.5"`)
+3. **ReportPhaseView** (`summaryCards`) — add a `"Model"` summary card showing distinct models
+4. **EvaluateCommand** (CLI) — print `"  Model: Sonnet 4"` in the summary block
+5. **ReportOutput.toMarkdown()** — add `"- **Models Used:** Sonnet 4"` in the summary section
+6. **PRComment.toGitHubMarkdown()** — append model to cost in footer: `"(cost $0.0045 · Sonnet 4)"`
+
+### Files to modify
+
+| File | Change |
+|------|--------|
+| `Sources/apps/MacApp/UI/ReviewViews/CommentApprovalView.swift` | Show `modelUsed` in `ruleInfoSection` next to cost |
+| `Sources/apps/MacApp/UI/PhaseViews/DiffPhaseView.swift` | Add model summary item using `evaluationSummary.modelsUsed` |
+| `Sources/apps/MacApp/UI/PhaseViews/ReportPhaseView.swift` | Add model summary card using `report.summary.modelsUsed` |
+| `Sources/apps/MacCLI/Commands/EvaluateCommand.swift` | Print model line in CLI summary using `output.summary.modelsUsed` |
+| `Sources/services/PRRadarModels/ReportOutput.swift` | Add models used line in `toMarkdown()` |
+| `Sources/services/PRRadarModels/PRComment.swift` | Append model to cost in `toGitHubMarkdown()` footer |
+
+### Acceptance criteria
+
+- All 6 display locations show model information when available
+- Display uses human-readable model names via `displayName(forModelId:)`
+- Multiple distinct models shown as comma-separated list
+- Model display gracefully handles nil/empty cases
+
+## - [ ] Phase 6: Testing and Verification
+
+### What to do
+
+1. Run `swift build` — must succeed with no errors
+2. Run `swift test` — all tests must pass
+3. Mark TODO item as done in `docs/proposed/TODO.md` (change `- [ ]` to `- [x]` for "Show model used in report and cost displays")
+
+### Acceptance criteria
+
+- `swift build` succeeds
+- `swift test` passes (all existing + new tests)
+- TODO item marked as completed in `docs/proposed/TODO.md`
+
+## - [ ] Phase 7: Create Pull Request
+
+### What to do
+
+1. Run `gh auth switch -u gestrich`
+2. Create a draft PR with `gh pr create --draft` targeting `main`
+3. PR title: "Show model used in report and cost displays"
+4. PR body summarizes the changes across model threading, display helper, and all UI/CLI display locations
+
+### Acceptance criteria
+
+- Draft PR created successfully
+- PR targets `main` branch
