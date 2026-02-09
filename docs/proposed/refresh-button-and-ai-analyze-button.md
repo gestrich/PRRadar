@@ -74,7 +74,7 @@ Track and expose progress state so the `arrow.clockwise` button can show a spinn
 - On failure during list fetch, `refreshAllState` resets to `.idle` and returns early (PR data fetch is skipped)
 - PRs are refreshed sequentially to avoid overwhelming the GitHub API with concurrent requests
 
-## - [ ] Phase 3: Update detail toolbar buttons
+## - [x] Phase 3: Update detail toolbar buttons
 
 In `ContentView.swift`, replace the `.primaryAction` toolbar group:
 
@@ -92,8 +92,14 @@ In `ContentView.swift`, replace the `.primaryAction` toolbar group:
 
 Both buttons use the same icon and spinner pattern as their list counterparts.
 
-**Files to modify:**
-- [ContentView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/ContentView.swift) — Update detail toolbar
+**Files modified:**
+- [ContentView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/ContentView.swift) — Replaced "Run All" text button with `arrow.clockwise` and `sparkles` icon buttons
+- [PRModel.swift](PRRadarLibrary/Sources/apps/MacApp/Models/PRModel.swift) — Added `isPullRequestPhaseRunning` computed property
+
+**Technical notes:**
+- Added `isPullRequestPhaseRunning` computed property to `PRModel` that checks if the `.pullRequest` phase is in `.running` or `.refreshing` state — used by the refresh button to show its spinner independently of the analyze button
+- The refresh button spinner activates only during PR data fetch (`.pullRequest` phase), while the analyze button spinner activates when any phase is running (`isAnyPhaseRunning`)
+- Both buttons share the same disabled conditions: no PR selected, any phase running, or empty PR number
 
 ## - [ ] Phase 4: Update list toolbar buttons for consistency
 

@@ -55,9 +55,30 @@ public struct ContentView: View {
             }
 
             ToolbarItemGroup(placement: .primaryAction) {
-                Button("Run All") {
-                    Task { await selectedPR?.runAllPhases() }
+                Button {
+                    Task { await selectedPR?.refreshPRData() }
+                } label: {
+                    if let pr = selectedPR, pr.isPullRequestPhaseRunning {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
+                .help("Refresh PR data")
+                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
+
+                Button {
+                    Task { await selectedPR?.runAllPhases() }
+                } label: {
+                    if let pr = selectedPR, pr.isAnyPhaseRunning {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                }
+                .help("Analyze PR")
                 .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
 
                 Button {

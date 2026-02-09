@@ -81,6 +81,13 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
+    var isPullRequestPhaseRunning: Bool {
+        switch stateFor(.pullRequest) {
+        case .running, .refreshing: return true
+        default: return false
+        }
+    }
+
     var hasPendingComments: Bool {
         guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
             return false
