@@ -149,7 +149,7 @@ Review all commits made during the preceding phases and validate they follow the
 - `@AppStorage` used for UI filter preference per MV pattern
 - No violations found; no corrections needed. Build passes.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 **Automated testing:**
 - `swift build` — verify the project compiles
@@ -174,3 +174,9 @@ swift run PRRadarMacCLI analyze-all --since 2025-01-01 --state all --config test
 - Select each state option and confirm the PR list filters accordingly
 - Open analyze-all popover, confirm it shows current state selection
 - Run analyze-all with a specific state selected
+
+**Completed.** All validation passed:
+- `swift build` succeeds
+- `swift test` passes with 254 tests in 35 suites (23 new PRState tests added)
+- Added `PRStateBehaviorTests.swift` with tests for: `apiStateValue` mapping (4 cases), `fromCLIString` parsing (valid, case-insensitive, unrecognized), `enhancedState` computation (open, draft, closed, merged, unknown, nil), post-filtering scenarios (draft-only, merged-only, open-excludes-drafts, closed-excludes-merged, nil-returns-all), `displayName`, and raw values
+- CLI manual verification: `--state open` found 3 open PRs, `--state draft` found 0 (no drafts in test repo), `--state merged` found 0 (no merged in test repo), `--state all` found 3 PRs including closed PR #2
