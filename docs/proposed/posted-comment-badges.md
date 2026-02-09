@@ -109,7 +109,7 @@ Review all commits made during the preceding phases and validate they follow the
 - **View state vs model state**: Selection remains `@State`, data remains in `@Observable` model ✅
 No violations found. Build verified clean.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
 **Build:**
 - Run `swift build` in `pr-radar-mac/` to verify compilation
@@ -128,3 +128,5 @@ No violations found. Build verified clean.
 - Build succeeds with no warnings in changed files
 - All existing tests pass
 - Badges display correctly in the UI
+
+**Completed:** Build succeeded with zero warnings. All 273 tests in 39 suites passed. Manual verification deferred to Bill — the SwiftUI app requires a GUI environment to visually confirm badge rendering.
