@@ -60,7 +60,7 @@ struct PRListRow: View {
         switch prModel.analysisState {
         case .loading:
             EmptyView()
-        case .loaded(let violationCount, _):
+        case .loaded(let violationCount, _, _):
             if violationCount > 0 {
                 Text("\(violationCount)")
                     .font(.caption2.bold())

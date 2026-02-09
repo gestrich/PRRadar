@@ -75,7 +75,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var hasPendingComments: Bool {
-        guard case .loaded(let violationCount, _) = analysisState, violationCount > 0 else {
+        guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
             return false
         }
         // Has violations but comments phase not completed
@@ -92,9 +92,19 @@ final class PRModel: Identifiable, Hashable {
                 phase: .evaluations,
                 filename: "summary.json"
             )
+            let postedCommentCount: Int = {
+                guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
+                    config: config,
+                    prNumber: prNumber,
+                    phase: .pullRequest,
+                    filename: "gh-comments.json"
+                ) else { return 0 }
+                return comments.reviewComments.count
+            }()
             analysisState = .loaded(
                 violationCount: summary.violationsFound,
-                evaluatedAt: summary.evaluatedAt
+                evaluatedAt: summary.evaluatedAt,
+                postedCommentCount: postedCommentCount
             )
         } catch {
             analysisState = .unavailable
@@ -437,7 +447,7 @@ final class PRModel: Identifiable, Hashable {
 
     enum AnalysisState {
         case loading
-        case loaded(violationCount: Int, evaluatedAt: String)
+        case loaded(violationCount: Int, evaluatedAt: String, postedCommentCount: Int)
         case unavailable
     }
 
