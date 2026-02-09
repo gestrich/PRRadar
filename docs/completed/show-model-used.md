@@ -131,7 +131,7 @@ A model display name helper converts raw API IDs (e.g. `"claude-sonnet-4-2025051
 
 ### Phases
 
-## - [ ] Phase 4: Add model display name helper and thread `modelUsed` through models
+## - [x] Phase 4: Add model display name helper and thread `modelUsed` through models
 
 ### What to implement
 
@@ -165,7 +165,7 @@ A model display name helper converts raw API IDs (e.g. `"claude-sonnet-4-2025051
 - `displayName(forModelId:)` returns short names for known models
 - Unit tests pass for `PRComment.from()` model copying, display name helper, and `EvaluationSummary.modelsUsed`
 
-## - [ ] Phase 5: Display model in all UI and CLI locations
+## - [x] Phase 5: Display model in all UI and CLI locations
 
 ### What to implement
 
@@ -196,7 +196,7 @@ Add model display to all 6 locations where cost is currently shown:
 - Multiple distinct models shown as comma-separated list
 - Model display gracefully handles nil/empty cases
 
-## - [ ] Phase 6: Testing and Verification
+## - [x] Phase 6: Testing and Verification
 
 ### What to do
 
@@ -210,7 +210,7 @@ Add model display to all 6 locations where cost is currently shown:
 - `swift test` passes (all existing + new tests)
 - TODO item marked as completed in `docs/proposed/TODO.md`
 
-## - [ ] Phase 7: Create Pull Request
+## - [x] Phase 7: Create Pull Request
 
 ### What to do
 
