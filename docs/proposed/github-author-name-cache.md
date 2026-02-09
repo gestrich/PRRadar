@@ -134,7 +134,7 @@ Review all commits made during the preceding phases and validate they follow the
 - **`@Observable` scope:** Confined to Apps layer only — no `@Observable` in Services, Features, or SDKs.
 - Build verified clean.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 **Automated:**
 - `swift build` — ensure the project compiles
@@ -145,3 +145,10 @@ Review all commits made during the preceding phases and validate they follow the
 - Inspect `~/Library/Application Support/PRRadar/author-cache.json` — should contain cached entries
 - Run the same command again — no new API calls to `/users/` (cache hit)
 - Launch `swift run MacApp` and verify display names appear in PR list, detail view, and comment headers
+
+**Completed:** All validation checks passed:
+- `swift build` compiles cleanly with no errors or warnings.
+- `swift test` passes all 265 tests across 38 suites.
+- `swift run PRRadarMacCLI diff 1 --config test-repo` populates `author.name` = "Bill" in both `gh-pr.json` and `gh-comments.json` (reviews and review comments).
+- `~/Library/Application Support/PRRadar/author-cache.json` contains the cached entry for `gestrich` with `fetchedAt` timestamp.
+- Running the diff command a second time reuses the cache — the `fetchedAt` timestamp remains unchanged, confirming no new `/users/` API calls were made.
