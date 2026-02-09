@@ -2,7 +2,7 @@
 
 ## Small
 
-- [ ] Fix toolbar button alignment and visibility
+- [x] Fix toolbar button alignment and visibility
   Toolbar buttons (loopback, comment, refresh, analyze all, plus) are right-aligned
   until a PR is selected in the list, then they jump to the left. The Settings toolbar
   button is hidden inside a "show more" overflow menu. Likely caused by nested
@@ -10,16 +10,8 @@
   groups: PR-level actions (finder folder, web link, run all steps) vs PR-list-level
   actions (plus button, analyze all PRs). These are currently mixed together.
   Ideally, PR-list-level actions should appear at the far left above the list of PRs.
-- [x] Add button to open pull request on web
-- [x] Add PR author info to the UI
-- [x] Fix comment view diff width
-  In the comment view, the diff column is too narrow.
 - [ ] Fix task counts display on rules view
   The task counts shown are confusing.
-- [ ] Check what refresh button does
-  Audit the refresh button behavior and fix or document it.
-- [ ] Clarify behavior when there are no tasks to run
-  What do subsequent pipeline states show when there are nothing to evaluate?
 - [ ] Filter tasks/rules list by selected file
   The rules phase view shows tasks but not filtered to the selected file.
   Should show file-specific tasks expandable with rule description and focus
@@ -79,11 +71,6 @@
   markdown rendering support), optimized fetching strategies that avoid
   over-fetching data, and any other polished UX or architecture ideas. Document
   findings and create follow-up TODO items for anything worth extracting.
-- [ ] PR summary tab
-  Add a summary view when opening a PR, mirroring GitHub's summary tab. Show
-  the PR title, description, and any posted comments. This should be the
-  default view when selecting a PR, giving an at-a-glance overview before
-  diving into diffs or analysis results.
 
 ## Large
 

@@ -43,36 +43,6 @@ struct ReviewDetailView: View {
                 prModel.selectedPhase = selectedNavPhase.primaryPhase
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button("Run All") {
-                    Task { await prModel.runAllPhases() }
-                }
-                .disabled(prModel.isAnyPhaseRunning || prModel.prNumber.isEmpty)
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    let path = "\(prModel.config.absoluteOutputDir)/\(prModel.prNumber)"
-                    NSWorkspace.shared.open(URL(fileURLWithPath: path))
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .help("Open PR data in Finder")
-                .disabled(prModel.prNumber.isEmpty)
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    if let urlString = prModel.metadata.url,
-                       let url = URL(string: urlString) {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Image(systemName: "safari")
-                }
-                .help("Open PR on GitHub")
-                .disabled(prModel.metadata.url == nil)
-            }
-        }
     }
 
     // MARK: - PR Header

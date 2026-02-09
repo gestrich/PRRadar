@@ -43,6 +43,46 @@ struct ContentView: View {
             detailView
         }
         .id(selectedConfig?.id)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gear")
+                }
+                .help("Manage configurations")
+            }
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("Run All") {
+                    Task { await selectedPR?.runAllPhases() }
+                }
+                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
+
+                Button {
+                    if let pr = selectedPR {
+                        let path = "\(pr.config.absoluteOutputDir)/\(pr.prNumber)"
+                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    }
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .help("Open PR data in Finder")
+                .disabled(selectedPR == nil || selectedPR!.prNumber.isEmpty)
+
+                Button {
+                    if let pr = selectedPR,
+                       let urlString = pr.metadata.url,
+                       let url = URL(string: urlString) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Image(systemName: "safari")
+                }
+                .help("Open PR on GitHub")
+                .disabled(selectedPR?.metadata.url == nil)
+            }
+        }
         .sheet(isPresented: $showSettings) {
             if let model = allPRs {
                 SettingsView(model: model, settings: $settings)
@@ -116,23 +156,15 @@ struct ContentView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 150, ideal: 180)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gear")
-                }
-                .help("Manage configurations")
-            }
-        }
     }
 
     // MARK: - Column 2: PR List
 
     private var prListView: some View {
-        Group {
+        VStack(spacing: 0) {
             if allPRs != nil {
+                prListFilterBar
+                Divider()
                 if filteredPRModels.isEmpty {
                     ContentUnavailableView(
                         "No Reviews Found",
@@ -154,81 +186,81 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 280)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Menu("\(daysLookBack)d") {
-                    ForEach([1, 7, 14, 30, 60, 90], id: \.self) { days in
-                        Button("\(days) days") { daysLookBack = days }
-                    }
+    }
+
+    private var prListFilterBar: some View {
+        HStack(spacing: 6) {
+            Menu("\(daysLookBack)d") {
+                ForEach([1, 7, 14, 30, 60, 90], id: \.self) { days in
+                    Button("\(days) days") { daysLookBack = days }
                 }
-                .help("Days to look back")
             }
-            ToolbarItem(placement: .automatic) {
-                Toggle(isOn: Binding(
-                    get: { allPRs?.showOnlyWithPendingComments ?? false },
-                    set: { allPRs?.showOnlyWithPendingComments = $0 }
-                )) {
-                    Image(systemName: "text.bubble")
+            .help("Days to look back")
+
+            Toggle(isOn: Binding(
+                get: { allPRs?.showOnlyWithPendingComments ?? false },
+                set: { allPRs?.showOnlyWithPendingComments = $0 }
+            )) {
+                Image(systemName: "text.bubble")
+            }
+            .help("Show only PRs with pending comments")
+            .toggleStyle(.button)
+
+            Button {
+                Task { await allPRs?.refresh(since: sinceDate) }
+            } label: {
+                if let model = allPRs, case .refreshing = model.state {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
                 }
-                .help("Show only PRs with pending comments")
-                .toggleStyle(.button)
             }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    Task { await allPRs?.refresh(since: sinceDate) }
-                } label: {
-                    if let model = allPRs, case .refreshing = model.state {
+            .help("Refresh PR list")
+            .disabled(isRefreshing)
+
+            Spacer()
+
+            Button {
+                if let model = allPRs, model.analyzeAllState.isRunning {
+                    showAnalyzeAllProgress = true
+                } else {
+                    showAnalyzeAll = true
+                }
+            } label: {
+                if let model = allPRs, model.analyzeAllState.isRunning {
+                    HStack(spacing: 4) {
                         ProgressView()
                             .controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-                .help("Refresh PR list")
-                .disabled(isRefreshing || allPRs == nil)
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    if let model = allPRs, model.analyzeAllState.isRunning {
-                        showAnalyzeAllProgress = true
-                    } else {
-                        showAnalyzeAll = true
-                    }
-                } label: {
-                    if let model = allPRs, model.analyzeAllState.isRunning {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .controlSize(.small)
-                            if let progressText = model.analyzeAllState.progressText {
-                                Text(progressText)
-                                    .font(.caption)
-                                    .monospacedDigit()
-                            }
+                        if let progressText = model.analyzeAllState.progressText {
+                            Text(progressText)
+                                .font(.caption)
+                                .monospacedDigit()
                         }
-                    } else {
-                        Image(systemName: "sparkles")
                     }
-                }
-                .help(allPRs?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
-                .disabled(allPRs == nil)
-                .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
-                    analyzeAllPopover
+                } else {
+                    Image(systemName: "sparkles")
                 }
             }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    newPRNumber = ""
-                    showNewReview = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .help("Start a new PR review")
-                .disabled(allPRs == nil)
-                .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
-                    newReviewPopover
-                }
+            .help(allPRs?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
+            .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
+                analyzeAllPopover
+            }
+
+            Button {
+                newPRNumber = ""
+                showNewReview = true
+            } label: {
+                Image(systemName: "plus")
+            }
+            .help("Start a new PR review")
+            .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
+                newReviewPopover
             }
         }
+        .controlSize(.small)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Column 3: Detail
