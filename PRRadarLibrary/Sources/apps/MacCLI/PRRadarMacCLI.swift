@@ -19,6 +19,7 @@ struct PRRadarMacCLI: AsyncParsableCommand {
             AnalyzeAllCommand.self,
             StatusCommand.self,
             RefreshCommand.self,
+            TranscriptCommand.self,
         ]
     )
 }
@@ -136,4 +137,18 @@ func parseStateFilter(_ value: String?) throws -> PRState? {
 
 func printError(_ message: String) {
     FileHandle.standardError.write(Data((message + "\n").utf8))
+}
+
+func printAIOutput(_ text: String, verbose: Bool) {
+    for line in text.components(separatedBy: "\n") {
+        if verbose {
+            print("    \(line)")
+        } else {
+            print("    [AI] \(line)")
+        }
+    }
+}
+
+func printAIToolUse(_ name: String) {
+    print("    [AI] \u{001B}[36m[tool: \(name)]\u{001B}[0m")
 }

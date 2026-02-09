@@ -222,7 +222,7 @@ Add AI transcript browsing and real-time streaming display to the MacApp.
 - `ReviewDetailView` routes `.aiOutput` to `AIOutputStreamView` during live runs, `AITranscriptView` for completed transcripts, or `ContentUnavailableView` when empty
 - Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
-## - [ ] Phase 6: CLI — Transcript Display
+## - [x] Phase 6: CLI — Transcript Display
 
 Update the CLI to support displaying AI output both during live runs and when viewing completed results.
 
@@ -243,6 +243,24 @@ Update the CLI to support displaying AI output both during live runs and when vi
 
 **Architecture notes:**
 - CLI commands are in the Apps layer. They consume `PhaseProgress` streams directly from use cases (per the swift-architecture data flow pattern for CLI).
+
+**Completion notes:**
+- Added `.aiToolUse(name: String)` case to `PhaseProgress` enum to surface tool use events separately from AI text, enabling verbose mode to display them
+- `printAIOutput()` and `printAIToolUse()` helper functions added to `PRRadarMacCLI.swift` for formatted CLI output
+  - Default mode: `    [AI] <text>` prefix on each line
+  - Verbose mode: `    <text>` (no prefix) plus tool use events shown as `    [AI] [tool: <name>]` in cyan
+  - Quiet mode: all AI output suppressed (status logs still shown)
+- `--quiet` and `--verbose` flags added to `AnalyzeCommand`, `EvaluateCommand`, `RulesCommand`, and `AnalyzeAllCommand`
+- Removed direct `print()` calls from `EvaluationService.evaluateTask()` and `FocusGeneratorService.generateFocusAreasForHunk()` — AI text now flows exclusively through callbacks (`onAIText`, `onAIToolUse`) so `--quiet` works correctly
+- Added `onAIToolUse: ((String) -> Void)?` callback to `EvaluationService` and `FocusGeneratorService`, threaded through `runBatchEvaluation()` and `generateAllFocusAreas()` to use cases
+- `EvaluateUseCase` and `FetchRulesUseCase` yield `.aiToolUse(name:)` to their continuations
+- `AnalyzeUseCase` and `AnalyzeAllUseCase` forward `.aiToolUse` from child streams
+- All 14 `PhaseProgress` switch sites updated to handle `.aiToolUse` (AI-producing commands display in verbose mode; non-AI commands and MacApp use `break`)
+- `TranscriptCommand` added with list mode (shows identifier, model, cost, duration) and detail mode (`--task <id>`)
+  - `--phase` filters to focus areas or evaluations
+  - `--json-output` outputs raw JSON; default is rendered markdown via `BridgeTranscriptWriter.renderMarkdown()`
+  - Registered as `transcript` subcommand in `PRRadarMacCLI`
+- Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
 ## - [ ] Phase 7: Architecture Validation
 

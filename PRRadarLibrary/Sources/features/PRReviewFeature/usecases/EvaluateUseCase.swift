@@ -104,6 +104,9 @@ public struct EvaluateUseCase: Sendable {
                         },
                         onAIText: { text in
                             continuation.yield(.aiOutput(text: text))
+                        },
+                        onAIToolUse: { name in
+                            continuation.yield(.aiToolUse(name: name))
                         }
                     )
 

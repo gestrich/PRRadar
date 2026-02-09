@@ -98,6 +98,7 @@ final class AllPRsModel {
                 case .log(let text):
                     appendRefreshLog(text)
                 case .aiOutput: break
+                case .aiToolUse: break
                 case .completed:
                     updatedMetadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
                 case .failed(let error, _):

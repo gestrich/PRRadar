@@ -43,6 +43,12 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
     var githubToken: String?
 
+    @Flag(name: .long, help: "Suppress AI output (show only status logs)")
+    var quiet: Bool = false
+
+    @Flag(name: .long, help: "Show full AI output including tool use events")
+    var verbose: Bool = false
+
     func run() async throws {
         let stateFilter: PRState? = try parseStateFilter(state)
 
@@ -74,7 +80,13 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
             case .log(let text):
                 print(text, terminator: "")
             case .aiOutput(let text):
-                print(text, terminator: "")
+                if !quiet {
+                    printAIOutput(text, verbose: verbose)
+                }
+            case .aiToolUse(let name):
+                if !quiet && verbose {
+                    printAIToolUse(name)
+                }
             case .completed(let output):
                 print("\nAnalyze-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
             case .failed(let error, let logs):

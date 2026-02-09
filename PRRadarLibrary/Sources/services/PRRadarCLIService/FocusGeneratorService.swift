@@ -41,7 +41,8 @@ public struct FocusGeneratorService: Sendable {
         _ hunk: Hunk,
         hunkIndex: Int,
         transcriptDir: String? = nil,
-        onAIText: ((String) -> Void)? = nil
+        onAIText: ((String) -> Void)? = nil,
+        onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> (focusAreas: [FocusArea], costUsd: Double) {
         let annotatedContent = hunk.getAnnotatedContent()
 
@@ -63,12 +64,10 @@ public struct FocusGeneratorService: Sendable {
         for try await event in bridgeClient.stream(request) {
             switch event {
             case .text(let content):
-                for textLine in content.components(separatedBy: "\n") {
-                    print("      \(textLine)", terminator: "\n")
-                }
                 onAIText?(content)
                 transcriptEvents.append(BridgeTranscriptEvent(type: .text, content: content))
             case .toolUse(let name):
+                onAIToolUse?(name)
                 transcriptEvents.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
             case .result(let bridgeResult):
                 result = bridgeResult
@@ -176,13 +175,15 @@ public struct FocusGeneratorService: Sendable {
     ///   - requestedTypes: Focus types to generate. Defaults to `[.file]`.
     ///   - transcriptDir: Directory to save AI transcripts. Pass `nil` to skip saving.
     ///   - onAIText: Callback for forwarding AI text output in real-time.
+    ///   - onAIToolUse: Callback for forwarding AI tool use events in real-time.
     /// - Returns: `FocusGenerationResult` per type requested
     public func generateAllFocusAreas(
         hunks: [Hunk],
         prNumber: Int,
         requestedTypes: Set<FocusType> = [.file],
         transcriptDir: String? = nil,
-        onAIText: ((String) -> Void)? = nil
+        onAIText: ((String) -> Void)? = nil,
+        onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> [FocusType: FocusGenerationResult] {
         var results: [FocusType: FocusGenerationResult] = [:]
 
@@ -195,7 +196,8 @@ public struct FocusGeneratorService: Sendable {
                     hunk,
                     hunkIndex: i,
                     transcriptDir: transcriptDir,
-                    onAIText: onAIText
+                    onAIText: onAIText,
+                    onAIToolUse: onAIToolUse
                 )
                 methodAreas.append(contentsOf: areas)
                 totalCost += cost

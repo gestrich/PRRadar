@@ -105,7 +105,8 @@ public struct EvaluationService: Sendable {
         _ task: EvaluationTaskOutput,
         repoPath: String,
         transcriptDir: String? = nil,
-        onAIText: ((String) -> Void)? = nil
+        onAIText: ((String) -> Void)? = nil,
+        onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> RuleEvaluationResult {
         let model = task.rule.model ?? Self.defaultModel
         let focusedContent = task.focusArea.getFocusedContent()
@@ -136,12 +137,10 @@ public struct EvaluationService: Sendable {
         for try await event in bridgeClient.stream(request) {
             switch event {
             case .text(let content):
-                for textLine in content.components(separatedBy: "\n") {
-                    print("      \(textLine)", terminator: "\n")
-                }
                 onAIText?(content)
                 transcriptEvents.append(BridgeTranscriptEvent(type: .text, content: content))
             case .toolUse(let name):
+                onAIToolUse?(name)
                 transcriptEvents.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
             case .result(let result):
                 bridgeResult = result
@@ -209,7 +208,8 @@ public struct EvaluationService: Sendable {
         transcriptDir: String? = nil,
         onStart: ((Int, Int, EvaluationTaskOutput) -> Void)? = nil,
         onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
-        onAIText: ((String) -> Void)? = nil
+        onAIText: ((String) -> Void)? = nil,
+        onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {
         let evalsDir = "\(outputDir)/\(PRRadarPhase.evaluations.rawValue)"
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
@@ -225,7 +225,8 @@ public struct EvaluationService: Sendable {
                 task,
                 repoPath: repoPath,
                 transcriptDir: transcriptDir ?? evalsDir,
-                onAIText: onAIText
+                onAIText: onAIText,
+                onAIToolUse: onAIToolUse
             )
             results.append(result)
 

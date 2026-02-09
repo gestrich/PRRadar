@@ -59,6 +59,9 @@ public struct FetchRulesUseCase: Sendable {
                         transcriptDir: focusDir,
                         onAIText: { text in
                             continuation.yield(.aiOutput(text: text))
+                        },
+                        onAIToolUse: { name in
+                            continuation.yield(.aiToolUse(name: name))
                         }
                     )
                     try FileManager.default.createDirectory(atPath: focusDir, withIntermediateDirectories: true)
