@@ -101,7 +101,12 @@ public struct EvaluationService: Sendable {
     }
 
     /// Evaluate a single task using Claude via the bridge.
-    public func evaluateTask(_ task: EvaluationTaskOutput, repoPath: String) async throws -> RuleEvaluationResult {
+    public func evaluateTask(
+        _ task: EvaluationTaskOutput,
+        repoPath: String,
+        transcriptDir: String? = nil,
+        onAIText: ((String) -> Void)? = nil
+    ) async throws -> RuleEvaluationResult {
         let model = task.rule.model ?? Self.defaultModel
         let focusedContent = task.focusArea.getFocusedContent()
 
@@ -124,18 +129,39 @@ public struct EvaluationService: Sendable {
             outputSchema: Self.evaluationOutputSchema
         )
 
+        let startedAt = ISO8601DateFormatter().string(from: Date())
+        var transcriptEvents: [BridgeTranscriptEvent] = []
         var bridgeResult: BridgeResult?
+
         for try await event in bridgeClient.stream(request) {
             switch event {
             case .text(let content):
                 for textLine in content.components(separatedBy: "\n") {
                     print("      \(textLine)", terminator: "\n")
                 }
-            case .toolUse:
-                break
+                onAIText?(content)
+                transcriptEvents.append(BridgeTranscriptEvent(type: .text, content: content))
+            case .toolUse(let name):
+                transcriptEvents.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
             case .result(let result):
                 bridgeResult = result
+                if let outputData = result.outputData,
+                   let json = String(data: outputData, encoding: .utf8) {
+                    transcriptEvents.append(BridgeTranscriptEvent(type: .result, content: json))
+                }
             }
+        }
+
+        if let transcriptDir, let bridgeResult {
+            let transcript = BridgeTranscript(
+                identifier: task.taskId,
+                model: model,
+                startedAt: startedAt,
+                events: transcriptEvents,
+                costUsd: bridgeResult.costUsd,
+                durationMs: bridgeResult.durationMs
+            )
+            try? BridgeTranscriptWriter.write(transcript, to: transcriptDir)
         }
 
         guard let bridgeResult else {
@@ -180,8 +206,10 @@ public struct EvaluationService: Sendable {
         tasks: [EvaluationTaskOutput],
         outputDir: String,
         repoPath: String,
+        transcriptDir: String? = nil,
         onStart: ((Int, Int, EvaluationTaskOutput) -> Void)? = nil,
-        onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil
+        onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
+        onAIText: ((String) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {
         let evalsDir = "\(outputDir)/\(PRRadarPhase.evaluations.rawValue)"
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
@@ -193,7 +221,12 @@ public struct EvaluationService: Sendable {
             let index = i + 1
             onStart?(index, total, task)
 
-            let result = try await evaluateTask(task, repoPath: repoPath)
+            let result = try await evaluateTask(
+                task,
+                repoPath: repoPath,
+                transcriptDir: transcriptDir ?? evalsDir,
+                onAIText: onAIText
+            )
             results.append(result)
 
             let encoder = JSONEncoder()

@@ -39,7 +39,9 @@ public struct FocusGeneratorService: Sendable {
     /// Generate focus areas for a single hunk via the Claude bridge.
     public func generateFocusAreasForHunk(
         _ hunk: Hunk,
-        hunkIndex: Int
+        hunkIndex: Int,
+        transcriptDir: String? = nil,
+        onAIText: ((String) -> Void)? = nil
     ) async throws -> (focusAreas: [FocusArea], costUsd: Double) {
         let annotatedContent = hunk.getAnnotatedContent()
 
@@ -54,18 +56,39 @@ public struct FocusGeneratorService: Sendable {
             outputSchema: Self.focusGenerationSchema
         )
 
+        let startedAt = ISO8601DateFormatter().string(from: Date())
+        var transcriptEvents: [BridgeTranscriptEvent] = []
         var result: BridgeResult?
+
         for try await event in bridgeClient.stream(request) {
             switch event {
             case .text(let content):
                 for textLine in content.components(separatedBy: "\n") {
                     print("      \(textLine)", terminator: "\n")
                 }
-            case .toolUse:
-                break
+                onAIText?(content)
+                transcriptEvents.append(BridgeTranscriptEvent(type: .text, content: content))
+            case .toolUse(let name):
+                transcriptEvents.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
             case .result(let bridgeResult):
                 result = bridgeResult
+                if let outputData = bridgeResult.outputData,
+                   let json = String(data: outputData, encoding: .utf8) {
+                    transcriptEvents.append(BridgeTranscriptEvent(type: .result, content: json))
+                }
             }
+        }
+
+        if let transcriptDir, let result {
+            let transcript = BridgeTranscript(
+                identifier: "hunk-\(hunkIndex)",
+                model: model,
+                startedAt: startedAt,
+                events: transcriptEvents,
+                costUsd: result.costUsd,
+                durationMs: result.durationMs
+            )
+            try? BridgeTranscriptWriter.write(transcript, to: transcriptDir)
         }
 
         guard let result else {
@@ -151,11 +174,15 @@ public struct FocusGeneratorService: Sendable {
     ///   - hunks: Parsed diff hunks
     ///   - prNumber: PR number being analyzed
     ///   - requestedTypes: Focus types to generate. Defaults to `[.file]`.
+    ///   - transcriptDir: Directory to save AI transcripts. Pass `nil` to skip saving.
+    ///   - onAIText: Callback for forwarding AI text output in real-time.
     /// - Returns: `FocusGenerationResult` per type requested
     public func generateAllFocusAreas(
         hunks: [Hunk],
         prNumber: Int,
-        requestedTypes: Set<FocusType> = [.file]
+        requestedTypes: Set<FocusType> = [.file],
+        transcriptDir: String? = nil,
+        onAIText: ((String) -> Void)? = nil
     ) async throws -> [FocusType: FocusGenerationResult] {
         var results: [FocusType: FocusGenerationResult] = [:]
 
@@ -164,7 +191,12 @@ public struct FocusGeneratorService: Sendable {
             var totalCost: Double = 0.0
 
             for (i, hunk) in hunks.enumerated() {
-                let (areas, cost) = try await generateFocusAreasForHunk(hunk, hunkIndex: i)
+                let (areas, cost) = try await generateFocusAreasForHunk(
+                    hunk,
+                    hunkIndex: i,
+                    transcriptDir: transcriptDir,
+                    onAIText: onAIText
+                )
                 methodAreas.append(contentsOf: areas)
                 totalCost += cost
             }

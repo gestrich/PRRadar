@@ -103,7 +103,7 @@ Modify `ClaudeBridgeClient` to support real-time streaming of bridge events, ena
 - Process termination check and stderr capture happen after the stdout stream completes naturally
 - Build verified: `swift build` succeeds, `swift test` passes all 273 tests in 39 suites
 
-## - [ ] Phase 3: Service-Layer Transcript Capture
+## - [x] Phase 3: Service-Layer Transcript Capture
 
 Update `EvaluationService` and `FocusGeneratorService` to use the streaming bridge client, capture all events into `BridgeTranscript` objects, save them to disk, and forward AI text to callers.
 
@@ -127,6 +127,17 @@ Update `EvaluationService` and `FocusGeneratorService` to use the streaming brid
 **Architecture notes:**
 - Services coordinate the bridge invocation and persist artifacts — this is appropriate for the Services layer
 - The `onAIText` callback pattern keeps Services stateless while allowing callers to react to streaming output
+
+**Completion notes:**
+- `EvaluationService.evaluateTask()` updated with `transcriptDir: String?` and `onAIText: ((String) -> Void)?` parameters (both default to `nil`)
+- `EvaluationService.runBatchEvaluation()` updated with `transcriptDir: String?` and `onAIText: ((String) -> Void)?` parameters, threaded down to each `evaluateTask()` call. When `transcriptDir` is nil, defaults to the evaluations phase directory (`evalsDir`)
+- `FocusGeneratorService.generateFocusAreasForHunk()` updated with the same parameter pattern; transcript identifier uses `"hunk-{hunkIndex}"`
+- `FocusGeneratorService.generateAllFocusAreas()` updated with `transcriptDir: String?` and `onAIText: ((String) -> Void)?`, threaded to each per-hunk call
+- All streaming event types captured: `.text` → `BridgeTranscriptEvent(.text)`, `.toolUse` → `.toolUse` with tool name, `.result` → `.result` with JSON string content
+- Transcript saving uses `try?` to avoid failing the evaluation/focus generation if only transcript writing fails
+- Existing `print()` output and console behavior preserved — `onAIText` fires in addition to the existing print statements
+- All new parameters use default values (`nil`), so existing callers (use cases) compile without changes
+- Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
 ## - [ ] Phase 4: Use Case Progress Stream Enhancement
 
