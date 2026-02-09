@@ -2,6 +2,7 @@ import PRRadarConfigService
 import SwiftUI
 
 enum NavigationPhase: CaseIterable {
+    case summary
     case diff
     case rules
     case evaluate
@@ -9,6 +10,7 @@ enum NavigationPhase: CaseIterable {
 
     var displayName: String {
         switch self {
+        case .summary: "Summary"
         case .diff: "Diff"
         case .rules: "Rules"
         case .evaluate: "Evaluate"
@@ -18,6 +20,7 @@ enum NavigationPhase: CaseIterable {
 
     var primaryPhase: PRRadarPhase {
         switch self {
+        case .summary: .pullRequest
         case .diff: .pullRequest
         case .rules: .rules
         case .evaluate: .evaluations
@@ -27,6 +30,7 @@ enum NavigationPhase: CaseIterable {
 
     var representedPhases: [PRRadarPhase] {
         switch self {
+        case .summary: []
         case .diff: [.pullRequest]
         case .rules: [.focusAreas, .rules, .tasks]
         case .evaluate: [.evaluations]
@@ -38,6 +42,7 @@ enum NavigationPhase: CaseIterable {
 struct PipelineStatusView: View {
 
     let prModel: PRModel
+    @Binding var selectedNavPhase: NavigationPhase
 
     var body: some View {
         HStack(spacing: 0) {
@@ -56,7 +61,7 @@ struct PipelineStatusView: View {
     @ViewBuilder
     private func phaseNode(_ navPhase: NavigationPhase) -> some View {
         Button {
-            prModel.selectedPhase = navPhase.primaryPhase
+            selectedNavPhase = navPhase
         } label: {
             HStack(spacing: 4) {
                 statusIndicator(for: combinedState(navPhase))
@@ -67,7 +72,7 @@ struct PipelineStatusView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                navPhase.representedPhases.contains(prModel.selectedPhase)
+                selectedNavPhase == navPhase
                     ? Color.accentColor.opacity(0.15)
                     : Color.clear
             )
@@ -107,7 +112,12 @@ struct PipelineStatusView: View {
     }
 
     private func combinedState(_ navPhase: NavigationPhase) -> PRModel.PhaseState {
-        let states = navPhase.representedPhases.map { prModel.stateFor($0) }
+        let phases = navPhase.representedPhases
+        if phases.isEmpty {
+            return .completed(logs: "")
+        }
+
+        let states = phases.map { prModel.stateFor($0) }
 
         if states.contains(where: { if case .running = $0 { return true } else { return false } }) {
             return .running(logs: "")

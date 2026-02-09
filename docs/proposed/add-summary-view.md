@@ -43,7 +43,7 @@ Summary is **not** a pipeline phase (no computation, no run button). It should b
 3. `pr-radar-mac/Sources/services/PRRadarConfigService/PRDiscoveryService.swift`
    - Update the `PRMetadata(...)` construction (line 29-39) to include `body: ghPR.body`
 
-## - [ ] Phase 2: Add `summary` NavigationPhase and wire up the tab
+## - [x] Phase 2: Add `summary` NavigationPhase and wire up the tab
 
 **Goal**: Add a Summary tab before Diff in the pipeline navigation bar.
 

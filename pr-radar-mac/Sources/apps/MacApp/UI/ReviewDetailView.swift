@@ -6,21 +6,35 @@ import SwiftUI
 struct ReviewDetailView: View {
 
     let prModel: PRModel
+    @State private var selectedNavPhase: NavigationPhase = .summary
     @State private var showEffectiveDiff = false
 
     var body: some View {
         VStack(spacing: 0) {
-            PipelineStatusView(prModel: prModel)
+            prHeader
+
+            PipelineStatusView(prModel: prModel, selectedNavPhase: $selectedNavPhase)
 
             Divider()
 
-            PhaseInputView(prModel: prModel, phase: prModel.selectedPhase)
-                .padding()
+            switch selectedNavPhase {
+            case .summary:
+                summaryPlaceholder
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .diff, .rules, .evaluate, .report:
+                PhaseInputView(prModel: prModel, phase: selectedNavPhase.primaryPhase)
+                    .padding()
 
-            Divider()
+                Divider()
 
-            phaseOutputView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                phaseOutputView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onChange(of: selectedNavPhase) {
+            if selectedNavPhase != .summary {
+                prModel.selectedPhase = selectedNavPhase.primaryPhase
+            }
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -39,19 +53,74 @@ struct ReviewDetailView: View {
                 .help("Open PR data in Finder")
                 .disabled(prModel.prNumber.isEmpty)
             }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    if let urlString = prModel.metadata.url,
+                       let url = URL(string: urlString) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Image(systemName: "safari")
+                }
+                .help("Open PR on GitHub")
+                .disabled(prModel.metadata.url == nil)
+            }
         }
+    }
+
+    // MARK: - PR Header
+
+    @ViewBuilder
+    private var prHeader: some View {
+        let pr = prModel.metadata
+        if !pr.title.isEmpty || !pr.author.login.isEmpty {
+            HStack(spacing: 8) {
+                Text("#\(pr.number)")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+
+                Text(pr.title)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if !pr.author.login.isEmpty {
+                    Text(pr.author.name.isEmpty ? pr.author.login : pr.author.name)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 6)
+
+            Divider()
+        }
+    }
+
+    // MARK: - Summary Placeholder
+
+    @ViewBuilder
+    private var summaryPlaceholder: some View {
+        ContentUnavailableView(
+            "Summary",
+            systemImage: "doc.text",
+            description: Text("Summary view coming soon.")
+        )
     }
 
     // MARK: - Phase Output Views
 
     @ViewBuilder
     private var phaseOutputView: some View {
-        switch prModel.selectedPhase {
-        case .pullRequest:
+        switch selectedNavPhase {
+        case .summary:
+            EmptyView()
+        case .diff:
             diffOutputView
-        case .focusAreas, .rules, .tasks:
+        case .rules:
             rulesOutputView
-        case .evaluations:
+        case .evaluate:
             evaluationsOutputView
         case .report:
             reportOutputView
