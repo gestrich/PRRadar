@@ -124,7 +124,23 @@ public struct EvaluationService: Sendable {
             outputSchema: Self.evaluationOutputSchema
         )
 
-        let bridgeResult = try await bridgeClient.execute(request)
+        var bridgeResult: BridgeResult?
+        for try await event in bridgeClient.stream(request) {
+            switch event {
+            case .text(let content):
+                for textLine in content.components(separatedBy: "\n") {
+                    print("      \(textLine)", terminator: "\n")
+                }
+            case .toolUse:
+                break
+            case .result(let result):
+                bridgeResult = result
+            }
+        }
+
+        guard let bridgeResult else {
+            throw ClaudeBridgeError.noResult
+        }
 
         let evaluation: RuleEvaluation
         if let dict = bridgeResult.outputAsDictionary() {

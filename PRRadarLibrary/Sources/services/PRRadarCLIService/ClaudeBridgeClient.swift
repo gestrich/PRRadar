@@ -9,6 +9,13 @@ public enum ClaudeBridgeError: Error {
     case noResult
 }
 
+/// A streaming event yielded by the bridge client as output arrives.
+public enum BridgeStreamEvent: Sendable {
+    case text(String)
+    case toolUse(name: String)
+    case result(BridgeResult)
+}
+
 /// A streaming message parsed from a single JSON-line of bridge output.
 enum BridgeMessage {
     case text(String)
@@ -113,74 +120,76 @@ public struct ClaudeBridgeClient: Sendable {
         self.pythonPath = pythonPath
     }
 
-    /// Execute a bridge request and return the structured result.
+    /// Stream bridge events as they arrive from the Python bridge process.
     ///
-    /// Streams the bridge script output, collects text messages, and returns
-    /// the final result message with cost/duration metadata.
-    public func execute(_ request: BridgeRequest) async throws -> BridgeResult {
-        let inputData = try request.toJSON()
+    /// Launches the bridge script, reads stdout line by line, and yields
+    /// `BridgeStreamEvent` values in real time. The final event is always
+    /// `.result` containing the structured output with cost/duration metadata.
+    public func stream(_ request: BridgeRequest) -> AsyncThrowingStream<BridgeStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let inputData = try request.toJSON()
+                    let resolvedPython = try resolvePythonPath()
 
-        let resolvedPython = try resolvePythonPath()
+                    guard FileManager.default.fileExists(atPath: bridgeScriptPath) else {
+                        throw ClaudeBridgeError.bridgeScriptNotFound(bridgeScriptPath)
+                    }
 
-        guard FileManager.default.fileExists(atPath: bridgeScriptPath) else {
-            throw ClaudeBridgeError.bridgeScriptNotFound(bridgeScriptPath)
-        }
+                    let process = Process()
+                    process.executableURL = URL(fileURLWithPath: resolvedPython)
+                    process.arguments = [bridgeScriptPath]
+                    process.environment = PRRadarEnvironment.build()
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: resolvedPython)
-        process.arguments = [bridgeScriptPath]
-        process.environment = PRRadarEnvironment.build()
+                    let stdinPipe = Pipe()
+                    let stdoutPipe = Pipe()
+                    let stderrPipe = Pipe()
+                    process.standardInput = stdinPipe
+                    process.standardOutput = stdoutPipe
+                    process.standardError = stderrPipe
 
-        let stdinPipe = Pipe()
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardInput = stdinPipe
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
+                    try process.run()
 
-        try process.run()
+                    stdinPipe.fileHandleForWriting.write(inputData)
+                    stdinPipe.fileHandleForWriting.closeFile()
 
-        stdinPipe.fileHandleForWriting.write(inputData)
-        stdinPipe.fileHandleForWriting.closeFile()
+                    for try await line in stdoutPipe.fileHandleForReading.bytes.lines {
+                        guard let message = BridgeMessage(jsonLine: line) else { continue }
+                        switch message {
+                        case .text(let content):
+                            continuation.yield(.text(content))
+                        case .toolUse(let name):
+                            continuation.yield(.toolUse(name: name))
+                        case .result(let output, let cost, let duration):
+                            var outputData: Data?
+                            if let output {
+                                outputData = try? JSONSerialization.data(withJSONObject: output)
+                            }
+                            let bridgeResult = BridgeResult(
+                                outputData: outputData,
+                                costUsd: cost ?? 0.0,
+                                durationMs: duration ?? 0
+                            )
+                            continuation.yield(.result(bridgeResult))
+                        }
+                    }
 
-        process.waitUntilExit()
+                    process.waitUntilExit()
 
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                    if process.terminationStatus != 0 {
+                        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                        let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+                        throw ClaudeBridgeError.bridgeFailed(
+                            "Bridge exited with code \(process.terminationStatus): \(stderr)"
+                        )
+                    }
 
-        guard process.terminationStatus == 0 else {
-            let stderr = String(data: stderrData, encoding: .utf8) ?? ""
-            throw ClaudeBridgeError.bridgeFailed(
-                "Bridge exited with code \(process.terminationStatus): \(stderr)"
-            )
-        }
-
-        let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
-        let lines = stdout.components(separatedBy: "\n").filter { !$0.isEmpty }
-
-        var resultOutputData: Data?
-        var costUsd: Double = 0.0
-        var durationMs: Int = 0
-
-        for line in lines {
-            guard let message = BridgeMessage(jsonLine: line) else { continue }
-            switch message {
-            case .text(let content):
-                for textLine in content.components(separatedBy: "\n") {
-                    print("      \(textLine)", terminator: "\n")
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
                 }
-            case .toolUse:
-                break
-            case .result(let output, let cost, let duration):
-                if let output {
-                    resultOutputData = try? JSONSerialization.data(withJSONObject: output)
-                }
-                costUsd = cost ?? 0.0
-                durationMs = duration ?? 0
             }
         }
-
-        return BridgeResult(outputData: resultOutputData, costUsd: costUsd, durationMs: durationMs)
     }
 
     // MARK: - Private

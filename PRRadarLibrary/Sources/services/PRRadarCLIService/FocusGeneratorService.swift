@@ -54,7 +54,23 @@ public struct FocusGeneratorService: Sendable {
             outputSchema: Self.focusGenerationSchema
         )
 
-        let result = try await bridgeClient.execute(request)
+        var result: BridgeResult?
+        for try await event in bridgeClient.stream(request) {
+            switch event {
+            case .text(let content):
+                for textLine in content.components(separatedBy: "\n") {
+                    print("      \(textLine)", terminator: "\n")
+                }
+            case .toolUse:
+                break
+            case .result(let bridgeResult):
+                result = bridgeResult
+            }
+        }
+
+        guard let result else {
+            throw ClaudeBridgeError.noResult
+        }
 
         guard let output = result.outputAsDictionary(),
               let methods = output["methods"] as? [[String: Any]],

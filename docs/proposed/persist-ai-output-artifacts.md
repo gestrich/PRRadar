@@ -64,7 +64,7 @@ Add a `BridgeTranscriptEvent` model to `PRRadarModels` for representing individu
 - Uses `displayName(forModelId:)` from PRRadarModels for human-readable model names in markdown header
 - Build verified: `swift build` succeeds with no errors
 
-## - [ ] Phase 2: Bridge Client Streaming
+## - [x] Phase 2: Bridge Client Streaming
 
 Modify `ClaudeBridgeClient` to support real-time streaming of bridge events, enabling callers to process events as they arrive rather than waiting for the process to complete.
 
@@ -93,6 +93,15 @@ Modify `ClaudeBridgeClient` to support real-time streaming of bridge events, ena
 - `ClaudeBridgeClient` is in the Services layer — it wraps the Python bridge (a single CLI invocation per method call), which aligns with the SDK/Services boundary
 - The stream method is stateless — each call creates a new process and stream
 - **Why not SwiftCLI?** SwiftCLI has streaming support (`stream()` → `AsyncStream<StreamOutput>`) but does not support stdin piping. The bridge requires writing a JSON request to stdin and reading JSON-lines from stdout, so `ClaudeBridgeClient` must continue using Foundation `Process` directly.
+
+**Completion notes:**
+- `BridgeStreamEvent` added as a public enum in `ClaudeBridgeClient.swift` with three cases: `.text(String)`, `.toolUse(name: String)`, `.result(BridgeResult)`
+- `stream()` method uses `AsyncThrowingStream` with a `Task` that reads `stdoutPipe.fileHandleForReading.bytes.lines` for true line-by-line async reading
+- `execute()` removed entirely; both callers (`EvaluationService.evaluateTask()` and `FocusGeneratorService.generateFocusAreasForHunk()`) updated to consume the stream with `for try await event in bridgeClient.stream(request)`
+- Callers collect the `.result` event and throw `ClaudeBridgeError.noResult` if no result arrives
+- Text printing (the `"      "` prefix pattern) preserved in callers for backward-compatible console output
+- Process termination check and stderr capture happen after the stdout stream completes naturally
+- Build verified: `swift build` succeeds, `swift test` passes all 273 tests in 39 suites
 
 ## - [ ] Phase 3: Service-Layer Transcript Capture
 
