@@ -36,12 +36,13 @@ struct InlinePostedCommentView: View {
 
                 RichContentView(comment.body, imageURLMap: imageURLMap, imageBaseDir: imageBaseDir)
             }
-            .padding(10)
+            .padding(12)
         }
-        .background(Color.green.opacity(0.06))
+        .background(.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
-            Rectangle()
-                .stroke(Color.green.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.green.opacity(0.2), lineWidth: 1)
         )
     }
 }

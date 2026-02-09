@@ -83,7 +83,10 @@ struct RichContentView: View {
                 switch segment.kind {
                 case .markdown(let text):
                     MarkdownUI.Markdown(text)
-                        .markdownTheme(.gitHub)
+                        .markdownTheme(.gitHub.text {
+                            ForegroundColor(.primary)
+                            FontSize(16)
+                        })
                         .textSelection(.enabled)
                 case .html(let text):
                     HTMLSegmentView(html: rewriteImageURLsInHTML(text), segmentID: segment.id.uuidString, fileAccessDir: imageBaseDir)

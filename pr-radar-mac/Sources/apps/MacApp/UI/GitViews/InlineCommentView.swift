@@ -24,36 +24,20 @@ struct InlineCommentView: View {
                 HStack(spacing: 8) {
                     SeverityBadge(score: comment.score)
 
-                    Text(comment.ruleName)
-                        .font(.subheadline.bold())
-
                     Spacer()
 
                     submitButton
                 }
 
-                Text(comment.comment)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if let link = comment.documentationLink, let url = URL(string: link) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "book")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Link("Documentation", destination: url)
-                            .font(.caption)
-                    }
-                }
+                RichContentView(comment.toGitHubMarkdown())
             }
-            .padding(10)
+            .padding(12)
         }
-        .background(Color.blue.opacity(0.06))
+        .background(.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
-            Rectangle()
-                .stroke(Color.blue.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
         )
     }
 
