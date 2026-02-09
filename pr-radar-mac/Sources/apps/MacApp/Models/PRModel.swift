@@ -71,7 +71,12 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var isAnyPhaseRunning: Bool {
-        phaseStates.values.contains { if case .running = $0 { return true } else { return false } }
+        phaseStates.values.contains {
+            switch $0 {
+            case .running, .refreshing: return true
+            default: return false
+            }
+        }
     }
 
     var hasPendingComments: Bool {
@@ -117,27 +122,21 @@ final class PRModel: Identifiable, Hashable {
         guard case .unloaded = detailState else { return }
         detailState = .loading
 
-        // Load phase states from phase_result.json files (single source of truth)
-        let allPhaseStatuses = DataPathsService.allPhaseStatuses(
-            outputDir: config.absoluteOutputDir,
-            prNumber: prNumber
-        )
-        
-        for (phase, status) in allPhaseStatuses {
-            if status.isComplete {
-                phaseStates[phase] = .completed(logs: "")
-            } else if !status.exists {
-                phaseStates[phase] = .idle
-            } else {
-                // Phase exists but is not complete (partial or failed)
-                let errorMsg = status.missingItems.first ?? "Incomplete"
-                phaseStates[phase] = .failed(error: errorMsg, logs: "")
-            }
-        }
+        loadPhaseStates()
+        loadCachedDiff()
+        loadCachedNonDiffOutputs()
 
-        // Load actual output data for UI display (best effort)
+        detailState = .loaded(ReviewSnapshot(
+            diff: self.diff,
+            rules: self.rules,
+            evaluation: self.evaluation,
+            report: self.report,
+            comments: nil
+        ))
+    }
+
+    func loadCachedNonDiffOutputs() {
         let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber)
-        self.diff = snapshot.diff
         self.rules = snapshot.rules
         self.evaluation = snapshot.evaluation
         self.report = snapshot.report
@@ -161,14 +160,102 @@ final class PRModel: Identifiable, Hashable {
             )
             self.imageBaseDir = "\(phaseDir)/images"
         }
+    }
 
-        detailState = .loaded(ReviewSnapshot(
-            diff: self.diff,
-            rules: self.rules,
-            evaluation: self.evaluation,
-            report: self.report,
-            comments: nil
-        ))
+    // MARK: - Diff Refresh
+
+    func refreshDiff(force: Bool = false) async {
+        // Step 1: Load cached diff from disk for immediate display
+        loadCachedDiff()
+
+        // Step 2: Determine whether to fetch from GitHub
+        let shouldFetch: Bool
+        if force {
+            shouldFetch = true
+        } else if diff == nil {
+            shouldFetch = true
+        } else {
+            shouldFetch = await isStale()
+        }
+
+        guard shouldFetch else { return }
+
+        // Step 3: Fetch from GitHub
+        let hasCachedData = diff != nil
+        let logPrefix = hasCachedData ? "Refreshing" : "Fetching"
+        if hasCachedData {
+            phaseStates[.pullRequest] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+        } else {
+            phaseStates[.pullRequest] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+        }
+
+        let useCase = FetchDiffUseCase(config: config)
+
+        do {
+            for try await progress in useCase.execute(prNumber: prNumber) {
+                switch progress {
+                case .running:
+                    break
+                case .progress:
+                    break
+                case .log(let text):
+                    appendLog(text, to: .pullRequest)
+                case .completed(let snapshot):
+                    diff = snapshot
+                    let logs = runningLogs(for: .pullRequest)
+                    phaseStates[.pullRequest] = .completed(logs: logs)
+                case .failed(let error, let logs):
+                    let existingLogs = runningLogs(for: .pullRequest)
+                    phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
+                }
+            }
+        } catch {
+            let logs = runningLogs(for: .pullRequest)
+            phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
+        }
+    }
+
+    private func loadPhaseStates() {
+        let allPhaseStatuses = DataPathsService.allPhaseStatuses(
+            outputDir: config.absoluteOutputDir,
+            prNumber: prNumber
+        )
+
+        for (phase, status) in allPhaseStatuses {
+            if status.isComplete {
+                phaseStates[phase] = .completed(logs: "")
+            } else if !status.exists {
+                phaseStates[phase] = .idle
+            } else {
+                let errorMsg = status.missingItems.first ?? "Incomplete"
+                phaseStates[phase] = .failed(error: errorMsg, logs: "")
+            }
+        }
+    }
+
+    private func loadCachedDiff() {
+        let snapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
+        if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
+            self.diff = snapshot
+            if case .idle = stateFor(.pullRequest) {
+                phaseStates[.pullRequest] = .completed(logs: "")
+            }
+        }
+    }
+
+    private func isStale() async -> Bool {
+        guard let storedUpdatedAt = metadata.updatedAt else { return true }
+
+        do {
+            let (gitHub, _) = try await GitHubServiceFactory.create(
+                repoPath: config.repoPath,
+                tokenOverride: config.githubToken
+            )
+            let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: metadata.number)
+            return storedUpdatedAt != currentUpdatedAt
+        } catch {
+            return true
+        }
     }
 
     // MARK: - State Queries
@@ -234,32 +321,7 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Phase Runners
 
     func runDiff() async {
-        phaseStates[.pullRequest] = .running(logs: "Running diff for PR #\(prNumber)...\n")
-
-        let useCase = FetchDiffUseCase(config: config)
-
-        do {
-            for try await progress in useCase.execute(prNumber: prNumber) {
-                switch progress {
-                case .running:
-                    break
-                case .progress:
-                    break
-                case .log(let text):
-                    appendLog(text, to: .pullRequest)
-                case .completed(let snapshot):
-                    diff = snapshot
-                    let logs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .completed(logs: logs)
-                case .failed(let error, let logs):
-                    let existingLogs = runningLogs(for: .pullRequest)
-                    phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
-                }
-            }
-        } catch {
-            let logs = runningLogs(for: .pullRequest)
-            phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
-        }
+        await refreshDiff(force: true)
     }
 
     func runComments(dryRun: Bool) async {
@@ -337,18 +399,31 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Helpers
 
     private func runningLogs(for phase: PRRadarPhase) -> String {
-        if case .running(let logs) = phaseStates[phase] { return logs }
-        return ""
+        switch phaseStates[phase] {
+        case .running(let logs), .refreshing(let logs): return logs
+        default: return ""
+        }
     }
 
     private func appendLog(_ text: String, to phase: PRRadarPhase) {
         let existing: String
-        if case .running(let logs) = phaseStates[phase] {
+        let isRefreshing: Bool
+        switch phaseStates[phase] {
+        case .running(let logs):
             existing = logs
-        } else {
+            isRefreshing = false
+        case .refreshing(let logs):
+            existing = logs
+            isRefreshing = true
+        default:
             existing = ""
+            isRefreshing = false
         }
-        phaseStates[phase] = .running(logs: existing + text)
+        if isRefreshing {
+            phaseStates[phase] = .refreshing(logs: existing + text)
+        } else {
+            phaseStates[phase] = .running(logs: existing + text)
+        }
     }
 
     private func runRules() async {
@@ -461,6 +536,7 @@ final class PRModel: Identifiable, Hashable {
     enum PhaseState: Sendable {
         case idle
         case running(logs: String)
+        case refreshing(logs: String)
         case completed(logs: String)
         case failed(error: String, logs: String)
     }

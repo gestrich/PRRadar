@@ -51,7 +51,12 @@ struct PhaseInputView: View {
     @ViewBuilder
     private func runButton(for targetPhase: PRRadarPhase) -> some View {
         let state = prModel.stateFor(targetPhase)
-        let isRunning = { if case .running = state { return true } else { return false } }()
+        let isRunning: Bool = {
+            switch state {
+            case .running, .refreshing: return true
+            default: return false
+            }
+        }()
 
         HStack(spacing: 8) {
             if isRunning {
@@ -141,7 +146,7 @@ struct PhaseInputView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        case .running(let logs):
+        case .running(let logs), .refreshing(let logs):
             if !logs.isEmpty {
                 logsView(logs)
             }

@@ -43,7 +43,7 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 - Lightweight staleness check uses GraphQL (`OctokitClient.pullRequestUpdatedAt()`) — a single query returning only `updatedAt`, matching the existing `pullRequestBodyHTML()` pattern
 - `GitHubService.getPRUpdatedAt()` wraps the SDK call for service-layer consumers
 
-## - [ ] Phase 2: Unify diff loading into a single refresh method
+## - [x] Phase 2: Unify diff loading into a single refresh method
 
 **Goal:** Replace the separate `loadDetail()` (disk read) + `runDiff()` (GitHub fetch) with a single `refreshDiff()` method that handles both cached display and fresh fetching. Initial load and refresh follow the same code path. When model properties update, views auto-update.
 
@@ -77,6 +77,15 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 5. **Views** — Since views already observe `PRModel.diff` and `PRModel.phaseStates`, they will automatically re-render when `refreshDiff()` updates these properties. No special reload logic needed — this is the MV pattern working as designed.
 
 **Key invariant:** Whether it's a new PR (no cache), a returning PR (has cache, may be stale), or a manual refresh — all go through `refreshDiff()`. The model updates → views re-render.
+
+**Implementation notes:**
+- `loadDetail()` decomposed into three helpers: `loadPhaseStates()`, `loadCachedDiff()`, `loadCachedNonDiffOutputs()`
+- `loadCachedDiff()` uses `FetchDiffUseCase.parseOutput()` directly (same as `LoadExistingOutputsUseCase` internally) and sets `phaseStates[.pullRequest] = .completed` when cache exists and state is `.idle`
+- `refreshDiff(force:)` chooses `.refreshing` vs `.running` based on whether cached data is already displayed
+- `isStale()` uses `GitHubServiceFactory.create()` + `GitHubService.getPRUpdatedAt()` from Phase 1 to compare stored `metadata.updatedAt` against GitHub's current value; falls back to "stale" on error or missing `updatedAt`
+- `runDiff()` is now a one-liner delegating to `refreshDiff(force: true)`
+- All views updated to handle `.refreshing` in switch statements: `PipelineStatusView`, `PhaseInputView`, `ReviewDetailView`
+- `isAnyPhaseRunning`, `runningLogs(for:)`, and `appendLog(_:to:)` all handle `.refreshing` alongside `.running`
 
 ## - [ ] Phase 3: Loading indicator in the detail view
 

@@ -136,6 +136,8 @@ struct ReviewDetailView: View {
             }
         } else if case .running(let logs) = prModel.stateFor(.pullRequest) {
             runningLogView(logs)
+        } else if case .refreshing(let logs) = prModel.stateFor(.pullRequest) {
+            runningLogView(logs)
         } else {
             ContentUnavailableView(
                 "No Diff Data",
@@ -153,6 +155,8 @@ struct ReviewDetailView: View {
                 markdownContent: output.markdownContent
             )
         } else if case .running(let logs) = prModel.stateFor(.report) {
+            runningLogView(logs)
+        } else if case .refreshing(let logs) = prModel.stateFor(.report) {
             runningLogView(logs)
         } else {
             ContentUnavailableView(
