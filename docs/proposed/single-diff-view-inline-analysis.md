@@ -163,7 +163,7 @@ Review all commits made during the preceding phases and validate they follow the
   - `NavigationPhase` enum pattern correctly maintained after `.evaluate` case removal
 - All 231 tests pass, build succeeds
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 ### Build and test
 ```bash
@@ -180,3 +180,16 @@ swift test
 5. Confirm "Run All" still executes all phases including evaluation
 6. Confirm the severity badges appear in the file sidebar when evaluation data exists
 7. Confirm inline comment submission (the "Submit" button) still works from the diff tab
+
+### Completion notes
+- `swift build` succeeds with no errors
+- All 231 tests in 34 suites pass
+- Code review verified all 7 manual checklist items at the source level:
+  1. `DiffPhaseView.hasEvaluationData` gates conditional rendering — `AnnotatedDiffContentView` when evaluation data present, `RichDiffContentView` when not
+  2. Plain diff renders correctly when `comments` and `evaluationSummary` are nil (all evaluation params have defaults)
+  3. Full/Effective Diff segmented picker intact with `@State selectedTab` toggle
+  4. `NavigationPhase` enum has no `.evaluate` case; only `.summary`, `.diff`, `.rules`, `.report`
+  5. "Run All" (`prModel.runAllPhases()`) is model-level and unaffected by tab changes
+  6. `annotatedFileList` renders severity-colored violation badges (red 8-10, orange 5-7, yellow other) via `violationBadge(count:file:mapping:)`
+  7. `AnnotatedDiffContentView` retains inline comment submission through `AnnotatedHunkContentView`
+- `EvaluationsPhaseView.swift` confirmed deleted with no remaining references
