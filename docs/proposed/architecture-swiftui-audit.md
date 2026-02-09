@@ -138,7 +138,7 @@ Currently `ContentView` has its own `currentPRModels` computed property (line 40
 - Private helpers `commentPostingLogs` and `appendCommentLog(_:)` added to manage log accumulation for the comment posting state, paralleling the existing `runningLogs(for:)` and `appendLog(_:to:)` pattern
 - Default value removed from `AllPRsModel.init(config:repoConfig:settingsService:)` — the only caller (`AppModel.selectedConfig.didSet`) already passes `settingsService` explicitly
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -151,6 +151,16 @@ Review all commits made during the preceding phases and validate they follow the
 2. Run `git diff` against the starting commit to see all changes
 3. Evaluate the changes against each skill's conventions
 4. Fix any violations found
+
+**Technical notes:**
+
+Three violations found and corrected:
+
+1. **`selectedConfig` and `selectedPR` stored on `AppModel` violated `view-state.md`** — The convention states "Selection belongs in the view" and "The view owns the selection and tells the model to load data via `.onChange`." Moved both properties back to `ContentView` as `@State`, with `.onChange(of: selectedConfig)` calling `appModel.selectConfig(_:)` to create/destroy the child `AllPRsModel`. This eliminated the need for `@Bindable` workarounds in `configSidebar` and `prListView`.
+
+2. **Dead configuration management methods on `AllPRsModel`** — Phase 1 moved config management to `AppModel` but left duplicate methods (`addConfiguration`, `removeConfiguration`, `updateConfiguration`, `setDefault`, `persistSettings`) on `AllPRsModel` for backward compatibility. Phase 4 was supposed to clean these up but didn't. Removed all five methods along with the now-unused `settingsService` and `settings` properties from `AllPRsModel.init`.
+
+3. **Extra blank lines in `PRModel.swift`** — Two consecutive blank lines at line 83-84 (left over from removing `isPullRequestPhaseRunning`) reduced to one.
 
 ## - [ ] Phase 6: Validation
 

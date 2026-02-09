@@ -82,7 +82,6 @@ final class PRModel: Identifiable, Hashable {
     }
 
 
-
     var hasPendingComments: Bool {
         guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
             return false

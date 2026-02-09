@@ -63,14 +63,9 @@ final class AllPRsModel {
     let config: PRRadarConfig
     let repoConfig: RepoConfiguration
 
-    private let settingsService: SettingsService
-    private(set) var settings: AppSettings
-
-    init(config: PRRadarConfig, repoConfig: RepoConfiguration, settingsService: SettingsService) {
+    init(config: PRRadarConfig, repoConfig: RepoConfiguration) {
         self.config = config
         self.repoConfig = repoConfig
-        self.settingsService = settingsService
-        self.settings = settingsService.load()
         Task { await load() }
     }
 
@@ -175,30 +170,6 @@ final class AllPRsModel {
         analyzeAllState = .idle
     }
 
-    // MARK: - Configuration Management
-
-    func addConfiguration(_ config: RepoConfiguration) {
-        settingsService.addConfiguration(config, to: &settings)
-        persistSettings()
-    }
-
-    func removeConfiguration(id: UUID) {
-        settingsService.removeConfiguration(id: id, from: &settings)
-        persistSettings()
-    }
-
-    func updateConfiguration(_ config: RepoConfiguration) {
-        if let idx = settings.configurations.firstIndex(where: { $0.id == config.id }) {
-            settings.configurations[idx] = config
-            persistSettings()
-        }
-    }
-
-    func setDefault(id: UUID) {
-        settingsService.setDefault(id: id, in: &settings)
-        persistSettings()
-    }
-
     // MARK: - Filtering
 
     func filteredPRModels(since: Date? = nil, state prState: PRState? = nil) -> [PRModel] {
@@ -253,7 +224,4 @@ final class AllPRsModel {
         return ""
     }
 
-    private func persistSettings() {
-        try? settingsService.save(settings)
-    }
 }

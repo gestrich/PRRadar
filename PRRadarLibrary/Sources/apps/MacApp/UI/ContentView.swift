@@ -5,6 +5,8 @@ import SwiftUI
 public struct ContentView: View {
 
     @Environment(AppModel.self) private var appModel
+    @State private var selectedConfig: RepoConfiguration?
+    @State private var selectedPR: PRModel?
     @AppStorage("selectedConfigID") private var savedConfigID: String = ""
     @AppStorage("selectedPRNumber") private var savedPRNumber: Int = 0
     @State private var showSettings = false
@@ -18,14 +20,6 @@ public struct ContentView: View {
     public init() {}
 
     private var allPRs: AllPRsModel? { appModel.allPRsModel }
-    private var selectedConfig: RepoConfiguration? {
-        get { appModel.selectedConfig }
-        nonmutating set { appModel.selectedConfig = newValue }
-    }
-    private var selectedPR: PRModel? {
-        get { appModel.selectedPR }
-        nonmutating set { appModel.selectedPR = newValue }
-    }
 
     private var showRefreshError: Binding<Bool> {
         Binding(
@@ -35,9 +29,8 @@ public struct ContentView: View {
     }
 
     public var body: some View {
-        @Bindable var appModel = appModel
         NavigationSplitView {
-            configSidebar(appModel: appModel)
+            configSidebar
         } content: {
             prListView
         } detail: {
@@ -131,7 +124,9 @@ public struct ContentView: View {
         }
         .onChange(of: selectedConfig) { old, new in
             guard let config = new, config.id != old?.id else { return }
+            appModel.selectConfig(config)
             savedConfigID = config.id.uuidString
+            selectedPR = nil
             savedPRNumber = 0
         }
         .onChange(of: selectedPR) { old, new in
@@ -153,9 +148,8 @@ public struct ContentView: View {
 
     // MARK: - Column 1: Config Sidebar
 
-    private func configSidebar(appModel: AppModel) -> some View {
-        @Bindable var appModel = appModel
-        return List(appModel.settings.configurations, selection: $appModel.selectedConfig) { config in
+    private var configSidebar: some View {
+        List(appModel.settings.configurations, selection: $selectedConfig) { config in
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(config.name)
@@ -184,8 +178,7 @@ public struct ContentView: View {
     // MARK: - Column 2: PR List
 
     private var prListView: some View {
-        @Bindable var appModel = appModel
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             if allPRs != nil {
                 prListFilterBar
                 Divider()
@@ -196,7 +189,7 @@ public struct ContentView: View {
                         description: Text(allPRs?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
                     )
                 } else {
-                    List(filteredPRModels, selection: $appModel.selectedPR) { prModel in
+                    List(filteredPRModels, selection: $selectedPR) { prModel in
                         PRListRow(prModel: prModel)
                             .tag(prModel)
                     }

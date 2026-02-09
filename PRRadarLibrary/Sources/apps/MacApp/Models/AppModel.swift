@@ -10,35 +10,31 @@ public final class AppModel {
     private let settingsService: SettingsService
     var settings: AppSettings
 
-    var selectedConfig: RepoConfiguration? {
-        didSet {
-            guard selectedConfig?.id != oldValue?.id else { return }
-            if let config = selectedConfig {
-                let prRadarConfig = PRRadarConfig(
-                    repoPath: config.repoPath,
-                    outputDir: config.outputDir,
-                    bridgeScriptPath: bridgeScriptPath,
-                    githubToken: config.githubToken
-                )
-                allPRsModel = AllPRsModel(
-                    config: prRadarConfig,
-                    repoConfig: config,
-                    settingsService: settingsService
-                )
-            } else {
-                allPRsModel = nil
-            }
-            selectedPR = nil
-        }
-    }
-
     var allPRsModel: AllPRsModel?
-    var selectedPR: PRModel?
 
     public init(bridgeScriptPath: String) {
         self.bridgeScriptPath = bridgeScriptPath
         self.settingsService = SettingsService()
         self.settings = settingsService.load()
+    }
+
+    // MARK: - Config Selection
+
+    func selectConfig(_ config: RepoConfiguration?) {
+        if let config {
+            let prRadarConfig = PRRadarConfig(
+                repoPath: config.repoPath,
+                outputDir: config.outputDir,
+                bridgeScriptPath: bridgeScriptPath,
+                githubToken: config.githubToken
+            )
+            allPRsModel = AllPRsModel(
+                config: prRadarConfig,
+                repoConfig: config
+            )
+        } else {
+            allPRsModel = nil
+        }
     }
 
     // MARK: - Configuration Management
