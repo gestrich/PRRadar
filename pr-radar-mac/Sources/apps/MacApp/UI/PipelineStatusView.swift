@@ -93,9 +93,10 @@ struct PipelineStatusView: View {
                 .controlSize(.mini)
                 .frame(width: 8, height: 8)
         case .refreshing:
-            ProgressView()
-                .controlSize(.mini)
-                .frame(width: 8, height: 8)
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.caption2)
+                .foregroundStyle(.blue)
+                .symbolEffect(.rotate)
         case .completed:
             Image(systemName: "checkmark.circle.fill")
                 .font(.caption2)
@@ -115,13 +116,14 @@ struct PipelineStatusView: View {
 
         let states = phases.map { prModel.stateFor($0) }
 
-        if states.contains(where: {
-            switch $0 {
-            case .running, .refreshing: return true
-            default: return false
-            }
-        }) {
+        let hasRunning = states.contains(where: { if case .running = $0 { return true } else { return false } })
+        let hasRefreshing = states.contains(where: { if case .refreshing = $0 { return true } else { return false } })
+
+        if hasRunning {
             return .running(logs: "")
+        }
+        if hasRefreshing {
+            return .refreshing(logs: "")
         }
         if states.contains(where: { if case .failed = $0 { return true } else { return false } }) {
             return .failed(error: "", logs: "")

@@ -87,7 +87,7 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 - All views updated to handle `.refreshing` in switch statements: `PipelineStatusView`, `PhaseInputView`, `ReviewDetailView`
 - `isAnyPhaseRunning`, `runningLogs(for:)`, and `appendLog(_:to:)` all handle `.refreshing` alongside `.running`
 
-## - [ ] Phase 3: Loading indicator in the detail view
+## - [x] Phase 3: Loading indicator in the detail view
 
 **Goal:** Show a visible loading indicator while the diff phase is fetching data.
 
@@ -102,6 +102,12 @@ When a user selects a PR in the Mac app, `PRModel.loadDetail()` loads existing p
 3. The `PipelineStatusView` phase node already shows a spinner for `.running` — extend it to also show an indicator for `.refreshing` (perhaps a different icon or animation to indicate "updating" vs "loading from scratch").
 
 **Architecture note:** Per swift-swiftui, views read directly from the `@Observable` model. The `.refreshing` state on the model drives all loading indicators — no separate `@State` booleans needed in views.
+
+**Implementation notes:**
+- `ReviewDetailView`: `.running` with no cached data shows a centered `ProgressView` (large) with descriptive text. `.refreshing` with cached data visible shows a floating "Updating..." capsule banner overlaid at the top of the diff content. Report output view follows the same pattern.
+- `PhaseInputView`: Run button text now distinguishes "Running..." vs "Refreshing..." vs "Run" based on phase state
+- `PipelineStatusView`: `.running` keeps the existing `ProgressView` spinner; `.refreshing` uses an `arrow.triangle.2.circlepath` SF Symbol with `.symbolEffect(.rotate)` animation in blue — visually distinct "updating" indicator vs "loading from scratch"
+- `combinedState()` now returns `.refreshing` separately instead of collapsing it into `.running`, so the pipeline strip accurately reflects whether cached data is being updated
 
 ## - [ ] Phase 4: Auto-trigger on PR selection with task cancellation
 

@@ -119,6 +119,11 @@ struct ReviewDetailView: View {
                     tasks: prModel.rules?.tasks ?? []
                 )
             }
+            .overlay(alignment: .top) {
+                if case .refreshing = prModel.stateFor(.pullRequest) {
+                    refreshingBanner
+                }
+            }
             .sheet(isPresented: $showEffectiveDiff) {
                 if let effectiveDiff = prModel.diff?.effectiveDiff {
                     EffectiveDiffView(
@@ -134,10 +139,15 @@ struct ReviewDetailView: View {
                 Text(file)
                     .font(.system(.body, design: .monospaced))
             }
-        } else if case .running(let logs) = prModel.stateFor(.pullRequest) {
-            runningLogView(logs)
-        } else if case .refreshing(let logs) = prModel.stateFor(.pullRequest) {
-            runningLogView(logs)
+            .overlay(alignment: .top) {
+                if case .refreshing = prModel.stateFor(.pullRequest) {
+                    refreshingBanner
+                }
+            }
+        } else if case .running = prModel.stateFor(.pullRequest) {
+            loadingView("Fetching PR diff...")
+        } else if case .refreshing = prModel.stateFor(.pullRequest) {
+            loadingView("Refreshing PR diff...")
         } else {
             ContentUnavailableView(
                 "No Diff Data",
@@ -154,10 +164,10 @@ struct ReviewDetailView: View {
                 report: output.report,
                 markdownContent: output.markdownContent
             )
-        } else if case .running(let logs) = prModel.stateFor(.report) {
-            runningLogView(logs)
-        } else if case .refreshing(let logs) = prModel.stateFor(.report) {
-            runningLogView(logs)
+        } else if case .running = prModel.stateFor(.report) {
+            loadingView("Generating report...")
+        } else if case .refreshing = prModel.stateFor(.report) {
+            loadingView("Generating report...")
         } else {
             ContentUnavailableView(
                 "No Report Data",
@@ -167,21 +177,34 @@ struct ReviewDetailView: View {
         }
     }
 
-    // MARK: - Running Log
+    // MARK: - Loading Indicators
 
     @ViewBuilder
-    private func runningLogView(_ logs: String) -> some View {
-        ScrollView {
-            ScrollViewReader { proxy in
-                Text(logs.isEmpty ? "Running..." : logs)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .id("logBottom")
-                    .onChange(of: logs) {
-                        proxy.scrollTo("logBottom", anchor: .bottom)
-                    }
-            }
+    private func loadingView(_ message: String) -> some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.large)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var refreshingBanner: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .controlSize(.mini)
+            Text("Updating...")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(.bar)
+        .clipShape(Capsule())
+        .shadow(radius: 2)
+        .padding(.top, 8)
     }
 }

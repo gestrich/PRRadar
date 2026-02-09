@@ -57,6 +57,13 @@ struct PhaseInputView: View {
             default: return false
             }
         }()
+        let buttonLabel: String = {
+            switch state {
+            case .refreshing: return "Refreshing..."
+            case .running: return "Running..."
+            default: return "Run"
+            }
+        }()
 
         HStack(spacing: 8) {
             if isRunning {
@@ -64,7 +71,7 @@ struct PhaseInputView: View {
                     .controlSize(.small)
             }
 
-            Button(isRunning ? "Running..." : "Run") {
+            Button(buttonLabel) {
                 Task { await prModel.runPhase(targetPhase) }
             }
             .disabled(!prModel.canRunPhase(targetPhase))
