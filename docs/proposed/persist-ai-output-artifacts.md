@@ -262,7 +262,7 @@ Update the CLI to support displaying AI output both during live runs and when vi
   - Registered as `transcript` subcommand in `PRRadarMacCLI`
 - Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
-## - [ ] Phase 7: Architecture Validation
+## - [x] Phase 7: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -284,6 +284,18 @@ Review all commits made during the preceding phases and validate they follow the
    - No upward dependencies (Services don't import Features, Features don't import Apps)
    - `PhaseProgress` enum extension is in the Features layer where it's defined
 5. Fix any violations found
+
+**Completion notes:**
+- Reviewed all 13 skill files from `gestrich/swift-app-architecture` (7 in swift-architecture, 6 in swift-swiftui)
+- Reviewed all 6 commits (Phases 1-6) touching 27 files across all 4 layers
+- **Layer placement:** All new types in correct layers — domain models (`BridgeTranscript`, `BridgeTranscriptEvent`) in Services/Models, stateless writer (`BridgeTranscriptWriter`) in Services, use case orchestration in Features, `@Observable` models and views in Apps
+- **Dependency flow:** No upward dependencies — Services never import Features or Apps, Features never import Apps. Verified via import analysis across all changed files
+- **`@Observable` discipline:** Only `PRModel` and `AllPRsModel` (Apps layer) use `@Observable`/`@MainActor`. No `@Observable` in Services or Features
+- **View purity:** `AITranscriptView` and `AIOutputStreamView` take data as parameters with no embedded business logic. `@State` used only for local UI selection state
+- **Stateless patterns:** `ClaudeBridgeClient` is a `Sendable` struct with immutable stored properties; `BridgeTranscriptWriter` is a stateless `enum` with only `static` methods
+- **Code style:** Imports alphabetically ordered in all files; file organization follows stored properties -> init -> computed -> methods -> nested types convention
+- **No violations found — no corrections needed**
+- Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
 ## - [ ] Phase 8: Validation
 
