@@ -38,7 +38,7 @@ Posted comment data (`gh-comments.json`) is currently only loaded during `loadDe
 
 **Completed:** Added `postedCommentCount: Int` as the third associated value in `AnalysisState.loaded`. The count is derived from `GitHubPullRequestComments.reviewComments.count` parsed from `gh-comments.json` in the `.pullRequest` phase directory. Falls back to 0 if the file is missing or unparseable. Updated all existing pattern matches in `PRModel.swift` (`hasPendingComments`) and `PRListRow.swift` (`analysisBadge`) to use the three-value tuple.
 
-## - [ ] Phase 2: Add Posted Comment Badge to PR List Row
+## - [x] Phase 2: Add Posted Comment Badge to PR List Row
 
 **Goal:** Display a badge on each PR in the list showing the number of posted review comments, styled distinctly from the existing orange violation badge.
 
@@ -57,6 +57,8 @@ Posted comment data (`gh-comments.json`) is currently only loaded during `loadDe
 
 **Architecture notes:**
 - Per the swift-swiftui guide, views connect directly to `@Observable` models. `PRListRow` already reads from `prModel.analysisState`, so adding another field to that enum is a natural extension.
+
+**Completed:** Added `postedCommentsBadge` computed property using a `switch` with a `where` guard on `postedCommentCount > 0`. The badge uses a green capsule (`.background(.green, in: Capsule())`) matching the same font/padding style as the existing orange violation badge. Placed between `analysisBadge` and the timestamp in the HStack. When `postedCommentCount` is 0 or analysis state is not `.loaded`, renders `EmptyView()`.
 
 ## - [ ] Phase 3: Add Posted Comment Badges Per File in Diff View
 

@@ -24,6 +24,8 @@ struct PRListRow: View {
 
                 analysisBadge
 
+                postedCommentsBadge
+
                 if let relative = relativeTimestamp {
                     Text(relative)
                         .font(.caption2)
@@ -74,6 +76,23 @@ struct PRListRow: View {
                     .foregroundStyle(.green)
             }
         case .unavailable:
+            EmptyView()
+        }
+    }
+
+    // MARK: - Posted Comments Badge
+
+    @ViewBuilder
+    private var postedCommentsBadge: some View {
+        switch prModel.analysisState {
+        case .loaded(_, _, let postedCommentCount) where postedCommentCount > 0:
+            Text("\(postedCommentCount)")
+                .font(.caption2.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(.green, in: Capsule())
+        default:
             EmptyView()
         }
     }
