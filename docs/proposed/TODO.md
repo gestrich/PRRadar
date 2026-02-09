@@ -2,9 +2,17 @@
 
 ## Small
 
-- [ ] Add button to open pull request on web
-- [ ] Add PR author info to the UI
-- [ ] Fix comment view diff width
+- [ ] Fix toolbar button alignment and visibility
+  Toolbar buttons (loopback, comment, refresh, analyze all, plus) are right-aligned
+  until a PR is selected in the list, then they jump to the left. The Settings toolbar
+  button is hidden inside a "show more" overflow menu. Likely caused by nested
+  NavigationStack issue. Additionally, toolbar actions should be separated into two
+  groups: PR-level actions (finder folder, web link, run all steps) vs PR-list-level
+  actions (plus button, analyze all PRs). These are currently mixed together.
+  Ideally, PR-list-level actions should appear at the far left above the list of PRs.
+- [x] Add button to open pull request on web
+- [x] Add PR author info to the UI
+- [x] Fix comment view diff width
   In the comment view, the diff column is too narrow.
 - [ ] Fix task counts display on rules view
   The task counts shown are confusing.
@@ -21,42 +29,42 @@
   artifacts. When browsing results in the MacApp or CLI, the AI output from the run
   should be visible. The UI should also support streaming output during a live run
   (both real-time while running and after completion).
+- [ ] Create Xcode project
+  Avoids constant Desktop folder prompts, supports custom icon, and supports
+  docs in the Xcode organizer.
+- [ ] Show moved/renamed files in diff view
+  Moved or renamed files are not currently displayed in the diff. They should be
+  shown. Example PR with moved files: https://github.com/jeppesen-foreflight/ff-ios/pull/18730/changes
+- [ ] Show GitHub real name in UI alongside handle
+  Display the user's full name (from GitHub profile) in addition to their handle
+  where author info is shown, if available via the GitHub API.
+- [ ] Posted comments badge indicators
+  Show a badge on each PR in the list view indicating the number of posted
+  (not pending) comments, styled with a different color than pending comments.
+  Also show a per-file badge in the file list indicating how many posted
+  comments exist for that file.
 
 ## Medium
 
-- [ ] Use DocC for documentation
-  Add DocC so docs show in the Xcode organizer.
 - [ ] Effective diff fixes
   Verify effective diff is working. Fix views. Ensure moved files work
   correctly with nullability/imports.
-- [ ] Restart state handling
-  Ensure state loads automatically on restart for all phases without needing
-  to refresh. Currently broken for at least the analyze phase (see PR 18702).
-- [ ] Analyze All improvements
-  Verify views load live during batch analysis. Add feedback: output streaming
-  and progress count (e.g. 1/100 complete).
 - [ ] Per-task evaluation with play button
-  Add a play button next to each task in the rules view to evaluate that
-  specific task individually. Show a checkmark after evaluation completes.
+  Add a play button next to each task in the rules view to evaluate that specific task individually. Show a checkmark after evaluation completes.
   Requires a new `runSingleTask()` method in PRModel.
 - [ ] Local triage runs
   Get an easily readable daily report with total cost. Run on cron daily.
 - [ ] Unified file-centric review view
-  Consolidate the diff, focus areas, rules, tasks, evaluations, and report
-  phase views into a single file-centric view. Selecting a file shows the diff
-  on top with rules/tasks listed underneath, scoped to that file. Analysis
-  results (comments, evaluations) appear inline within the diff. This collapses
-  the separate phase concepts into one cohesive view per file.
+  Consolidate the diff, focus areas, rules, tasks, evaluations, and report phase views into a single file-centric view. Selecting a file shows the diff on top with rules/tasks listed underneath, scoped to that file. Analysis results (comments, evaluations) appear inline within the diff. This collapses the separate phase concepts into one cohesive view per file.
 - [ ] Skip already-analyzed tasks during evaluation
-  The analysis pipeline should detect when a specific rule/task has already been
-  evaluated and skip re-running it. Still check whether the task was previously
-  analyzed, but avoid re-invoking the AI if it was. This saves AI costs by not
-  re-evaluating unchanged work across repeated runs.
+  The analysis pipeline should detect when a specific rule/task has already been evaluated and skip re-running it. Still check whether the task was previously analyzed, but avoid re-invoking the AI if it was. This saves AI costs by not re-evaluating unchanged work across repeated runs.
+- [ ] PR summary tab
+  Add a summary view when opening a PR, mirroring GitHub's summary tab. Show
+  the PR title, description, and any posted comments. This should be the
+  default view when selecting a PR, giving an at-a-glance overview before
+  diving into diffs or analysis results.
 
 ## Large
 
 - [ ] CI runs
   May need shallow commit + GitHub diff approach.
-- [ ] Create Xcode project
-  Avoids constant Desktop folder prompts, supports custom icon, and supports
-  docs in the Xcode organizer.
