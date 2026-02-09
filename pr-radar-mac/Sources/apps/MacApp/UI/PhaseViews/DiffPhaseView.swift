@@ -74,6 +74,10 @@ struct DiffPhaseView: View {
 
     // MARK: - File Sidebar
 
+    private func renameFrom(for file: String, in diff: GitDiff) -> String? {
+        diff.getHunks(byFilePath: file).first(where: { $0.renameFrom != nil })?.renameFrom
+    }
+
     @ViewBuilder
     private func fileList(for diff: GitDiff) -> some View {
         if hasEvaluationData {
@@ -84,14 +88,28 @@ struct DiffPhaseView: View {
     }
 
     @ViewBuilder
+    private func fileNameLabel(for file: String, renameFrom: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(URL(fileURLWithPath: file).lastPathComponent)
+                .lineLimit(1)
+            if let renameFrom {
+                Text("\u{2190} \(renameFrom)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help("Renamed from \(renameFrom)")
+            }
+        }
+    }
+
+    @ViewBuilder
     private func plainFileList(for diff: GitDiff) -> some View {
         List(selection: $selectedFile) {
             Section("Changed Files") {
                 ForEach(diff.changedFiles, id: \.self) { file in
                     let hunkCount = diff.getHunks(byFilePath: file).count
                     HStack {
-                        Text(URL(fileURLWithPath: file).lastPathComponent)
-                            .lineLimit(1)
+                        fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
                         if let taskCount = taskCountsByFile[file], taskCount > 0 {
                             taskBadge(count: taskCount)
@@ -117,8 +135,7 @@ struct DiffPhaseView: View {
                 ForEach(diff.changedFiles, id: \.self) { file in
                     let violationCount = allFiles[file] ?? 0
                     HStack {
-                        Text(URL(fileURLWithPath: file).lastPathComponent)
-                            .lineLimit(1)
+                        fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
                         if let taskCount = taskCountsByFile[file], taskCount > 0 {
                             taskBadge(count: taskCount)
@@ -173,6 +190,23 @@ struct DiffPhaseView: View {
         }()
 
         VStack(spacing: 0) {
+            if let file = selectedFile, let oldPath = renameFrom(for: file, in: diff) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.right")
+                        .foregroundStyle(.secondary)
+                    Text("Renamed from")
+                        .foregroundStyle(.secondary)
+                    Text(oldPath)
+                        .fontWeight(.medium)
+                    Spacer()
+                }
+                .font(.callout)
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+                .background(Color.blue.opacity(0.08))
+                Divider()
+            }
+
             if let file = selectedFile, let taskCount = taskCountsByFile[file], taskCount > 0 {
                 HStack {
                     Button {

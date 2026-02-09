@@ -195,15 +195,65 @@ struct RichDiffContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(nsColor: .windowBackgroundColor))
 
-                    ForEach(diff.getHunks(byFilePath: filePath)) { hunk in
-                        HunkHeaderView(hunk: hunk)
-                        HunkContentView(hunk: hunk, searchQuery: searchQuery)
+                    let hunks = diff.getHunks(byFilePath: filePath)
+                    if let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom {
+                        RenameHeaderView(oldPath: oldPath, isPureRename: hunks.allSatisfy { $0.diffLines.isEmpty })
+                    }
+
+                    ForEach(hunks) { hunk in
+                        if !hunk.diffLines.isEmpty {
+                            HunkHeaderView(hunk: hunk)
+                            HunkContentView(hunk: hunk, searchQuery: searchQuery)
+                        }
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color(nsColor: .textBackgroundColor))
+    }
+}
+
+// MARK: - Rename Header
+
+struct RenameHeaderView: View {
+    let oldPath: String
+    let isPureRename: Bool
+
+    var body: some View {
+        if isPureRename {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.right.arrow.left")
+                    .foregroundStyle(.secondary)
+                Text("File renamed from")
+                    .foregroundStyle(.secondary)
+                Text(oldPath)
+                    .fontWeight(.medium)
+                Text("— no content changes")
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+            .font(.callout)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.06))
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.right")
+                    .foregroundStyle(.secondary)
+                Text("Renamed from")
+                    .foregroundStyle(.secondary)
+                Text(oldPath)
+                    .fontWeight(.medium)
+                Spacer()
+            }
+            .font(.callout)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.06))
+        }
     }
 }
 
@@ -313,6 +363,11 @@ struct AnnotatedDiffContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(nsColor: .windowBackgroundColor))
 
+                    let hunks = diff.getHunks(byFilePath: filePath)
+                    if let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom {
+                        RenameHeaderView(oldPath: oldPath, isPureRename: hunks.allSatisfy { $0.diffLines.isEmpty })
+                    }
+
                     if let postedUnmatched = commentMapping.postedUnmatchedByFile[filePath] {
                         postedFileLevelSection(postedUnmatched)
                     }
@@ -321,7 +376,7 @@ struct AnnotatedDiffContentView: View {
                         unmatchedSection(unmatched, title: "File-level comments")
                     }
 
-                    ForEach(diff.getHunks(byFilePath: filePath)) { hunk in
+                    ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
                         HunkHeaderView(hunk: hunk)
                         AnnotatedHunkContentView(
                             hunk: hunk,

@@ -93,7 +93,9 @@ Add unit tests in `PRRadarModelsTests` for:
 
 **Architecture note**: `Hunk` and `GitDiff` are shared data models in the Services layer — correct placement per the architecture guide. No @Observable, no orchestration.
 
-## - [ ] Phase 2: UI — Display Renamed Files in Diff View
+## - [x] Phase 2: UI — Display Renamed Files in Diff View
+
+**Completed**: Updated `DiffPhaseView`, `RichDiffContentView`, and `AnnotatedDiffContentView` to display renamed files. Sidebar shows `← old/path` subtitle with tooltip for renamed files (shared `fileNameLabel` helper). Diff content pane shows a blue rename header bar via new `RenameHeaderView`. Pure renames display "no content changes" placeholder; renames with changes show rename header above normal diff content. All 273 tests pass, build succeeds.
 
 ### DiffPhaseView.swift (Apps layer)
 
