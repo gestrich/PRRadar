@@ -8,7 +8,7 @@ let package = Package(
         .macOS(.v15)
     ],
     products: [
-        .executable(
+        .library(
             name: "MacApp",
             targets: ["MacApp"]
         ),
@@ -75,7 +75,7 @@ let package = Package(
         ),
 
         // App Layer
-        .executableTarget(
+        .target(
             name: "MacApp",
             dependencies: [
                 .target(name: "PRReviewFeature"),
@@ -85,10 +85,7 @@ let package = Package(
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
                 .product(name: "Markdown", package: "swift-markdown"),
             ],
-            path: "Sources/apps/MacApp",
-            swiftSettings: [
-                .unsafeFlags(["-parse-as-library"])
-            ]
+            path: "Sources/apps/MacApp"
         ),
 
         // CLI App Layer

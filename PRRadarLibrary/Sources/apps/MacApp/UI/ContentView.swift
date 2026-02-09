@@ -2,7 +2,7 @@ import PRRadarConfigService
 import PRRadarModels
 import SwiftUI
 
-struct ContentView: View {
+public struct ContentView: View {
 
     @State private var allPRs: AllPRsModel?
     @State private var settingsService = SettingsService()
@@ -21,7 +21,7 @@ struct ContentView: View {
     
     let bridgeScriptPath: String
     
-    init(bridgeScriptPath: String) {
+    public init(bridgeScriptPath: String) {
         self.bridgeScriptPath = bridgeScriptPath
         let service = SettingsService()
         let loadedSettings = service.load()
@@ -35,7 +35,7 @@ struct ContentView: View {
         )
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationSplitView {
             configSidebar
         } content: {
