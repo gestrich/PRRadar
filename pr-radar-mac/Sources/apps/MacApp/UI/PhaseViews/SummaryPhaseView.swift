@@ -72,6 +72,27 @@ struct SummaryPhaseView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    // MARK: - Helpers
+
+    private var stateColor: Color {
+        switch metadata.state.uppercased() {
+        case "OPEN": .green
+        case "CLOSED": .red
+        case "MERGED": .purple
+        case "DRAFT": .orange
+        default: .secondary
+        }
+    }
+
+    private var formattedDate: String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: metadata.createdAt) {
+            return date.formatted(date: .abbreviated, time: .shortened)
+        }
+        return metadata.createdAt
+    }
+
     // MARK: - Comments Section
 
     @ViewBuilder
@@ -127,26 +148,5 @@ struct SummaryPhaseView: View {
             Rectangle()
                 .stroke(Color.green.opacity(0.15), lineWidth: 1)
         )
-    }
-
-    // MARK: - Computed Properties
-
-    private var stateColor: Color {
-        switch metadata.state.uppercased() {
-        case "OPEN": .green
-        case "CLOSED": .red
-        case "MERGED": .purple
-        case "DRAFT": .orange
-        default: .secondary
-        }
-    }
-
-    private var formattedDate: String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: metadata.createdAt) {
-            return date.formatted(date: .abbreviated, time: .shortened)
-        }
-        return metadata.createdAt
     }
 }

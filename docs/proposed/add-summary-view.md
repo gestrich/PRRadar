@@ -133,7 +133,7 @@ struct SummaryPhaseView: View {
 
 **Note**: Keep `postedReviewComments` (inline diff comments) in the evaluations view — those are correctly placed there.
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -156,6 +156,21 @@ Review all commits made during the preceding phases and validate they follow the
 - No unnecessary default parameter values (body default `nil` is acceptable since it's genuinely optional)
 - No type aliases or re-exports
 - Layer dependency rules respected (Summary view is Apps layer, PRMetadata is Services layer)
+
+**Result**: Reviewed all 4 commits (db000d9..e81f9cb) against both `swift-architecture` and `swift-swiftui` skills from the `gestrich/swift-app-architecture` repo.
+
+**Findings:**
+- All imports alphabetically ordered across all files ✅
+- `@Observable` only in Apps layer — no new observable models added ✅
+- Layer dependencies respected — Services depend only on Foundation/SDKs, Apps layer views depend on Services/Features ✅
+- No type aliases or re-exports ✅
+- MV pattern followed — `SummaryPhaseView` is stateless, reads from passed data; navigation state uses `@State` in `ReviewDetailView` ✅
+- No silent fallbacks — nil body shows nothing ✅
+- Default parameter `body: String? = nil` is appropriate (genuinely optional) ✅
+
+**One fix applied**: Reordered `SummaryPhaseView.swift` to place non-ViewBuilder computed properties (`stateColor`, `formattedDate`) before the `commentRow` method, matching the code-style convention (properties → init → computed → methods). Renamed MARK section from "Computed Properties" to "Helpers".
+
+**Pre-existing note**: `PRDiscoveryService.discoverPRs` manually constructs `PRMetadata` instead of calling `ghPR.toPRMetadata()` — this duplication predates these changes and is not in scope for this plan.
 
 ## - [ ] Phase 6: Validation
 
