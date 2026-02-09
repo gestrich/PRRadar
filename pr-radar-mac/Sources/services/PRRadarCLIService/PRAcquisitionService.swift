@@ -27,7 +27,8 @@ public struct PRAcquisitionService: Sendable {
     public func acquire(
         prNumber: Int,
         repoPath: String,
-        outputDir: String
+        outputDir: String,
+        authorCache: AuthorCacheService? = nil
     ) async throws -> AcquisitionResult {
         let prNumberStr = String(prNumber)
         let phaseDir = DataPathsService.phaseDirectory(
@@ -56,7 +57,7 @@ public struct PRAcquisitionService: Sendable {
             ])
         }
 
-        let pullRequest: GitHubPullRequest
+        var pullRequest: GitHubPullRequest
         do {
             pullRequest = try await gitHub.getPullRequest(number: prNumber)
         } catch {
@@ -64,6 +65,26 @@ public struct PRAcquisitionService: Sendable {
                 NSLocalizedDescriptionKey: "Failed to fetch PR metadata: \(error.localizedDescription)"
             ])
         }
+
+        var comments: GitHubPullRequestComments
+        do {
+            comments = try await gitHub.getPullRequestComments(number: prNumber)
+        } catch {
+            throw NSError(domain: "PRAcquisition", code: 4, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to fetch PR comments: \(error.localizedDescription)"
+            ])
+        }
+
+        // Resolve author display names via cache
+        if let authorCache {
+            let logins = collectAuthorLogins(pullRequest: pullRequest, comments: comments)
+            if !logins.isEmpty {
+                let nameMap = try await gitHub.resolveAuthorNames(logins: logins, cache: authorCache)
+                pullRequest = pullRequest.withAuthorNames(from: nameMap)
+                comments = comments.withAuthorNames(from: nameMap)
+            }
+        }
+
         let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
         try write(prJSON, to: "\(phaseDir)/gh-pr.json")
 
@@ -88,16 +109,8 @@ public struct PRAcquisitionService: Sendable {
         let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
         try write(movesJSON, to: "\(phaseDir)/effective-diff-moves.json")
 
-        let comments: GitHubPullRequestComments
-        do {
-            comments = try await gitHub.getPullRequestComments(number: prNumber)
-            let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
-            try write(commentsJSON, to: "\(phaseDir)/gh-comments.json")
-        } catch {
-            throw NSError(domain: "PRAcquisition", code: 4, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to fetch PR comments: \(error.localizedDescription)"
-            ])
-        }
+        let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
+        try write(commentsJSON, to: "\(phaseDir)/gh-comments.json")
 
         let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
         try write(repoJSON, to: "\(phaseDir)/gh-repo.json")
@@ -134,6 +147,32 @@ public struct PRAcquisitionService: Sendable {
     }
 
     // MARK: - Private
+
+    private func collectAuthorLogins(
+        pullRequest: GitHubPullRequest,
+        comments: GitHubPullRequestComments
+    ) -> Set<String> {
+        var logins = Set<String>()
+        if let login = pullRequest.author?.login {
+            logins.insert(login)
+        }
+        for c in comments.comments {
+            if let login = c.author?.login {
+                logins.insert(login)
+            }
+        }
+        for r in comments.reviews {
+            if let login = r.author?.login {
+                logins.insert(login)
+            }
+        }
+        for rc in comments.reviewComments {
+            if let login = rc.author?.login {
+                logins.insert(login)
+            }
+        }
+        return logins
+    }
 
     private func downloadImages(
         prNumber: Int,

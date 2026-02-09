@@ -313,3 +313,78 @@ public struct GitHubRepository: Codable, Sendable {
         return name
     }
 }
+
+// MARK: - Author Name Enrichment
+
+extension GitHubAuthor {
+    public func withName(from nameMap: [String: String]) -> GitHubAuthor {
+        guard let resolved = nameMap[login], name == nil || name?.isEmpty == true else {
+            return self
+        }
+        return GitHubAuthor(login: login, id: id, name: resolved)
+    }
+}
+
+extension GitHubPullRequest {
+    public func withAuthorNames(from nameMap: [String: String]) -> GitHubPullRequest {
+        GitHubPullRequest(
+            number: number,
+            title: title,
+            body: body,
+            state: state,
+            isDraft: isDraft,
+            url: url,
+            baseRefName: baseRefName,
+            headRefName: headRefName,
+            headRefOid: headRefOid,
+            additions: additions,
+            deletions: deletions,
+            changedFiles: changedFiles,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            mergedAt: mergedAt,
+            author: author?.withName(from: nameMap),
+            labels: labels,
+            files: files,
+            commits: commits
+        )
+    }
+}
+
+extension GitHubPullRequestComments {
+    public func withAuthorNames(from nameMap: [String: String]) -> GitHubPullRequestComments {
+        GitHubPullRequestComments(
+            comments: comments.map { c in
+                GitHubComment(
+                    id: c.id,
+                    body: c.body,
+                    author: c.author?.withName(from: nameMap),
+                    createdAt: c.createdAt,
+                    url: c.url
+                )
+            },
+            reviews: reviews.map { r in
+                GitHubReview(
+                    id: r.id,
+                    body: r.body,
+                    state: r.state,
+                    author: r.author?.withName(from: nameMap),
+                    submittedAt: r.submittedAt
+                )
+            },
+            reviewComments: reviewComments.map { rc in
+                GitHubReviewComment(
+                    id: rc.id,
+                    body: rc.body,
+                    path: rc.path,
+                    line: rc.line,
+                    startLine: rc.startLine,
+                    author: rc.author?.withName(from: nameMap),
+                    createdAt: rc.createdAt,
+                    url: rc.url,
+                    inReplyToId: rc.inReplyToId
+                )
+            }
+        )
+    }
+}

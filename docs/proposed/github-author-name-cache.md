@@ -64,7 +64,7 @@ Add a method to `GitHubService` that resolves display names for a set of logins,
 
 **Completed:** Added `resolveAuthorNames(logins:cache:)` to `GitHubService`. The method iterates over the login set, checks `AuthorCacheService.lookup` first, and on cache miss calls `OctokitClient.getUser(login:)` to fetch the display name. Falls back to the login string if the user has no display name set. Added `import PRRadarConfigService` to the file (valid — `PRRadarCLIService` depends on `PRRadarConfigService` in Package.swift). Build verified.
 
-## - [ ] Phase 4: Integrate into PRAcquisitionService
+## - [x] Phase 4: Integrate into PRAcquisitionService
 
 After fetching PR data and comments in `PRAcquisitionService.acquire()`, collect all unique author logins from the `GitHubPullRequest` and `GitHubPullRequestComments`, resolve their display names via the cache, and patch the `name` field on `GitHubAuthor` objects before writing to disk.
 
@@ -81,6 +81,8 @@ After fetching PR data and comments in `PRAcquisitionService.acquire()`, collect
 
 **Helper needed:**
 - Add methods on `GitHubPullRequest` and `GitHubPullRequestComments` (or extensions) to return copies with author names filled in from a `[String: String]` map. These models are in `PRRadarModels` which doesn't depend on the cache service, so the enrichment logic (applying a name map) stays in `PRAcquisitionService` or as a simple extension that takes a dictionary.
+
+**Completed:** Added `withName(from:)` on `GitHubAuthor`, `withAuthorNames(from:)` on `GitHubPullRequest` and `GitHubPullRequestComments` as extensions in `GitHubModels.swift`. These take a `[String: String]` name map and return enriched copies. `PRAcquisitionService.acquire()` now accepts an optional `authorCache: AuthorCacheService?` parameter (default `nil` for backward compatibility). When provided, it collects all unique author logins via a private `collectAuthorLogins` helper, resolves names through the cache, and enriches both the PR and comments before writing to disk. Build verified.
 
 ## - [ ] Phase 5: Wire Through Use Cases and CLI/App Entry Points
 
