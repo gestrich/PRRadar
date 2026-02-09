@@ -215,19 +215,25 @@ struct AnnotatedHunkContentView: View {
     let postedAtLine: [Int: [GitHubReviewComment]]
     let searchQuery: String
     var prModel: PRModel? = nil
+    var imageURLMap: [String: String]? = nil
+    var imageBaseDir: String? = nil
 
     init(
         hunk: Hunk,
         commentsAtLine: [Int: [PRComment]],
         postedAtLine: [Int: [GitHubReviewComment]] = [:],
         searchQuery: String,
-        prModel: PRModel? = nil
+        prModel: PRModel? = nil,
+        imageURLMap: [String: String]? = nil,
+        imageBaseDir: String? = nil
     ) {
         self.hunk = hunk
         self.commentsAtLine = commentsAtLine
         self.postedAtLine = postedAtLine
         self.searchQuery = searchQuery
         self.prModel = prModel
+        self.imageURLMap = imageURLMap
+        self.imageBaseDir = imageBaseDir
     }
 
     var body: some View {
@@ -243,7 +249,11 @@ struct AnnotatedHunkContentView: View {
                 if let newLine = line.newLine {
                     if let posted = postedAtLine[newLine] {
                         ForEach(posted) { comment in
-                            InlinePostedCommentView(comment: comment)
+                            InlinePostedCommentView(
+                                comment: comment,
+                                imageURLMap: imageURLMap,
+                                imageBaseDir: imageBaseDir
+                            )
                         }
                     }
 
@@ -268,17 +278,23 @@ struct AnnotatedDiffContentView: View {
     let commentMapping: DiffCommentMapping
     let searchQuery: String
     var prModel: PRModel? = nil
+    var imageURLMap: [String: String]? = nil
+    var imageBaseDir: String? = nil
 
     init(
         diff: GitDiff,
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
-        prModel: PRModel? = nil
+        prModel: PRModel? = nil,
+        imageURLMap: [String: String]? = nil,
+        imageBaseDir: String? = nil
     ) {
         self.diff = diff
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
         self.prModel = prModel
+        self.imageURLMap = imageURLMap
+        self.imageBaseDir = imageBaseDir
     }
 
     var body: some View {
@@ -312,7 +328,9 @@ struct AnnotatedDiffContentView: View {
                             commentsAtLine: commentMapping.commentsByFileAndLine[filePath] ?? [:],
                             postedAtLine: commentMapping.postedByFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
-                            prModel: prModel
+                            prModel: prModel,
+                            imageURLMap: imageURLMap,
+                            imageBaseDir: imageBaseDir
                         )
                     }
                 }
@@ -334,7 +352,11 @@ struct AnnotatedDiffContentView: View {
                 .background(Color.green.opacity(0.08))
 
             ForEach(comments) { comment in
-                InlinePostedCommentView(comment: comment)
+                InlinePostedCommentView(
+                    comment: comment,
+                    imageURLMap: imageURLMap,
+                    imageBaseDir: imageBaseDir
+                )
             }
         }
     }

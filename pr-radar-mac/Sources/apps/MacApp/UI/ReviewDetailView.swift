@@ -21,7 +21,9 @@ struct ReviewDetailView: View {
             case .summary:
                 SummaryPhaseView(
                     metadata: prModel.metadata,
-                    postedComments: prModel.postedComments?.comments ?? []
+                    postedComments: prModel.postedComments?.comments ?? [],
+                    imageURLMap: prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap,
+                    imageBaseDir: prModel.imageBaseDir
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .diff, .rules, .report:

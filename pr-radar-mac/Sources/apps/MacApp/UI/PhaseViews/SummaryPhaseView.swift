@@ -5,6 +5,8 @@ struct SummaryPhaseView: View {
 
     let metadata: PRMetadata
     let postedComments: [GitHubComment]
+    var imageURLMap: [String: String]? = nil
+    var imageBaseDir: String? = nil
 
     var body: some View {
         ScrollView {
@@ -60,7 +62,7 @@ struct SummaryPhaseView: View {
             if let body = metadata.body, !body.isEmpty {
                 Divider()
 
-                RichContentView(body)
+                RichContentView(body, imageURLMap: imageURLMap, imageBaseDir: imageBaseDir)
             }
         }
         .padding()
@@ -132,7 +134,7 @@ struct SummaryPhaseView: View {
                     }
                 }
 
-                RichContentView(comment.body)
+                RichContentView(comment.body, imageURLMap: imageURLMap, imageBaseDir: imageBaseDir)
             }
             .padding(10)
         }

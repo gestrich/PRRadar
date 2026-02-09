@@ -158,7 +158,9 @@ struct DiffPhaseView: View {
             AnnotatedDiffContentView(
                 diff: filtered,
                 commentMapping: commentMapping(for: diff),
-                prModel: prModel
+                prModel: prModel,
+                imageURLMap: prModel?.imageURLMap.isEmpty == false ? prModel?.imageURLMap : nil,
+                imageBaseDir: prModel?.imageBaseDir
             )
         } else {
             RichDiffContentView(diff: filtered)

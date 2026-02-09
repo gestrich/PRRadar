@@ -35,6 +35,9 @@ final class PRModel: Identifiable, Hashable {
 
     private(set) var postedComments: GitHubPullRequestComments?
 
+    private(set) var imageURLMap: [String: String] = [:]
+    private(set) var imageBaseDir: String?
+
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
@@ -135,6 +138,19 @@ final class PRModel: Identifiable, Hashable {
             phase: .pullRequest,
             filename: "gh-comments.json"
         )
+
+        if let map: [String: String] = try? PhaseOutputParser.parsePhaseOutput(
+            config: config,
+            prNumber: prNumber,
+            phase: .pullRequest,
+            filename: "image-url-map.json"
+        ) {
+            self.imageURLMap = map
+            let phaseDir = OutputFileReader.phaseDirectoryPath(
+                config: config, prNumber: prNumber, phase: .pullRequest
+            )
+            self.imageBaseDir = "\(phaseDir)/images"
+        }
 
         detailState = .loaded(ReviewSnapshot(
             diff: self.diff,

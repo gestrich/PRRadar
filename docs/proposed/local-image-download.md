@@ -95,23 +95,36 @@ phase-1-pull-request/
 - `image-url-map.json` is only written when images are actually found and downloaded
 - The entire image download flow is wrapped in a do/catch that returns an empty map on failure — acquisition continues regardless
 
-## - [ ] Phase 4: Update RichContentView to Use Local Images
+## - [x] Phase 4: Update RichContentView to Use Local Images
 
 Modify `RichContentView` to rewrite image URLs to local file paths before rendering.
 
-**Files to modify:**
+**Files modified:**
 - `Sources/apps/MacApp/UI/RichContentView.swift`
 - `Sources/apps/MacApp/UI/PhaseViews/SummaryPhaseView.swift`
 - `Sources/apps/MacApp/UI/GitViews/InlinePostedCommentView.swift`
+- `Sources/apps/MacApp/UI/GitViews/RichDiffViews.swift`
+- `Sources/apps/MacApp/UI/PhaseViews/DiffPhaseView.swift`
+- `Sources/apps/MacApp/UI/ReviewDetailView.swift`
+- `Sources/apps/MacApp/Models/PRModel.swift`
 
 **Tasks:**
-- Add an optional `imageBaseDir: String?` parameter to `RichContentView`
-- Add an optional `imageURLMap: [String: String]?` parameter to `RichContentView`
-- When both are provided, before parsing content into segments, replace all mapped URLs with `file://{imageBaseDir}/{localFilename}` paths
-- In `HTMLBlockView`, when a `baseURL` is set (for local images), pass it to `loadHTMLString(_:baseURL:)` — OR rewrite the `src` attributes directly in the HTML string before loading
-- Update `SummaryPhaseView` and `InlinePostedCommentView` to load `image-url-map.json` and pass the image directory path and URL map to `RichContentView`
+- [x] Add optional `imageBaseDir: String?` and `imageURLMap: [String: String]?` parameters to `RichContentView`
+- [x] When both are provided, before parsing content into segments, replace all mapped URLs with `file://{imageBaseDir}/{localFilename}` paths
+- [x] Rewrite `src` attributes directly in HTML strings before loading; for HTML segments with local images, use `loadFileURL(_:allowingReadAccessTo:)` via a temp HTML file so WKWebView can access local image files
+- [x] Update `SummaryPhaseView` and `InlinePostedCommentView` to accept and pass image URL map and base dir to `RichContentView`
+- [x] Load `image-url-map.json` in `PRModel.loadDetail()` and expose `imageURLMap` and `imageBaseDir` properties
+- [x] Thread image data through `ReviewDetailView` → `SummaryPhaseView` and through `DiffPhaseView` → `AnnotatedDiffContentView` → `AnnotatedHunkContentView` → `InlinePostedCommentView`
 
 **Architecture note (Apps layer):** The view is responsible for I/O (loading the map file, constructing file paths). This is correct per the architecture — Apps handle I/O and platform concerns.
+
+**Technical notes:**
+- `PRModel` loads `image-url-map.json` during `loadDetail()` using the existing `PhaseOutputParser.parsePhaseOutput` pattern — no new loading mechanisms needed
+- URL rewriting happens at two levels: markdown content (before AST parsing) and HTML segments (before WKWebView loading)
+- For WKWebView to load `file://` images, `HTMLBlockView` writes a temp `_richcontent.html` file into the images directory and uses `loadFileURL(_:allowingReadAccessTo:)` instead of `loadHTMLString(_:baseURL:)` — this grants read access to sibling image files
+- `config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")` enables cross-file access within the WKWebView
+- All new parameters use default values (`nil`), so existing callers are unaffected
+- Image data is threaded through both the summary view chain (PR body + issue comments) and the diff view chain (inline review comments)
 
 ## - [ ] Phase 5: Architecture Validation
 

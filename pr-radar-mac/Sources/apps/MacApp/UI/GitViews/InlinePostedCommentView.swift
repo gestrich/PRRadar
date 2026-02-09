@@ -4,6 +4,8 @@ import SwiftUI
 struct InlinePostedCommentView: View {
 
     let comment: GitHubReviewComment
+    var imageURLMap: [String: String]? = nil
+    var imageBaseDir: String? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -32,7 +34,7 @@ struct InlinePostedCommentView: View {
                     }
                 }
 
-                RichContentView(comment.body)
+                RichContentView(comment.body, imageURLMap: imageURLMap, imageBaseDir: imageBaseDir)
             }
             .padding(10)
         }

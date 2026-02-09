@@ -66,13 +66,18 @@ enum ContentSegmentParser {
 struct RichContentView: View {
 
     let content: String
+    let imageURLMap: [String: String]?
+    let imageBaseDir: String?
 
-    init(_ content: String) {
+    init(_ content: String, imageURLMap: [String: String]? = nil, imageBaseDir: String? = nil) {
         self.content = content
+        self.imageURLMap = imageURLMap
+        self.imageBaseDir = imageBaseDir
     }
 
     var body: some View {
-        let segments = ContentSegmentParser.parse(content)
+        let rewritten = rewriteImageURLs(in: content)
+        let segments = ContentSegmentParser.parse(rewritten)
         VStack(alignment: .leading, spacing: 8) {
             ForEach(segments) { segment in
                 switch segment.kind {
@@ -81,10 +86,34 @@ struct RichContentView: View {
                         .markdownTheme(.gitHub)
                         .textSelection(.enabled)
                 case .html(let text):
-                    HTMLSegmentView(html: text)
+                    HTMLSegmentView(html: rewriteImageURLsInHTML(text), fileAccessDir: imageBaseDir)
                 }
             }
         }
+    }
+
+    private func rewriteImageURLs(in text: String) -> String {
+        guard let map = imageURLMap, let baseDir = imageBaseDir, !map.isEmpty else {
+            return text
+        }
+        var result = text
+        for (originalURL, localFilename) in map {
+            let localPath = "file://\(baseDir)/\(localFilename)"
+            result = result.replacingOccurrences(of: originalURL, with: localPath)
+        }
+        return result
+    }
+
+    private func rewriteImageURLsInHTML(_ html: String) -> String {
+        guard let map = imageURLMap, let baseDir = imageBaseDir, !map.isEmpty else {
+            return html
+        }
+        var result = html
+        for (originalURL, localFilename) in map {
+            let localPath = "file://\(baseDir)/\(localFilename)"
+            result = result.replacingOccurrences(of: originalURL, with: localPath)
+        }
+        return result
     }
 }
 
@@ -92,10 +121,11 @@ struct RichContentView: View {
 
 private struct HTMLSegmentView: View {
     let html: String
+    var fileAccessDir: String? = nil
     @State private var height: CGFloat = 50
 
     var body: some View {
-        HTMLBlockView(html: html, contentHeight: $height)
+        HTMLBlockView(html: html, fileAccessDir: fileAccessDir, contentHeight: $height)
             .frame(height: height)
     }
 }
@@ -113,10 +143,14 @@ private class NonScrollingWKWebView: WKWebView {
 struct HTMLBlockView: NSViewRepresentable {
 
     let html: String
+    var fileAccessDir: String? = nil
     @Binding var contentHeight: CGFloat
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        if fileAccessDir != nil {
+            config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        }
         let webView = NonScrollingWKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
@@ -154,7 +188,14 @@ struct HTMLBlockView: NSViewRepresentable {
         <body>\(html)</body>
         </html>
         """
-        webView.loadHTMLString(document, baseURL: nil)
+        if let dir = fileAccessDir {
+            let dirURL = URL(fileURLWithPath: dir)
+            let tempFile = dirURL.appendingPathComponent("_richcontent.html")
+            try? document.write(to: tempFile, atomically: true, encoding: .utf8)
+            webView.loadFileURL(tempFile, allowingReadAccessTo: dirURL)
+        } else {
+            webView.loadHTMLString(document, baseURL: nil)
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
