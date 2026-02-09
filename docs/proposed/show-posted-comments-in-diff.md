@@ -125,7 +125,7 @@ Review all commits made during the preceding phases and validate they follow the
 > - **@Observable in Apps only**: Only `PRModel` uses `@Observable`.
 > - **SwiftUI patterns**: `InlinePostedCommentView` uses prerequisite data pattern (non-optional `let`), pure rendering with no model. Matches existing `InlineCommentView` structure.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 - `swift build` — must compile cleanly
 - `swift test` — all existing tests must pass
@@ -136,3 +136,9 @@ Review all commits made during the preceding phases and validate they follow the
   - Multiple comments on the same line render correctly (posted above pending)
   - General posted comments (issue comments without file/line) appear in a separate section
   - Backward compatibility: PRs with old `gh-comments.json` (missing `reviewComments` key) load without error
+
+> **Validation results:**
+> - `swift build` compiles cleanly (all targets including MacApp and PRRadarMacCLI)
+> - `swift test` passes: 231 tests in 34 suites, all green
+> - `swift run PRRadarMacCLI diff 1 --config test-repo` succeeds: `gh-comments.json` contains `reviewComments` array with review comments including `path`, `line`, `body`, `author`, `createdAt`, and `url` fields
+> - MacApp GUI verification items require manual testing (posted green vs pending blue styling, multi-comment rendering, general comments section, backward compatibility with old JSON files)
