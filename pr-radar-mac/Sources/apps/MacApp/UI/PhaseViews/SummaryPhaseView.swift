@@ -60,10 +60,7 @@ struct SummaryPhaseView: View {
             if let body = metadata.body, !body.isEmpty {
                 Divider()
 
-                Text(body)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                RichContentView(body)
             }
         }
         .padding()
@@ -135,11 +132,7 @@ struct SummaryPhaseView: View {
                     }
                 }
 
-                Text(comment.body)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                RichContentView(comment.body)
             }
             .padding(10)
         }

@@ -2,14 +2,6 @@
 
 ## Small
 
-- [x] Fix toolbar button alignment and visibility
-  Toolbar buttons (loopback, comment, refresh, analyze all, plus) are right-aligned
-  until a PR is selected in the list, then they jump to the left. The Settings toolbar
-  button is hidden inside a "show more" overflow menu. Likely caused by nested
-  NavigationStack issue. Additionally, toolbar actions should be separated into two
-  groups: PR-level actions (finder folder, web link, run all steps) vs PR-list-level
-  actions (plus button, analyze all PRs). These are currently mixed together.
-  Ideally, PR-list-level actions should appear at the far left above the list of PRs.
 - [ ] Fix task counts display on rules view
   The task counts shown are confusing.
 - [ ] Filter tasks/rules list by selected file

@@ -32,11 +32,7 @@ struct InlinePostedCommentView: View {
                     }
                 }
 
-                Text(comment.body)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                RichContentView(comment.body)
             }
             .padding(10)
         }

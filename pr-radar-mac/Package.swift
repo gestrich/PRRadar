@@ -21,6 +21,8 @@ let package = Package(
         .package(url: "https://github.com/gestrich/SwiftCLI.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
         .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.4.1"),
+        .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main"),
     ],
     targets: [
         // SDK Layer
@@ -80,6 +82,8 @@ let package = Package(
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
+                .product(name: "MarkdownUI", package: "swift-markdown-ui"),
+                .product(name: "Markdown", package: "swift-markdown"),
             ],
             path: "Sources/apps/MacApp",
             swiftSettings: [
