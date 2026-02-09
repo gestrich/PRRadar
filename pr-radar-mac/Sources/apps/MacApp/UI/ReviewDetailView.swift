@@ -24,7 +24,7 @@ struct ReviewDetailView: View {
                     postedComments: prModel.postedComments?.comments ?? []
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .diff, .rules, .evaluate, .report:
+            case .diff, .rules, .report:
                 PhaseInputView(prModel: prModel, phase: selectedNavPhase.primaryPhase)
                     .padding()
 
@@ -112,8 +112,6 @@ struct ReviewDetailView: View {
             diffOutputView
         case .rules:
             rulesOutputView
-        case .evaluate:
-            evaluationsOutputView
         case .report:
             reportOutputView
         }
@@ -139,7 +137,12 @@ struct ReviewDetailView: View {
 
                 DiffPhaseView(
                     fullDiff: fullDiff,
-                    effectiveDiff: prModel.diff?.effectiveDiff
+                    effectiveDiff: prModel.diff?.effectiveDiff,
+                    comments: prModel.evaluation?.comments,
+                    evaluationSummary: prModel.evaluation?.summary,
+                    prModel: prModel,
+                    postedReviewComments: prModel.postedComments?.reviewComments ?? [],
+                    postedGeneralComments: prModel.postedComments?.comments ?? []
                 )
             }
             .sheet(isPresented: $showEffectiveDiff) {
@@ -183,27 +186,6 @@ struct ReviewDetailView: View {
                 "No Rules Data",
                 systemImage: "list.clipboard",
                 description: Text("Run Phases 2-4 to generate focus areas, rules, and tasks.")
-            )
-        }
-    }
-
-    @ViewBuilder
-    private var evaluationsOutputView: some View {
-        if let output = prModel.evaluation {
-            EvaluationsPhaseView(
-                diff: prModel.diff?.fullDiff,
-                comments: output.comments,
-                summary: output.summary,
-                prModel: prModel,
-                postedReviewComments: prModel.postedComments?.reviewComments ?? []
-            )
-        } else if case .running(let logs) = prModel.stateFor(.evaluations) {
-            runningLogView(logs)
-        } else {
-            ContentUnavailableView(
-                "No Evaluation Data",
-                systemImage: "brain",
-                description: Text("Run the evaluations phase first.")
             )
         }
     }

@@ -51,7 +51,7 @@ Replace `DiffPhaseView` with a new implementation that conditionally renders ann
 - Existing call sites in `ReviewDetailView` continue to work without changes since new parameters all have defaults
 - `EvaluationsPhaseView` is untouched — will be removed in Phase 4 after its callers are rewired in Phase 2
 
-## - [ ] Phase 2: Remove the Evaluate Navigation Tab
+## - [x] Phase 2: Remove the Evaluate Navigation Tab
 
 Remove the "Evaluate" tab from the pipeline navigation since its content is now integrated into the Diff tab.
 
@@ -78,6 +78,12 @@ Remove the "Evaluate" tab from the pipeline navigation since its content is now 
 
 ### Architecture notes
 - The pipeline status bar should still show the evaluation phase status. Since the diff tab now represents both diff and evaluate phases, the diff node's combined state should reflect both `[.pullRequest, .evaluations]`. If diff is complete but evaluation is running, the node should show the running indicator.
+
+### Completion notes
+- `NavigationPhase.evaluate` removed; `.diff` now has `representedPhases: [.pullRequest, .evaluations]` so the diff node reflects combined status
+- `ReviewDetailView.evaluationsOutputView` removed; `diffOutputView` now passes all evaluation data (`comments`, `evaluationSummary`, `prModel`, `postedReviewComments`, `postedGeneralComments`) to `DiffPhaseView`
+- `PhaseInputView` needed no changes — it still receives `.pullRequest` as the primary phase for the diff tab; "Run All" continues to trigger all phases including evaluation. Phase 3 will address adding an explicit "Run Evaluate" button to the diff tab's input view
+- All 231 tests pass, build succeeds
 
 ## - [ ] Phase 3: Pipeline Status Handling for Combined Diff+Evaluate
 

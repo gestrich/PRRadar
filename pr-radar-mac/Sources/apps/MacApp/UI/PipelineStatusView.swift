@@ -5,7 +5,6 @@ enum NavigationPhase: CaseIterable {
     case summary
     case diff
     case rules
-    case evaluate
     case report
 
     var displayName: String {
@@ -13,7 +12,6 @@ enum NavigationPhase: CaseIterable {
         case .summary: "Summary"
         case .diff: "Diff"
         case .rules: "Rules"
-        case .evaluate: "Evaluate"
         case .report: "Report"
         }
     }
@@ -23,7 +21,6 @@ enum NavigationPhase: CaseIterable {
         case .summary: .pullRequest
         case .diff: .pullRequest
         case .rules: .rules
-        case .evaluate: .evaluations
         case .report: .report
         }
     }
@@ -31,9 +28,8 @@ enum NavigationPhase: CaseIterable {
     var representedPhases: [PRRadarPhase] {
         switch self {
         case .summary: []
-        case .diff: [.pullRequest]
+        case .diff: [.pullRequest, .evaluations]
         case .rules: [.focusAreas, .rules, .tasks]
-        case .evaluate: [.evaluations]
         case .report: [.report]
         }
     }
