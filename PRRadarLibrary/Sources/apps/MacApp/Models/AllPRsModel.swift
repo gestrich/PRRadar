@@ -16,6 +16,26 @@ final class AllPRsModel {
         case failed(String, prior: [PRModel]?)
     }
 
+    enum RefreshAllState {
+        case idle
+        case refreshingList
+        case refreshingPRs(current: Int, total: Int)
+
+        var isRunning: Bool {
+            switch self {
+            case .idle: return false
+            case .refreshingList, .refreshingPRs: return true
+            }
+        }
+
+        var progressText: String? {
+            if case .refreshingPRs(let current, let total) = self {
+                return "\(current)/\(total)"
+            }
+            return nil
+        }
+    }
+
     enum AnalyzeAllState {
         case idle
         case running(logs: String, current: Int, total: Int)
@@ -36,6 +56,7 @@ final class AllPRsModel {
     }
 
     private(set) var state: State = .uninitialized
+    private(set) var refreshAllState: RefreshAllState = .idle
     private(set) var analyzeAllState: AnalyzeAllState = .idle
     var showOnlyWithPendingComments: Bool = false
 
@@ -68,10 +89,12 @@ final class AllPRsModel {
     func refresh(since: Date? = nil, state prState: PRState? = nil) async {
         let prior = currentPRModels
         self.state = .refreshing(prior ?? [])
+        refreshAllState = .refreshingList
 
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
+        var prModels: [PRModel]?
         do {
             for try await progress in useCase.execute(state: prState, since: since, repoSlug: slug) {
                 switch progress {
@@ -79,15 +102,34 @@ final class AllPRsModel {
                     break
                 case .completed:
                     let metadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
-                    let prModels = metadata.map { PRModel(metadata: $0, config: config, repoConfig: repoConfig) }
-                    self.state = .ready(prModels)
+                    prModels = metadata.map { PRModel(metadata: $0, config: config, repoConfig: repoConfig) }
+                    self.state = .ready(prModels!)
                 case .failed(let error, _):
                     self.state = .failed(error, prior: prior)
+                    refreshAllState = .idle
+                    return
                 }
             }
         } catch {
             self.state = .failed(error.localizedDescription, prior: prior)
+            refreshAllState = .idle
+            return
         }
+
+        guard let models = prModels else {
+            refreshAllState = .idle
+            return
+        }
+
+        let total = models.count
+        refreshAllState = .refreshingPRs(current: 0, total: total)
+
+        for (index, pr) in models.enumerated() {
+            await pr.refreshPRData()
+            refreshAllState = .refreshingPRs(current: index + 1, total: total)
+        }
+
+        refreshAllState = .idle
     }
 
     // MARK: - Analyze All

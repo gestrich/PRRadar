@@ -50,7 +50,7 @@ This is the method both the individual refresh button and the list refresh will 
 - `refreshPRData()` calls `refreshDiff(force: true)` then checks `isPhaseCompleted(.pullRequest)` before reloading cached outputs
 - Reloads `postedComments`, `imageURLMap`, and `imageBaseDir` via existing `loadCachedNonDiffOutputs()` — also reloads rules/evaluation/report which is harmless and keeps the method simple
 
-## - [ ] Phase 2: Update list refresh to also fetch PR data
+## - [x] Phase 2: Update list refresh to also fetch PR data
 
 Update `AllPRsModel.refresh()` to call `PRModel.refreshPRData()` on each PR after the list fetch completes. This ensures the list refresh button downloads full PR data (diff, comments, images), not just the PR list metadata.
 
@@ -61,12 +61,18 @@ The flow becomes:
 
 Track and expose progress state so the `arrow.clockwise` button can show a spinner (and optionally an "X/Y" counter) while the batch refresh is running. Add a `refreshAllState` enum (similar to `analyzeAllState`) to `AllPRsModel` to track this.
 
-**Files to modify:**
-- [AllPRsModel.swift](PRRadarLibrary/Sources/apps/MacApp/Models/AllPRsModel.swift) — Update `refresh()` to call `refreshPRData()` per PR, add `refreshAllState` tracking
+**Files modified:**
+- [AllPRsModel.swift](PRRadarLibrary/Sources/apps/MacApp/Models/AllPRsModel.swift) — Updated `refresh()` to call `refreshPRData()` per PR, added `refreshAllState` tracking
 
 **Architecture notes:**
 - `AllPRsModel` coordinates across `PRModel` instances at the Apps layer — this is the right place for batch orchestration over models
 - Each `PRModel.refreshPRData()` internally uses `FetchDiffUseCase` from the Features layer — proper layer separation maintained
+
+**Technical notes:**
+- Added `RefreshAllState` enum with three cases: `.idle`, `.refreshingList` (during `FetchPRListUseCase`), `.refreshingPRs(current:total:)` (during per-PR data fetch)
+- `RefreshAllState` exposes `isRunning` and `progressText` computed properties matching the `AnalyzeAllState` pattern
+- On failure during list fetch, `refreshAllState` resets to `.idle` and returns early (PR data fetch is skipped)
+- PRs are refreshed sequentially to avoid overwhelming the GitHub API with concurrent requests
 
 ## - [ ] Phase 3: Update detail toolbar buttons
 
