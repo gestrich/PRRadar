@@ -54,8 +54,11 @@
   Requires a new `runSingleTask()` method in PRModel.
 - [ ] Local triage runs
   Get an easily readable daily report with total cost. Run on cron daily.
-- [ ] Unified file-centric review view
-  Consolidate the diff, focus areas, rules, tasks, evaluations, and report phase views into a single file-centric view. Selecting a file shows the diff on top with rules/tasks listed underneath, scoped to that file. Analysis results (comments, evaluations) appear inline within the diff. This collapses the separate phase concepts into one cohesive view per file.
+- [ ] Single diff view with inline analysis
+  Currently the diff is duplicated across the diff view and the analyze view.
+  Combine these into a single diff view that gets decorated with analysis data
+  after evaluation completes. Pending comments can be added inline once analysis
+  is done. Keep the rules view as-is.
 - [ ] Skip already-analyzed tasks during evaluation
   The analysis pipeline should detect when a specific rule/task has already been evaluated and skip re-running it. Still check whether the task was previously analyzed, but avoid re-invoking the AI if it was. This saves AI costs by not re-evaluating unchanged work across repeated runs.
 - [ ] PR summary tab

@@ -5,7 +5,18 @@ description: Create a phased planning document for a PRRadar feature or change
 
 Create a planning document in `docs/proposed/<doc-name>.md` where the doc name reflects the plan appropriately (e.g., `add-user-authentication.md`, `refactor-api-layer.md`).
 
-## Planning Document Format
+## Step 1: Read Architecture Guides
+
+Before writing the plan, fetch and read both architecture skills from `https://github.com/gestrich/swift-app-architecture` (under `plugin/skills/`):
+
+1. **`swift-architecture`** — The 4-layer architecture guide (SDKs → Services → Features → Apps), layer responsibilities, dependency rules, and code placement guidance.
+2. **`swift-swiftui`** — The SwiftUI Model-View architecture patterns, enum-based state, observable model conventions, and view composition rules.
+
+Both guides are frequently relevant. Use the principles from these docs to inform every phase of the plan — reference specific architecture or SwiftUI conventions when a phase involves decisions about where code should live, how layers interact, how views should be structured, or how state should be managed.
+
+## Step 2: Write the Planning Document
+
+### Planning Document Format
 
 The planning document should follow this structure:
 
@@ -23,7 +34,8 @@ The planning document should follow this structure:
 - Files to modify
 - Important details from user's instructions
 - Any technical considerations
-- Expected outcomes]
+- Expected outcomes
+- Reference relevant architecture or SwiftUI principles that apply to this phase]
 
 ## - [ ] Phase 2: [Short descriptive name]
 
@@ -35,13 +47,13 @@ The planning document should follow this structure:
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
-**For Python changes** (`prradar/`, `tests/`):
-- Fetch and read each skill from `https://github.com/gestrich/python-architecture` (skills directory)
-- Compare the commits made against the conventions described in each relevant skill
+**For Swift changes** (`pr-radar-mac/`):
+- Re-read the `swift-architecture` and `swift-swiftui` skills from `https://github.com/gestrich/swift-app-architecture` (`plugin/skills/`)
+- Compare the commits made against the conventions described in each skill
 - If any code violates the conventions, make corrections
 
-**For Swift changes** (`pr-radar-mac/`):
-- Fetch and read each skill from `https://github.com/gestrich/swift-app-architecture` (skills directory)
+**For Python changes** (`prradar/`, `tests/`):
+- Fetch and read each skill from `https://github.com/gestrich/python-architecture` (skills directory)
 - Compare the commits made against the conventions described in each relevant skill
 - If any code violates the conventions, make corrections
 
@@ -76,8 +88,9 @@ The `## - [ ]` format makes each phase a markdown section header, improving read
 
 ## Workflow
 
-1. Gather requirements (ask clarifying questions if needed)
-2. Determine appropriate doc name based on the task
-3. Create the planning document in `docs/proposed/<doc-name>.md`
-4. Present the plan to the user for review
-5. Wait for approval before any implementation
+1. **Read architecture guides** — Fetch and read both `swift-architecture` and `swift-swiftui` skills from `https://github.com/gestrich/swift-app-architecture` (`plugin/skills/`)
+2. Gather requirements (ask clarifying questions if needed)
+3. Determine appropriate doc name based on the task
+4. Create the planning document in `docs/proposed/<doc-name>.md`, referencing architecture and SwiftUI principles in each phase as relevant
+5. Present the plan to the user for review
+6. Wait for approval before any implementation
