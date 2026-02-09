@@ -9,12 +9,24 @@ struct DiffPhaseView: View {
     var evaluationSummary: EvaluationSummary? = nil
     var prModel: PRModel? = nil
     var postedReviewComments: [GitHubReviewComment] = []
+    var tasks: [EvaluationTaskOutput] = []
 
     @State private var selectedTab = 0
     @State private var selectedFile: String?
+    @State private var showTasks = false
 
     private var hasEvaluationData: Bool {
         comments != nil && evaluationSummary != nil
+    }
+
+    private var tasksForSelectedFile: [EvaluationTaskOutput] {
+        guard let file = selectedFile else { return [] }
+        return tasks.filter { $0.focusArea.filePath == file }
+    }
+
+    private var taskCountsByFile: [String: Int] {
+        Dictionary(grouping: tasks, by: \.focusArea.filePath)
+            .mapValues(\.count)
     }
 
     var body: some View {
@@ -86,6 +98,9 @@ struct DiffPhaseView: View {
                         Text(URL(fileURLWithPath: file).lastPathComponent)
                             .lineLimit(1)
                         Spacer()
+                        if let taskCount = taskCountsByFile[file], taskCount > 0 {
+                            taskBadge(count: taskCount)
+                        }
                         Text("\(hunkCount)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -110,6 +125,9 @@ struct DiffPhaseView: View {
                         Text(URL(fileURLWithPath: file).lastPathComponent)
                             .lineLimit(1)
                         Spacer()
+                        if let taskCount = taskCountsByFile[file], taskCount > 0 {
+                            taskBadge(count: taskCount)
+                        }
                         if violationCount > 0 {
                             violationBadge(count: violationCount, file: file, mapping: mapping)
                         } else {
@@ -159,17 +177,62 @@ struct DiffPhaseView: View {
             return diff
         }()
 
-        if hasEvaluationData {
-            AnnotatedDiffContentView(
-                diff: filtered,
-                commentMapping: commentMapping(for: diff),
-                prModel: prModel,
-                imageURLMap: prModel?.imageURLMap.isEmpty == false ? prModel?.imageURLMap : nil,
-                imageBaseDir: prModel?.imageBaseDir
-            )
-        } else {
-            RichDiffContentView(diff: filtered)
+        VStack(spacing: 0) {
+            let fileTasks = tasksForSelectedFile
+            if !fileTasks.isEmpty {
+                tasksSection(fileTasks)
+                Divider()
+            }
+
+            if hasEvaluationData {
+                AnnotatedDiffContentView(
+                    diff: filtered,
+                    commentMapping: commentMapping(for: diff),
+                    prModel: prModel,
+                    imageURLMap: prModel?.imageURLMap.isEmpty == false ? prModel?.imageURLMap : nil,
+                    imageBaseDir: prModel?.imageBaseDir
+                )
+            } else {
+                RichDiffContentView(diff: filtered)
+            }
         }
+    }
+
+    // MARK: - Tasks Section
+
+    @ViewBuilder
+    private func tasksSection(_ fileTasks: [EvaluationTaskOutput]) -> some View {
+        DisclosureGroup(isExpanded: $showTasks) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(fileTasks, id: \.taskId) { task in
+                    taskRow(task)
+                    if task.taskId != fileTasks.last?.taskId {
+                        Divider()
+                    }
+                }
+            }
+        } label: {
+            Text("Tasks (\(fileTasks.count))")
+                .font(.headline)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private func taskRow(_ task: EvaluationTaskOutput) -> some View {
+        TaskRowView(task: task)
+            .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private func taskBadge(count: Int) -> some View {
+        Text("\(count)")
+            .font(.caption.bold())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(.blue, in: Capsule())
     }
 
     // MARK: - Evaluation Helpers
