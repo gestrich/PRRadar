@@ -29,25 +29,31 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
 
     public let number: Int
     public let title: String
+    public let body: String?
     public let author: Author
     public let state: String
     public let headRefName: String
     public let createdAt: String
+    public let url: String?
 
     public init(
         number: Int,
         title: String,
+        body: String? = nil,
         author: Author,
         state: String,
         headRefName: String,
-        createdAt: String
+        createdAt: String,
+        url: String? = nil
     ) {
         self.number = number
         self.title = title
+        self.body = body
         self.author = author
         self.state = state
         self.headRefName = headRefName
         self.createdAt = createdAt
+        self.url = url
     }
 
     public static func fallback(number: Int) -> PRMetadata {

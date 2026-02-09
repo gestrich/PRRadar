@@ -29,13 +29,15 @@ public enum PRDiscoveryService {
                 metadata = PRMetadata(
                     number: ghPR.number,
                     title: ghPR.title,
+                    body: ghPR.body,
                     author: PRMetadata.Author(
                         login: ghPR.author?.login ?? "",
                         name: ghPR.author?.name ?? ""
                     ),
                     state: ghPR.state ?? "",
                     headRefName: ghPR.headRefName ?? "",
-                    createdAt: ghPR.createdAt ?? ""
+                    createdAt: ghPR.createdAt ?? "",
+                    url: ghPR.url
                 )
             } else if let prMeta = try? JSONDecoder().decode(PRMetadata.self, from: data) {
                 metadata = prMeta

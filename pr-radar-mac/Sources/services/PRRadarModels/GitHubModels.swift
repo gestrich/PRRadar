@@ -193,13 +193,15 @@ public struct GitHubPullRequest: Codable, Sendable {
         PRMetadata(
             number: number,
             title: title,
+            body: body,
             author: PRMetadata.Author(
                 login: author?.login ?? "",
                 name: author?.name ?? ""
             ),
             state: state ?? "",
             headRefName: headRefName ?? "",
-            createdAt: createdAt ?? ""
+            createdAt: createdAt ?? "",
+            url: url
         )
     }
 }
