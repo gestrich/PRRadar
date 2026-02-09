@@ -44,6 +44,10 @@
   posted to the PR. This means reusing the same comment rendering views used for
   posted GitHub comments, giving a consistent look and a true preview of what
   will appear on the PR.
+- [ ] Differentiate PR status in PR list view
+  Show visual differences between PR states: merged vs closed (not merged), and
+  open vs draft. Use distinct colors or icons so the status is immediately clear
+  at a glance in the list view.
 
 ## Medium
 
