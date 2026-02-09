@@ -5,15 +5,11 @@
 - [ ] Refresh button for PR data (no analysis)
   Add a button that re-fetches PR metadata, comments, and diff without
   triggering analysis. Views update automatically via @Observable.
-
 - [ ] Persist AI output as artifacts and support viewing in app/CLI
   AI output from each pipeline step should be saved to a file alongside the other
   artifacts. When browsing results in the MacApp or CLI, the AI output from the run
   should be visible. The UI should also support streaming output during a live run
   (both real-time while running and after completion).
-- [ ] Create Xcode project
-  Avoids constant Desktop folder prompts, supports custom icon, and supports
-  docs in the Xcode organizer.
 - [ ] Fix broken rule links in posted PR comments
   The links to the associated rule in posted comments are broken. May be caused
   by using a custom output folder on the Desktop. Needs investigation to confirm
