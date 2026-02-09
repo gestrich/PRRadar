@@ -37,7 +37,6 @@ final class AllPRsModel {
 
     private(set) var state: State = .uninitialized
     private(set) var analyzeAllState: AnalyzeAllState = .idle
-    var stateFilter: String = "open"
     var showOnlyWithPendingComments: Bool = false
 
     let config: PRRadarConfig
@@ -66,41 +65,41 @@ final class AllPRsModel {
 
     // MARK: - Refresh from GitHub
 
-    func refresh(since: Date? = nil) async {
+    func refresh(since: Date? = nil, state prState: PRState? = nil) async {
         let prior = currentPRModels
-        state = .refreshing(prior ?? [])
+        self.state = .refreshing(prior ?? [])
 
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(since: since, repoSlug: slug) {
+            for try await progress in useCase.execute(state: prState, since: since, repoSlug: slug) {
                 switch progress {
                 case .running, .log, .progress:
                     break
                 case .completed:
                     let metadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
                     let prModels = metadata.map { PRModel(metadata: $0, config: config, repoConfig: repoConfig) }
-                    state = .ready(prModels)
+                    self.state = .ready(prModels)
                 case .failed(let error, _):
-                    state = .failed(error, prior: prior)
+                    self.state = .failed(error, prior: prior)
                 }
             }
         } catch {
-            state = .failed(error.localizedDescription, prior: prior)
+            self.state = .failed(error.localizedDescription, prior: prior)
         }
     }
 
     // MARK: - Analyze All
 
-    func analyzeAll(since: String) async {
+    func analyzeAll(since: String, state prState: PRState? = nil) async {
         analyzeAllState = .running(logs: "Analyzing all PRs since \(since)...\n", current: 0, total: 0)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
         let useCase = AnalyzeAllUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(since: since, rulesDir: rulesDir, repo: slug) {
+            for try await progress in useCase.execute(since: since, rulesDir: rulesDir, repo: slug, state: prState) {
                 switch progress {
                 case .running:
                     break

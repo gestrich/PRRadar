@@ -95,7 +95,7 @@ Add a single-select state picker in the PR list filter bar. Per the SwiftUI MV p
 
 **Completed.** Added `@AppStorage("selectedPRState")` with `"ALL"` default, a `Menu` using `PRState.allCases` with `displayName` labels positioned after the days-lookback menu, and state filtering in `filteredPRModels` that matches `PRState(rawValue: metadata.state.uppercased())` against the selection. Inherits `.controlSize(.small)` from the parent `HStack`.
 
-## - [ ] Phase 5: MacApp UI — Wire State Filter into Analyze All & Refresh
+## - [x] Phase 5: MacApp UI — Wire State Filter into Analyze All & Refresh
 
 Connect the UI state filter to the analyze-all and refresh operations.
 
@@ -113,6 +113,8 @@ Connect the UI state filter to the analyze-all and refresh operations.
 - Pass selected state filter to `allPRs?.refresh(since:state:)` so the refresh fetches PRs matching the current filter
 
 **Architecture notes (per swift-architecture):** `AllPRsModel` is `@Observable` in the Apps layer — it invokes use cases and relays progress. The model doesn't interpret the state; it passes it through to the Feature layer use case.
+
+**Completed.** Updated `AllPRsModel` with `state prState: PRState? = nil` parameters on both `analyzeAll(since:state:)` and `refresh(since:state:)`, using external/internal parameter naming to avoid shadowing the `self.state` property. Removed the unused `stateFilter: String` property. Updated `ContentView` to pass `selectedPRStateFilter` to both refresh and analyze-all calls. The analyze-all popover now displays the current state alongside the date range (e.g., "Last 7 days · State: Open").
 
 ## - [ ] Phase 6: Architecture Validation
 

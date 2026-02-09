@@ -217,7 +217,7 @@ struct ContentView: View {
             .toggleStyle(.button)
 
             Button {
-                Task { await allPRs?.refresh(since: sinceDate) }
+                Task { await allPRs?.refresh(since: sinceDate, state: selectedPRStateFilter) }
             } label: {
                 if let model = allPRs, case .refreshing = model.state {
                     ProgressView()
@@ -327,7 +327,7 @@ struct ContentView: View {
             Text("Analyze All PRs")
                 .font(.headline)
 
-            Text("Last \(daysLookBack) days")
+            Text("Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -335,8 +335,9 @@ struct ContentView: View {
                 let formatter = DateFormatter()
                 formatter.dateFormat = "yyyy-MM-dd"
                 let sinceString = formatter.string(from: sinceDate)
+                let state = selectedPRStateFilter
                 showAnalyzeAll = false
-                Task { await allPRs?.analyzeAll(since: sinceString) }
+                Task { await allPRs?.analyzeAll(since: sinceString, state: state) }
             }
             .keyboardShortcut(.defaultAction)
         }
