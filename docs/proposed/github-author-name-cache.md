@@ -84,7 +84,7 @@ After fetching PR data and comments in `PRAcquisitionService.acquire()`, collect
 
 **Completed:** Added `withName(from:)` on `GitHubAuthor`, `withAuthorNames(from:)` on `GitHubPullRequest` and `GitHubPullRequestComments` as extensions in `GitHubModels.swift`. These take a `[String: String]` name map and return enriched copies. `PRAcquisitionService.acquire()` now accepts an optional `authorCache: AuthorCacheService?` parameter (default `nil` for backward compatibility). When provided, it collects all unique author logins via a private `collectAuthorLogins` helper, resolves names through the cache, and enriches both the PR and comments before writing to disk. Build verified.
 
-## - [ ] Phase 5: Wire Through Use Cases and CLI/App Entry Points
+## - [x] Phase 5: Wire Through Use Cases and CLI/App Entry Points
 
 The `AuthorCacheService` needs to be created and passed through the call chain to `PRAcquisitionService`. This affects:
 
@@ -102,6 +102,13 @@ Existing display code in the UI already handles `name` vs `login` fallback (`pr.
 - MacApp model files that set up acquisition
 - `Sources/apps/MacApp/UI/GitViews/InlinePostedCommentView.swift` — show name with login fallback
 - `Sources/apps/MacApp/UI/PhaseViews/SummaryPhaseView.swift` (line 119) — shows `author.login` for comment authors, should prefer name
+
+**Completed:** Wired `AuthorCacheService` through the two key entry points:
+- `FetchDiffUseCase`: Creates `AuthorCacheService()` and passes it to `PRAcquisitionService.acquire(authorCache:)`. All CLI commands (`diff`, `analyze`) and MacApp's `PRModel.runDiff()` flow through this use case, so they all get author name resolution automatically.
+- `FetchPRListUseCase`: Creates `AuthorCacheService()`, collects unique author logins from all fetched PRs, resolves names via `gitHub.resolveAuthorNames()`, and applies them with `.withAuthorNames(from:)` before writing `gh-pr.json`. The `refresh` command and MacApp PR list flow through here.
+- `AnalyzeAllUseCase` delegates to `AnalyzeUseCase` → `FetchDiffUseCase`, so it inherits the fix.
+- Updated `InlinePostedCommentView` and `SummaryPhaseView.commentRow` to prefer `author.name` over `author.login` using `name.flatMap { $0.isEmpty ? nil : $0 } ?? login` pattern (handles the `String?` type on `GitHubAuthor.name`).
+- No CLI command or MacApp model changes needed — they all delegate to use cases that now handle the cache internally. Build verified.
 
 ## - [ ] Phase 6: Architecture Validation
 

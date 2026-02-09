@@ -37,11 +37,16 @@ public struct FetchPRListUseCase: Sendable {
                     // Fetch repository info once (needed by PRDiscoveryService when filtering by repoSlug)
                     let repo = try await gitHub.getRepository()
 
+                    // Resolve author display names via cache
+                    let authorCache = AuthorCacheService()
+                    let authorLogins = Set(prs.compactMap { $0.author?.login })
+                    let nameMap = authorLogins.isEmpty ? [:] : try await gitHub.resolveAuthorNames(logins: authorLogins, cache: authorCache)
+
                     // Write PR data to output dir so PRDiscoveryService can find them
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-                    for pr in prs {
+                    for pr in prs.map({ $0.withAuthorNames(from: nameMap) }) {
                         let prDir = DataPathsService.phaseDirectory(
                             outputDir: config.absoluteOutputDir,
                             prNumber: String(pr.number),

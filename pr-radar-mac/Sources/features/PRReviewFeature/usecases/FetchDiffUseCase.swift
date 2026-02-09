@@ -54,6 +54,7 @@ public struct FetchDiffUseCase: Sendable {
                 do {
                     let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
                     let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
+                    let authorCache = AuthorCacheService()
 
                     guard let prNum = Int(prNumber) else {
                         continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
@@ -66,7 +67,8 @@ public struct FetchDiffUseCase: Sendable {
                     let result = try await acquisition.acquire(
                         prNumber: prNum,
                         repoPath: config.repoPath,
-                        outputDir: config.absoluteOutputDir
+                        outputDir: config.absoluteOutputDir,
+                        authorCache: authorCache
                     )
 
                     continuation.yield(.log(text: "Diff acquired: \(result.diff.hunks.count) hunks across \(result.diff.uniqueFiles.count) files\n"))
