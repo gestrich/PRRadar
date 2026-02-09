@@ -113,20 +113,15 @@ struct DiffPhaseView: View {
         List(selection: $selectedFile) {
             Section("Changed Files") {
                 ForEach(diff.changedFiles, id: \.self) { file in
-                    let hunkCount = diff.getHunks(byFilePath: file).count
                     let postedCount = postedCounts[file] ?? 0
+                    let taskCount = taskCountsByFile[file] ?? 0
                     HStack {
                         fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
-                        if let taskCount = taskCountsByFile[file], taskCount > 0 {
-                            taskBadge(count: taskCount)
-                        }
-                        if postedCount > 0 {
-                            postedCommentBadge(count: postedCount)
-                        }
-                        Text("\(hunkCount)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        taskBadge(count: max(taskCount, 1))
+                            .opacity(taskCount > 0 ? 1 : 0)
+                        postedCommentBadge(count: max(postedCount, 1))
+                            .opacity(postedCount > 0 ? 1 : 0)
                     }
                     .tag(file)
                 }
@@ -146,23 +141,16 @@ struct DiffPhaseView: View {
                 ForEach(diff.changedFiles, id: \.self) { file in
                     let violationCount = allFiles[file] ?? 0
                     let postedCount = postedCounts[file] ?? 0
+                    let taskCount = taskCountsByFile[file] ?? 0
                     HStack {
                         fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
-                        if let taskCount = taskCountsByFile[file], taskCount > 0 {
-                            taskBadge(count: taskCount)
-                        }
-                        if violationCount > 0 {
-                            violationBadge(count: violationCount, file: file, mapping: mapping)
-                        }
-                        if postedCount > 0 {
-                            postedCommentBadge(count: postedCount)
-                        }
-                        if violationCount == 0 && postedCount == 0 {
-                            Text("\(diff.getHunks(byFilePath: file).count)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        taskBadge(count: max(taskCount, 1))
+                            .opacity(taskCount > 0 ? 1 : 0)
+                        violationBadge(count: max(violationCount, 1), file: file, mapping: mapping)
+                            .opacity(violationCount > 0 ? 1 : 0)
+                        postedCommentBadge(count: max(postedCount, 1))
+                            .opacity(postedCount > 0 ? 1 : 0)
                     }
                     .tag(file)
                 }

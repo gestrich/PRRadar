@@ -60,7 +60,7 @@ struct PRListRow: View {
     @ViewBuilder
     private var analysisBadge: some View {
         switch prModel.analysisState {
-        case .loading:
+        case .loading, .unavailable:
             EmptyView()
         case .loaded(let violationCount, _, _):
             if violationCount > 0 {
@@ -75,8 +75,6 @@ struct PRListRow: View {
                     .font(.caption2)
                     .foregroundStyle(.green)
             }
-        case .unavailable:
-            EmptyView()
         }
     }
 
@@ -85,13 +83,14 @@ struct PRListRow: View {
     @ViewBuilder
     private var postedCommentsBadge: some View {
         switch prModel.analysisState {
-        case .loaded(_, _, let postedCommentCount) where postedCommentCount > 0:
-            Text("\(postedCommentCount)")
+        case .loaded(_, _, let postedCommentCount):
+            Text("\(max(postedCommentCount, 1))")
                 .font(.caption2.bold())
                 .foregroundStyle(.white)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)
                 .background(.green, in: Capsule())
+                .opacity(postedCommentCount > 0 ? 1 : 0)
         default:
             EmptyView()
         }
