@@ -50,7 +50,7 @@ Supporting files: `PRRadar/PRRadarApp.swift`, `ReviewDetailView.swift`
 - `ContentView` uses convenience computed properties (`allPRs`, `selectedConfig`, `selectedPR`) that delegate to `appModel`, minimizing diff churn
 - The `.onChange(of: selectedConfig)` handler no longer calls `createModelForConfig()` since `AppModel.selectedConfig.didSet` handles model creation
 
-## - [ ] Phase 2: Enum-based state — replace `isAnalyzing: Bool` on PRModel
+## - [x] Phase 2: Enum-based state — replace `isAnalyzing: Bool` on PRModel
 
 **Violation**: `model-state.md` says "Use enums to represent model state rather than multiple independent properties." `PRModel.isAnalyzing` (line 44) is a standalone `Bool` that tracks whether `runAnalysis()` is in progress, independent of `phaseStates`.
 
@@ -76,6 +76,13 @@ Supporting files: `PRRadar/PRRadarApp.swift`, `ReviewDetailView.swift`
 6. **Remove `isPullRequestPhaseRunning`** computed property — no longer needed since `operationMode` captures intent directly.
 
 **References**: `model-state.md` (enum-based state, impossible invalid states)
+
+**Technical notes:**
+- `OperationMode` is a nested enum on `PRModel` with three cases: `.idle`, `.refreshing`, `.analyzing`
+- `refreshPRData()` wraps its body with `operationMode = .refreshing` / `.idle` via `defer`
+- `runAnalysis()` wraps its body with `operationMode = .analyzing` / `.idle` via `defer`
+- The compound toolbar check `pr.isPullRequestPhaseRunning && !pr.isAnalyzing` is replaced by the single check `pr.operationMode == .refreshing`, eliminating the possibility of conflicting boolean states
+- `isPullRequestPhaseRunning` removed — `operationMode` captures the same intent more precisely
 
 ## - [ ] Phase 3: Eliminate duplicated state extraction — expose filtered PRs from model
 

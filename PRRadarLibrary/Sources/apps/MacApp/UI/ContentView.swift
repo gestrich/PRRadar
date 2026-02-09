@@ -58,7 +58,7 @@ public struct ContentView: View {
                 Button {
                     Task { await selectedPR?.refreshPRData() }
                 } label: {
-                    if let pr = selectedPR, pr.isPullRequestPhaseRunning && !pr.isAnalyzing {
+                    if let pr = selectedPR, pr.operationMode == .refreshing {
                         ProgressView()
                             .controlSize(.small)
                     } else {
@@ -71,7 +71,7 @@ public struct ContentView: View {
                 Button {
                     Task { await selectedPR?.runAnalysis() }
                 } label: {
-                    if let pr = selectedPR, pr.isAnalyzing {
+                    if let pr = selectedPR, pr.operationMode == .analyzing {
                         ProgressView()
                             .controlSize(.small)
                     } else {

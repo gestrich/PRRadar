@@ -41,7 +41,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
-    private(set) var isAnalyzing: Bool = false
+    private(set) var operationMode: OperationMode = .idle
     private var refreshTask: Task<Void, Never>?
 
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
@@ -79,13 +79,6 @@ final class PRModel: Identifiable, Hashable {
             case .running, .refreshing: return true
             default: return false
             }
-        }
-    }
-
-    var isPullRequestPhaseRunning: Bool {
-        switch stateFor(.pullRequest) {
-        case .running, .refreshing: return true
-        default: return false
         }
     }
 
@@ -177,6 +170,8 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Refresh PR Data
 
     func refreshPRData() async {
+        operationMode = .refreshing
+        defer { operationMode = .idle }
         await refreshDiff(force: true)
         if isPhaseCompleted(.pullRequest) {
             loadCachedNonDiffOutputs()
@@ -341,8 +336,8 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func runAnalysis() async {
-        isAnalyzing = true
-        defer { isAnalyzing = false }
+        operationMode = .analyzing
+        defer { operationMode = .idle }
         let phases: [PRRadarPhase] = [.rules, .evaluations, .report]
         for phase in phases {
             guard canRunPhase(phase) else { break }
@@ -566,6 +561,12 @@ final class PRModel: Identifiable, Hashable {
     }
 
     // MARK: - Nested Types
+
+    enum OperationMode {
+        case idle
+        case refreshing
+        case analyzing
+    }
 
     enum AnalysisState {
         case loading
