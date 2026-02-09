@@ -101,7 +101,7 @@ Both buttons use the same icon and spinner pattern as their list counterparts.
 - The refresh button spinner activates only during PR data fetch (`.pullRequest` phase), while the analyze button spinner activates when any phase is running (`isAnyPhaseRunning`)
 - Both buttons share the same disabled conditions: no PR selected, any phase running, or empty PR number
 
-## - [ ] Phase 4: Update list toolbar buttons for consistency
+## - [x] Phase 4: Update list toolbar buttons for consistency
 
 Ensure the list toolbar buttons match the same pattern:
 
@@ -113,8 +113,14 @@ Ensure the list toolbar buttons match the same pattern:
    - Already correct — uses `sparkles` icon with `ProgressView` + count text while running
    - No changes needed unless minor cleanup for consistency
 
-**Files to modify:**
-- [ContentView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/ContentView.swift) — Update list refresh button spinner
+**Files modified:**
+- [ContentView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/ContentView.swift) — Updated list refresh button spinner and disabled state
+
+**Technical notes:**
+- Refresh button now uses `refreshAllState.isRunning` instead of `model.state == .refreshing` to show spinner during both list fetch and per-PR data fetch phases
+- Added `HStack` with `ProgressView` + optional "X/Y" progress text matching the sparkles button pattern — progress text appears during `.refreshingPRs` phase
+- Updated `isRefreshing` computed property to also check `refreshAllState.isRunning`, keeping the button disabled throughout the entire refresh operation
+- Analyze all button (`sparkles`) was already consistent — no changes needed
 
 ## - [ ] Phase 5: Architecture Validation
 

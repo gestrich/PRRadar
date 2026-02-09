@@ -242,9 +242,16 @@ public struct ContentView: View {
             Button {
                 Task { await allPRs?.refresh(since: sinceDate, state: selectedPRStateFilter) }
             } label: {
-                if let model = allPRs, case .refreshing = model.state {
-                    ProgressView()
-                        .controlSize(.small)
+                if let model = allPRs, model.refreshAllState.isRunning {
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .controlSize(.small)
+                        if let progressText = model.refreshAllState.progressText {
+                            Text(progressText)
+                                .font(.caption)
+                                .monospacedDigit()
+                        }
+                    }
                 } else {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -434,7 +441,7 @@ public struct ContentView: View {
     private var isRefreshing: Bool {
         guard let model = allPRs else { return false }
         if case .refreshing = model.state { return true }
-        return false
+        return model.refreshAllState.isRunning
     }
     
     private func createModelForConfig(_ config: RepoConfiguration) {
