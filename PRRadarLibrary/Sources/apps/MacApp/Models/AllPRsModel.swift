@@ -121,10 +121,12 @@ final class AllPRsModel {
             return
         }
 
-        let total = models.count
+        let prsToRefresh = filteredPRs(models, since: since, state: prState)
+
+        let total = prsToRefresh.count
         refreshAllState = .refreshingPRs(current: 0, total: total)
 
-        for (index, pr) in models.enumerated() {
+        for (index, pr) in prsToRefresh.enumerated() {
             await pr.refreshPRData()
             refreshAllState = .refreshingPRs(current: index + 1, total: total)
         }
@@ -195,6 +197,32 @@ final class AllPRsModel {
     func setDefault(id: UUID) {
         settingsService.setDefault(id: id, in: &settings)
         persistSettings()
+    }
+
+    // MARK: - Filtering
+
+    func filteredPRs(_ models: [PRModel], since: Date? = nil, state prState: PRState? = nil) -> [PRModel] {
+        var result = models
+        if let since {
+            let fractional = ISO8601DateFormatter()
+            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let standard = ISO8601DateFormatter()
+            result = result.filter { pr in
+                guard !pr.metadata.createdAt.isEmpty,
+                      let date = fractional.date(from: pr.metadata.createdAt)
+                        ?? standard.date(from: pr.metadata.createdAt) else { return true }
+                return date >= since
+            }
+        }
+        if let prState {
+            result = result.filter { pr in
+                PRState(rawValue: pr.metadata.state.uppercased()) == prState
+            }
+        }
+        if showOnlyWithPendingComments {
+            result = result.filter { $0.hasPendingComments }
+        }
+        return result
     }
 
     // MARK: - Helpers

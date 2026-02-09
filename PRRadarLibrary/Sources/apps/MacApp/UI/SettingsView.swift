@@ -3,7 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     let model: AllPRsModel
-    @Binding var settings: AppSettings
+    let appModel: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var editingConfig: RepoConfiguration?
     @State private var isAddingNew = false
@@ -24,7 +24,7 @@ struct SettingsView: View {
             }
             .padding()
 
-            if settings.configurations.isEmpty {
+            if appModel.settings.configurations.isEmpty {
                 ContentUnavailableView(
                     "No Configurations",
                     systemImage: "folder.badge.questionmark",
@@ -33,18 +33,16 @@ struct SettingsView: View {
                 .frame(maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(settings.configurations) { config in
+                    ForEach(appModel.settings.configurations) { config in
                         ConfigurationRow(
                             config: config,
                             isSelected: config.id == model.repoConfig.id,
                             onEdit: { editingConfig = config },
-                            onSetDefault: { 
-                                model.setDefault(id: config.id)
-                                settings = model.settings
+                            onSetDefault: {
+                                appModel.setDefault(id: config.id)
                             },
-                            onDelete: { 
-                                model.removeConfiguration(id: config.id)
-                                settings = model.settings
+                            onDelete: {
+                                appModel.removeConfiguration(id: config.id)
                             }
                         )
                     }
@@ -67,11 +65,10 @@ struct SettingsView: View {
                 isNew: isAddingNew
             ) { updatedConfig in
                 if isAddingNew {
-                    model.addConfiguration(updatedConfig)
+                    appModel.addConfiguration(updatedConfig)
                 } else {
-                    model.updateConfiguration(updatedConfig)
+                    appModel.updateConfiguration(updatedConfig)
                 }
-                settings = model.settings
                 isAddingNew = false
             } onCancel: {
                 isAddingNew = false

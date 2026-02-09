@@ -41,6 +41,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
+    private(set) var isAnalyzing: Bool = false
     private var refreshTask: Task<Void, Never>?
 
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
@@ -87,6 +88,8 @@ final class PRModel: Identifiable, Hashable {
         default: return false
         }
     }
+
+
 
     var hasPendingComments: Bool {
         guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
@@ -337,8 +340,10 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func runAllPhases() async {
-        let phases: [PRRadarPhase] = [.pullRequest, .rules, .evaluations, .report]
+    func runAnalysis() async {
+        isAnalyzing = true
+        defer { isAnalyzing = false }
+        let phases: [PRRadarPhase] = [.rules, .evaluations, .report]
         for phase in phases {
             guard canRunPhase(phase) else { break }
             await runPhase(phase)

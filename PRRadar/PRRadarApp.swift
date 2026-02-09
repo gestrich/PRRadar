@@ -3,19 +3,21 @@ import SwiftUI
 
 @main
 struct PRRadarApp: App {
-    let bridgeScriptPath: String
+    @State private var appModel: AppModel
 
     init() {
-        bridgeScriptPath = URL(fileURLWithPath: #filePath)
+        let bridgePath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // PRRadar/
             .deletingLastPathComponent() // project root
             .appendingPathComponent("PRRadarLibrary/bridge/claude_bridge.py")
             .path
+        _appModel = State(initialValue: AppModel(bridgeScriptPath: bridgePath))
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(bridgeScriptPath: bridgeScriptPath)
+            ContentView()
+                .environment(appModel)
         }
         .defaultSize(width: 1200, height: 750)
     }
