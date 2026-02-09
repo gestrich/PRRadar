@@ -119,7 +119,7 @@ struct SummaryPhaseView: View {
 - Reuse the green accent styling from `InlinePostedCommentView` (left green bar, green tinted background)
 - Since `InlinePostedCommentView` takes `GitHubReviewComment` (not `GitHubComment`), create comment rows inline in `SummaryPhaseView` using the same visual pattern rather than trying to share the view (the types differ)
 
-## - [ ] Phase 4: Remove PR-level comments from EvaluationsPhaseView
+## - [x] Phase 4: Remove PR-level comments from EvaluationsPhaseView
 
 **Goal**: Since PR-level comments now have their own home in the Summary view, stop passing them to the Evaluations phase view.
 
@@ -128,6 +128,8 @@ struct SummaryPhaseView: View {
 1. `pr-radar-mac/Sources/apps/MacApp/UI/ReviewDetailView.swift`
    - In `evaluationsOutputView`, change `postedGeneralComments: prModel.postedComments?.comments ?? []` to `postedGeneralComments: []`
    - Or remove the parameter entirely if the evaluations view handles empty gracefully
+
+**Result**: Removed the `postedGeneralComments` parameter entirely from the `EvaluationsPhaseView` call site in `evaluationsOutputView`. The parameter has a default value of `[]` in `DiffCommentMapper.map()`, so omitting it is clean. Inline review comments (`postedReviewComments`) remain unchanged.
 
 **Note**: Keep `postedReviewComments` (inline diff comments) in the evaluations view — those are correctly placed there.
 
