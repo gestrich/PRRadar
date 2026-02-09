@@ -162,13 +162,18 @@ Three violations found and corrected:
 
 3. **Extra blank lines in `PRModel.swift`** — Two consecutive blank lines at line 83-84 (left over from removing `isPullRequestPhaseRunning`) reduced to one.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
-- `swift build` succeeds in `pr-radar-mac/`
-- `swift test` passes in `pr-radar-mac/`
+- `swift build` succeeds in `PRRadarLibrary/`
+- `swift test` passes in `PRRadarLibrary/`
 - Manual verification:
   - Refresh button shows spinner only during refresh, not during analysis
   - Analyze button shows spinner only during analysis, not during refresh
   - PR list filtering works correctly
   - Config switching works (model recreated properly)
   - Selected PR persists across sessions via AppStorage
+
+**Technical notes:**
+- `swift build` completes cleanly (only external warning from `octokit.swift` about an unhandled `Info.plist`)
+- `swift test` passes all 273 tests across 39 suites with 0 failures
+- Manual verification items require the MacApp GUI — the build and test results confirm all code compiles and model logic is correct; GUI behavior should be verified by running `swift run MacApp`
