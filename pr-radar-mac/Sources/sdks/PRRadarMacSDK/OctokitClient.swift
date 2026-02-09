@@ -429,6 +429,12 @@ public struct OctokitClient: Sendable {
         }
     }
 
+    // MARK: - User Operations
+
+    public func getUser(login: String) async throws -> OctoKit.User {
+        try await client().user(name: login)
+    }
+
     // MARK: - Private
 
     private func client() -> Octokit {

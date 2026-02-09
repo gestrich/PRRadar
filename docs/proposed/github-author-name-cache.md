@@ -39,7 +39,7 @@ Per the architecture rules, `PRRadarConfigService` depends on `PRRadarModels` (s
 
 **Completed:** Models and service created following `SettingsService` pattern exactly. No Package.swift changes needed since both files are in existing targets. Build verified.
 
-## - [ ] Phase 2: User Lookup in OctokitClient (SDK Layer)
+## - [x] Phase 2: User Lookup in OctokitClient (SDK Layer)
 
 Add a `getUser(login:)` method to `OctokitClient` that calls `/users/{login}` and returns the user's display name.
 
@@ -47,6 +47,8 @@ OctoKit's `Octokit.user(name:)` method should work, but if it doesn't return the
 
 **Files to modify:**
 - `Sources/sdks/PRRadarMacSDK/OctokitClient.swift` — add `getUser(login:) async throws -> OctoKit.User` (or a simpler return type with just `login` and `name`)
+
+**Completed:** Added `getUser(login:)` method that delegates to OctoKit's async `user(name:)`. Returns `OctoKit.User` directly, consistent with other methods in the client (e.g., `pullRequest`, `repository`). No REST workaround needed — OctoKit's method correctly calls `GET /users/{login}` and decodes the full `User` model including the `name` field. Build verified.
 
 ## - [ ] Phase 3: User Name Resolution in GitHubService
 
