@@ -27,7 +27,7 @@
   posted GitHub comments — specifically the "PR Radar" link and the cost to run.
   Ensure all metadata shown in the GitHub comment is also displayed in the app's
   comment preview.
-- [ ] Show model used in report and cost displays
+- [x] Show model used in report and cost displays
   Wherever we show cost (e.g., report output, comment preview, CLI summary), also
   display the AI model that was used for the evaluation. Helps with understanding
   cost differences and reproducing results.

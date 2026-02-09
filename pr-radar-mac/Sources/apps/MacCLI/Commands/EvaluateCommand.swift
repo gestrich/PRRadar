@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
+import PRRadarModels
 import PRReviewFeature
 
 struct EvaluateCommand: AsyncParsableCommand {
@@ -54,6 +55,11 @@ struct EvaluateCommand: AsyncParsableCommand {
             print("  Total tasks: \(output.summary.totalTasks)")
             print("  Violations found: \(output.summary.violationsFound)")
             print("  Cost: $\(String(format: "%.4f", output.summary.totalCostUsd))")
+            let models = output.summary.modelsUsed
+            if !models.isEmpty {
+                let modelNames = models.map { displayName(forModelId: $0) }.joined(separator: ", ")
+                print("  Model: \(modelNames)")
+            }
             print("  Duration: \(output.summary.totalDurationMs)ms")
 
             let violations = output.evaluations.filter { $0.evaluation.violatesRule }

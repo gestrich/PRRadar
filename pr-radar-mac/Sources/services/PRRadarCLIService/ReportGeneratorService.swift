@@ -15,7 +15,7 @@ public struct ReportGeneratorService: Sendable {
         let tasksDir = "\(outputDir)/\(PRRadarPhase.tasks.rawValue)"
         let focusAreasDir = "\(outputDir)/\(PRRadarPhase.focusAreas.rawValue)"
 
-        let (violations, totalTasks, totalCost) = loadViolations(
+        let (violations, totalTasks, totalCost, modelsUsed) = loadViolations(
             evaluationsDir: evalsDir,
             tasksDir: tasksDir,
             minScore: minScore
@@ -24,7 +24,7 @@ public struct ReportGeneratorService: Sendable {
         let focusAreaCost = loadFocusAreaGenerationCost(focusAreasDir: focusAreasDir)
         let combinedCost = totalCost + focusAreaCost
 
-        let summary = calculateSummary(violations: violations, totalTasks: totalTasks, totalCost: combinedCost)
+        let summary = calculateSummary(violations: violations, totalTasks: totalTasks, totalCost: combinedCost, modelsUsed: modelsUsed)
 
         let sortedViolations = violations.sorted {
             if $0.score != $1.score { return $0.score > $1.score }
@@ -67,16 +67,17 @@ public struct ReportGeneratorService: Sendable {
         evaluationsDir: String,
         tasksDir: String,
         minScore: Int
-    ) -> ([ViolationRecord], Int, Double) {
+    ) -> ([ViolationRecord], Int, Double, [String]) {
         let fm = FileManager.default
         var violations: [ViolationRecord] = []
         var totalTasks = 0
         var totalCost = 0.0
+        var modelSet = Set<String>()
 
         let taskMetadata = loadTaskMetadata(tasksDir: tasksDir)
 
         guard let evalFiles = try? fm.contentsOfDirectory(atPath: evaluationsDir) else {
-            return (violations, totalTasks, totalCost)
+            return (violations, totalTasks, totalCost, [])
         }
 
         for file in evalFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
@@ -85,6 +86,7 @@ public struct ReportGeneratorService: Sendable {
 
             guard let result = try? JSONDecoder().decode(RuleEvaluationResult.self, from: data) else { continue }
             totalTasks += 1
+            modelSet.insert(result.modelUsed)
 
             if let cost = result.costUsd {
                 totalCost += cost
@@ -121,7 +123,7 @@ public struct ReportGeneratorService: Sendable {
             ))
         }
 
-        return (violations, totalTasks, totalCost)
+        return (violations, totalTasks, totalCost, modelSet.sorted())
     }
 
     private func loadFocusAreaGenerationCost(focusAreasDir: String) -> Double {
@@ -155,7 +157,8 @@ public struct ReportGeneratorService: Sendable {
     private func calculateSummary(
         violations: [ViolationRecord],
         totalTasks: Int,
-        totalCost: Double
+        totalCost: Double,
+        modelsUsed: [String]
     ) -> ReportSummary {
         let highestSeverity = violations.map(\.score).max() ?? 0
 
@@ -203,7 +206,8 @@ public struct ReportGeneratorService: Sendable {
             bySeverity: bySeverity,
             byFile: byFile,
             byRule: byRule,
-            byMethod: byMethod.isEmpty ? nil : byMethod
+            byMethod: byMethod.isEmpty ? nil : byMethod,
+            modelsUsed: modelsUsed
         )
     }
 }

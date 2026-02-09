@@ -55,6 +55,7 @@ public struct ReportSummary: Codable, Sendable {
     public let byFile: [String: Int]
     public let byRule: [String: Int]
     public let byMethod: [String: [String: [[String: AnyCodableValue]]]]?
+    public let modelsUsed: [String]
 
     public init(
         totalTasksEvaluated: Int,
@@ -64,7 +65,8 @@ public struct ReportSummary: Codable, Sendable {
         bySeverity: [String: Int],
         byFile: [String: Int],
         byRule: [String: Int],
-        byMethod: [String: [String: [[String: AnyCodableValue]]]]? = nil
+        byMethod: [String: [String: [[String: AnyCodableValue]]]]? = nil,
+        modelsUsed: [String] = []
     ) {
         self.totalTasksEvaluated = totalTasksEvaluated
         self.violationsFound = violationsFound
@@ -74,6 +76,20 @@ public struct ReportSummary: Codable, Sendable {
         self.byFile = byFile
         self.byRule = byRule
         self.byMethod = byMethod
+        self.modelsUsed = modelsUsed
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        totalTasksEvaluated = try container.decode(Int.self, forKey: .totalTasksEvaluated)
+        violationsFound = try container.decode(Int.self, forKey: .violationsFound)
+        highestSeverity = try container.decode(Int.self, forKey: .highestSeverity)
+        totalCostUsd = try container.decode(Double.self, forKey: .totalCostUsd)
+        bySeverity = try container.decode([String: Int].self, forKey: .bySeverity)
+        byFile = try container.decode([String: Int].self, forKey: .byFile)
+        byRule = try container.decode([String: Int].self, forKey: .byRule)
+        byMethod = try container.decodeIfPresent([String: [String: [[String: AnyCodableValue]]]].self, forKey: .byMethod)
+        modelsUsed = try container.decodeIfPresent([String].self, forKey: .modelsUsed) ?? []
     }
 
     enum CodingKeys: String, CodingKey {
@@ -85,6 +101,7 @@ public struct ReportSummary: Codable, Sendable {
         case byFile = "by_file"
         case byRule = "by_rule"
         case byMethod = "by_method"
+        case modelsUsed = "models_used"
     }
 }
 
@@ -138,6 +155,10 @@ public struct ReviewReport: Codable, Sendable {
         }
         if summary.totalCostUsd > 0 {
             lines.append("- **Total Cost:** $\(String(format: "%.4f", summary.totalCostUsd))")
+        }
+        if !summary.modelsUsed.isEmpty {
+            let modelNames = summary.modelsUsed.map { displayName(forModelId: $0) }.joined(separator: ", ")
+            lines.append("- **Models Used:** \(modelNames)")
         }
         lines.append("")
 
