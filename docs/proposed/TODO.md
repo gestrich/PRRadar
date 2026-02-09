@@ -39,6 +39,11 @@
   (not pending) comments, styled with a different color than pending comments.
   Also show a per-file badge in the file list indicating how many posted
   comments exist for that file.
+- [ ] Render pending comments as markdown using the same views as posted comments
+  Pending comments should display using the exact markdown string that will be
+  posted to the PR. This means reusing the same comment rendering views used for
+  posted GitHub comments, giving a consistent look and a true preview of what
+  will appear on the PR.
 
 ## Medium
 

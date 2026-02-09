@@ -86,7 +86,7 @@ struct RichContentView: View {
                         .markdownTheme(.gitHub)
                         .textSelection(.enabled)
                 case .html(let text):
-                    HTMLSegmentView(html: rewriteImageURLsInHTML(text), fileAccessDir: imageBaseDir)
+                    HTMLSegmentView(html: rewriteImageURLsInHTML(text), segmentID: segment.id.uuidString, fileAccessDir: imageBaseDir)
                 }
             }
         }
@@ -121,11 +121,12 @@ struct RichContentView: View {
 
 private struct HTMLSegmentView: View {
     let html: String
+    let segmentID: String
     var fileAccessDir: String? = nil
     @State private var height: CGFloat = 50
 
     var body: some View {
-        HTMLBlockView(html: html, fileAccessDir: fileAccessDir, contentHeight: $height)
+        HTMLBlockView(html: html, segmentID: segmentID, fileAccessDir: fileAccessDir, contentHeight: $height)
             .frame(height: height)
     }
 }
@@ -143,6 +144,7 @@ private class NonScrollingWKWebView: WKWebView {
 struct HTMLBlockView: NSViewRepresentable {
 
     let html: String
+    let segmentID: String
     var fileAccessDir: String? = nil
     @Binding var contentHeight: CGFloat
 
@@ -182,7 +184,7 @@ struct HTMLBlockView: NSViewRepresentable {
                 background: rgba(128,128,128,0.1);
                 padding: 1px 4px; border-radius: 3px;
             }
-            img { max-width: 100%; }
+            img { max-width: 100%; height: auto; }
         </style>
         </head>
         <body>\(html)</body>
@@ -190,7 +192,7 @@ struct HTMLBlockView: NSViewRepresentable {
         """
         if let dir = fileAccessDir {
             let dirURL = URL(fileURLWithPath: dir)
-            let tempFile = dirURL.appendingPathComponent("_richcontent.html")
+            let tempFile = dirURL.appendingPathComponent("_richcontent_\(segmentID).html")
             try? document.write(to: tempFile, atomically: true, encoding: .utf8)
             webView.loadFileURL(tempFile, allowingReadAccessTo: dirURL)
         } else {
@@ -205,8 +207,16 @@ struct HTMLBlockView: NSViewRepresentable {
         init(_ parent: HTMLBlockView) { self.parent = parent }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            measureHeight(webView)
+            // Re-measure after images may have loaded
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.measureHeight(webView)
+            }
+        }
+
+        private func measureHeight(_ webView: WKWebView) {
             webView.evaluateJavaScript("document.body.scrollHeight") { result, _ in
-                if let height = result as? CGFloat {
+                if let height = result as? CGFloat, height > 0 {
                     DispatchQueue.main.async { self.parent.contentHeight = height }
                 }
             }
