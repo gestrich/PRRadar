@@ -15,6 +15,7 @@ public struct PRComment: Sendable, Identifiable {
     public let relevantClaudeSkill: String?
     public let ruleUrl: String?
     public let costUsd: Double?
+    public let modelUsed: String?
 
     public init(
         id: String,
@@ -26,7 +27,8 @@ public struct PRComment: Sendable, Identifiable {
         documentationLink: String? = nil,
         relevantClaudeSkill: String? = nil,
         ruleUrl: String? = nil,
-        costUsd: Double? = nil
+        costUsd: Double? = nil,
+        modelUsed: String? = nil
     ) {
         self.id = id
         self.ruleName = ruleName
@@ -38,6 +40,7 @@ public struct PRComment: Sendable, Identifiable {
         self.relevantClaudeSkill = relevantClaudeSkill
         self.ruleUrl = ruleUrl
         self.costUsd = costUsd
+        self.modelUsed = modelUsed
     }
 
     /// Create from an evaluation result and its associated task metadata.
@@ -57,7 +60,8 @@ public struct PRComment: Sendable, Identifiable {
             documentationLink: task?.rule.documentationLink,
             relevantClaudeSkill: task?.rule.relevantClaudeSkill,
             ruleUrl: task?.rule.ruleUrl,
-            costUsd: evaluation.costUsd
+            costUsd: evaluation.costUsd,
+            modelUsed: evaluation.modelUsed
         )
     }
 

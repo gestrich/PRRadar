@@ -98,6 +98,11 @@ public struct EvaluationSummary: Codable, Sendable {
         self.results = results
     }
 
+    /// Distinct model IDs used across all evaluation results, sorted alphabetically.
+    public var modelsUsed: [String] {
+        Array(Set(results.map(\.modelUsed))).sorted()
+    }
+
     enum CodingKeys: String, CodingKey {
         case prNumber = "pr_number"
         case evaluatedAt = "evaluated_at"
