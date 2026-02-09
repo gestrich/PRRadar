@@ -50,7 +50,7 @@ OctoKit's `Octokit.user(name:)` method should work, but if it doesn't return the
 
 **Completed:** Added `getUser(login:)` method that delegates to OctoKit's async `user(name:)`. Returns `OctoKit.User` directly, consistent with other methods in the client (e.g., `pullRequest`, `repository`). No REST workaround needed — OctoKit's method correctly calls `GET /users/{login}` and decodes the full `User` model including the `name` field. Build verified.
 
-## - [ ] Phase 3: User Name Resolution in GitHubService
+## - [x] Phase 3: User Name Resolution in GitHubService
 
 Add a method to `GitHubService` that resolves display names for a set of logins, using the cache first and falling back to API calls for cache misses.
 
@@ -61,6 +61,8 @@ Add a method to `GitHubService` that resolves display names for a set of logins,
 
 **Files to modify:**
 - `Sources/services/PRRadarCLIService/GitHubService.swift` — add `resolveAuthorNames` method
+
+**Completed:** Added `resolveAuthorNames(logins:cache:)` to `GitHubService`. The method iterates over the login set, checks `AuthorCacheService.lookup` first, and on cache miss calls `OctokitClient.getUser(login:)` to fetch the display name. Falls back to the login string if the user has no display name set. Added `import PRRadarConfigService` to the file (valid — `PRRadarCLIService` depends on `PRRadarConfigService` in Package.swift). Build verified.
 
 ## - [ ] Phase 4: Integrate into PRAcquisitionService
 

@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import OctoKit
+import PRRadarConfigService
 import PRRadarMacSDK
 import PRRadarModels
 
@@ -195,6 +196,26 @@ public struct GitHubService: Sendable {
             line: line,
             body: body
         )
+    }
+
+    // MARK: - Author Name Resolution
+
+    public func resolveAuthorNames(logins: Set<String>, cache: AuthorCacheService) async throws -> [String: String] {
+        var result: [String: String] = [:]
+
+        for login in logins {
+            if let cached = cache.lookup(login: login) {
+                result[login] = cached.name
+                continue
+            }
+
+            let user = try await octokitClient.getUser(login: login)
+            let displayName = user.name ?? login
+            try cache.update(login: login, name: displayName)
+            result[login] = displayName
+        }
+
+        return result
     }
 
     // MARK: - Factory
