@@ -110,7 +110,7 @@ Existing display code in the UI already handles `name` vs `login` fallback (`pr.
 - Updated `InlinePostedCommentView` and `SummaryPhaseView.commentRow` to prefer `author.name` over `author.login` using `name.flatMap { $0.isEmpty ? nil : $0 } ?? login` pattern (handles the `String?` type on `GitHubAuthor.name`).
 - No CLI command or MacApp model changes needed — they all delegate to use cases that now handle the cache internally. Build verified.
 
-## - [ ] Phase 6: Architecture Validation
+## - [x] Phase 6: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -126,6 +126,13 @@ Review all commits made during the preceding phases and validate they follow the
 4. Verify no upward dependencies were introduced
 5. Verify `@Observable` is only in Apps layer
 6. Fix any violations found
+
+**Completed:** Reviewed all 5 commits (Phases 1–5) against the swift-app-architecture conventions. No violations found:
+- **Layer placement:** All new code is in the correct layer — models in Services (`PRRadarModels`), cache service in Services (`PRRadarConfigService`), SDK method in SDKs (`PRRadarMacSDK`), resolution logic in Services (`PRRadarCLIService`), orchestration in Features (`PRReviewFeature`), UI changes in Apps (`MacApp`).
+- **Dependencies:** All flow downward only. `PRRadarCLIService` → `PRRadarConfigService` (Services → Services), `PRReviewFeature` → `PRRadarConfigService` (Features → Services). No upward dependencies.
+- **Type conventions:** `AuthorCacheService` is `final class: Sendable`, matching the `SettingsService` pattern exactly. `OctokitClient`, `GitHubService`, `PRAcquisitionService`, and use cases all remain `Sendable` structs as expected.
+- **`@Observable` scope:** Confined to Apps layer only — no `@Observable` in Services, Features, or SDKs.
+- Build verified clean.
 
 ## - [ ] Phase 7: Validation
 
