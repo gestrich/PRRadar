@@ -150,14 +150,17 @@ Review all commits made during the preceding phases and validate they follow the
 - **Code style**: Imports alphabetical, file organization follows convention, no type aliases or unnecessary defaults ✅
 - **@Observable at Apps layer only**: No `@Observable` added outside Apps layer ✅
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 **Build and test:**
 ```bash
-cd pr-radar-mac
+cd PRRadarLibrary
 swift build
 swift test
 ```
+
+**Build result:** Succeeded (0.14s)
+**Test result:** All 273 tests in 39 suites passed (0.092s)
 
 **Manual verification:**
 - Launch the Mac app and select a PR
@@ -168,3 +171,8 @@ swift test
 - **List toolbar:** Verify `sparkles` still runs analyze-all with progress counter
 - Verify buttons are disabled appropriately during operations
 - Verify `@Observable` updates propagate: list rows update badges/counts after refresh, detail views update after data loads
+
+**Technical notes:**
+- The Swift package path is `PRRadarLibrary/` (not `pr-radar-mac/` as referenced in the plan template)
+- No build warnings in project code; only a pre-existing info.plist warning from the `octokit.swift` dependency
+- All existing tests continue to pass — no regressions from the changes in Phases 1–5
