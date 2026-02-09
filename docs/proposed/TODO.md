@@ -42,9 +42,16 @@
 - [ ] Local triage runs
   Get an easily readable daily report with total cost. Run on cron daily.
 - [ ] Unified file-centric review view
-  Consolidate separate phase views (diff, focus areas, rules, tasks,
-  evaluations, report) into a single file-centric view where selecting a file
-  shows its diff, tasks, inline comments, and evaluation results together.
+  Consolidate the diff, focus areas, rules, tasks, evaluations, and report
+  phase views into a single file-centric view. Selecting a file shows the diff
+  on top with rules/tasks listed underneath, scoped to that file. Analysis
+  results (comments, evaluations) appear inline within the diff. This collapses
+  the separate phase concepts into one cohesive view per file.
+- [ ] Skip already-analyzed tasks during evaluation
+  The analysis pipeline should detect when a specific rule/task has already been
+  evaluated and skip re-running it. Still check whether the task was previously
+  analyzed, but avoid re-invoking the AI if it was. This saves AI costs by not
+  re-evaluating unchanged work across repeated runs.
 
 ## Large
 
