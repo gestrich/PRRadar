@@ -107,6 +107,7 @@ let package = Package(
             dependencies: [
                 .target(name: "PRRadarModels"),
                 .target(name: "PRRadarConfigService"),
+                .target(name: "PRRadarCLIService"),
             ],
             path: "Tests/PRRadarModelsTests",
             resources: [

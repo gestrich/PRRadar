@@ -297,7 +297,7 @@ Review all commits made during the preceding phases and validate they follow the
 - **No violations found — no corrections needed**
 - Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
 
 **Automated testing:**
 - Run `swift build` to verify compilation
@@ -326,3 +326,13 @@ Review all commits made during the preceding phases and validate they follow the
 - CLI displays AI output during live runs and can browse saved transcripts
 - MacApp displays real-time streaming AI output and saved transcripts
 - No architecture violations
+
+**Completion notes:**
+- `swift build` succeeds with no errors
+- All 273 existing tests pass (no regressions)
+- 40 new unit tests added across 3 test files, all passing (313 total tests in 42 suites)
+- `BridgeTranscriptTests` (12 tests): Covers `BridgeTranscriptEvent` and `BridgeTranscript` JSON decoding, snake_case key encoding, round-trip encode/decode, missing optional fields, empty events, and `EventType` raw values
+- `BridgeTranscriptWriterTests` (11 tests): Covers markdown rendering (header, text blockquotes, tool use collapsible sections, unknown tool name, result JSON blocks, footer metadata, event ordering) and file writing (JSON+MD creation, JSON round-trip validity, markdown content, intermediate directory creation)
+- `BridgeMessageTests` (17 tests): Covers `BridgeMessage` JSON-line parsing (text/toolUse/result message types, missing fields, null values, invalid JSON, unknown types, empty strings), `BridgeRequest` JSON serialization (required fields, optional fields, output schema), and `BridgeResult` output parsing (valid dictionary, nil data, invalid JSON)
+- Added `PRRadarCLIService` to test target dependencies in `Package.swift` to enable testing `BridgeTranscriptWriter` and `BridgeMessage`
+- Manual verification deferred to Bill (requires `ANTHROPIC_API_KEY` and test repo configuration)
