@@ -42,6 +42,7 @@ struct CommentCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 print(text, terminator: "")
+            case .aiOutput: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

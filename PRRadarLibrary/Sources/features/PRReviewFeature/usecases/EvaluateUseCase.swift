@@ -87,17 +87,23 @@ public struct EvaluateUseCase: Sendable {
                     let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath)
                     let evaluationService = EvaluationService(bridgeClient: bridgeClient)
 
+                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+
                     let startTime = Date()
                     let results = try await evaluationService.runBatchEvaluation(
                         tasks: tasks,
                         outputDir: prOutputDir,
                         repoPath: effectiveRepoPath,
+                        transcriptDir: evalsDir,
                         onStart: { index, total, task in
                             continuation.yield(.log(text: "[\(index)/\(total)] Evaluating \(task.rule.name)...\n"))
                         },
                         onResult: { index, total, result in
                             let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
                             continuation.yield(.log(text: "[\(index)/\(total)] \(status)\n"))
+                        },
+                        onAIText: { text in
+                            continuation.yield(.aiOutput(text: text))
                         }
                     )
 
@@ -116,7 +122,6 @@ public struct EvaluateUseCase: Sendable {
                     )
 
                     // Write summary
-                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                     let summaryData = try encoder.encode(summary)

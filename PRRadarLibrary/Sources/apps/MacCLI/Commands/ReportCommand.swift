@@ -33,6 +33,7 @@ struct ReportCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
+            case .aiOutput: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

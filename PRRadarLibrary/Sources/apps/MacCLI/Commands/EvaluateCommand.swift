@@ -33,6 +33,8 @@ struct EvaluateCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
+            case .aiOutput(let text):
+                if !options.json { print(text, terminator: "") }
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

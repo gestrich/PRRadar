@@ -43,6 +43,7 @@ public struct AnalyzeUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
+                        case .aiOutput: break
                         case .completed:
                             diffCompleted = true
                         case .failed(let error, let logs):
@@ -69,6 +70,8 @@ public struct AnalyzeUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
+                        case .aiOutput(let text):
+                            continuation.yield(.aiOutput(text: text))
                         case .completed:
                             rulesCompleted = true
                         case .failed(let error, let logs):
@@ -94,6 +97,8 @@ public struct AnalyzeUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
+                        case .aiOutput(let text):
+                            continuation.yield(.aiOutput(text: text))
                         case .completed:
                             evalCompleted = true
                         case .failed(let error, let logs):
@@ -119,6 +124,7 @@ public struct AnalyzeUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
+                        case .aiOutput: break
                         case .completed(let output):
                             reportOutput = output
                         case .failed(let error, let logs):
@@ -138,6 +144,7 @@ public struct AnalyzeUseCase: Sendable {
                             case .progress: break
                             case .log(let text):
                                 continuation.yield(.log(text: text))
+                            case .aiOutput: break
                             case .completed: break
                             case .failed(let error, _):
                                 continuation.yield(.log(text: "Comment posting failed: \(error)\n"))

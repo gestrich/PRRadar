@@ -33,6 +33,7 @@ struct DiffCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
+            case .aiOutput: break
             case .completed(let snapshot):
                 outputFiles = snapshot.files
             case .failed(let error, let logs):

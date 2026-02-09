@@ -50,13 +50,17 @@ public struct FetchRulesUseCase: Sendable {
                     let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath)
                     let focusGenerator = FocusGeneratorService(bridgeClient: bridgeClient)
 
+                    let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"
+
                     let focusResults = try await focusGenerator.generateAllFocusAreas(
                         hunks: fullDiff.hunks,
                         prNumber: prNum,
-                        requestedTypes: [.file]
+                        requestedTypes: [.file],
+                        transcriptDir: focusDir,
+                        onAIText: { text in
+                            continuation.yield(.aiOutput(text: text))
+                        }
                     )
-
-                    let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"
                     try FileManager.default.createDirectory(atPath: focusDir, withIntermediateDirectories: true)
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

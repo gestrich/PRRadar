@@ -139,7 +139,7 @@ Update `EvaluationService` and `FocusGeneratorService` to use the streaming brid
 - All new parameters use default values (`nil`), so existing callers (use cases) compile without changes
 - Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
-## - [ ] Phase 4: Use Case Progress Stream Enhancement
+## - [x] Phase 4: Use Case Progress Stream Enhancement
 
 Update the Feature-layer use cases to surface AI text output through the `PhaseProgress` stream, enabling both the CLI and MacApp to display it.
 
@@ -165,6 +165,16 @@ Update the Feature-layer use cases to surface AI text output through the `PhaseP
 **Architecture notes:**
 - Per the swift-architecture conventions, use cases orchestrate multi-step operations and stream progress. Adding `.aiOutput` to `PhaseProgress` is the correct way to surface AI text to the Apps layer.
 - Use cases should not own `@Observable` state — they just emit progress events.
+
+**Completion notes:**
+- `.aiOutput(text: String)` added to `PhaseProgress` enum in `PRReviewFeature/models/PhaseProgress.swift`
+- `EvaluateUseCase` now computes `evalsDir` early and passes it as `transcriptDir` to `runBatchEvaluation()`, with an `onAIText` closure that yields `.aiOutput(text:)` to the continuation
+- `FetchRulesUseCase` now computes `focusDir` early and passes it as `transcriptDir` to `generateAllFocusAreas()`, with an `onAIText` closure that yields `.aiOutput(text:)` to the continuation
+- `AnalyzeUseCase` forwards `.aiOutput` events from the Rules and Evaluate child streams; Diff, Report, and Comment phases use `break` since they don't produce AI output
+- `AnalyzeAllUseCase` forwards `.aiOutput` events from child `AnalyzeUseCase` streams
+- All 8 CLI commands updated to handle the new case: AI-producing commands (Analyze, Rules, Evaluate, AnalyzeAll) print AI text inline; non-AI commands (Diff, Report, Comment, Refresh) use `break`
+- All MacApp model switch sites updated with `case .aiOutput: break` (Phase 5 will add proper UI handling)
+- Build verified: `swift build` succeeds; `swift test` passes all 273 tests in 39 suites
 
 ## - [ ] Phase 5: MacApp UI — Transcript Viewing and Streaming
 

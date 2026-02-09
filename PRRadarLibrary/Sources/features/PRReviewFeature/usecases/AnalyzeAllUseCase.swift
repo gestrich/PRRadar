@@ -69,6 +69,8 @@ public struct AnalyzeAllUseCase: Sendable {
                             case .progress: break
                             case .log(let text):
                                 continuation.yield(.log(text: text))
+                            case .aiOutput(let text):
+                                continuation.yield(.aiOutput(text: text))
                             case .completed:
                                 succeeded = true
                             case .failed(let error, _):
