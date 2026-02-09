@@ -29,6 +29,12 @@ struct DiffPhaseView: View {
             .mapValues(\.count)
     }
 
+    private var tasksByFile: [(file: String, tasks: [EvaluationTaskOutput])] {
+        Dictionary(grouping: tasks, by: \.focusArea.filePath)
+            .sorted { $0.value.count > $1.value.count }
+            .map { (file: $0.key, tasks: $0.value) }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedTab) {
@@ -178,6 +184,10 @@ struct DiffPhaseView: View {
         }()
 
         VStack(spacing: 0) {
+            if selectedFile == nil && !tasks.isEmpty {
+                allFilesTaskSummary()
+            }
+
             let fileTasks = tasksForSelectedFile
             if !fileTasks.isEmpty {
                 tasksSection(fileTasks)
@@ -217,6 +227,42 @@ struct DiffPhaseView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private func allFilesTaskSummary() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Tasks by File")
+                .font(.headline)
+                .padding(.horizontal)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(tasksByFile, id: \.file) { entry in
+                        Button {
+                            selectedFile = entry.file
+                        } label: {
+                            HStack {
+                                Text(URL(fileURLWithPath: entry.file).lastPathComponent)
+                                    .lineLimit(1)
+                                Spacer()
+                                taskBadge(count: entry.tasks.count)
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        if entry.file != tasksByFile.last?.file {
+                            Divider().padding(.horizontal)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder

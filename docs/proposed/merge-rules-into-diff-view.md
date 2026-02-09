@@ -79,7 +79,7 @@ Since all rules/tasks information is now accessible from the Diff view, remove t
 - Removed `rulesOutputView` and its `.rules` case from `phaseOutputView` in `ReviewDetailView`
 - `RulesPhaseView.swift` retained as planned
 
-## - [ ] Phase 4: Show "all files" task summary when no file is selected
+## - [x] Phase 4: Show "all files" task summary when no file is selected
 
 When no file is selected in the sidebar, the tasks section should show a summary view of all tasks grouped by file — giving an overview before drilling into a specific file.
 
@@ -92,6 +92,13 @@ When no file is selected in the sidebar, the tasks section should show a summary
    - Show each file with its task count
    - Tapping a file in this summary selects it in the sidebar (sets `selectedFile`)
 2. This provides a quick overview of where review effort was concentrated
+
+**Completion notes:**
+- Added `tasksByFile` computed property that groups tasks by file path, sorted by task count descending (most tasks first)
+- Added `allFilesTaskSummary()` view shown in `diffContent` when no file is selected and tasks exist
+- Summary shows a "Tasks by File" header with a scrollable list of files, each displaying the filename and a blue task count badge
+- Tapping a file row sets `selectedFile`, navigating to that file's diff and per-file task details
+- Reuses the existing `taskBadge` helper for consistent styling
 
 ## - [ ] Phase 5: Architecture Validation
 
