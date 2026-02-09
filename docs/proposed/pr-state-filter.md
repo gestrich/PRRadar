@@ -75,7 +75,7 @@ The CLI already accepts `--state` as a single value. Just add "draft" as a recog
 
 **Completed.** Added shared `parseStateFilter(_:)` helper in `PRRadarMacCLI.swift` that both `AnalyzeAllCommand` and `RefreshCommand` use. The helper maps `"all"` or `nil` → `nil`, valid state strings → `PRState`, and unrecognized values → `ValidationError` with a message listing valid options. Updated help text on both commands to include "draft". `RefreshCommand` defaults to `.open` when no `--state` is provided (preserving existing behavior).
 
-## - [ ] Phase 4: MacApp UI — State Filter in Filter Bar
+## - [x] Phase 4: MacApp UI — State Filter in Filter Bar
 
 Add a single-select state picker in the PR list filter bar. Per the SwiftUI MV pattern, state lives in `@AppStorage` for persistence and the view reads it directly.
 
@@ -92,6 +92,8 @@ Add a single-select state picker in the PR list filter bar. Per the SwiftUI MV p
   - Otherwise, parse each PR's `metadata.state` into `PRState` and check it matches
 
 **Architecture notes (per swift-swiftui):** The state filter is view-level presentation state (which PRs to show), not business logic. `@AppStorage` is appropriate for persisting UI preferences.
+
+**Completed.** Added `@AppStorage("selectedPRState")` with `"ALL"` default, a `Menu` using `PRState.allCases` with `displayName` labels positioned after the days-lookback menu, and state filtering in `filteredPRModels` that matches `PRState(rawValue: metadata.state.uppercased())` against the selection. Inherits `.controlSize(.small)` from the parent `HStack`.
 
 ## - [ ] Phase 5: MacApp UI — Wire State Filter into Analyze All & Refresh
 

@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showAnalyzeAll = false
     @State private var showAnalyzeAllProgress = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
+    @AppStorage("selectedPRState") private var selectedPRStateString: String = "ALL"
     
     let bridgeScriptPath: String
     
@@ -197,6 +198,15 @@ struct ContentView: View {
             }
             .help("Days to look back")
 
+            Menu(stateFilterLabel) {
+                Button("All") { selectedPRStateString = "ALL" }
+                Divider()
+                ForEach(PRState.allCases, id: \.self) { state in
+                    Button(state.displayName) { selectedPRStateString = state.rawValue }
+                }
+            }
+            .help("Filter by PR state")
+
             Toggle(isOn: Binding(
                 get: { allPRs?.showOnlyWithPendingComments ?? false },
                 set: { allPRs?.showOnlyWithPendingComments = $0 }
@@ -333,6 +343,15 @@ struct ContentView: View {
         .padding()
     }
 
+    private var selectedPRStateFilter: PRState? {
+        if selectedPRStateString == "ALL" { return nil }
+        return PRState(rawValue: selectedPRStateString)
+    }
+
+    private var stateFilterLabel: String {
+        selectedPRStateFilter?.displayName ?? "All"
+    }
+
     private var sinceDate: Date {
         Calendar.current.date(byAdding: .day, value: -daysLookBack, to: Date()) ?? Date()
     }
@@ -376,6 +395,11 @@ struct ContentView: View {
                 ?? ISO8601DateFormatter().date(from: pr.metadata.createdAt)
             else { return true }
             return date >= cutoff
+        }
+        if let stateFilter = selectedPRStateFilter {
+            models = models.filter { pr in
+                PRState(rawValue: pr.metadata.state.uppercased()) == stateFilter
+            }
         }
         if let allPRs = allPRs, allPRs.showOnlyWithPendingComments {
             models = models.filter { $0.hasPendingComments }
