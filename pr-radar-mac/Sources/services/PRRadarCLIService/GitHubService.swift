@@ -75,22 +75,23 @@ public struct GitHubService: Sendable {
 
     public func listPullRequests(
         limit: Int,
-        state: String,
+        state: PRState?,
         since: Date? = nil
     ) async throws -> [GitHubPullRequest] {
-        let filterMerged = state.lowercased() == "merged"
-
         let openness: Openness
-        switch state.lowercased() {
-        case "closed", "merged": openness = .closed
-        case "all": openness = .all
-        default: openness = .open
+        if let state {
+            switch state.apiStateValue {
+            case "closed": openness = .closed
+            default: openness = .open
+            }
+        } else {
+            openness = .all
         }
 
         var allPRs: [GitHubPullRequest] = []
         var page = 1
         let perPage = 100
-        
+
         while true {
             let prs = try await octokitClient.listPullRequests(
                 owner: owner,
@@ -101,59 +102,58 @@ public struct GitHubService: Sendable {
                 page: String(page),
                 perPage: String(perPage)
             )
-            
+
             if prs.isEmpty {
                 break
             }
-            
+
             let mapped = prs.map { $0.toGitHubPullRequest() }
-            
+
             // If we have a since date, check if we've hit PRs older than it
             if let since = since {
                 let formatter = ISO8601DateFormatter()
                 var hitOldPRs = false
-                
+
                 for pr in mapped {
                     guard let createdStr = pr.createdAt,
                           let createdDate = formatter.date(from: createdStr) else {
                         allPRs.append(pr)
                         continue
                     }
-                    
+
                     if createdDate >= since {
                         allPRs.append(pr)
                     } else {
-                        // This PR is older than our cutoff, and since we're sorted by created desc,
-                        // all remaining PRs will also be older
                         hitOldPRs = true
                         break
                     }
                 }
-                
+
                 if hitOldPRs {
                     break
                 }
             } else {
                 allPRs.append(contentsOf: mapped)
             }
-            
+
             // Stop if we've reached the limit
             if allPRs.count >= limit {
                 break
             }
-            
+
             // Stop if this page had fewer results than requested (last page)
             if prs.count < perPage {
                 break
             }
-            
+
             page += 1
         }
 
         let result = Array(allPRs.prefix(limit))
-        
-        if filterMerged {
-            return result.filter { $0.mergedAt != nil }
+
+        // Post-filter by enhancedState when a specific state was requested
+        if let state {
+            return result.filter { $0.enhancedState == state }
         }
         return result
     }

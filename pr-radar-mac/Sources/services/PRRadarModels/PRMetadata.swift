@@ -22,6 +22,25 @@ public enum PRState: String, Codable, Sendable, CaseIterable {
         case .merged: return "merged"
         }
     }
+
+    /// The GitHub API state parameter value. The API only accepts "open", "closed", or "all".
+    /// Draft PRs are open with `isDraft=true`; merged PRs are closed with `mergedAt != nil`.
+    public var apiStateValue: String {
+        switch self {
+        case .open, .draft: return "open"
+        case .closed, .merged: return "closed"
+        }
+    }
+
+    public static func fromCLIString(_ value: String) -> PRState? {
+        switch value.lowercased() {
+        case "open": return .open
+        case "draft": return .draft
+        case "closed": return .closed
+        case "merged": return .merged
+        default: return nil
+        }
+    }
 }
 
 public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
