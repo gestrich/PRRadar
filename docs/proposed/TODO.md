@@ -27,6 +27,19 @@
 - [ ] Auto-fetch PR list on launch
   When the main view opens, automatically fetch the latest PRs for the list
   so the user always sees up-to-date data without a manual refresh.
+- [ ] Reorganize PRRadarCLIService into meaningful service modules
+  The services in PRRadarCLIService apply to both the Mac app and CLI, not
+  just the CLI. Break them out of the "CLIService" folder into more
+  appropriately named service modules per the 4-layer architecture.
+- [ ] Move GitDiffModels to a Git SDK
+  GitDiffModels are general-purpose git diff types, not PRRadar-specific.
+  Extract them into a dedicated Git SDK package in the SDKs layer so they
+  can be reused independently.
+- [ ] Rename "Bridge" references to "ClaudeSDK" (or similar)
+  The word "Bridge" in file names, classes, and types is vague. Rename to
+  something that describes what it actually is — e.g. ClaudeSDK, ClaudeAgent,
+  or similar. Covers bridge models, transcript types, and the Python bridge
+  script naming.
 
 ## Medium
 
@@ -68,6 +81,11 @@
   Combine these into a single diff view that gets decorated with analysis data
   after evaluation completes. Pending comments can be added inline once analysis
   is done. Keep the rules view as-is.
+- [ ] Add reviewer details (who is reviewing and approval status)
+  Show which GitHub users are assigned as reviewers on each PR and their
+  current review status (pending, approved, changes requested). Display
+  this in both the PR list and detail views so the user can quickly see
+  review progress at a glance.
 - [ ] Audit PullRequests app for reusable ideas
   Audit `/Users/bill/Developer/work/swift/PullRequests` for features and patterns
   worth adopting in PRRadar. Likely candidates: better UI patterns (possible
