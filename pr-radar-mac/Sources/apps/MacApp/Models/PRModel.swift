@@ -33,6 +33,8 @@ final class PRModel: Identifiable, Hashable {
     private(set) var report: ReportPhaseOutput?
     private(set) var comments: CommentPhaseOutput?
 
+    private(set) var postedComments: GitHubPullRequestComments?
+
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
@@ -126,6 +128,13 @@ final class PRModel: Identifiable, Hashable {
         self.rules = snapshot.rules
         self.evaluation = snapshot.evaluation
         self.report = snapshot.report
+
+        self.postedComments = try? PhaseOutputParser.parsePhaseOutput(
+            config: config,
+            prNumber: prNumber,
+            phase: .pullRequest,
+            filename: "gh-comments.json"
+        )
 
         detailState = .loaded(ReviewSnapshot(
             diff: self.diff,

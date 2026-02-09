@@ -133,7 +133,9 @@ struct ReviewDetailView: View {
                 diff: prModel.diff?.fullDiff,
                 comments: output.comments,
                 summary: output.summary,
-                prModel: prModel
+                prModel: prModel,
+                postedReviewComments: prModel.postedComments?.reviewComments ?? [],
+                postedGeneralComments: prModel.postedComments?.comments ?? []
             )
         } else if case .running(let logs) = prModel.stateFor(.evaluations) {
             runningLogView(logs)

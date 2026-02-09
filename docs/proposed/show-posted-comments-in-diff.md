@@ -78,7 +78,7 @@ OctoKit's `PullRequest.Comment` model is missing the `path` field, so we need th
 
 **Verification**: `swift build` compiles.
 
-## - [ ] Phase 4: Data Loading and View Wiring
+## - [x] Phase 4: Data Loading and View Wiring
 
 **PRModel** (`Sources/apps/MacApp/Models/PRModel.swift`):
 - Add `private(set) var postedComments: GitHubPullRequestComments?`

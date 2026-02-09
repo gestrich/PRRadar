@@ -7,6 +7,8 @@ struct EvaluationsPhaseView: View {
     let comments: [PRComment]
     let summary: EvaluationSummary
     var prModel: PRModel? = nil
+    var postedReviewComments: [GitHubReviewComment] = []
+    var postedGeneralComments: [GitHubComment] = []
 
     @State private var selectedFile: String?
 
@@ -146,7 +148,12 @@ struct EvaluationsPhaseView: View {
     // MARK: - Helpers
 
     private func commentMapping(for diff: GitDiff) -> DiffCommentMapping {
-        DiffCommentMapper.map(diff: diff, comments: comments)
+        DiffCommentMapper.map(
+            diff: diff,
+            comments: comments,
+            postedReviewComments: postedReviewComments,
+            postedGeneralComments: postedGeneralComments
+        )
     }
 
     private func filesWithViolationCounts(mapping: DiffCommentMapping) -> [String: Int] {
