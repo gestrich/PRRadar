@@ -19,8 +19,11 @@ struct ReviewDetailView: View {
 
             switch selectedNavPhase {
             case .summary:
-                summaryPlaceholder
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                SummaryPhaseView(
+                    metadata: prModel.metadata,
+                    postedComments: prModel.postedComments?.comments ?? []
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .diff, .rules, .evaluate, .report:
                 PhaseInputView(prModel: prModel, phase: selectedNavPhase.primaryPhase)
                     .padding()
@@ -96,17 +99,6 @@ struct ReviewDetailView: View {
 
             Divider()
         }
-    }
-
-    // MARK: - Summary Placeholder
-
-    @ViewBuilder
-    private var summaryPlaceholder: some View {
-        ContentUnavailableView(
-            "Summary",
-            systemImage: "doc.text",
-            description: Text("Summary view coming soon.")
-        )
     }
 
     // MARK: - Phase Output Views

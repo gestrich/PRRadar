@@ -80,7 +80,7 @@ Summary is **not** a pipeline phase (no computation, no run button). It should b
 3. `pr-radar-mac/Sources/apps/MacApp/Models/PRModel.swift`
    - No changes needed if we use `@State` in `ReviewDetailView` for navigation
 
-## - [ ] Phase 3: Create SummaryPhaseView
+## - [x] Phase 3: Create SummaryPhaseView
 
 **Goal**: Build the new Summary view showing PR metadata and PR-level comments.
 
