@@ -122,7 +122,7 @@ Ensure the list toolbar buttons match the same pattern:
 - Updated `isRefreshing` computed property to also check `refreshAllState.isRunning`, keeping the button disabled throughout the entire refresh operation
 - Analyze all button (`sparkles`) was already consistent — no changes needed
 
-## - [ ] Phase 5: Architecture Validation
+## - [x] Phase 5: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -137,6 +137,18 @@ Review all commits made during the preceding phases and validate they follow the
 3. Fetch and read ALL skills from the swift-app-architecture repo
 4. Evaluate the changes against each skill's conventions
 5. Fix any violations found
+
+**Review results — no violations found:**
+
+- **Layer placement**: All changes in Apps layer (`apps/MacApp/`) — `@Observable` models and SwiftUI views ✅
+- **Dependency flow**: No upward dependencies; models call use cases from Features layer ✅
+- **Depth over width**: `refreshPRData()` composes existing model methods, not orchestrating SDK calls ✅
+- **Zero duplication**: Reuses `refreshDiff()` and `loadCachedNonDiffOutputs()` ✅
+- **Model composition**: `AllPRsModel.refresh()` calls `pr.refreshPRData()` (model calls model), matching the "models call models" pattern from `model-composition.md` ✅
+- **Enum-based state**: `RefreshAllState` uses proper enum with associated values, matching `AnalyzeAllState` pattern ✅
+- **State ownership**: Use cases own data, models own transitions ✅
+- **Code style**: Imports alphabetical, file organization follows convention, no type aliases or unnecessary defaults ✅
+- **@Observable at Apps layer only**: No `@Observable` added outside Apps layer ✅
 
 ## - [ ] Phase 6: Validation
 
