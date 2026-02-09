@@ -136,7 +136,7 @@ Review all commits made during the preceding phases and validate they follow the
   - File organization follows Properties → init → computed → methods convention
 - Build succeeds, all 265 tests pass
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 **Automated testing:**
 ```bash
@@ -155,3 +155,12 @@ swift test
 4. Verify the Diff tab's status indicator reflects focus areas / rules / tasks phase states
 5. Verify the "no file selected" state shows the all-files task summary
 6. Verify that when no tasks data exists (rules phase hasn't been run), the diff view works exactly as before with no tasks section shown
+
+**Completion notes:**
+- Build succeeds with no errors
+- All 265 tests in 38 suites pass
+- Code review confirmed all requirements implemented across 3 files:
+  - `DiffPhaseView.swift`: Tasks parameter, per-file filtering, task badges in sidebar, collapsible tasks section, all-files summary, graceful empty handling
+  - `ReviewDetailView.swift`: Tasks wired through from `prModel.rules?.tasks ?? []`
+  - `PipelineStatusView.swift`: `.rules` removed from `NavigationPhase`, phases consolidated into `.diff`'s `representedPhases` (3 tabs: Summary, Diff, Report)
+- Manual verification items require launching MacApp with a PR that has completed the rules pipeline phase
