@@ -95,7 +95,7 @@ func streamLines<C: CLICommand, P: CLILineParser>(_ command:, parser:, ...) -> A
 
 **Completed:** Created `CLILineParser` protocol with `PassthroughLineParser` and `JSONLineParser<T>` built-in implementations. Added `runLineBufferedProcess()` as a private async method that uses `bytes.lines` for stdout and `readabilityHandler` for stderr. Added 4 public `streamLines()` variants (raw + parsed, untyped + typed command). The raw-string variants delegate to the parsed variants via `PassthroughLineParser`. The typed command variants extract `commandLine` and delegate to the untyped variants. All return `AsyncThrowingStream` — throws `CLIClientError.executionFailed` on non-zero exit. All 104 existing tests pass.
 
-## - [ ] Phase 3: SwiftCLI tests
+## - [x] Phase 3: SwiftCLI tests
 
 **Repo:** `/Users/bill/Developer/personal/SwiftCLI`
 
@@ -109,6 +109,8 @@ Create `Tests/CLISDKTests/StreamLinesTests.swift`:
 
 **Files:**
 - Create: `Tests/CLISDKTests/StreamLinesTests.swift`
+
+**Completed:** Created `StreamLinesTests.swift` with 16 tests across 3 suites: `streamLines Tests` (6 tests covering echo output, stdin+cat round-trip, custom parser skip behavior, non-zero exit error throwing, and exit code verification), `PassthroughLineParser Tests` (3 tests for non-empty, empty, and whitespace-only lines), and `JSONLineParser Tests` (7 tests for valid JSON decoding, invalid JSON, empty lines, wrong schema, custom decoder, and end-to-end integration with `streamLines`). All 120 tests pass (104 existing + 16 new). Note: `CLIClient` is an actor, so all `streamLines()` calls require `await`.
 
 ## - [ ] Phase 4: Push SwiftCLI to main
 
