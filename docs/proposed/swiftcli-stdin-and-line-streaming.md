@@ -112,9 +112,11 @@ Create `Tests/CLISDKTests/StreamLinesTests.swift`:
 
 **Completed:** Created `StreamLinesTests.swift` with 16 tests across 3 suites: `streamLines Tests` (6 tests covering echo output, stdin+cat round-trip, custom parser skip behavior, non-zero exit error throwing, and exit code verification), `PassthroughLineParser Tests` (3 tests for non-empty, empty, and whitespace-only lines), and `JSONLineParser Tests` (7 tests for valid JSON decoding, invalid JSON, empty lines, wrong schema, custom decoder, and end-to-end integration with `streamLines`). All 120 tests pass (104 existing + 16 new). Note: `CLIClient` is an actor, so all `streamLines()` calls require `await`.
 
-## - [ ] Phase 4: Push SwiftCLI to main
+## - [x] Phase 4: Push SwiftCLI to main
 
 Commit all SwiftCLI changes and push to `main`. PRRadar depends on `SwiftCLI` via `.package(url: "https://github.com/gestrich/SwiftCLI.git", branch: "main")`.
+
+**Completed:** All three commits from Phases 1-3 are on `origin/main`: `fb5acb8` (stdin piping), `51e002a` (CLILineParser + streamLines), `2d77772` (tests). All 120 tests pass (104 existing + 16 new).
 
 ## - [ ] Phase 5: Migrate PRRadar's ClaudeBridgeClient
 
