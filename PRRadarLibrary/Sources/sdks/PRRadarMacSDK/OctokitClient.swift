@@ -232,42 +232,58 @@ public struct OctokitClient: Sendable {
         number: Int
     ) async throws -> [ReviewCommentData] {
         let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)/comments")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        var allResults: [ReviewCommentData] = []
+        var page = 1
+        let perPage = 100
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OctokitClientError.invalidResponse
-        }
+        while true {
+            var components = URLComponents(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)/comments")!
+            components.queryItems = [
+                URLQueryItem(name: "per_page", value: String(perPage)),
+                URLQueryItem(name: "page", value: String(page)),
+            ]
+            var request = URLRequest(url: components.url!)
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
 
-        switch httpResponse.statusCode {
-        case 200:
-            let decoder = JSONDecoder()
-            let responses = try decoder.decode([ReviewCommentResponse].self, from: data)
-            return responses.map { r in
-                ReviewCommentData(
-                    id: r.id,
-                    body: r.body,
-                    path: r.path,
-                    line: r.line,
-                    startLine: r.startLine,
-                    createdAt: r.createdAt,
-                    htmlUrl: r.htmlUrl,
-                    inReplyToId: r.inReplyToId,
-                    userLogin: r.user?.login,
-                    userId: r.user?.id
-                )
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw OctokitClientError.invalidResponse
             }
-        case 401:
-            throw OctokitClientError.authenticationFailed
-        case 404:
-            throw OctokitClientError.notFound("Pull request \(number) review comments not found")
-        case 403:
-            throw OctokitClientError.rateLimitExceeded
-        default:
-            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
+                let responses = try decoder.decode([ReviewCommentResponse].self, from: data)
+                let mapped = responses.map { r in
+                    ReviewCommentData(
+                        id: r.id,
+                        body: r.body,
+                        path: r.path,
+                        line: r.line,
+                        startLine: r.startLine,
+                        createdAt: r.createdAt,
+                        htmlUrl: r.htmlUrl,
+                        inReplyToId: r.inReplyToId,
+                        userLogin: r.user?.login,
+                        userId: r.user?.id
+                    )
+                }
+                allResults.append(contentsOf: mapped)
+
+                if responses.count < perPage {
+                    return allResults
+                }
+                page += 1
+            case 401:
+                throw OctokitClientError.authenticationFailed
+            case 404:
+                throw OctokitClientError.notFound("Pull request \(number) review comments not found")
+            case 403:
+                throw OctokitClientError.rateLimitExceeded
+            default:
+                throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+            }
         }
     }
 

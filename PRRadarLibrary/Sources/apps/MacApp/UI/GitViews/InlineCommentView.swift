@@ -11,7 +11,16 @@ struct InlineCommentView: View {
     }
 
     private var isSubmitted: Bool {
-        prModel.submittedCommentIds.contains(comment.id)
+        prModel.submittedCommentIds.contains(comment.id) || isAlreadyPostedOnGitHub
+    }
+
+    private var isAlreadyPostedOnGitHub: Bool {
+        guard let posted = prModel.postedComments?.reviewComments else { return false }
+        return posted.contains { rc in
+            rc.path == comment.filePath
+            && rc.line == comment.lineNumber
+            && rc.body.contains(comment.ruleName)
+        }
     }
 
     var body: some View {

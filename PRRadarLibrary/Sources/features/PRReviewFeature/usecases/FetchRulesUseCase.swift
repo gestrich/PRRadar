@@ -111,7 +111,7 @@ public struct FetchRulesUseCase: Sendable {
 
                     let gitOps = GitHubServiceFactory.createGitOps()
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
-                    let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath, repoPath: rulesPath)
+                    let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath)
 
                     let rulesOutputDir = "\(prOutputDir)/\(PRRadarPhase.rules.rawValue)"
                     try FileManager.default.createDirectory(atPath: rulesOutputDir, withIntermediateDirectories: true)

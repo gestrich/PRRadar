@@ -37,9 +37,8 @@ public struct RuleLoaderService: Sendable {
     ///
     /// - Parameters:
     ///   - rulesDir: Path to the directory containing rule markdown files
-    ///   - repoPath: Path to the rules git repository (for building GitHub URLs)
     /// - Returns: List of parsed `ReviewRule` instances
-    public func loadAllRules(rulesDir: String, repoPath: String) async throws -> [ReviewRule] {
+    public func loadAllRules(rulesDir: String) async throws -> [ReviewRule] {
         let fm = FileManager.default
         var isDir: ObjCBool = false
 
@@ -52,8 +51,12 @@ public struct RuleLoaderService: Sendable {
 
         let mdFiles = findMarkdownFiles(in: rulesDir)
         var remoteURL: String?
+        var repoRoot: String?
+        var branch: String?
         do {
-            remoteURL = try await gitOps.getRemoteURL(path: repoPath)
+            remoteURL = try await gitOps.getRemoteURL(path: rulesDir)
+            repoRoot = try await gitOps.getRepoRoot(path: rulesDir)
+            branch = try await gitOps.getCurrentBranch(path: rulesDir)
         } catch {
             // Non-fatal — rule URLs will be omitted
         }
@@ -63,8 +66,8 @@ public struct RuleLoaderService: Sendable {
             let url = URL(fileURLWithPath: filePath)
             do {
                 var rule = try ReviewRule.fromFile(url)
-                if let remote = remoteURL {
-                    rule = ruleWithURL(rule, filePath: filePath, rulesDir: rulesDir, remoteURL: remote)
+                if let remote = remoteURL, let root = repoRoot {
+                    rule = ruleWithURL(rule, filePath: filePath, repoRoot: root, remoteURL: remote, branch: branch ?? "main")
                 }
                 rules.append(rule)
             } catch {
@@ -116,11 +119,13 @@ public struct RuleLoaderService: Sendable {
     private func ruleWithURL(
         _ rule: ReviewRule,
         filePath: String,
-        rulesDir: String,
-        remoteURL: String
+        repoRoot: String,
+        remoteURL: String,
+        branch: String
     ) -> ReviewRule {
-        let relativePath = filePath.hasPrefix(rulesDir)
-            ? String(filePath.dropFirst(rulesDir.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let normalizedRoot = repoRoot.hasSuffix("/") ? repoRoot : repoRoot + "/"
+        let relativePath = filePath.hasPrefix(normalizedRoot)
+            ? String(filePath.dropFirst(normalizedRoot.count))
             : filePath
 
         let repoBase = remoteURL
@@ -135,7 +140,7 @@ public struct RuleLoaderService: Sendable {
             githubBase = repoBase
         }
 
-        let ruleUrl = "\(githubBase)/blob/main/\(relativePath)"
+        let ruleUrl = "\(githubBase)/blob/\(branch)/\(relativePath)"
 
         return ReviewRule(
             name: rule.name,

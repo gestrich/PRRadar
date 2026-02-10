@@ -144,7 +144,14 @@ final class PRModel: Identifiable, Hashable {
 
         loadPhaseStates()
         loadCachedDiff()
-        loadCachedNonDiffOutputs()
+        do {
+            try loadCachedNonDiffOutputs()
+        } catch {
+            phaseStates[.pullRequest] = .failed(
+                error: "Failed to load cached outputs: \(error.localizedDescription)",
+                logs: ""
+            )
+        }
         loadSavedTranscripts()
 
         detailState = .loaded(ReviewSnapshot(
@@ -156,18 +163,22 @@ final class PRModel: Identifiable, Hashable {
         ))
     }
 
-    func loadCachedNonDiffOutputs() {
+    func loadCachedNonDiffOutputs() throws {
         let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber)
         self.rules = snapshot.rules
         self.evaluation = snapshot.evaluation
         self.report = snapshot.report
 
-        self.postedComments = try? PhaseOutputParser.parsePhaseOutput(
-            config: config,
-            prNumber: prNumber,
-            phase: .pullRequest,
-            filename: "gh-comments.json"
-        )
+        do {
+            self.postedComments = try PhaseOutputParser.parsePhaseOutput(
+                config: config,
+                prNumber: prNumber,
+                phase: .pullRequest,
+                filename: "gh-comments.json"
+            )
+        } catch is PhaseOutputError {
+            self.postedComments = nil
+        }
 
         if let map: [String: String] = try? PhaseOutputParser.parsePhaseOutput(
             config: config,
@@ -189,8 +200,14 @@ final class PRModel: Identifiable, Hashable {
         operationMode = .refreshing
         defer { operationMode = .idle }
         await refreshDiff(force: true)
-        if isPhaseCompleted(.pullRequest) {
-            loadCachedNonDiffOutputs()
+        do {
+            try loadCachedNonDiffOutputs()
+        } catch {
+            let logs = runningLogs(for: .pullRequest)
+            phaseStates[.pullRequest] = .failed(
+                error: "Failed to load cached outputs: \(error.localizedDescription)",
+                logs: logs
+            )
         }
     }
 
