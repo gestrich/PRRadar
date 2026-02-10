@@ -165,7 +165,7 @@ Both need to pass a `CLIClient` instance. Per the architecture guide, Features c
 
 **Completed:** Updated SwiftCLI dependency to `2d77772` (latest main with stdin piping and streamLines). Created `BridgeMessageParser` conforming to `CLILineParser` that converts each JSON-line into a `BridgeStreamEvent`. Rewrote `ClaudeBridgeClient` to use `CLIClient.streamLines(parser:)` — eliminated all manual `Process` management, pipe setup, `bytes.lines` iteration, exit code checking, and the entire `resolvePythonPath()` method (46 lines). `ClaudeBridgeClient.init` now requires a `cliClient: CLIClient` parameter. Updated both callers (`EvaluateUseCase`, `FetchRulesUseCase`) to pass `CLIClient()` and added `CLISDK` dependency to `PRReviewFeature` target in `Package.swift`. `CLIClientError` is caught and wrapped as `ClaudeBridgeError.bridgeFailed` to preserve the existing error contract. All 313 tests pass.
 
-## - [ ] Phase 6: Architecture Validation
+## - [x] Phase 6: Architecture Validation
 
 Review all commits made during the preceding phases and validate they follow the project's architectural conventions:
 
@@ -185,6 +185,16 @@ Review all commits made during the preceding phases and validate they follow the
 3. Fetch and read ALL skills from the architecture repo
 4. Evaluate changes against each skill's conventions
 5. Fix any violations found
+
+**Completed:** Read all 12 architecture skill files (7 from `swift-architecture`, 5 from `swift-swiftui`) and validated all changes against every convention. No violations found:
+
+- **SwiftCLI — API patterns:** `CLILineParser` mirrors `CLIOutputParser` exactly (both `public protocol <Output>: Sendable` with `associatedtype Output: Sendable`, built-in parsers follow same naming/structure conventions). `PassthroughLineParser`/`JSONLineParser` parallel `StringParser`/`LinesParser`/`JSONOutputParser`.
+- **SwiftCLI — Internal flow:** `streamLines()` follows the same `prepareCommand → runLineBufferedProcess → broadcast` flow as `stream()` uses `prepareCommand → streamProcess → runProcess → broadcast`. Both broadcast `StreamOutput.stdout`, `.stderr`, and `.exit` to global and client output streams.
+- **Layer dependencies:** `ClaudeBridgeClient` in Services depends on `CLISDK` (Services → SDKs ✓). `PRReviewFeature` depends on `CLISDK` (Features → SDKs ✓). Both are explicitly allowed by the dependency rules.
+- **Code style:** Imports alphabetically ordered in all modified files. File organization follows property → init → methods convention. No type aliases or re-exports. `BridgeMessageParser` is correctly `internal` (implementation detail).
+- **Principles:** Use cases (`EvaluateUseCase`, `FetchRulesUseCase`) create `CLIClient()` locally at the call site — consistent with the architecture example pattern of SDK instantiation in use cases.
+
+All 313 tests pass (42 suites). Build succeeds.
 
 ## - [ ] Phase 7: Validation
 
