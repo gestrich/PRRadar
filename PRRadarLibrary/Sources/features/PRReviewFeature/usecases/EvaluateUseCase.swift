@@ -85,7 +85,7 @@ public struct EvaluateUseCase: Sendable {
 
                     continuation.yield(.log(text: "Evaluating \(tasks.count) tasks...\n"))
 
-                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath, cliClient: CLIClient())
+                    let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
                     let evaluationService = EvaluationService(bridgeClient: bridgeClient)
 
                     let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"

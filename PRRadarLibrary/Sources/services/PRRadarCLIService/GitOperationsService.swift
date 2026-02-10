@@ -1,13 +1,31 @@
 import CLISDK
+import Foundation
 import PRRadarMacSDK
 
-public enum GitOperationsError: Error {
+public enum GitOperationsError: LocalizedError {
     case dirtyWorkingDirectory(String)
     case fetchFailed(String)
     case checkoutFailed(String)
     case diffFailed(String)
     case fileNotFound(String)
     case notARepository(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .dirtyWorkingDirectory(let path):
+            return "Working directory is dirty: \(path)"
+        case .fetchFailed(let detail):
+            return "Git fetch failed: \(detail)"
+        case .checkoutFailed(let detail):
+            return "Git checkout failed: \(detail)"
+        case .diffFailed(let detail):
+            return "Git diff failed: \(detail)"
+        case .fileNotFound(let path):
+            return "File not found: \(path)"
+        case .notARepository(let path):
+            return "Not a git repository: \(path)"
+        }
+    }
 }
 
 public struct GitOperationsService: Sendable {

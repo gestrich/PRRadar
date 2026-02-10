@@ -1,7 +1,8 @@
 import PRRadarConfigService
 import SwiftUI
 
-enum NavigationPhase: CaseIterable {
+enum NavigationPhase: CaseIterable, Identifiable {
+    var id: Self { self }
     case summary
     case diff
     case report
@@ -35,6 +36,7 @@ struct PipelineStatusView: View {
 
     let prModel: PRModel
     @Binding var selectedNavPhase: NavigationPhase
+    @State private var showingErrorPhase: NavigationPhase?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -52,11 +54,15 @@ struct PipelineStatusView: View {
 
     @ViewBuilder
     private func phaseNode(_ navPhase: NavigationPhase) -> some View {
+        let state = combinedState(navPhase)
         Button {
             selectedNavPhase = navPhase
+            if case .failed = state {
+                showingErrorPhase = navPhase
+            }
         } label: {
             HStack(spacing: 4) {
-                statusIndicator(for: combinedState(navPhase))
+                statusIndicator(for: state)
                 Text(navPhase.displayName)
                     .font(.caption)
                     .lineLimit(1)
@@ -71,6 +77,17 @@ struct PipelineStatusView: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .popover(item: errorPopoverItem(for: navPhase), arrowEdge: .top) { phase in
+            errorPopoverContent(for: phase)
+        }
+    }
+
+    private func errorPopoverItem(for navPhase: NavigationPhase) -> Binding<NavigationPhase?> {
+        Binding {
+            showingErrorPhase == navPhase ? showingErrorPhase : nil
+        } set: {
+            showingErrorPhase = $0
+        }
     }
 
     @ViewBuilder
@@ -105,6 +122,42 @@ struct PipelineStatusView: View {
             Image(systemName: "xmark.circle.fill")
                 .font(.caption2)
                 .foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private func errorPopoverContent(for navPhase: NavigationPhase) -> some View {
+        let errors = failedPhaseErrors(for: navPhase)
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(errors, id: \.phase) { entry in
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.phase.displayName)
+                            .font(.caption.bold())
+                        if !entry.error.isEmpty {
+                            Text(entry.error)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .frame(width: 400)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func failedPhaseErrors(for navPhase: NavigationPhase) -> [(phase: PRRadarPhase, error: String)] {
+        navPhase.representedPhases.compactMap { phase in
+            if case .failed(let error, _) = prModel.stateFor(phase) {
+                return (phase: phase, error: error)
+            }
+            return nil
         }
     }
 

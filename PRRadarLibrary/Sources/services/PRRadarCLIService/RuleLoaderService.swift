@@ -1,10 +1,21 @@
 import Foundation
 import PRRadarModels
 
-public enum RuleLoaderError: Error {
+public enum RuleLoaderError: LocalizedError {
     case directoryNotFound(String)
     case notADirectory(String)
     case notAGitRepository(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .directoryNotFound(let path):
+            return "Rules directory not found: \(path)"
+        case .notADirectory(let path):
+            return "Not a directory: \(path)"
+        case .notAGitRepository(let path):
+            return "Not a git repository: \(path)"
+        }
+    }
 }
 
 /// Loads and filters review rules from a directory of markdown files.

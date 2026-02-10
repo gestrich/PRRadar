@@ -2,9 +2,6 @@
 
 ## Small
 
-- [ ] Refresh button for PR data (no analysis)
-  Add a button that re-fetches PR metadata, comments, and diff without
-  triggering analysis. Views update automatically via @Observable.
 - [ ] Persist AI output as artifacts and support viewing in app/CLI
   AI output from each pipeline step should be saved to a file alongside the other
   artifacts. When browsing results in the MacApp or CLI, the AI output from the run
@@ -24,6 +21,9 @@
   scrolling list showing all files in one view, similar to GitHub's PR diff
   page. The file list sidebar should act as scroll anchors — tapping a file
   name scrolls to that file's section within the unified scroll view.
+- [ ] Auto-select first PR on launch
+  When the PR list loads, automatically select the first PR so the user
+  immediately sees PR details without needing to click.
 - [ ] Auto-fetch PR list on launch
   When the main view opens, automatically fetch the latest PRs for the list
   so the user always sees up-to-date data without a manual refresh.

@@ -2,12 +2,27 @@ import CLISDK
 import Foundation
 import PRRadarConfigService
 
-public enum ClaudeBridgeError: Error {
+public enum ClaudeBridgeError: LocalizedError {
     case bridgeScriptNotFound(String)
     case pythonNotFound
     case invalidInput(String)
     case bridgeFailed(String)
     case noResult
+
+    public var errorDescription: String? {
+        switch self {
+        case .bridgeScriptNotFound(let path):
+            return "Bridge script not found at \(path)"
+        case .pythonNotFound:
+            return "Python interpreter not found in bridge venv"
+        case .invalidInput(let detail):
+            return "Invalid bridge input: \(detail)"
+        case .bridgeFailed(let detail):
+            return "Claude bridge failed: \(detail)"
+        case .noResult:
+            return "Bridge returned no result"
+        }
+    }
 }
 
 /// A streaming event yielded by the bridge client as output arrives.
@@ -138,11 +153,11 @@ public struct BridgeResult: Sendable {
 /// Uses `CLIClient.streamLines()` with a `BridgeMessageParser` for stdin piping and
 /// line-buffered streaming.
 public struct ClaudeBridgeClient: Sendable {
-    private let bridgeScriptPath: String
+    private let pythonEnvironment: PythonEnvironment
     private let cliClient: CLIClient
 
-    public init(bridgeScriptPath: String, cliClient: CLIClient) {
-        self.bridgeScriptPath = bridgeScriptPath
+    public init(pythonEnvironment: PythonEnvironment, cliClient: CLIClient) {
+        self.pythonEnvironment = pythonEnvironment
         self.cliClient = cliClient
     }
 
@@ -155,15 +170,15 @@ public struct ClaudeBridgeClient: Sendable {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    guard FileManager.default.fileExists(atPath: bridgeScriptPath) else {
-                        throw ClaudeBridgeError.bridgeScriptNotFound(bridgeScriptPath)
+                    guard FileManager.default.fileExists(atPath: pythonEnvironment.bridgeScriptPath) else {
+                        throw ClaudeBridgeError.bridgeScriptNotFound(pythonEnvironment.bridgeScriptPath)
                     }
 
                     let inputData = try request.toJSON()
 
                     let stream = await cliClient.streamLines(
-                        command: "python3",
-                        arguments: [bridgeScriptPath],
+                        command: pythonEnvironment.pythonCommand,
+                        arguments: [pythonEnvironment.bridgeScriptPath],
                         environment: PRRadarEnvironment.build(),
                         printCommand: false,
                         stdin: inputData,

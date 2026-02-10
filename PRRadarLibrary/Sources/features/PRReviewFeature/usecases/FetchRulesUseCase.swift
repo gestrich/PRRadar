@@ -48,7 +48,7 @@ public struct FetchRulesUseCase: Sendable {
                         return
                     }
 
-                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath, cliClient: CLIClient())
+                    let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
                     let focusGenerator = FocusGeneratorService(bridgeClient: bridgeClient)
 
                     let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"
