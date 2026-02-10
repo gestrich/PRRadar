@@ -94,7 +94,7 @@ public var ruleName: String? { pending?.ruleName }
 
 **Completed.** `id` is a computed property (not stored) to derive the correct value per state. Build verified.
 
-## - [ ] Phase 2: Add Reconciliation to `ViolationService`
+## - [x] Phase 2: Add Reconciliation to `ViolationService`
 
 Add a new method to [ViolationService.swift](PRRadarLibrary/Sources/services/PRRadarCLIService/ViolationService.swift) that takes pending violations and posted comments and returns reconciled `[ReviewComment]`:
 
@@ -120,6 +120,8 @@ public static func reconcile(
 **Complication — file-level matching:** For pending comments with no line number, match against posted comments also with no line number for the same file. Same `body.contains(ruleName)` heuristic.
 
 This method is a pure transformation — no I/O, no side effects. Easy to unit test.
+
+**Completed.** Implemented as a static method on `ViolationService` using a `[String: [Int?: [GitHubReviewComment]]]` working dictionary keyed by `(path, line)`. The `Int?` key naturally handles file-level (nil line) matching. 12 unit tests added in `ViolationReconciliationTests.swift` covering all spec scenarios. Build and all 330 tests pass.
 
 ## - [ ] Phase 3: Add `FetchReviewCommentsUseCase` (Features layer)
 

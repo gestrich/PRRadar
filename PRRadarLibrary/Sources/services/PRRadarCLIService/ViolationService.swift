@@ -59,4 +59,50 @@ public struct ViolationService: Sendable {
 
         return comments
     }
+
+    /// Match pending violations against posted GitHub review comments to produce a unified list.
+    ///
+    /// Each posted comment is consumed at most once (first-match wins). Unmatched pending
+    /// comments become `.new`, unmatched posted comments become `.postedOnly`, and matches
+    /// become `.redetected`.
+    public static func reconcile(
+        pending: [PRComment],
+        posted: [GitHubReviewComment]
+    ) -> [ReviewComment] {
+        // Index posted comments by (filePath, lineNumber) for efficient lookup.
+        // Multiple posted comments can exist at the same (file, line).
+        var postedByFileAndLine: [String: [Int?: [GitHubReviewComment]]] = [:]
+        for comment in posted {
+            postedByFileAndLine[comment.path, default: [:]][comment.line, default: []].append(comment)
+        }
+
+        var results: [ReviewComment] = []
+
+        for p in pending {
+            let key = p.lineNumber
+            if var candidates = postedByFileAndLine[p.filePath]?[key] {
+                if let matchIndex = candidates.firstIndex(where: { $0.body.contains(p.ruleName) }) {
+                    let matched = candidates.remove(at: matchIndex)
+                    postedByFileAndLine[p.filePath]![key] = candidates
+                    if candidates.isEmpty {
+                        postedByFileAndLine[p.filePath]!.removeValue(forKey: key)
+                    }
+                    results.append(ReviewComment(pending: p, posted: matched))
+                    continue
+                }
+            }
+            results.append(ReviewComment(pending: p, posted: nil))
+        }
+
+        // Remaining unmatched posted comments
+        for (_, byLine) in postedByFileAndLine {
+            for (_, comments) in byLine {
+                for comment in comments {
+                    results.append(ReviewComment(pending: nil, posted: comment))
+                }
+            }
+        }
+
+        return results
+    }
 }
