@@ -213,10 +213,14 @@ public struct GitHubService: Sendable {
                 continue
             }
 
-            let user = try await octokitClient.getUser(login: login)
-            let displayName = user.name ?? login
-            try cache.update(login: login, name: displayName)
-            result[login] = displayName
+            do {
+                let user = try await octokitClient.getUser(login: login)
+                let displayName = user.name ?? login
+                try cache.update(login: login, name: displayName)
+                result[login] = displayName
+            } catch {
+                result[login] = login
+            }
         }
 
         return result
