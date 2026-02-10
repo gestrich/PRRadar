@@ -118,7 +118,7 @@ Commit all SwiftCLI changes and push to `main`. PRRadar depends on `SwiftCLI` vi
 
 **Completed:** All three commits from Phases 1-3 are on `origin/main`: `fb5acb8` (stdin piping), `51e002a` (CLILineParser + streamLines), `2d77772` (tests). All 120 tests pass (104 existing + 16 new).
 
-## - [ ] Phase 5: Migrate PRRadar's ClaudeBridgeClient
+## - [x] Phase 5: Migrate PRRadar's ClaudeBridgeClient
 
 **Repo:** `/Users/bill/Developer/personal/PRRadar`
 
@@ -162,6 +162,8 @@ Both need to pass a `CLIClient` instance. Per the architecture guide, Features c
 - Modify: `PRRadarLibrary/Sources/services/PRRadarCLIService/ClaudeBridgeClient.swift`
 - Modify: `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/EvaluateUseCase.swift`
 - Modify: `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/FetchRulesUseCase.swift`
+
+**Completed:** Updated SwiftCLI dependency to `2d77772` (latest main with stdin piping and streamLines). Created `BridgeMessageParser` conforming to `CLILineParser` that converts each JSON-line into a `BridgeStreamEvent`. Rewrote `ClaudeBridgeClient` to use `CLIClient.streamLines(parser:)` — eliminated all manual `Process` management, pipe setup, `bytes.lines` iteration, exit code checking, and the entire `resolvePythonPath()` method (46 lines). `ClaudeBridgeClient.init` now requires a `cliClient: CLIClient` parameter. Updated both callers (`EvaluateUseCase`, `FetchRulesUseCase`) to pass `CLIClient()` and added `CLISDK` dependency to `PRReviewFeature` target in `Package.swift`. `CLIClientError` is caught and wrapped as `ClaudeBridgeError.bridgeFailed` to preserve the existing error contract. All 313 tests pass.
 
 ## - [ ] Phase 6: Architecture Validation
 

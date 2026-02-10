@@ -1,3 +1,4 @@
+import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -47,7 +48,7 @@ public struct FetchRulesUseCase: Sendable {
                         return
                     }
 
-                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath)
+                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath, cliClient: CLIClient())
                     let focusGenerator = FocusGeneratorService(bridgeClient: bridgeClient)
 
                     let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"

@@ -70,6 +70,7 @@ let package = Package(
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
+                .product(name: "CLISDK", package: "SwiftCLI"),
             ],
             path: "Sources/features/PRReviewFeature"
         ),

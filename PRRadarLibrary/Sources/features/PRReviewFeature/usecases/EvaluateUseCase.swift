@@ -1,3 +1,4 @@
+import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -84,7 +85,7 @@ public struct EvaluateUseCase: Sendable {
 
                     continuation.yield(.log(text: "Evaluating \(tasks.count) tasks...\n"))
 
-                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath)
+                    let bridgeClient = ClaudeBridgeClient(bridgeScriptPath: config.bridgeScriptPath, cliClient: CLIClient())
                     let evaluationService = EvaluationService(bridgeClient: bridgeClient)
 
                     let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"

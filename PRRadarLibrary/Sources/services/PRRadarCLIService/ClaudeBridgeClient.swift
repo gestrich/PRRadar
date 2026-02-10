@@ -1,3 +1,4 @@
+import CLISDK
 import Foundation
 import PRRadarConfigService
 
@@ -42,6 +43,30 @@ enum BridgeMessage {
             )
         default:
             return nil
+        }
+    }
+}
+
+/// Parses each JSON-line from the bridge script into a `BridgeStreamEvent`.
+struct BridgeMessageParser: CLILineParser {
+    func parse(line: String) throws -> BridgeStreamEvent? {
+        guard let message = BridgeMessage(jsonLine: line) else { return nil }
+        switch message {
+        case .text(let content):
+            return .text(content)
+        case .toolUse(let name):
+            return .toolUse(name: name)
+        case .result(let output, let cost, let duration):
+            var outputData: Data?
+            if let output {
+                outputData = try? JSONSerialization.data(withJSONObject: output)
+            }
+            let bridgeResult = BridgeResult(
+                outputData: outputData,
+                costUsd: cost ?? 0.0,
+                durationMs: duration ?? 0
+            )
+            return .result(bridgeResult)
         }
     }
 }
@@ -110,14 +135,15 @@ public struct BridgeResult: Sendable {
 
 /// Wraps the Python claude_bridge.py script, piping JSON to stdin and reading JSON-lines from stdout.
 ///
-/// Uses Foundation Process directly (not CLIClient) because the bridge requires stdin piping.
+/// Uses `CLIClient.streamLines()` with a `BridgeMessageParser` for stdin piping and
+/// line-buffered streaming.
 public struct ClaudeBridgeClient: Sendable {
     private let bridgeScriptPath: String
-    private let pythonPath: String
+    private let cliClient: CLIClient
 
-    public init(bridgeScriptPath: String, pythonPath: String = "python3") {
+    public init(bridgeScriptPath: String, cliClient: CLIClient) {
         self.bridgeScriptPath = bridgeScriptPath
-        self.pythonPath = pythonPath
+        self.cliClient = cliClient
     }
 
     /// Stream bridge events as they arrive from the Python bridge process.
@@ -129,115 +155,32 @@ public struct ClaudeBridgeClient: Sendable {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let inputData = try request.toJSON()
-                    let resolvedPython = try resolvePythonPath()
-
                     guard FileManager.default.fileExists(atPath: bridgeScriptPath) else {
                         throw ClaudeBridgeError.bridgeScriptNotFound(bridgeScriptPath)
                     }
 
-                    let process = Process()
-                    process.executableURL = URL(fileURLWithPath: resolvedPython)
-                    process.arguments = [bridgeScriptPath]
-                    process.environment = PRRadarEnvironment.build()
+                    let inputData = try request.toJSON()
 
-                    let stdinPipe = Pipe()
-                    let stdoutPipe = Pipe()
-                    let stderrPipe = Pipe()
-                    process.standardInput = stdinPipe
-                    process.standardOutput = stdoutPipe
-                    process.standardError = stderrPipe
+                    let stream = await cliClient.streamLines(
+                        command: "python3",
+                        arguments: [bridgeScriptPath],
+                        environment: PRRadarEnvironment.build(),
+                        printCommand: false,
+                        stdin: inputData,
+                        parser: BridgeMessageParser()
+                    )
 
-                    try process.run()
-
-                    stdinPipe.fileHandleForWriting.write(inputData)
-                    stdinPipe.fileHandleForWriting.closeFile()
-
-                    for try await line in stdoutPipe.fileHandleForReading.bytes.lines {
-                        guard let message = BridgeMessage(jsonLine: line) else { continue }
-                        switch message {
-                        case .text(let content):
-                            continuation.yield(.text(content))
-                        case .toolUse(let name):
-                            continuation.yield(.toolUse(name: name))
-                        case .result(let output, let cost, let duration):
-                            var outputData: Data?
-                            if let output {
-                                outputData = try? JSONSerialization.data(withJSONObject: output)
-                            }
-                            let bridgeResult = BridgeResult(
-                                outputData: outputData,
-                                costUsd: cost ?? 0.0,
-                                durationMs: duration ?? 0
-                            )
-                            continuation.yield(.result(bridgeResult))
-                        }
-                    }
-
-                    process.waitUntilExit()
-
-                    if process.terminationStatus != 0 {
-                        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                        let stderr = String(data: stderrData, encoding: .utf8) ?? ""
-                        throw ClaudeBridgeError.bridgeFailed(
-                            "Bridge exited with code \(process.terminationStatus): \(stderr)"
-                        )
+                    for try await event in stream {
+                        continuation.yield(event)
                     }
 
                     continuation.finish()
+                } catch let error as CLIClientError {
+                    continuation.finish(throwing: ClaudeBridgeError.bridgeFailed("\(error)"))
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
         }
-    }
-
-    // MARK: - Private
-
-    private func resolvePythonPath() throws -> String {
-        // Check for venv adjacent to bridge script first
-        let bridgeDir = (bridgeScriptPath as NSString).deletingLastPathComponent
-        let venvPython = (bridgeDir as NSString).appendingPathComponent(".venv/bin/python3")
-        if FileManager.default.fileExists(atPath: venvPython) {
-            return venvPython
-        }
-
-        if pythonPath.hasPrefix("/") {
-            guard FileManager.default.fileExists(atPath: pythonPath) else {
-                throw ClaudeBridgeError.pythonNotFound
-            }
-            return pythonPath
-        }
-
-        let commonPaths = [
-            "/usr/bin/\(pythonPath)",
-            "/usr/local/bin/\(pythonPath)",
-            "/opt/homebrew/bin/\(pythonPath)",
-        ]
-
-        for path in commonPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                return path
-            }
-        }
-
-        let which = Process()
-        which.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        which.arguments = [pythonPath]
-        let pipe = Pipe()
-        which.standardOutput = pipe
-        which.standardError = Pipe()
-        try which.run()
-        which.waitUntilExit()
-
-        if which.terminationStatus == 0 {
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let resolved = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !resolved.isEmpty {
-                return resolved
-            }
-        }
-
-        throw ClaudeBridgeError.pythonNotFound
     }
 }
