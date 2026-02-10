@@ -71,6 +71,8 @@ public struct AnalyzeAllUseCase: Sendable {
                                 continuation.yield(.log(text: text))
                             case .aiOutput(let text):
                                 continuation.yield(.aiOutput(text: text))
+                            case .aiPrompt(let text):
+                                continuation.yield(.aiPrompt(text: text))
                             case .aiToolUse(let name):
                                 continuation.yield(.aiToolUse(name: name))
                             case .completed:

@@ -3,6 +3,7 @@ import SwiftUI
 struct AIOutputStreamView: View {
 
     let text: String
+    var prompt: String = ""
     let isRunning: Bool
 
     var body: some View {
@@ -14,13 +15,31 @@ struct AIOutputStreamView: View {
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    Text(text.isEmpty ? "Waiting for AI output..." : text)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(text.isEmpty ? .secondary : .primary)
-                        .padding()
-                        .id("bottom")
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        if !prompt.isEmpty {
+                            DisclosureGroup {
+                                Text(prompt)
+                                    .font(.system(.body, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(nsColor: .textBackgroundColor))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            } label: {
+                                Label("Prompt", systemImage: "text.bubble")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+
+                        Text(text.isEmpty ? "Waiting for AI output..." : text)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(text.isEmpty ? .secondary : .primary)
+                            .id("bottom")
+                    }
+                    .padding()
                 }
                 .onChange(of: text) {
                     withAnimation {

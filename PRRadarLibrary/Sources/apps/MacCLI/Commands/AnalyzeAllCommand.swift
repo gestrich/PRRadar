@@ -83,6 +83,7 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
                 if !quiet {
                     printAIOutput(text, verbose: verbose)
                 }
+            case .aiPrompt: break
             case .aiToolUse(let name):
                 if !quiet && verbose {
                     printAIToolUse(name)

@@ -187,6 +187,7 @@ struct ReviewDetailView: View {
         if prModel.isAIPhaseRunning {
             AIOutputStreamView(
                 text: prModel.aiOutputText,
+                prompt: prModel.aiCurrentPrompt,
                 isRunning: true
             )
         } else if !prModel.savedTranscripts.isEmpty {
@@ -194,6 +195,7 @@ struct ReviewDetailView: View {
         } else if !prModel.aiOutputText.isEmpty {
             AIOutputStreamView(
                 text: prModel.aiOutputText,
+                prompt: prModel.aiCurrentPrompt,
                 isRunning: false
             )
         } else {

@@ -53,6 +53,7 @@ struct RefreshCommand: AsyncParsableCommand {
             case .log(let text):
                 if !json { print(text, terminator: "") }
             case .aiOutput: break
+            case .aiPrompt: break
             case .aiToolUse: break
             case .completed(let prs):
                 if json {

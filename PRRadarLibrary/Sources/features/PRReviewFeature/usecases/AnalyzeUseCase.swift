@@ -44,6 +44,7 @@ public struct AnalyzeUseCase: Sendable {
                         case .log(let text):
                             continuation.yield(.log(text: text))
                         case .aiOutput: break
+                        case .aiPrompt: break
                         case .aiToolUse: break
                         case .completed:
                             diffCompleted = true
@@ -73,6 +74,8 @@ public struct AnalyzeUseCase: Sendable {
                             continuation.yield(.log(text: text))
                         case .aiOutput(let text):
                             continuation.yield(.aiOutput(text: text))
+                        case .aiPrompt(let text):
+                            continuation.yield(.aiPrompt(text: text))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
                         case .completed:
@@ -102,6 +105,8 @@ public struct AnalyzeUseCase: Sendable {
                             continuation.yield(.log(text: text))
                         case .aiOutput(let text):
                             continuation.yield(.aiOutput(text: text))
+                        case .aiPrompt(let text):
+                            continuation.yield(.aiPrompt(text: text))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
                         case .completed:
@@ -130,6 +135,7 @@ public struct AnalyzeUseCase: Sendable {
                         case .log(let text):
                             continuation.yield(.log(text: text))
                         case .aiOutput: break
+                        case .aiPrompt: break
                         case .aiToolUse: break
                         case .completed(let output):
                             reportOutput = output
@@ -151,6 +157,7 @@ public struct AnalyzeUseCase: Sendable {
                             case .log(let text):
                                 continuation.yield(.log(text: text))
                             case .aiOutput: break
+                            case .aiPrompt: break
                             case .aiToolUse: break
                             case .completed: break
                             case .failed(let error, _):

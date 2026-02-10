@@ -41,6 +41,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittedCommentIds: Set<String> = []
 
     private(set) var aiOutputText: String = ""
+    private(set) var aiCurrentPrompt: String = ""
     private(set) var savedTranscripts: [PRRadarPhase: [BridgeTranscript]] = [:]
 
     private(set) var operationMode: OperationMode = .idle
@@ -236,6 +237,7 @@ final class PRModel: Identifiable, Hashable {
                     case .log(let text):
                         appendLog(text, to: .pullRequest)
                     case .aiOutput: break
+                    case .aiPrompt: break
                     case .aiToolUse: break
                     case .completed(let snapshot):
                         diff = snapshot
@@ -429,6 +431,7 @@ final class PRModel: Identifiable, Hashable {
                 case .log(let text):
                     appendCommentLog(text)
                 case .aiOutput: break
+                case .aiPrompt: break
                 case .aiToolUse: break
                 case .completed(let output):
                     comments = output
@@ -535,6 +538,7 @@ final class PRModel: Identifiable, Hashable {
             phaseStates[phase] = .running(logs: "")
         }
         aiOutputText = ""
+        aiCurrentPrompt = ""
 
         let useCase = FetchRulesUseCase(config: config)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
@@ -550,6 +554,8 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .rules)
                 case .aiOutput(let text):
                     aiOutputText += text
+                case .aiPrompt(let text):
+                    aiCurrentPrompt = text
                 case .aiToolUse: break
                 case .completed(let output):
                     rules = output
@@ -573,6 +579,7 @@ final class PRModel: Identifiable, Hashable {
     private func runEvaluate() async {
         phaseStates[.evaluations] = .running(logs: "Running evaluations...\n")
         aiOutputText = ""
+        aiCurrentPrompt = ""
 
         let useCase = EvaluateUseCase(config: config)
 
@@ -587,6 +594,8 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .evaluations)
                 case .aiOutput(let text):
                     aiOutputText += text
+                case .aiPrompt(let text):
+                    aiCurrentPrompt = text
                 case .aiToolUse: break
                 case .completed(let output):
                     evaluation = output
@@ -618,6 +627,7 @@ final class PRModel: Identifiable, Hashable {
                 case .log(let text):
                     appendLog(text, to: .report)
                 case .aiOutput: break
+                case .aiPrompt: break
                 case .aiToolUse: break
                 case .completed(let output):
                     report = output

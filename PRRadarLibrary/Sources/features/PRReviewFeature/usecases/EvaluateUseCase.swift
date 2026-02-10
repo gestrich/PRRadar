@@ -103,6 +103,9 @@ public struct EvaluateUseCase: Sendable {
                             let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
                             continuation.yield(.log(text: "[\(index)/\(total)] \(status)\n"))
                         },
+                        onPrompt: { text in
+                            continuation.yield(.aiPrompt(text: text))
+                        },
                         onAIText: { text in
                             continuation.yield(.aiOutput(text: text))
                         },

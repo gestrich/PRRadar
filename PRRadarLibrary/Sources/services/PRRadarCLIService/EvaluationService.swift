@@ -105,6 +105,7 @@ public struct EvaluationService: Sendable {
         _ task: EvaluationTaskOutput,
         repoPath: String,
         transcriptDir: String? = nil,
+        onPrompt: ((String) -> Void)? = nil,
         onAIText: ((String) -> Void)? = nil,
         onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> RuleEvaluationResult {
@@ -121,6 +122,8 @@ public struct EvaluationService: Sendable {
             .replacingOccurrences(of: "{end_line}", with: String(task.focusArea.endLine))
             .replacingOccurrences(of: "{diff_content}", with: focusedContent)
             .replacingOccurrences(of: "{repo_path}", with: repoPath)
+
+        onPrompt?(prompt)
 
         let request = BridgeRequest(
             prompt: prompt,
@@ -209,6 +212,7 @@ public struct EvaluationService: Sendable {
         transcriptDir: String? = nil,
         onStart: ((Int, Int, EvaluationTaskOutput) -> Void)? = nil,
         onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
+        onPrompt: ((String) -> Void)? = nil,
         onAIText: ((String) -> Void)? = nil,
         onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {
@@ -226,6 +230,7 @@ public struct EvaluationService: Sendable {
                 task,
                 repoPath: repoPath,
                 transcriptDir: transcriptDir ?? evalsDir,
+                onPrompt: onPrompt,
                 onAIText: onAIText,
                 onAIToolUse: onAIToolUse
             )

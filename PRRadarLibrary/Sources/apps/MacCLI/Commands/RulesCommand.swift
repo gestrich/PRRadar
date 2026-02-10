@@ -46,6 +46,7 @@ struct RulesCommand: AsyncParsableCommand {
                 if !options.json && !quiet {
                     printAIOutput(text, verbose: verbose)
                 }
+            case .aiPrompt: break
             case .aiToolUse(let name):
                 if !options.json && !quiet && verbose {
                     printAIToolUse(name)

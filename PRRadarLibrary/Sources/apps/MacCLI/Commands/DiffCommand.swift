@@ -34,6 +34,7 @@ struct DiffCommand: AsyncParsableCommand {
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
             case .aiOutput: break
+            case .aiPrompt: break
             case .aiToolUse: break
             case .completed(let snapshot):
                 outputFiles = snapshot.files
