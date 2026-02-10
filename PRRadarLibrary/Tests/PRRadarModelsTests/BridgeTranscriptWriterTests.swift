@@ -115,6 +115,44 @@ struct BridgeTranscriptWriterTests {
         #expect(md.contains("**Model:** claude-sonnet-4-20250514"))
     }
 
+    @Test("renderMarkdown includes prompt section when prompt is present")
+    func markdownPromptSection() {
+        let transcript = BridgeTranscript(
+            identifier: "prompt-test",
+            model: "claude-sonnet-4-20250514",
+            startedAt: "2025-01-01T00:00:00Z",
+            prompt: "You are a code reviewer evaluating rule X.",
+            events: [
+                BridgeTranscriptEvent(type: .text, content: "Analyzing..."),
+            ],
+            costUsd: 0.005,
+            durationMs: 2000
+        )
+
+        let md = BridgeTranscriptWriter.renderMarkdown(transcript)
+        #expect(md.contains("## Prompt"))
+        #expect(md.contains("You are a code reviewer evaluating rule X."))
+
+        let promptPos = md.range(of: "## Prompt")!.lowerBound
+        let eventPos = md.range(of: "> Analyzing...")!.lowerBound
+        #expect(promptPos < eventPos)
+    }
+
+    @Test("renderMarkdown omits prompt section when prompt is nil")
+    func markdownNoPromptSection() {
+        let transcript = BridgeTranscript(
+            identifier: "no-prompt",
+            model: "claude-sonnet-4-20250514",
+            startedAt: "2025-01-01T00:00:00Z",
+            events: [],
+            costUsd: 0.001,
+            durationMs: 500
+        )
+
+        let md = BridgeTranscriptWriter.renderMarkdown(transcript)
+        #expect(!md.contains("## Prompt"))
+    }
+
     @Test("renderMarkdown handles multiple events in order")
     func markdownMultipleEvents() {
         let transcript = BridgeTranscript(

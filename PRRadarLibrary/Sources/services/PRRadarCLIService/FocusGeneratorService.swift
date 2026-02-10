@@ -83,6 +83,7 @@ public struct FocusGeneratorService: Sendable {
                 identifier: "hunk-\(hunkIndex)",
                 model: model,
                 startedAt: startedAt,
+                prompt: prompt,
                 events: transcriptEvents,
                 costUsd: result.costUsd,
                 durationMs: result.durationMs

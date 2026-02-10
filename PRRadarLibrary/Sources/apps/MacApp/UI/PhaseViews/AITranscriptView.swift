@@ -150,6 +150,22 @@ struct AITranscriptView: View {
     private func transcriptEvents(_ transcript: BridgeTranscript) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
+                if let prompt = transcript.prompt {
+                    DisclosureGroup {
+                        Text(prompt)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(nsColor: .textBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    } label: {
+                        Label("Prompt", systemImage: "text.bubble")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.blue)
+                    }
+                }
+
                 ForEach(Array(transcript.events.enumerated()), id: \.offset) { _, event in
                     transcriptEventView(event)
                 }

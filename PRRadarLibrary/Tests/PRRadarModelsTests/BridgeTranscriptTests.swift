@@ -242,6 +242,75 @@ struct BridgeTranscriptTests {
         #expect(transcript.durationMs == 0)
     }
 
+    // MARK: - Prompt Field
+
+    @Test("BridgeTranscript decodes JSON without prompt field (backwards compat)")
+    func transcriptDecodesWithoutPrompt() throws {
+        let json = """
+        {
+            "identifier": "old-task",
+            "model": "claude-sonnet-4-20250514",
+            "started_at": "2025-06-01T10:00:00Z",
+            "events": [],
+            "cost_usd": 0.001,
+            "duration_ms": 500
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let transcript = try decoder.decode(BridgeTranscript.self, from: json)
+        #expect(transcript.prompt == nil)
+        #expect(transcript.identifier == "old-task")
+    }
+
+    @Test("BridgeTranscript round-trips with prompt")
+    func transcriptRoundTripWithPrompt() throws {
+        let original = BridgeTranscript(
+            identifier: "prompt-test",
+            model: "claude-sonnet-4-20250514",
+            startedAt: "2025-06-01T10:00:00Z",
+            prompt: "You are a code reviewer evaluating rule X.",
+            events: [
+                BridgeTranscriptEvent(type: .text, content: "Analyzing...", timestamp: Date(timeIntervalSince1970: 1717200001)),
+            ],
+            costUsd: 0.005,
+            durationMs: 2000
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(original)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BridgeTranscript.self, from: data)
+
+        #expect(decoded.prompt == "You are a code reviewer evaluating rule X.")
+        #expect(decoded.identifier == original.identifier)
+        #expect(decoded.events.count == 1)
+    }
+
+    @Test("BridgeTranscript decodes JSON with prompt field")
+    func transcriptDecodesWithPrompt() throws {
+        let json = """
+        {
+            "identifier": "task-with-prompt",
+            "model": "claude-sonnet-4-20250514",
+            "started_at": "2025-06-01T10:00:00Z",
+            "prompt": "Evaluate this code for violations.",
+            "events": [],
+            "cost_usd": 0.002,
+            "duration_ms": 1000
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let transcript = try decoder.decode(BridgeTranscript.self, from: json)
+        #expect(transcript.prompt == "Evaluate this code for violations.")
+    }
+
     // MARK: - EventType
 
     @Test("EventType raw values match expected strings")

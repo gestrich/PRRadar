@@ -38,6 +38,7 @@ public struct BridgeTranscript: Codable, Sendable {
     public let identifier: String
     public let model: String
     public let startedAt: String
+    public let prompt: String?
     public let events: [BridgeTranscriptEvent]
     public let costUsd: Double
     public let durationMs: Int
@@ -46,6 +47,7 @@ public struct BridgeTranscript: Codable, Sendable {
         identifier: String,
         model: String,
         startedAt: String,
+        prompt: String? = nil,
         events: [BridgeTranscriptEvent],
         costUsd: Double,
         durationMs: Int
@@ -53,6 +55,7 @@ public struct BridgeTranscript: Codable, Sendable {
         self.identifier = identifier
         self.model = model
         self.startedAt = startedAt
+        self.prompt = prompt
         self.events = events
         self.costUsd = costUsd
         self.durationMs = durationMs
@@ -62,6 +65,7 @@ public struct BridgeTranscript: Codable, Sendable {
         case identifier
         case model
         case startedAt = "started_at"
+        case prompt
         case events
         case costUsd = "cost_usd"
         case durationMs = "duration_ms"

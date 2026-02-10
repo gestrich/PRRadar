@@ -39,6 +39,17 @@ public enum BridgeTranscriptWriter {
         lines.append("---")
         lines.append("")
 
+        if let prompt = transcript.prompt {
+            lines.append("## Prompt")
+            lines.append("")
+            lines.append("```")
+            lines.append(prompt)
+            lines.append("```")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+        }
+
         for event in transcript.events {
             switch event.type {
             case .text:

@@ -156,6 +156,7 @@ public struct EvaluationService: Sendable {
                 identifier: task.taskId,
                 model: model,
                 startedAt: startedAt,
+                prompt: prompt,
                 events: transcriptEvents,
                 costUsd: bridgeResult.costUsd,
                 durationMs: bridgeResult.durationMs
