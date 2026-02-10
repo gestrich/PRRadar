@@ -196,7 +196,7 @@ Review all commits made during the preceding phases and validate they follow the
 
 All 313 tests pass (42 suites). Build succeeds.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 ### Automated tests
 ```bash
@@ -218,3 +218,10 @@ swift run PRRadarMacCLI diff 1 --config test-repo
 - All PRRadar tests pass (230 tests in 34 suites)
 - `ClaudeBridgeClient` no longer imports or uses `Foundation.Process` directly
 - CLI commands that invoke the bridge still produce correct output
+
+**Completed:** All success criteria verified:
+
+- **SwiftCLI tests:** 120 tests in 15 suites pass (104 existing + 16 new StreamLinesTests)
+- **PRRadar tests:** 313 tests in 42 suites pass (build succeeds cleanly)
+- **No Foundation.Process usage:** `ClaudeBridgeClient.swift` imports only `CLISDK`, `Foundation`, and `PRRadarConfigService` — zero references to `Process`. All process management is delegated to `CLIClient.streamLines()`.
+- **End-to-end CLI:** `swift run PRRadarMacCLI diff 1 --config test-repo` successfully fetches PR #1, produces 10 output files (diff-parsed.json, effective-diff-parsed.md, etc.) — confirming the bridge pipeline works through the new SwiftCLI APIs.
