@@ -42,7 +42,7 @@ Add `stdin: Data? = nil` parameter to these methods in [CLIClient.swift](../../P
 
 **Completed:** All 5 methods updated with `stdin: Data? = nil` parameter. Stdin pipe is created before `process.run()`, data is written and writing end closed after `process.run()`. Only applies when `inheritIO` is false (when `inheritIO` is true, the parent process stdin is inherited instead). All 104 existing tests pass.
 
-## - [ ] Phase 2: Add CLILineParser protocol and streamLines() methods
+## - [x] Phase 2: Add CLILineParser protocol and streamLines() methods
 
 **Repo:** `/Users/bill/Developer/personal/SwiftCLI`
 
@@ -92,6 +92,8 @@ func streamLines<C: CLICommand, P: CLILineParser>(_ command:, parser:, ...) -> A
 **Files:**
 - Create: `Sources/CLISDK/CLILineParser.swift`
 - Modify: `Sources/CLISDK/CLIClient.swift`
+
+**Completed:** Created `CLILineParser` protocol with `PassthroughLineParser` and `JSONLineParser<T>` built-in implementations. Added `runLineBufferedProcess()` as a private async method that uses `bytes.lines` for stdout and `readabilityHandler` for stderr. Added 4 public `streamLines()` variants (raw + parsed, untyped + typed command). The raw-string variants delegate to the parsed variants via `PassthroughLineParser`. The typed command variants extract `commandLine` and delegate to the untyped variants. All return `AsyncThrowingStream` — throws `CLIClientError.executionFailed` on non-zero exit. All 104 existing tests pass.
 
 ## - [ ] Phase 3: SwiftCLI tests
 
