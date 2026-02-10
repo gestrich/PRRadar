@@ -19,6 +19,7 @@ struct PRRadarMacCLI: AsyncParsableCommand {
             AnalyzeAllCommand.self,
             StatusCommand.self,
             RefreshCommand.self,
+            RefreshPRCommand.self,
             TranscriptCommand.self,
         ]
     )

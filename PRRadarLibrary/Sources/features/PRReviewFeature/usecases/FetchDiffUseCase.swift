@@ -7,12 +7,26 @@ public struct DiffPhaseSnapshot: Sendable {
     public let fullDiff: GitDiff?
     public let effectiveDiff: GitDiff?
     public let moveReport: MoveReport?
+    public let commentCount: Int
+    public let reviewCount: Int
+    public let reviewCommentCount: Int
 
-    public init(files: [String], fullDiff: GitDiff?, effectiveDiff: GitDiff?, moveReport: MoveReport?) {
+    public init(
+        files: [String],
+        fullDiff: GitDiff?,
+        effectiveDiff: GitDiff?,
+        moveReport: MoveReport?,
+        commentCount: Int = 0,
+        reviewCount: Int = 0,
+        reviewCommentCount: Int = 0
+    ) {
         self.files = files
         self.fullDiff = fullDiff
         self.effectiveDiff = effectiveDiff
         self.moveReport = moveReport
+        self.commentCount = commentCount
+        self.reviewCount = reviewCount
+        self.reviewCommentCount = reviewCommentCount
     }
 }
 
@@ -43,7 +57,19 @@ public struct FetchDiffUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-moves.json"
         )
 
-        return DiffPhaseSnapshot(files: files, fullDiff: fullDiff, effectiveDiff: effectiveDiff, moveReport: moveReport)
+        let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .pullRequest, filename: "gh-comments.json"
+        )
+
+        return DiffPhaseSnapshot(
+            files: files,
+            fullDiff: fullDiff,
+            effectiveDiff: effectiveDiff,
+            moveReport: moveReport,
+            commentCount: comments?.comments.count ?? 0,
+            reviewCount: comments?.reviews.count ?? 0,
+            reviewCommentCount: comments?.reviewComments.count ?? 0
+        )
     }
 
     public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<DiffPhaseSnapshot>, Error> {
@@ -77,7 +103,15 @@ public struct FetchDiffUseCase: Sendable {
 
                     try Task.checkCancellation()
 
+                    let comments = result.comments
                     continuation.yield(.log(text: "Diff acquired: \(result.diff.hunks.count) hunks across \(result.diff.uniqueFiles.count) files\n"))
+                    continuation.yield(.log(text: "Comments: \(comments.comments.count) issue, \(comments.reviews.count) reviews, \(comments.reviewComments.count) inline\n"))
+
+                    for rc in comments.reviewComments {
+                        let author = rc.author?.login ?? "unknown"
+                        let file = rc.path.split(separator: "/").last.map(String.init) ?? rc.path
+                        continuation.yield(.log(text: "  [\(author)] \(file):\(rc.line ?? 0) — \(rc.body.prefix(80))\n"))
+                    }
 
                     let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
                     continuation.yield(.completed(output: snapshot))
