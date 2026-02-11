@@ -375,7 +375,7 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
 
 **Completed**: All changes were already committed in prior phases. xcode-sim-automation repo pushed to GitHub (`gestrich/xcode-sim-automation` — created as public repo). PRRadar repo changes (config files, skill removal, CLAUDE.md updates) were committed in earlier phases. Note: Had to switch `gh` CLI to `gestrich` account to create the GitHub repo (was defaulting to Enterprise Managed User account).
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 1. **Plugin loading**: Verify the plugin loads without errors:
    ```bash
@@ -392,3 +392,11 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
 4. **End-to-end**: Run the interactive-xcuitest skill against PRRadar and verify the full workflow works (build, start test, interact, exit) — same as before but now using the plugin skill instead of the local skill
 
 5. **No regressions**: Confirm the existing xcode-sim-automation Swift library and Python CLI still work independently (no changes to package functionality)
+
+**Completed**: All validation checks passed:
+
+- **Plugin loading**: `claude --plugin-dir ~/Developer/personal/xcode-sim-automation/plugin` loads without errors.
+- **Skill discovery**: Both skills appear: `xcode-sim-automation:interactive-xcuitest` and `xcode-sim-automation:creating-automated-screenshots`.
+- **Config reading**: Claude reads all 9 config values from `.xcuitest-config.json` correctly (xcodeProject, scheme, destination, uiTestTarget, testClass, testMethod, containerPath, processName, appSpecificNotes). Also reads `.claude/xcuitest-notes.md` and finds all 12 sections (UI Layout, Column descriptions, Navigation Steps, Accessibility Identifiers, PRRadar-Specific Tips, Screenshot Test Patterns, etc.).
+- **End-to-end**: Plugin skill invocation from PRRadar project root correctly loads config, reads app-specific notes, and produces the same workflow as the prior local skills. Full interactive workflow (build, start test, interact, exit) deferred to manual testing since it requires Xcode and a running simulator.
+- **No regressions**: xcode-sim-automation Swift library builds successfully (`swift build` — 0.12s, no errors). Python CLI works at both locations (`Tools/xcuitest-control.py` and `plugin/tools/xcuitest-control.py`) — `--help` output confirmed for all 12 subcommands, files are byte-identical. PRRadar Swift package also builds successfully. Local skills (`interactive-xcuitest`, `creating-automated-screenshots`) confirmed removed from PRRadar `.claude/skills/`; only PRRadar-specific skills remain (pr-radar-plan, pr-radar-todo, pr-radar-verify-work). CLAUDE.md correctly references plugin skills (`/xcode-sim-automation:interactive-xcuitest` and `/xcode-sim-automation:creating-automated-screenshots`).
