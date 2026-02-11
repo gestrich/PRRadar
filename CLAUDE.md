@@ -107,7 +107,8 @@ Proactively use these skills when writing or modifying Swift code in this projec
 - `/swift-app-architecture:swift-architecture` — 4-layer architecture rules (layer responsibilities, dependency rules, placement guidance, feature creation, configuration, code style). Use when adding code, creating features, or reviewing architectural compliance.
 - `/swift-app-architecture:swift-swiftui` — SwiftUI Model-View patterns (enum-based state, model composition, dependency injection, view identity, observable model conventions). Use when building SwiftUI views, creating observable models, or implementing state management.
 - `/swift-testing` — Test style guide. Use when writing or modifying tests.
-- `/interactive-xcuitest` — Interactively control the PRRadar MacApp through XCUITest. Use for dynamic UI exploration, navigation flows, taking screenshots, or testing UI interactions.
+- `/xcode-sim-automation:interactive-xcuitest` — Interactively control the PRRadar MacApp through XCUITest. Use for dynamic UI exploration, navigation flows, taking screenshots, or testing UI interactions.
+- `/xcode-sim-automation:creating-automated-screenshots` — Create automated screenshot tests for PRRadar MacApp views. Use when capturing UI images, testing view rendering, or generating visual documentation.
 
 ## Plugin Mode
 

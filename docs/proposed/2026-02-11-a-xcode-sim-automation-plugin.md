@@ -290,7 +290,7 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
 
 **Completed**: Both skills created with modular structure. The interactive-xcuitest skill was split into SKILL.md (main workflow + config loading), cli-reference.md (all commands + multiple match handling + file protocol), error-handling.md (robustness config + common errors + troubleshooting), and macos-notes.md (sandbox, window focus, build-first, orphaned processes). The creating-automated-screenshots skill was split into SKILL.md (workflow + test template + extraction), test-patterns.md (helpers + navigation patterns + assertions), and element-discovery.md (type mismatches + hierarchy reading + iterative debugging). Both skills use the config loading pattern with `$PROJECT`, `$SCHEME`, etc. variables from `.xcuitest-config.json`. `.gitkeep` placeholders removed. Swift build verified unaffected.
 
-## - [ ] Phase 3: Create PRRadar Configuration
+## - [x] Phase 3: Create PRRadar Configuration
 
 **Repo**: `~/Developer/personal/PRRadar`
 
@@ -323,6 +323,8 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
 5. **Update `CLAUDE.md`** — Change skill references from local skills to plugin skills:
    - `/interactive-xcuitest` → `/xcode-sim-automation:interactive-xcuitest`
    - `/creating-automated-screenshots` → `/xcode-sim-automation:creating-automated-screenshots`
+
+**Completed**: Created `.xcuitest-config.json` with all 9 config fields. Created `.claude/xcuitest-notes.md` with PRRadar-specific content: three-column NavigationSplitView layout diagram, column descriptions, navigation steps for Summary/Diff/Report/Settings views, accessibility identifier table, app-specific tips (done timeout, stale process cleanup, orphaned processes), and screenshot test patterns with common navigation code. Removed both local skills (`interactive-xcuitest` and `creating-automated-screenshots`). Updated `CLAUDE.md` to reference plugin skills (`/xcode-sim-automation:interactive-xcuitest` and `/xcode-sim-automation:creating-automated-screenshots`).
 
 ## - [ ] Phase 4: Install and Test Plugin
 

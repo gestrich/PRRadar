@@ -1,0 +1,11 @@
+{
+  "xcodeProject": "PRRadar.xcodeproj",
+  "scheme": "PRRadarMac",
+  "destination": "platform=macOS",
+  "uiTestTarget": "PRRadarMacUITests",
+  "testClass": "InteractiveControlTests",
+  "testMethod": "testInteractiveControl",
+  "containerPath": "~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp",
+  "processName": "PRRadarMac",
+  "appSpecificNotes": ".claude/xcuitest-notes.md"
+}
