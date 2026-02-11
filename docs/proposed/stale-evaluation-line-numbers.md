@@ -66,7 +66,7 @@ The line-shift that previously moved modulo to line 26 has been **reverted**. Th
 
 Key implication: since the revert undid the line shift, the "stale line number" scenario from the background section (line 19 vs 26) **no longer exists** in the current test repo state. The pipeline should now produce `line_number: 19`, which matches both the actual file and the existing posted comment.
 
-## - [ ] Phase 3: Run Fresh Analysis
+## - [x] Phase 3: Run Fresh Analysis
 
 Run the full pipeline from scratch:
 
@@ -77,6 +77,19 @@ cd /Users/bill/Developer/personal/PRRadar && swift run PRRadarMacCLI analyze 1 -
 This runs all phases sequentially: diff → focus areas → rules → tasks → evaluations → report.
 
 **Expected outcome:** All phase output directories are freshly created with no stale data.
+
+**Result:**
+
+Ran from `PRRadarLibrary/` (the active package directory after the project restructure). All 6 phases completed successfully:
+
+- **phase-1-pull-request:** 10 files — diff fetched, 1 hunk across 1 file, 1 existing inline review comment found at Calculator.swift:19.
+- **phase-2-focus-areas:** 2 files — 1 focus area generated.
+- **phase-3-rules:** 2 files — 1 rule loaded (`guard-divide-by-zero`).
+- **phase-4-tasks:** 1 file (`phase_result.json` only) — **0 tasks created.** Confirms the `focus_type` mismatch: the rule specifies `focus_type: method` but the pipeline generates only `.file` focus areas, so `TaskCreatorService` filters it out.
+- **phase-5-evaluations:** 2 files (`phase_result.json` + `summary.json`) — **0 evaluations produced**, because there were no tasks to evaluate. With a clean output directory, there are no stale task files to accidentally pick up.
+- **phase-6-report:** 3 files — 0 violations reported.
+
+Key confirmation: with a clean slate (Phase 1 deleted all prior output), the pipeline produces no stale data. The `artifacts_produced: 0` for tasks means the evaluation phase correctly has nothing to evaluate, rather than falling back on stale task files from a prior run.
 
 ## - [ ] Phase 4: Inspect Pipeline Output
 
