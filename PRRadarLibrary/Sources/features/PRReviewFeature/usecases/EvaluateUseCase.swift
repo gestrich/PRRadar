@@ -83,49 +83,73 @@ public struct EvaluateUseCase: Sendable {
                         return
                     }
 
-                    continuation.yield(.log(text: "Evaluating \(tasks.count) tasks...\n"))
-
-                    let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
-                    let evaluationService = EvaluationService(bridgeClient: bridgeClient)
-
                     let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
 
-                    let startTime = Date()
-                    let results = try await evaluationService.runBatchEvaluation(
-                        tasks: tasks,
-                        outputDir: prOutputDir,
-                        repoPath: effectiveRepoPath,
-                        transcriptDir: evalsDir,
-                        onStart: { index, total, task in
-                            continuation.yield(.log(text: "[\(index)/\(total)] Evaluating \(task.rule.name)...\n"))
-                        },
-                        onResult: { index, total, result in
-                            let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
-                            continuation.yield(.log(text: "[\(index)/\(total)] \(status)\n"))
-                        },
-                        onPrompt: { text in
-                            continuation.yield(.aiPrompt(text: text))
-                        },
-                        onAIText: { text in
-                            continuation.yield(.aiOutput(text: text))
-                        },
-                        onAIToolUse: { name in
-                            continuation.yield(.aiToolUse(name: name))
-                        }
+                    // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
+                    let (cachedResults, tasksToEvaluate) = EvaluationCacheService.partitionTasks(
+                        tasks: tasks, evalsDir: evalsDir
                     )
 
-                    let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
-                    let totalCost = results.compactMap(\.costUsd).reduce(0, +)
-                    let violationCount = results.filter(\.evaluation.violatesRule).count
+                    let cachedCount = cachedResults.count
+                    let freshCount = tasksToEvaluate.count
+
+                    if cachedCount > 0 {
+                        continuation.yield(.log(text: "Skipping \(cachedCount) cached evaluations, evaluating \(freshCount) new tasks\n"))
+                    } else {
+                        continuation.yield(.log(text: "Evaluating \(tasks.count) tasks...\n"))
+                    }
+
+                    var freshResults: [RuleEvaluationResult] = []
+                    var durationMs = 0
+                    var totalCost = 0.0
+
+                    if !tasksToEvaluate.isEmpty {
+                        let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
+                        let evaluationService = EvaluationService(bridgeClient: bridgeClient)
+
+                        let startTime = Date()
+                        freshResults = try await evaluationService.runBatchEvaluation(
+                            tasks: tasksToEvaluate,
+                            outputDir: prOutputDir,
+                            repoPath: effectiveRepoPath,
+                            transcriptDir: evalsDir,
+                            onStart: { index, total, task in
+                                continuation.yield(.log(text: "[\(index)/\(total)] Evaluating \(task.rule.name)...\n"))
+                            },
+                            onResult: { index, total, result in
+                                let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+                                continuation.yield(.log(text: "[\(index)/\(total)] \(status)\n"))
+                            },
+                            onPrompt: { text in
+                                continuation.yield(.aiPrompt(text: text))
+                            },
+                            onAIText: { text in
+                                continuation.yield(.aiOutput(text: text))
+                            },
+                            onAIToolUse: { name in
+                                continuation.yield(.aiToolUse(name: name))
+                            }
+                        )
+
+                        durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
+                        totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)
+                    }
+
+                    // Write task snapshots to phase-5 for future cache checks
+                    try EvaluationCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: evalsDir)
+
+                    // Combine cached and fresh results
+                    let allResults = cachedResults + freshResults
+                    let violationCount = allResults.filter(\.evaluation.violatesRule).count
 
                     let summary = EvaluationSummary(
                         prNumber: Int(prNumber) ?? 0,
                         evaluatedAt: ISO8601DateFormatter().string(from: Date()),
-                        totalTasks: results.count,
+                        totalTasks: allResults.count,
                         violationsFound: violationCount,
                         totalCostUsd: totalCost,
                         totalDurationMs: durationMs,
-                        results: results
+                        results: allResults
                     )
 
                     // Write summary
@@ -140,7 +164,7 @@ public struct EvaluateUseCase: Sendable {
                         outputDir: config.absoluteOutputDir,
                         prNumber: prNumber,
                         stats: PhaseStats(
-                            artifactsProduced: results.count,
+                            artifactsProduced: allResults.count,
                             durationMs: durationMs,
                             costUsd: totalCost
                         )
@@ -148,7 +172,7 @@ public struct EvaluateUseCase: Sendable {
 
                     continuation.yield(.log(text: "Evaluation complete: \(violationCount) violations found\n"))
 
-                    let output = EvaluationPhaseOutput(evaluations: results, tasks: tasks, summary: summary)
+                    let output = EvaluationPhaseOutput(evaluations: allResults, tasks: tasks, summary: summary)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {

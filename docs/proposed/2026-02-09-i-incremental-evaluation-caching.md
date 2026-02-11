@@ -62,7 +62,7 @@ public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
 
 **Completed**: Added `gitBlobHash: String` to `EvaluationTaskOutput` with `git_blob_hash` JSON key. Added `getBlobHash()` to `GitOperationsService` using `git rev-parse`. Updated `TaskCreatorService` to accept `GitOperationsService` dependency and look up blob hashes per file (with in-memory cache to avoid redundant git calls for the same file). Updated `FetchRulesUseCase` call site to pass `repoPath`. All 331 tests pass.
 
-- [ ] Phase 2: Skip Unchanged Tasks in Evaluate Phase
+- [x] Phase 2: Skip Unchanged Tasks in Evaluate Phase
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -83,6 +83,8 @@ Modify `EvaluateUseCase` (Features layer) to skip tasks whose file hasn't change
 - Tasks skipped when blob hash matches prior run
 - Tasks re-evaluated when blob hash differs (file changed)
 - Summary correctly includes both cached and fresh results
+
+**Completed**: Created `EvaluationCacheService` (Services layer) with `partitionTasks()` and `writeTaskSnapshots()` static methods. The service stores task snapshots (`task-{taskId}.json`) alongside evaluation results in phase-5, enabling blob hash comparison on subsequent runs without depending on phase-4 data (which gets regenerated each run). `EvaluateUseCase` delegates to this service to partition tasks into cached vs. fresh, only invoking `EvaluationService` for tasks needing evaluation. 7 new tests in `EvaluationCacheServiceTests` cover cold start, cache hit, cache miss, mixed scenarios, missing snapshots, write round-trip, and full round-trip. All 338 tests pass.
 
 - [ ] Phase 3: CLI Output and Progress Reporting
 
