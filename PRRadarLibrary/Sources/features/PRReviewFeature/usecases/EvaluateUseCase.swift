@@ -8,11 +8,13 @@ public struct EvaluationPhaseOutput: Sendable {
     public let evaluations: [RuleEvaluationResult]
     public let tasks: [EvaluationTaskOutput]
     public let summary: EvaluationSummary
+    public let cachedCount: Int
 
-    public init(evaluations: [RuleEvaluationResult], tasks: [EvaluationTaskOutput] = [], summary: EvaluationSummary) {
+    public init(evaluations: [RuleEvaluationResult], tasks: [EvaluationTaskOutput] = [], summary: EvaluationSummary, cachedCount: Int = 0) {
         self.evaluations = evaluations
         self.tasks = tasks
         self.summary = summary
+        self.cachedCount = cachedCount
     }
 
     /// Merge evaluations with task metadata into structured comments.
@@ -92,11 +94,12 @@ public struct EvaluateUseCase: Sendable {
 
                     let cachedCount = cachedResults.count
                     let freshCount = tasksToEvaluate.count
+                    let totalCount = tasks.count
 
-                    if cachedCount > 0 {
-                        continuation.yield(.log(text: "Skipping \(cachedCount) cached evaluations, evaluating \(freshCount) new tasks\n"))
-                    } else {
-                        continuation.yield(.log(text: "Evaluating \(tasks.count) tasks...\n"))
+                    continuation.yield(.log(text: EvaluationCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
+
+                    for (index, result) in cachedResults.enumerated() {
+                        continuation.yield(.log(text: EvaluationCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                     }
 
                     var freshResults: [RuleEvaluationResult] = []
@@ -114,11 +117,13 @@ public struct EvaluateUseCase: Sendable {
                             repoPath: effectiveRepoPath,
                             transcriptDir: evalsDir,
                             onStart: { index, total, task in
-                                continuation.yield(.log(text: "[\(index)/\(total)] Evaluating \(task.rule.name)...\n"))
+                                let globalIndex = cachedCount + index
+                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] Evaluating \(task.rule.name)...\n"))
                             },
                             onResult: { index, total, result in
+                                let globalIndex = cachedCount + index
                                 let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
-                                continuation.yield(.log(text: "[\(index)/\(total)] \(status)\n"))
+                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                             },
                             onPrompt: { text in
                                 continuation.yield(.aiPrompt(text: text))
@@ -170,9 +175,9 @@ public struct EvaluateUseCase: Sendable {
                         )
                     )
 
-                    continuation.yield(.log(text: "Evaluation complete: \(violationCount) violations found\n"))
+                    continuation.yield(.log(text: EvaluationCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
 
-                    let output = EvaluationPhaseOutput(evaluations: allResults, tasks: tasks, summary: summary)
+                    let output = EvaluationPhaseOutput(evaluations: allResults, tasks: tasks, summary: summary, cachedCount: cachedCount)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {

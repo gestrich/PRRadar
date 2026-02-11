@@ -86,7 +86,7 @@ Modify `EvaluateUseCase` (Features layer) to skip tasks whose file hasn't change
 
 **Completed**: Created `EvaluationCacheService` (Services layer) with `partitionTasks()` and `writeTaskSnapshots()` static methods. The service stores task snapshots (`task-{taskId}.json`) alongside evaluation results in phase-5, enabling blob hash comparison on subsequent runs without depending on phase-4 data (which gets regenerated each run). `EvaluateUseCase` delegates to this service to partition tasks into cached vs. fresh, only invoking `EvaluationService` for tasks needing evaluation. 7 new tests in `EvaluationCacheServiceTests` cover cold start, cache hit, cache miss, mixed scenarios, missing snapshots, write round-trip, and full round-trip. All 338 tests pass.
 
-- [ ] Phase 3: CLI Output and Progress Reporting
+- [x] Phase 3: CLI Output and Progress Reporting
 
 Update progress reporting so the CLI/UI shows which tasks are cached vs. fresh.
 
@@ -96,6 +96,8 @@ Update progress reporting so the CLI/UI shows which tasks are cached vs. fresh.
 - End-of-run summary shows: "Tasks evaluated: X new, Y cached, Z total"
 
 **Tests**: Verify output messages contain correct counts.
+
+**Completed**: Extracted progress message formatting into testable static methods on `EvaluationCacheService` (`startMessage`, `cachedTaskMessage`, `completionMessage`). `EvaluateUseCase` now logs each cached task with `[index/total] ruleName — status (cached)` before evaluating fresh tasks, and shows a breakdown summary at completion. Fresh task progress uses global indexing (offset by cached count) so numbering is continuous. Added `cachedCount` to `EvaluationPhaseOutput` so the CLI's structured summary shows "Tasks evaluated: X new, Y cached, Z total" when caching is active. 6 new tests verify all message formatting variants. All 344 tests pass.
 
 - [ ] Phase 4: Architecture Validation
 

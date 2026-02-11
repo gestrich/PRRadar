@@ -40,6 +40,30 @@ public enum EvaluationCacheService {
         return (cached, toEvaluate)
     }
 
+    // MARK: - Progress Messages
+
+    /// Start message describing cache partition results.
+    public static func startMessage(cachedCount: Int, freshCount: Int, totalCount: Int) -> String {
+        if cachedCount > 0 {
+            return "Skipping \(cachedCount) cached evaluations, evaluating \(freshCount) new tasks"
+        }
+        return "Evaluating \(totalCount) tasks..."
+    }
+
+    /// Per-task progress line for a cached result.
+    public static func cachedTaskMessage(index: Int, totalCount: Int, result: RuleEvaluationResult) -> String {
+        let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+        return "[\(index)/\(totalCount)] \(result.ruleName) — \(status) (cached)"
+    }
+
+    /// End-of-run summary message.
+    public static func completionMessage(freshCount: Int, cachedCount: Int, totalCount: Int, violationCount: Int) -> String {
+        if cachedCount > 0 {
+            return "Evaluation complete: \(freshCount) new, \(cachedCount) cached, \(totalCount) total — \(violationCount) violations found"
+        }
+        return "Evaluation complete: \(totalCount) evaluated — \(violationCount) violations found"
+    }
+
     /// Write task snapshots to the evaluations directory for future cache checks.
     public static func writeTaskSnapshots(
         tasks: [EvaluationTaskOutput],

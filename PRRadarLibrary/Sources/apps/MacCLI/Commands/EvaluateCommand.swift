@@ -67,7 +67,12 @@ struct EvaluateCommand: AsyncParsableCommand {
             print(String(data: data, encoding: .utf8)!)
         } else {
             print("\nEvaluation complete:")
-            print("  Total tasks: \(output.summary.totalTasks)")
+            let newCount = output.summary.totalTasks - output.cachedCount
+            if output.cachedCount > 0 {
+                print("  Tasks evaluated: \(newCount) new, \(output.cachedCount) cached, \(output.summary.totalTasks) total")
+            } else {
+                print("  Total tasks: \(output.summary.totalTasks)")
+            }
             print("  Violations found: \(output.summary.violationsFound)")
             print("  Cost: $\(String(format: "%.4f", output.summary.totalCostUsd))")
             let models = output.summary.modelsUsed

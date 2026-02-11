@@ -198,6 +198,72 @@ struct EvaluationCacheServiceTests {
         }
     }
 
+    // MARK: - Progress Messages: startMessage
+
+    @Test("Start message shows cache counts when cached tasks exist")
+    func startMessageWithCache() {
+        // Act
+        let message = EvaluationCacheService.startMessage(cachedCount: 3, freshCount: 2, totalCount: 5)
+
+        // Assert
+        #expect(message == "Skipping 3 cached evaluations, evaluating 2 new tasks")
+    }
+
+    @Test("Start message shows total count when no cached tasks")
+    func startMessageColdStart() {
+        // Act
+        let message = EvaluationCacheService.startMessage(cachedCount: 0, freshCount: 5, totalCount: 5)
+
+        // Assert
+        #expect(message == "Evaluating 5 tasks...")
+    }
+
+    // MARK: - Progress Messages: cachedTaskMessage
+
+    @Test("Cached task message shows OK with (cached) suffix for passing result")
+    func cachedTaskMessageOK() {
+        // Arrange
+        let result = makeResult(taskId: "t1", violates: false)
+
+        // Act
+        let message = EvaluationCacheService.cachedTaskMessage(index: 1, totalCount: 5, result: result)
+
+        // Assert
+        #expect(message == "[1/5] rule-t1 — OK (cached)")
+    }
+
+    @Test("Cached task message shows VIOLATION with (cached) suffix for failing result")
+    func cachedTaskMessageViolation() {
+        // Arrange
+        let result = makeResult(taskId: "t1", violates: true)
+
+        // Act
+        let message = EvaluationCacheService.cachedTaskMessage(index: 2, totalCount: 10, result: result)
+
+        // Assert
+        #expect(message == "[2/10] rule-t1 — VIOLATION (7/10) (cached)")
+    }
+
+    // MARK: - Progress Messages: completionMessage
+
+    @Test("Completion message shows cached breakdown when cached tasks exist")
+    func completionMessageWithCache() {
+        // Act
+        let message = EvaluationCacheService.completionMessage(freshCount: 2, cachedCount: 3, totalCount: 5, violationCount: 1)
+
+        // Assert
+        #expect(message == "Evaluation complete: 2 new, 3 cached, 5 total — 1 violations found")
+    }
+
+    @Test("Completion message shows simple total when no cached tasks")
+    func completionMessageColdStart() {
+        // Act
+        let message = EvaluationCacheService.completionMessage(freshCount: 5, cachedCount: 0, totalCount: 5, violationCount: 0)
+
+        // Assert
+        #expect(message == "Evaluation complete: 5 evaluated — 0 violations found")
+    }
+
     // MARK: - Round-trip: write snapshots then partition
 
     @Test("Tasks cached after writeTaskSnapshots + partitionTasks round-trip")
