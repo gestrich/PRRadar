@@ -91,7 +91,7 @@ Ran from `PRRadarLibrary/` (the active package directory after the project restr
 
 Key confirmation: with a clean slate (Phase 1 deleted all prior output), the pipeline produces no stale data. The `artifacts_produced: 0` for tasks means the evaluation phase correctly has nothing to evaluate, rather than falling back on stale task files from a prior run.
 
-## - [ ] Phase 4: Inspect Pipeline Output
+## - [x] Phase 4: Inspect Pipeline Output
 
 Examine each phase's output to verify line numbers are correct throughout the entire pipeline:
 
@@ -115,6 +115,27 @@ Examine each phase's output to verify line numbers are correct throughout the en
 5. **AI transcript** (`phase-5-evaluations/ai-transcript-*.json`):
    - Check the `prompt` field — the annotated diff should show correct `newStart`-based line numbers
    - Check the AI's `result` — `line_number` should match what was shown in the prompt
+
+**Result:**
+
+Inspected all phase output files in `/Users/bill/Desktop/code-reviews/1/`. Line numbers are correct throughout the pipeline where data was produced:
+
+1. **Diff** — `newStart: 15`, `oldStart: 15`, header `@@ -15,4 +15,9 @@`. The hunk content shows `func modulo` starting at line 19 in the new file. Matches the expected line number from Phase 2.
+
+2. **Focus areas** — `start_line: 15`, `end_line: 23`, `focus_type: "file"`. Annotated `hunk_content` uses `newStart`-based numbering: context lines at 15-17, additions at 18-22, closing brace at 23. `func modulo` is correctly annotated at line 19.
+
+3. **Tasks** — Only `phase_result.json` exists with `artifacts_produced: 0`. **No task data files.** Confirms the `focus_type` mismatch: the rule specifies `focus_type: method` but the pipeline generates only `.file` focus areas. `TaskCreatorService` filters it out. With a clean output directory (Phase 1), there are no stale task files to fall back on.
+
+4. **Evaluations** — `artifacts_produced: 0`, `total_tasks: 0`, `violations_found: 0`. Only `phase_result.json` and `summary.json` exist — no `data-*.json` files. The evaluation phase correctly had nothing to evaluate.
+
+5. **AI transcript** — No `ai-transcript-*.json` files exist because no evaluations were performed (0 tasks → 0 AI calls). Cannot verify AI prompt/response line numbers in this run.
+
+**Additional observations:**
+- The effective diff (`effective-diff-parsed.json`) matches `diff-parsed.json` exactly — same `newStart: 15` and hunk content. No moves detected (`effective-diff-moves.json` not inspected but the effective diff is identical to the raw diff).
+- The existing GitHub review comment (`gh-comments.json`) has `line: 19` for `Calculator.swift`, matching the pipeline's line numbering.
+- The report (`phase-6-report/summary.json`) correctly shows 0 violations and 0 tasks evaluated.
+
+**Key finding:** The pipeline produces correct line numbers at every stage where data exists. The inability to fully verify the end-to-end line number chain (diff → focus → task → evaluation → AI response) is blocked by the `focus_type` mismatch, which prevents task creation. Phase 5 will address this mismatch to enable a complete verification.
 
 ## - [ ] Phase 5: Determine Focus Type Mismatch Impact
 
