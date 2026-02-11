@@ -352,7 +352,7 @@ struct AnnotatedDiffContentView: View {
         self.prModel = prModel
     }
 
-    private var tasks: [EvaluationTaskOutput] { prModel.preparation?.tasks ?? [] }
+    private var tasks: [AnalysisTaskOutput] { prModel.preparation?.tasks ?? [] }
     private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
     private var imageBaseDir: String? { prModel.imageBaseDir }
 
@@ -469,7 +469,7 @@ struct AnnotatedDiffContentView: View {
         if canRunSelectiveEvaluation && !matchingFocusAreas.isEmpty {
             let inFlight = matchingFocusAreas.contains { area in
                 let areaTaskIds = Set(tasks.filter { $0.focusArea.focusId == area.focusId }.map(\.taskId))
-                return !areaTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
+                return !areaTaskIds.isDisjoint(with: prModel.selectiveAnalysisInFlight)
             }
 
             if inFlight {
@@ -480,7 +480,7 @@ struct AnnotatedDiffContentView: View {
             if matchingFocusAreas.count == 1, let area = matchingFocusAreas.first {
                 Button {
                     prModel.startSelectiveAnalysis(
-                        filter: EvaluationFilter(focusAreaId: area.focusId)
+                        filter: AnalysisFilter(focusAreaId: area.focusId)
                     )
                 } label: {
                     Label("Run Analysis", systemImage: "play.circle")
@@ -494,7 +494,7 @@ struct AnnotatedDiffContentView: View {
 
                     Button {
                         prModel.startSelectiveAnalysis(
-                            filter: EvaluationFilter(focusAreaId: area.focusId)
+                            filter: AnalysisFilter(focusAreaId: area.focusId)
                         )
                     } label: {
                         Label("Run All Rules", systemImage: "play.fill")
@@ -505,7 +505,7 @@ struct AnnotatedDiffContentView: View {
                             ForEach(uniqueRules, id: \.self) { rule in
                                 Button(rule) {
                                     prModel.startSelectiveAnalysis(
-                                        filter: EvaluationFilter(focusAreaId: area.focusId, ruleNames: [rule])
+                                        filter: AnalysisFilter(focusAreaId: area.focusId, ruleNames: [rule])
                                     )
                                 }
                             }
@@ -518,7 +518,7 @@ struct AnnotatedDiffContentView: View {
                         Section(area.description) {
                             Button {
                                 prModel.startSelectiveAnalysis(
-                                    filter: EvaluationFilter(focusAreaId: area.focusId)
+                                    filter: AnalysisFilter(focusAreaId: area.focusId)
                                 )
                             } label: {
                                 Label("Run All Rules", systemImage: "play.fill")

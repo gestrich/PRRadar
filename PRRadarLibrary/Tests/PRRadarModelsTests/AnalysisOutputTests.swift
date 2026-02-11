@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import PRRadarModels
 
-@Suite("Evaluation Output JSON Parsing")
-struct EvaluationOutputTests {
+@Suite("Analysis Output JSON Parsing")
+struct AnalysisOutputTests {
 
     // MARK: - RuleEvaluation
 
@@ -121,9 +121,9 @@ struct EvaluationOutputTests {
         #expect(result.modelUsed == "claude-haiku-4-5-20251001")
     }
 
-    // MARK: - EvaluationSummary
+    // MARK: - AnalysisSummary
 
-    @Test("EvaluationSummary decodes from Python's EvaluationSummary.to_dict()")
+    @Test("AnalysisSummary decodes from Python's AnalysisSummary.to_dict()")
     func evaluationSummaryDecode() throws {
         let json = """
         {
@@ -170,7 +170,7 @@ struct EvaluationOutputTests {
         }
         """.data(using: .utf8)!
 
-        let summary = try JSONDecoder().decode(EvaluationSummary.self, from: json)
+        let summary = try JSONDecoder().decode(AnalysisSummary.self, from: json)
         #expect(summary.prNumber == 42)
         #expect(summary.evaluatedAt == "2025-01-15T10:30:00+00:00")
         #expect(summary.totalTasks == 15)
@@ -182,7 +182,7 @@ struct EvaluationOutputTests {
         #expect(summary.results[1].evaluation.violatesRule == false)
     }
 
-    @Test("EvaluationSummary with empty results")
+    @Test("AnalysisSummary with empty results")
     func evaluationSummaryEmpty() throws {
         let json = """
         {
@@ -196,12 +196,12 @@ struct EvaluationOutputTests {
         }
         """.data(using: .utf8)!
 
-        let summary = try JSONDecoder().decode(EvaluationSummary.self, from: json)
+        let summary = try JSONDecoder().decode(AnalysisSummary.self, from: json)
         #expect(summary.totalTasks == 0)
         #expect(summary.results.isEmpty)
     }
 
-    @Test("EvaluationSummary round-trips through encode/decode")
+    @Test("AnalysisSummary round-trips through encode/decode")
     func evaluationSummaryRoundTrip() throws {
         let json = """
         {
@@ -232,9 +232,9 @@ struct EvaluationOutputTests {
         }
         """.data(using: .utf8)!
 
-        let original = try JSONDecoder().decode(EvaluationSummary.self, from: json)
+        let original = try JSONDecoder().decode(AnalysisSummary.self, from: json)
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EvaluationSummary.self, from: encoded)
+        let decoded = try JSONDecoder().decode(AnalysisSummary.self, from: encoded)
 
         #expect(original.prNumber == decoded.prNumber)
         #expect(original.totalTasks == decoded.totalTasks)

@@ -2,7 +2,7 @@ import Foundation
 import PRRadarConfigService
 import PRRadarModels
 
-public struct EvaluationService: Sendable {
+public struct AnalysisService: Sendable {
     private let bridgeClient: ClaudeBridgeClient
 
     private static let defaultModel = "claude-sonnet-4-20250514"
@@ -100,9 +100,9 @@ public struct EvaluationService: Sendable {
         self.bridgeClient = bridgeClient
     }
 
-    /// Evaluate a single task using Claude via the bridge.
-    public func evaluateTask(
-        _ task: EvaluationTaskOutput,
+    /// Analyze a single task using Claude via the bridge.
+    public func analyzeTask(
+        _ task: AnalysisTaskOutput,
         repoPath: String,
         transcriptDir: String? = nil,
         onPrompt: ((String) -> Void)? = nil,
@@ -204,13 +204,13 @@ public struct EvaluationService: Sendable {
         )
     }
 
-    /// Run evaluations for all tasks, writing results to the evaluations directory.
-    public func runBatchEvaluation(
-        tasks: [EvaluationTaskOutput],
+    /// Run analysis for all tasks, writing results to the analysis directory.
+    public func runBatchAnalysis(
+        tasks: [AnalysisTaskOutput],
         outputDir: String,
         repoPath: String,
         transcriptDir: String? = nil,
-        onStart: ((Int, Int, EvaluationTaskOutput) -> Void)? = nil,
+        onStart: ((Int, Int, AnalysisTaskOutput) -> Void)? = nil,
         onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
         onPrompt: ((String) -> Void)? = nil,
         onAIText: ((String) -> Void)? = nil,
@@ -226,7 +226,7 @@ public struct EvaluationService: Sendable {
             let index = i + 1
             onStart?(index, total, task)
 
-            let result = try await evaluateTask(
+            let result = try await analyzeTask(
                 task,
                 repoPath: repoPath,
                 transcriptDir: transcriptDir ?? evalsDir,

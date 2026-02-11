@@ -46,7 +46,7 @@ public struct PRComment: Sendable, Identifiable {
     /// Create from an evaluation result and its associated task metadata.
     public static func from(
         evaluation: RuleEvaluationResult,
-        task: EvaluationTaskOutput?
+        task: AnalysisTaskOutput?
     ) -> PRComment {
         PRComment(
             id: evaluation.taskId,

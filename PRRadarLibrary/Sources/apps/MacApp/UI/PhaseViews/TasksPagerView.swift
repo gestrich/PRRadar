@@ -4,7 +4,7 @@ import SwiftUI
 struct TasksPagerView: View {
 
     let fileName: String
-    let tasks: [EvaluationTaskOutput]
+    let tasks: [AnalysisTaskOutput]
     let onDismiss: () -> Void
 
     @State private var currentIndex = 0

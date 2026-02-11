@@ -2,7 +2,7 @@ import Foundation
 import PRRadarConfigService
 import PRRadarModels
 
-public enum EvaluationCacheService {
+public enum AnalysisCacheService {
 
     public static let taskFilePrefix = "task-"
 
@@ -12,12 +12,12 @@ public enum EvaluationCacheService {
     /// evaluations directory. If both exist and the git blob hash matches, the prior result
     /// is reused instead of re-evaluating.
     public static func partitionTasks(
-        tasks: [EvaluationTaskOutput],
+        tasks: [AnalysisTaskOutput],
         evalsDir: String
-    ) -> (cached: [RuleEvaluationResult], toEvaluate: [EvaluationTaskOutput]) {
+    ) -> (cached: [RuleEvaluationResult], toEvaluate: [AnalysisTaskOutput]) {
         let decoder = JSONDecoder()
         var cached: [RuleEvaluationResult] = []
-        var toEvaluate: [EvaluationTaskOutput] = []
+        var toEvaluate: [AnalysisTaskOutput] = []
 
         for task in tasks {
             let evalPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
@@ -27,7 +27,7 @@ public enum EvaluationCacheService {
                 let evalData = FileManager.default.contents(atPath: evalPath),
                 let taskData = FileManager.default.contents(atPath: taskPath),
                 let priorResult = try? decoder.decode(RuleEvaluationResult.self, from: evalData),
-                let priorTask = try? decoder.decode(EvaluationTaskOutput.self, from: taskData),
+                let priorTask = try? decoder.decode(AnalysisTaskOutput.self, from: taskData),
                 priorTask.gitBlobHash == task.gitBlobHash
             else {
                 toEvaluate.append(task)
@@ -66,7 +66,7 @@ public enum EvaluationCacheService {
 
     /// Write task snapshots to the evaluations directory for future cache checks.
     public static func writeTaskSnapshots(
-        tasks: [EvaluationTaskOutput],
+        tasks: [AnalysisTaskOutput],
         evalsDir: String
     ) throws {
         let encoder = JSONEncoder()

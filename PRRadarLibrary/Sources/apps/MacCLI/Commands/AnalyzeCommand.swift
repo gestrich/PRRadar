@@ -31,7 +31,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
 
-        let filter = EvaluationFilter(
+        let filter = AnalysisFilter(
             filePath: file,
             focusAreaId: focusArea,
             ruleNames: rule.isEmpty ? nil : rule
@@ -71,7 +71,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
                 if !options.json && !quiet && verbose {
                     printAIToolUse(name)
                 }
-            case .evaluationResult: break
+            case .analysisResult: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

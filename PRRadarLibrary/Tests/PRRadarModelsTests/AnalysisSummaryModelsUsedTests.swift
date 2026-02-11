@@ -1,13 +1,13 @@
 import Testing
 @testable import PRRadarModels
 
-@Suite("EvaluationSummary modelsUsed")
-struct EvaluationSummaryModelsUsedTests {
+@Suite("AnalysisSummary modelsUsed")
+struct AnalysisSummaryModelsUsedTests {
 
     @Test("Returns distinct sorted model IDs from results")
     func distinctSortedModels() {
         // Arrange
-        let summary = EvaluationSummary(
+        let summary = AnalysisSummary(
             prNumber: 1,
             evaluatedAt: "2025-01-01T00:00:00Z",
             totalTasks: 3,
@@ -31,7 +31,7 @@ struct EvaluationSummaryModelsUsedTests {
     @Test("Returns empty array when no results")
     func emptyResults() {
         // Arrange
-        let summary = EvaluationSummary(
+        let summary = AnalysisSummary(
             prNumber: 1,
             evaluatedAt: "2025-01-01T00:00:00Z",
             totalTasks: 0,
@@ -51,7 +51,7 @@ struct EvaluationSummaryModelsUsedTests {
     @Test("Returns single model when all results use same model")
     func singleModel() {
         // Arrange
-        let summary = EvaluationSummary(
+        let summary = AnalysisSummary(
             prNumber: 1,
             evaluatedAt: "2025-01-01T00:00:00Z",
             totalTasks: 2,

@@ -7,9 +7,9 @@ import PRRadarModels
 public struct PrepareOutput: Sendable {
     public let focusAreas: [FocusArea]
     public let rules: [ReviewRule]
-    public let tasks: [EvaluationTaskOutput]
+    public let tasks: [AnalysisTaskOutput]
 
-    public init(focusAreas: [FocusArea], rules: [ReviewRule], tasks: [EvaluationTaskOutput]) {
+    public init(focusAreas: [FocusArea], rules: [ReviewRule], tasks: [AnalysisTaskOutput]) {
         self.focusAreas = focusAreas
         self.rules = rules
         self.tasks = tasks
@@ -163,7 +163,7 @@ public struct PrepareUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: "all-rules.json"
         )
 
-        let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+        let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
         )
 

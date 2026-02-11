@@ -140,15 +140,15 @@ public struct ReportGeneratorService: Sendable {
         return total
     }
 
-    private func loadTaskMetadata(tasksDir: String) -> [String: EvaluationTaskOutput] {
+    private func loadTaskMetadata(tasksDir: String) -> [String: AnalysisTaskOutput] {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: tasksDir) else { return [:] }
 
-        var metadata: [String: EvaluationTaskOutput] = [:]
+        var metadata: [String: AnalysisTaskOutput] = [:]
         for file in files where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(tasksDir)/\(file)"
             guard let data = fm.contents(atPath: path),
-                  let task = try? JSONDecoder().decode(EvaluationTaskOutput.self, from: data) else { continue }
+                  let task = try? JSONDecoder().decode(AnalysisTaskOutput.self, from: data) else { continue }
             metadata[task.taskId] = task
         }
         return metadata

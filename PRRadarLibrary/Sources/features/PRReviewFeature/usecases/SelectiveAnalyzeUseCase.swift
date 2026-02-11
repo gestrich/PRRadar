@@ -14,7 +14,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
 
     public func execute(
         prNumber: String,
-        filter: EvaluationFilter,
+        filter: AnalysisFilter,
         repoPath: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
         AsyncThrowingStream { continuation in
@@ -26,7 +26,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     let effectiveRepoPath = repoPath ?? config.repoPath
 
                     // Load all tasks from phase-4
-                    let allTasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+                    let allTasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
                     )
 
@@ -47,7 +47,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
 
                     // Partition filtered tasks into cached and fresh
-                    let (cachedResults, tasksToEvaluate) = EvaluationCacheService.partitionTasks(
+                    let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
                         tasks: filteredTasks, evalsDir: evalsDir
                     )
 
@@ -56,19 +56,19 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     let totalCount = filteredTasks.count
 
                     continuation.yield(.log(text: "Selective evaluation: \(totalCount) tasks match filter\n"))
-                    continuation.yield(.log(text: EvaluationCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
+                    continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
                     for (index, result) in cachedResults.enumerated() {
-                        continuation.yield(.log(text: EvaluationCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
-                        continuation.yield(.evaluationResult(result))
+                        continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
+                        continuation.yield(.analysisResult(result))
                     }
 
                     if !tasksToEvaluate.isEmpty {
                         let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
-                        let evaluationService = EvaluationService(bridgeClient: bridgeClient)
+                        let analysisService = AnalysisService(bridgeClient: bridgeClient)
 
-                        // runBatchEvaluation writes data-{taskId}.json per task immediately
-                        let freshResults = try await evaluationService.runBatchEvaluation(
+                        // runBatchAnalysis writes data-{taskId}.json per task immediately
+                        let freshResults = try await analysisService.runBatchAnalysis(
                             tasks: tasksToEvaluate,
                             outputDir: prOutputDir,
                             repoPath: effectiveRepoPath,
@@ -81,7 +81,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 let globalIndex = cachedCount + index
                                 let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                continuation.yield(.evaluationResult(result))
+                                continuation.yield(.analysisResult(result))
                             },
                             onPrompt: { text in
                                 continuation.yield(.aiPrompt(text: text))
@@ -95,10 +95,10 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                         )
 
                         // Write task snapshots for the evaluated tasks (for cache)
-                        try EvaluationCacheService.writeTaskSnapshots(tasks: tasksToEvaluate, evalsDir: evalsDir)
+                        try AnalysisCacheService.writeTaskSnapshots(tasks: tasksToEvaluate, evalsDir: evalsDir)
 
                         let violationCount = (cachedResults + freshResults).filter(\.evaluation.violatesRule).count
-                        continuation.yield(.log(text: EvaluationCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
+                        continuation.yield(.log(text: AnalysisCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
                     }
 
                     // Re-read ALL evaluation results from disk to build merged output
@@ -122,7 +122,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
     private static func buildMergedOutput(
         config: PRRadarConfig,
         prNumber: String,
-        allTasks: [EvaluationTaskOutput],
+        allTasks: [AnalysisTaskOutput],
         cachedCount: Int
     ) throws -> AnalysisOutput {
         let evalFiles = PhaseOutputParser.listPhaseFiles(
@@ -139,7 +139,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
         }
 
         let violationCount = evaluations.filter(\.evaluation.violatesRule).count
-        let summary = EvaluationSummary(
+        let summary = AnalysisSummary(
             prNumber: Int(prNumber) ?? 0,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
             totalTasks: evaluations.count,

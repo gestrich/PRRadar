@@ -9,12 +9,11 @@ struct DiffPhaseView: View {
     @State private var selectedTab = 0
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
-    @State private var showEvaluationHint = false
 
     private var effectiveDiff: GitDiff? { prModel.effectiveDiff }
     private var reviewComments: [ReviewComment] { prModel.reconciledComments }
-    private var evaluationSummary: EvaluationSummary? { prModel.analysis?.summary }
-    private var tasks: [EvaluationTaskOutput] { prModel.preparation?.tasks ?? [] }
+    private var evaluationSummary: AnalysisSummary? { prModel.analysis?.summary }
+    private var tasks: [AnalysisTaskOutput] { prModel.preparation?.tasks ?? [] }
 
     private var hasEvaluationData: Bool {
         evaluationSummary != nil
@@ -26,27 +25,7 @@ struct DiffPhaseView: View {
     }
 
     private var canRunSelectiveEvaluation: Bool {
-        !tasks.isEmpty && hasEvaluationData
-    }
-
-    private var hasPendingTasks: Bool {
-        !tasks.isEmpty && !hasEvaluationData
-    }
-
-    private var evaluationPendingHint: some View {
-        Button {
-            showEvaluationHint.toggle()
-        } label: {
-            Image(systemName: "info.circle")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.borderless)
-        .popover(isPresented: $showEvaluationHint) {
-            Text("Run Evaluate first to enable selective analysis")
-                .font(.callout)
-                .padding(8)
-        }
+        !tasks.isEmpty
     }
 
     var body: some View {
@@ -238,11 +217,6 @@ struct DiffPhaseView: View {
                                 .controlSize(.small)
                         }
                         fileAnalysisMenu(for: file)
-                    } else if hasPendingTasks {
-                        evaluationPendingHint
-                        Label("Run Analysis", systemImage: "play.circle")
-                            .font(.callout)
-                            .foregroundStyle(.tertiary)
                     }
                 }
                 .padding(.horizontal)
@@ -294,7 +268,7 @@ struct DiffPhaseView: View {
             .background(.blue, in: Capsule())
     }
 
-    // MARK: - Selective Evaluation Actions
+    // MARK: - Selective Analysis Actions
 
     private func rulesForFile(_ file: String) -> [String] {
         let fileTasks = tasks.filter { $0.focusArea.filePath == file }
@@ -319,12 +293,12 @@ struct DiffPhaseView: View {
 
     private func isFileInFlight(_ file: String) -> Bool {
         let fileTaskIds = Set(tasks.filter { $0.focusArea.filePath == file }.map(\.taskId))
-        return !fileTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
+        return !fileTaskIds.isDisjoint(with: prModel.selectiveAnalysisInFlight)
     }
 
     private func isFocusAreaInFlight(_ focusAreaId: String) -> Bool {
         let areaTaskIds = Set(tasks.filter { $0.focusArea.focusId == focusAreaId }.map(\.taskId))
-        return !areaTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
+        return !areaTaskIds.isDisjoint(with: prModel.selectiveAnalysisInFlight)
     }
 
     @ViewBuilder
@@ -341,7 +315,7 @@ struct DiffPhaseView: View {
             let rules = rulesForFile(file)
 
             Button {
-                prModel.startSelectiveAnalysis(filter: EvaluationFilter(filePath: file))
+                prModel.startSelectiveAnalysis(filter: AnalysisFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -351,17 +325,12 @@ struct DiffPhaseView: View {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
                             prModel.startSelectiveAnalysis(
-                                filter: EvaluationFilter(filePath: file, ruleNames: [rule])
+                                filter: AnalysisFilter(filePath: file, ruleNames: [rule])
                             )
                         }
                     }
                 }
             }
-        } else if hasPendingTasks {
-            Button {} label: {
-                Label("Run Evaluate first", systemImage: "info.circle")
-            }
-            .disabled(true)
         }
     }
 
@@ -370,7 +339,7 @@ struct DiffPhaseView: View {
         let rules = rulesForFile(file)
         Menu {
             Button {
-                prModel.startSelectiveAnalysis(filter: EvaluationFilter(filePath: file))
+                prModel.startSelectiveAnalysis(filter: AnalysisFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -380,7 +349,7 @@ struct DiffPhaseView: View {
                 ForEach(rules, id: \.self) { rule in
                     Button(rule) {
                         prModel.startSelectiveAnalysis(
-                            filter: EvaluationFilter(filePath: file, ruleNames: [rule])
+                            filter: AnalysisFilter(filePath: file, ruleNames: [rule])
                         )
                     }
                 }
@@ -400,7 +369,7 @@ struct DiffPhaseView: View {
 
             Button {
                 prModel.startSelectiveAnalysis(
-                    filter: EvaluationFilter(focusAreaId: focusArea.focusId)
+                    filter: AnalysisFilter(focusAreaId: focusArea.focusId)
                 )
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
@@ -411,7 +380,7 @@ struct DiffPhaseView: View {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
                             prModel.startSelectiveAnalysis(
-                                filter: EvaluationFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
+                                filter: AnalysisFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
                             )
                         }
                     }
@@ -420,7 +389,7 @@ struct DiffPhaseView: View {
         }
     }
 
-    // MARK: - Evaluation Helpers
+    // MARK: - Analysis Helpers
 
     private func commentMapping(for diff: GitDiff) -> DiffCommentMapping {
         DiffCommentMapper.map(

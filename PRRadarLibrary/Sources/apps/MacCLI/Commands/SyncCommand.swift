@@ -36,7 +36,7 @@ struct SyncCommand: AsyncParsableCommand {
             case .aiOutput: break
             case .aiPrompt: break
             case .aiToolUse: break
-            case .evaluationResult: break
+            case .analysisResult: break
             case .completed(let snapshot):
                 outputFiles = snapshot.files
             case .failed(let error, let logs):

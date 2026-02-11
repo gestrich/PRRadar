@@ -1,10 +1,10 @@
 import Foundation
 
-/// Filter criteria for selective evaluation of tasks.
+/// Filter criteria for selective analysis of tasks.
 ///
 /// All fields are optional — nil means "no filter" for that dimension.
 /// When multiple fields are set, they combine with AND logic.
-public struct EvaluationFilter: Sendable {
+public struct AnalysisFilter: Sendable {
     public let filePath: String?
     public let focusAreaId: String?
     public let ruleNames: [String]?
@@ -16,7 +16,7 @@ public struct EvaluationFilter: Sendable {
     }
 
     /// Returns true if the given task matches all non-nil filter criteria.
-    public func matches(_ task: EvaluationTaskOutput) -> Bool {
+    public func matches(_ task: AnalysisTaskOutput) -> Bool {
         if let filePath, task.focusArea.filePath != filePath {
             return false
         }

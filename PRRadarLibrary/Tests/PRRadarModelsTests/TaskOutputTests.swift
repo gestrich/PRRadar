@@ -47,9 +47,9 @@ struct TaskOutputTests {
         #expect(rule.documentationLink == nil)
     }
 
-    // MARK: - EvaluationTaskOutput
+    // MARK: - AnalysisTaskOutput
 
-    @Test("EvaluationTaskOutput decodes from Python's EvaluationTask.to_dict()")
+    @Test("AnalysisTaskOutput decodes from Python's EvaluationTask.to_dict()")
     func evaluationTaskOutputDecode() throws {
         let json = """
         {
@@ -75,7 +75,7 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let task = try JSONDecoder().decode(EvaluationTaskOutput.self, from: json)
+        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
         #expect(task.taskId == "error-handling-method-handler_py-process-10-25")
         #expect(task.rule.name == "error-handling")
         #expect(task.rule.category == "reliability")
@@ -85,7 +85,7 @@ struct TaskOutputTests {
         #expect(task.gitBlobHash == "abc123def456789")
     }
 
-    @Test("EvaluationTaskOutput with documentation_link in rule")
+    @Test("AnalysisTaskOutput with documentation_link in rule")
     func evaluationTaskWithDocs() throws {
         let json = """
         {
@@ -112,14 +112,14 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let task = try JSONDecoder().decode(EvaluationTaskOutput.self, from: json)
+        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
         #expect(task.rule.documentationLink == "https://example.com/docs-guide")
         #expect(task.rule.model == nil)
         #expect(task.focusArea.focusType == .file)
         #expect(task.gitBlobHash == "fedcba987654321")
     }
 
-    @Test("EvaluationTaskOutput round-trips through encode/decode")
+    @Test("AnalysisTaskOutput round-trips through encode/decode")
     func evaluationTaskRoundTrip() throws {
         let json = """
         {
@@ -145,9 +145,9 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let original = try JSONDecoder().decode(EvaluationTaskOutput.self, from: json)
+        let original = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EvaluationTaskOutput.self, from: encoded)
+        let decoded = try JSONDecoder().decode(AnalysisTaskOutput.self, from: encoded)
 
         #expect(original.taskId == decoded.taskId)
         #expect(original.rule.name == decoded.rule.name)

@@ -6,11 +6,11 @@ import PRRadarModels
 
 public struct AnalysisOutput: Sendable {
     public let evaluations: [RuleEvaluationResult]
-    public let tasks: [EvaluationTaskOutput]
-    public let summary: EvaluationSummary
+    public let tasks: [AnalysisTaskOutput]
+    public let summary: AnalysisSummary
     public let cachedCount: Int
 
-    public init(evaluations: [RuleEvaluationResult], tasks: [EvaluationTaskOutput] = [], summary: EvaluationSummary, cachedCount: Int = 0) {
+    public init(evaluations: [RuleEvaluationResult], tasks: [AnalysisTaskOutput] = [], summary: AnalysisSummary, cachedCount: Int = 0) {
         self.evaluations = evaluations
         self.tasks = tasks
         self.summary = summary
@@ -44,7 +44,7 @@ public struct AnalyzeUseCase: Sendable {
                     let effectiveRepoPath = repoPath ?? config.repoPath
 
                     // Load tasks from prepare phase
-                    let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+                    let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
                     )
 
@@ -59,7 +59,7 @@ public struct AnalyzeUseCase: Sendable {
                         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
                         // Write empty summary
-                        let summary = EvaluationSummary(
+                        let summary = AnalysisSummary(
                             prNumber: Int(prNumber) ?? 0,
                             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                             totalTasks: 0,
@@ -88,7 +88,7 @@ public struct AnalyzeUseCase: Sendable {
                     let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
 
                     // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
-                    let (cachedResults, tasksToEvaluate) = EvaluationCacheService.partitionTasks(
+                    let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
                         tasks: tasks, evalsDir: evalsDir
                     )
 
@@ -96,11 +96,11 @@ public struct AnalyzeUseCase: Sendable {
                     let freshCount = tasksToEvaluate.count
                     let totalCount = tasks.count
 
-                    continuation.yield(.log(text: EvaluationCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
+                    continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
                     for (index, result) in cachedResults.enumerated() {
-                        continuation.yield(.log(text: EvaluationCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
-                        continuation.yield(.evaluationResult(result))
+                        continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
+                        continuation.yield(.analysisResult(result))
                     }
 
                     var freshResults: [RuleEvaluationResult] = []
@@ -109,10 +109,10 @@ public struct AnalyzeUseCase: Sendable {
 
                     if !tasksToEvaluate.isEmpty {
                         let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
-                        let evaluationService = EvaluationService(bridgeClient: bridgeClient)
+                        let analysisService = AnalysisService(bridgeClient: bridgeClient)
 
                         let startTime = Date()
-                        freshResults = try await evaluationService.runBatchEvaluation(
+                        freshResults = try await analysisService.runBatchAnalysis(
                             tasks: tasksToEvaluate,
                             outputDir: prOutputDir,
                             repoPath: effectiveRepoPath,
@@ -125,7 +125,7 @@ public struct AnalyzeUseCase: Sendable {
                                 let globalIndex = cachedCount + index
                                 let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                continuation.yield(.evaluationResult(result))
+                                continuation.yield(.analysisResult(result))
                             },
                             onPrompt: { text in
                                 continuation.yield(.aiPrompt(text: text))
@@ -143,13 +143,13 @@ public struct AnalyzeUseCase: Sendable {
                     }
 
                     // Write task snapshots to phase-5 for future cache checks
-                    try EvaluationCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: evalsDir)
+                    try AnalysisCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: evalsDir)
 
                     // Combine cached and fresh results
                     let allResults = cachedResults + freshResults
                     let violationCount = allResults.filter(\.evaluation.violatesRule).count
 
-                    let summary = EvaluationSummary(
+                    let summary = AnalysisSummary(
                         prNumber: Int(prNumber) ?? 0,
                         evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                         totalTasks: allResults.count,
@@ -177,7 +177,7 @@ public struct AnalyzeUseCase: Sendable {
                         )
                     )
 
-                    continuation.yield(.log(text: EvaluationCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
+                    continuation.yield(.log(text: AnalysisCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
 
                     let output = AnalysisOutput(evaluations: allResults, tasks: tasks, summary: summary, cachedCount: cachedCount)
                     continuation.yield(.completed(output: output))
@@ -191,7 +191,7 @@ public struct AnalyzeUseCase: Sendable {
     }
 
     public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> AnalysisOutput {
-        let summary: EvaluationSummary = try PhaseOutputParser.parsePhaseOutput(
+        let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .analyze, filename: "summary.json"
         )
 
@@ -207,7 +207,7 @@ public struct AnalyzeUseCase: Sendable {
             evaluations.append(evaluation)
         }
 
-        let tasks: [EvaluationTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
+        let tasks: [AnalysisTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
         )) ?? []
 

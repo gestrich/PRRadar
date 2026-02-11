@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Phase 4: Evaluation Task Models
+// MARK: - Analysis Task Models
 
 /// Subset of Rule fields included in evaluation task JSON.
 public struct TaskRule: Codable, Sendable, Equatable {
@@ -46,7 +46,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
 }
 
 /// An evaluation task pairing a rule with a focus area.
-public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
+public struct AnalysisTaskOutput: Codable, Sendable, Equatable {
     public let taskId: String
     public let rule: TaskRule
     public let focusArea: FocusArea
@@ -70,7 +70,7 @@ public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
     ///
     /// Generates a task ID from the rule name and focus ID,
     /// and extracts the subset of rule fields needed for evaluation.
-    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String) -> EvaluationTaskOutput {
+    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String) -> AnalysisTaskOutput {
         let taskId = "\(rule.name)_\(focusArea.focusId)"
         let taskRule = TaskRule(
             name: rule.name,
@@ -82,6 +82,6 @@ public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
             relevantClaudeSkill: rule.relevantClaudeSkill,
             ruleUrl: rule.ruleUrl
         )
-        return EvaluationTaskOutput(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash)
+        return AnalysisTaskOutput(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash)
     }
 }

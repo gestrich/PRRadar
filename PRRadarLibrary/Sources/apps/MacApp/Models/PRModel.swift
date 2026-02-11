@@ -45,7 +45,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var savedTranscripts: [PRRadarPhase: [BridgeTranscript]] = [:]
 
     private(set) var operationMode: OperationMode = .idle
-    private(set) var selectiveEvaluationInFlight: Set<String> = []
+    private(set) var selectiveAnalysisInFlight: Set<String> = []
     private var refreshTask: Task<Void, Never>?
 
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
@@ -94,8 +94,8 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    var isSelectiveEvaluationRunning: Bool {
-        !selectiveEvaluationInFlight.isEmpty
+    var isSelectiveAnalysisRunning: Bool {
+        !selectiveAnalysisInFlight.isEmpty
     }
 
     var isAIPhaseRunning: Bool {
@@ -123,7 +123,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func loadAnalysisSummary() async {
         do {
-            let summary: EvaluationSummary = try PhaseOutputParser.parsePhaseOutput(
+            let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
                 phase: .analyze,
@@ -268,7 +268,7 @@ final class PRModel: Identifiable, Hashable {
                     case .aiOutput: break
                     case .aiPrompt: break
                     case .aiToolUse: break
-                    case .evaluationResult: break
+                    case .analysisResult: break
                     case .completed(let snapshot):
                         syncSnapshot = snapshot
                         let logs = runningLogs(for: .sync)
@@ -463,7 +463,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
-                case .evaluationResult: break
+                case .analysisResult: break
                 case .completed(let output):
                     comments = output
                     let logs = commentPostingLogs
@@ -585,7 +585,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiPrompt(let text):
                     aiCurrentPrompt = text
                 case .aiToolUse: break
-                case .evaluationResult: break
+                case .analysisResult: break
                 case .completed(let output):
                     preparation = output
                     phaseStates[.prepare] = .completed(logs: "")
@@ -620,8 +620,8 @@ final class PRModel: Identifiable, Hashable {
                 case .aiPrompt(let text):
                     aiCurrentPrompt = text
                 case .aiToolUse: break
-                case .evaluationResult(let result):
-                    mergeEvaluationResult(result)
+                case .analysisResult(let result):
+                    mergeAnalysisResult(result)
                 case .completed(let output):
                     analysis = output
                     let logs = runningLogs(for: .analyze)
@@ -637,7 +637,7 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func runSelectiveEvaluation(filter: EvaluationFilter) async {
+    func runSelectiveAnalysis(filter: AnalysisFilter) async {
         let useCase = SelectiveAnalyzeUseCase(config: config)
 
         do {
@@ -652,36 +652,36 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
-                case .evaluationResult(let result):
-                    selectiveEvaluationInFlight.remove(result.taskId)
-                    mergeEvaluationResult(result)
+                case .analysisResult(let result):
+                    selectiveAnalysisInFlight.remove(result.taskId)
+                    mergeAnalysisResult(result)
                 case .completed(let output):
                     analysis = output
-                    selectiveEvaluationInFlight = []
+                    selectiveAnalysisInFlight = []
                 case .failed:
-                    selectiveEvaluationInFlight = []
+                    selectiveAnalysisInFlight = []
                 }
             }
         } catch {
-            selectiveEvaluationInFlight = []
+            selectiveAnalysisInFlight = []
         }
     }
 
-    func startSelectiveAnalysis(filter: EvaluationFilter) {
-        guard let analysis else { return }
-        let matchingTaskIds = analysis.tasks
+    func startSelectiveAnalysis(filter: AnalysisFilter) {
+        guard let tasks = preparation?.tasks, !tasks.isEmpty else { return }
+        let matchingTaskIds = tasks
             .filter { filter.matches($0) }
             .map(\.taskId)
-        selectiveEvaluationInFlight.formUnion(matchingTaskIds)
+        selectiveAnalysisInFlight.formUnion(matchingTaskIds)
 
         Task {
-            await runSelectiveEvaluation(filter: filter)
+            await runSelectiveAnalysis(filter: filter)
         }
     }
 
-    private func mergeEvaluationResult(_ result: RuleEvaluationResult) {
+    private func mergeAnalysisResult(_ result: RuleEvaluationResult) {
         guard let existing = analysis else {
-            let summary = EvaluationSummary(
+            let summary = AnalysisSummary(
                 prNumber: Int(prNumber) ?? 0,
                 evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                 totalTasks: 1,
@@ -701,7 +701,7 @@ final class PRModel: Identifiable, Hashable {
         evaluations.append(result)
 
         let violationCount = evaluations.filter(\.evaluation.violatesRule).count
-        let summary = EvaluationSummary(
+        let summary = AnalysisSummary(
             prNumber: Int(prNumber) ?? 0,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
             totalTasks: evaluations.count,
@@ -736,7 +736,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
-                case .evaluationResult: break
+                case .analysisResult: break
                 case .completed(let output):
                     report = output
                     let logs = runningLogs(for: .report)

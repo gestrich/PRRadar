@@ -46,7 +46,7 @@ public struct RunPipelineUseCase: Sendable {
                         case .aiOutput: break
                         case .aiPrompt: break
                         case .aiToolUse: break
-                        case .evaluationResult: break
+                        case .analysisResult: break
                         case .completed:
                             diffCompleted = true
                         case .failed(let error, let logs):
@@ -79,7 +79,7 @@ public struct RunPipelineUseCase: Sendable {
                             continuation.yield(.aiPrompt(text: text))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
-                        case .evaluationResult: break
+                        case .analysisResult: break
                         case .completed:
                             rulesCompleted = true
                         case .failed(let error, let logs):
@@ -111,8 +111,8 @@ public struct RunPipelineUseCase: Sendable {
                             continuation.yield(.aiPrompt(text: text))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
-                        case .evaluationResult(let result):
-                            continuation.yield(.evaluationResult(result))
+                        case .analysisResult(let result):
+                            continuation.yield(.analysisResult(result))
                         case .completed:
                             evalCompleted = true
                         case .failed(let error, let logs):
@@ -141,7 +141,7 @@ public struct RunPipelineUseCase: Sendable {
                         case .aiOutput: break
                         case .aiPrompt: break
                         case .aiToolUse: break
-                        case .evaluationResult: break
+                        case .analysisResult: break
                         case .completed(let output):
                             reportOutput = output
                         case .failed(let error, let logs):
@@ -164,7 +164,7 @@ public struct RunPipelineUseCase: Sendable {
                             case .aiOutput: break
                             case .aiPrompt: break
                             case .aiToolUse: break
-                            case .evaluationResult: break
+                            case .analysisResult: break
                             case .completed: break
                             case .failed(let error, _):
                                 continuation.yield(.log(text: "Comment posting failed: \(error)\n"))

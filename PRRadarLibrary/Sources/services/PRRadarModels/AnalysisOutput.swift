@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Phase 5: Evaluation Output Models
+// MARK: - Analysis Output Models
 
 /// Result of evaluating a single rule against a focus area, matching Python's RuleEvaluation.to_dict()
 public struct RuleEvaluation: Codable, Sendable {
@@ -70,8 +70,8 @@ public struct RuleEvaluationResult: Codable, Sendable {
     }
 }
 
-/// Summary of an evaluation run, matching Python's EvaluationSummary.to_dict()
-public struct EvaluationSummary: Codable, Sendable {
+/// Summary of an evaluation run, matching Python's AnalysisSummary.to_dict()
+public struct AnalysisSummary: Codable, Sendable {
     public let prNumber: Int
     public let evaluatedAt: String
     public let totalTasks: Int

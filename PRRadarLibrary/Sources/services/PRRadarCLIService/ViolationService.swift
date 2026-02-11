@@ -9,7 +9,7 @@ public struct ViolationService: Sendable {
     /// Filter evaluation results by violation status and score, converting to PRComment instances.
     public static func filterByScore(
         results: [RuleEvaluationResult],
-        tasks: [EvaluationTaskOutput],
+        tasks: [AnalysisTaskOutput],
         minScore: Int
     ) -> [PRComment] {
         let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
@@ -34,12 +34,12 @@ public struct ViolationService: Sendable {
         var comments: [PRComment] = []
 
         // Load task metadata
-        var taskMetadata: [String: EvaluationTaskOutput] = [:]
+        var taskMetadata: [String: AnalysisTaskOutput] = [:]
         if let taskFiles = try? fm.contentsOfDirectory(atPath: tasksDir) {
             for file in taskFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
                 let path = "\(tasksDir)/\(file)"
                 guard let data = fm.contents(atPath: path),
-                      let task = try? JSONDecoder().decode(EvaluationTaskOutput.self, from: data) else { continue }
+                      let task = try? JSONDecoder().decode(AnalysisTaskOutput.self, from: data) else { continue }
                 taskMetadata[task.taskId] = task
             }
         }

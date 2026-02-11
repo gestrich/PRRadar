@@ -190,7 +190,7 @@ Update `NavigationPhase`:
 - Toolbar button labels were already correct from Phase 3: "Sync PR", "Prepare", "Analyze"
 - All 371 tests pass, build succeeds
 
-## - [ ] Phase 5: Update services layer
+## - [x] Phase 5: Update services layer ✅
 
 Update service references:
 - `PRRadarCLIService` — any phase-specific service methods
@@ -198,6 +198,19 @@ Update service references:
 - `PhaseResultWriter` — update phase result writing
 - `DataPathsService` — output directory paths for new phase names
 - `EvaluationCacheService` → `AnalysisCacheService`?
+
+### Technical Notes
+
+- File renames via `git mv` for clean history: `EvaluationService.swift` → `AnalysisService.swift`, `EvaluationCacheService.swift` → `AnalysisCacheService.swift`, `EvaluationFilter.swift` → `AnalysisFilter.swift`, `EvaluationOutput.swift` → `AnalysisOutput.swift`
+- Type renames: `EvaluationService` → `AnalysisService`, `EvaluationCacheService` → `AnalysisCacheService`, `EvaluationFilter` → `AnalysisFilter`, `EvaluationSummary` → `AnalysisSummary`, `EvaluationTaskOutput` → `AnalysisTaskOutput`
+- Public method renames: `evaluateTask()` → `analyzeTask()`, `runBatchEvaluation()` → `runBatchAnalysis()`
+- Local variable renames: `evaluationService` → `analysisService` (in AnalyzeUseCase, SelectiveAnalyzeUseCase)
+- PRModel private member renames: `mergeEvaluationResult` → `mergeAnalysisResult`, `selectiveEvaluationInFlight` → `selectiveAnalysisInFlight`, `runSelectiveEvaluation` → `runSelectiveAnalysis`, `isSelectiveEvaluationRunning` → `isSelectiveAnalysisRunning`
+- `PhaseProgress` enum case rename: `.evaluationResult` → `.analysisResult`
+- Types deliberately NOT renamed: `RuleEvaluation`, `RuleEvaluationResult` (these describe individual rule evaluations, not the pipeline phase)
+- Private template strings (`evaluationPromptTemplate`, `evaluationOutputSchema`) kept as-is — they describe the AI evaluation operation, not the pipeline phase
+- Test file renames: `EvaluationFilterTests.swift` → `AnalysisFilterTests.swift`, `EvaluationSummaryModelsUsedTests.swift` → `AnalysisSummaryModelsUsedTests.swift`, `EvaluationCacheServiceTests.swift` → `AnalysisCacheServiceTests.swift`, `EvaluationOutputTests.swift` → `AnalysisOutputTests.swift`
+- All 371 tests pass, build succeeds
 
 ## - [ ] Phase 6: Update tests
 

@@ -3,8 +3,8 @@ import Testing
 @testable import PRRadarCLIService
 @testable import PRRadarModels
 
-@Suite("EvaluationCacheService")
-struct EvaluationCacheServiceTests {
+@Suite("AnalysisCacheService")
+struct AnalysisCacheServiceTests {
 
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -20,8 +20,8 @@ struct EvaluationCacheServiceTests {
         return path
     }
 
-    private func makeTask(id: String, blobHash: String) -> EvaluationTaskOutput {
-        EvaluationTaskOutput(
+    private func makeTask(id: String, blobHash: String) -> AnalysisTaskOutput {
+        AnalysisTaskOutput(
             taskId: id,
             rule: TaskRule(
                 name: "rule-\(id)",
@@ -67,7 +67,7 @@ struct EvaluationCacheServiceTests {
         try data.write(to: URL(fileURLWithPath: path))
     }
 
-    private func writeTaskSnapshot(_ task: EvaluationTaskOutput, to dir: String) throws {
+    private func writeTaskSnapshot(_ task: AnalysisTaskOutput, to dir: String) throws {
         let data = try encoder.encode(task)
         let path = "\(dir)/task-\(task.taskId).json"
         try data.write(to: URL(fileURLWithPath: path))
@@ -82,7 +82,7 @@ struct EvaluationCacheServiceTests {
         let tasks = [makeTask(id: "t1", blobHash: "aaa"), makeTask(id: "t2", blobHash: "bbb")]
 
         // Act
-        let (cached, toEvaluate) = EvaluationCacheService.partitionTasks(tasks: tasks, evalsDir: dir)
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: tasks, evalsDir: dir)
 
         // Assert
         #expect(cached.isEmpty)
@@ -102,7 +102,7 @@ struct EvaluationCacheServiceTests {
         try writeTaskSnapshot(task, to: dir)
 
         // Act
-        let (cached, toEvaluate) = EvaluationCacheService.partitionTasks(tasks: [task], evalsDir: dir)
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [task], evalsDir: dir)
 
         // Assert
         #expect(cached.count == 1)
@@ -124,7 +124,7 @@ struct EvaluationCacheServiceTests {
         try writeTaskSnapshot(oldTask, to: dir)
 
         // Act
-        let (cached, toEvaluate) = EvaluationCacheService.partitionTasks(tasks: [newTask], evalsDir: dir)
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [newTask], evalsDir: dir)
 
         // Assert
         #expect(cached.isEmpty)
@@ -149,7 +149,7 @@ struct EvaluationCacheServiceTests {
         try writeTaskSnapshot(makeTask(id: "t2", blobHash: "old-hash"), to: dir)
 
         // Act
-        let (cached, toEvaluate) = EvaluationCacheService.partitionTasks(
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(
             tasks: [unchangedTask, changedTask, newTask], evalsDir: dir
         )
 
@@ -170,7 +170,7 @@ struct EvaluationCacheServiceTests {
         try writeEvalResult(makeResult(taskId: "t1"), to: dir)
 
         // Act
-        let (cached, toEvaluate) = EvaluationCacheService.partitionTasks(tasks: [task], evalsDir: dir)
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [task], evalsDir: dir)
 
         // Assert
         #expect(cached.isEmpty)
@@ -186,14 +186,14 @@ struct EvaluationCacheServiceTests {
         let tasks = [makeTask(id: "t1", blobHash: "aaa"), makeTask(id: "t2", blobHash: "bbb")]
 
         // Act
-        try EvaluationCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: dir)
+        try AnalysisCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: dir)
 
         // Assert
         let decoder = JSONDecoder()
         for task in tasks {
             let path = "\(dir)/task-\(task.taskId).json"
             let data = try #require(FileManager.default.contents(atPath: path))
-            let decoded = try decoder.decode(EvaluationTaskOutput.self, from: data)
+            let decoded = try decoder.decode(AnalysisTaskOutput.self, from: data)
             #expect(decoded == task)
         }
     }
@@ -203,7 +203,7 @@ struct EvaluationCacheServiceTests {
     @Test("Start message shows cache counts when cached tasks exist")
     func startMessageWithCache() {
         // Act
-        let message = EvaluationCacheService.startMessage(cachedCount: 3, freshCount: 2, totalCount: 5)
+        let message = AnalysisCacheService.startMessage(cachedCount: 3, freshCount: 2, totalCount: 5)
 
         // Assert
         #expect(message == "Skipping 3 cached evaluations, evaluating 2 new tasks")
@@ -212,7 +212,7 @@ struct EvaluationCacheServiceTests {
     @Test("Start message shows total count when no cached tasks")
     func startMessageColdStart() {
         // Act
-        let message = EvaluationCacheService.startMessage(cachedCount: 0, freshCount: 5, totalCount: 5)
+        let message = AnalysisCacheService.startMessage(cachedCount: 0, freshCount: 5, totalCount: 5)
 
         // Assert
         #expect(message == "Evaluating 5 tasks...")
@@ -226,7 +226,7 @@ struct EvaluationCacheServiceTests {
         let result = makeResult(taskId: "t1", violates: false)
 
         // Act
-        let message = EvaluationCacheService.cachedTaskMessage(index: 1, totalCount: 5, result: result)
+        let message = AnalysisCacheService.cachedTaskMessage(index: 1, totalCount: 5, result: result)
 
         // Assert
         #expect(message == "[1/5] rule-t1 — OK (cached)")
@@ -238,7 +238,7 @@ struct EvaluationCacheServiceTests {
         let result = makeResult(taskId: "t1", violates: true)
 
         // Act
-        let message = EvaluationCacheService.cachedTaskMessage(index: 2, totalCount: 10, result: result)
+        let message = AnalysisCacheService.cachedTaskMessage(index: 2, totalCount: 10, result: result)
 
         // Assert
         #expect(message == "[2/10] rule-t1 — VIOLATION (7/10) (cached)")
@@ -249,7 +249,7 @@ struct EvaluationCacheServiceTests {
     @Test("Completion message shows cached breakdown when cached tasks exist")
     func completionMessageWithCache() {
         // Act
-        let message = EvaluationCacheService.completionMessage(freshCount: 2, cachedCount: 3, totalCount: 5, violationCount: 1)
+        let message = AnalysisCacheService.completionMessage(freshCount: 2, cachedCount: 3, totalCount: 5, violationCount: 1)
 
         // Assert
         #expect(message == "Evaluation complete: 2 new, 3 cached, 5 total — 1 violations found")
@@ -258,7 +258,7 @@ struct EvaluationCacheServiceTests {
     @Test("Completion message shows simple total when no cached tasks")
     func completionMessageColdStart() {
         // Act
-        let message = EvaluationCacheService.completionMessage(freshCount: 5, cachedCount: 0, totalCount: 5, violationCount: 0)
+        let message = AnalysisCacheService.completionMessage(freshCount: 5, cachedCount: 0, totalCount: 5, violationCount: 0)
 
         // Assert
         #expect(message == "Evaluation complete: 5 evaluated — 0 violations found")
@@ -273,13 +273,13 @@ struct EvaluationCacheServiceTests {
         let tasks = [makeTask(id: "t1", blobHash: "hash1"), makeTask(id: "t2", blobHash: "hash2")]
         let results = [makeResult(taskId: "t1", violates: true), makeResult(taskId: "t2")]
 
-        try EvaluationCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: dir)
+        try AnalysisCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: dir)
         for result in results {
             try writeEvalResult(result, to: dir)
         }
 
         // Act
-        let (cached, toEvaluate) = EvaluationCacheService.partitionTasks(tasks: tasks, evalsDir: dir)
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: tasks, evalsDir: dir)
 
         // Assert
         #expect(cached.count == 2)
