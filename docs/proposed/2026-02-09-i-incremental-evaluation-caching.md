@@ -99,7 +99,7 @@ Update progress reporting so the CLI/UI shows which tasks are cached vs. fresh.
 
 **Completed**: Extracted progress message formatting into testable static methods on `EvaluationCacheService` (`startMessage`, `cachedTaskMessage`, `completionMessage`). `EvaluateUseCase` now logs each cached task with `[index/total] ruleName — status (cached)` before evaluating fresh tasks, and shows a breakdown summary at completion. Fresh task progress uses global indexing (offset by cached count) so numbering is continuous. Added `cachedCount` to `EvaluationPhaseOutput` so the CLI's structured summary shows "Tasks evaluated: X new, Y cached, Z total" when caching is active. 6 new tests verify all message formatting variants. All 344 tests pass.
 
-- [ ] Phase 4: Architecture Validation
+- [x] Phase 4: Architecture Validation
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -114,6 +114,15 @@ Review all changes and validate they follow the project's architectural conventi
    - Skip logic is in Features layer (use cases)
    - Dependencies flow downward only
 4. Fix any violations
+
+**Completed**: Reviewed all 11 changed files across 3 commits (2e6baff, 5918bfb, cd81bd4). All changes comply with the 4-layer architecture:
+- `gitBlobHash` field on `EvaluationTaskOutput` → `PRRadarModels` (Services layer)
+- `getBlobHash()` on `GitOperationsService` → `PRRadarCLIService` (Services layer, wraps SDK-level `GitCLI.RevParse`)
+- `EvaluationCacheService` (stateless enum, all static methods) → `PRRadarCLIService` (Services layer, shared utility)
+- Cache orchestration (partition → evaluate → write snapshots) → `EvaluateUseCase` (Features layer)
+- `TaskCreatorService` accepts `GitOperationsService` via constructor injection
+- Dependencies flow downward only: Apps → Features → Services → SDKs
+- No architectural violations found. Build succeeds, all 344 tests pass.
 
 - [ ] Phase 5: Validation
 
