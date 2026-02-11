@@ -153,6 +153,13 @@ public struct ContentView: View {
         .task {
             if savedPRNumber != 0, let pr = currentPRModels.first(where: { $0.metadata.number == savedPRNumber }) {
                 selectedPR = pr
+            } else if selectedPR == nil, let first = filteredPRModels.first {
+                selectedPR = first
+            }
+        }
+        .onChange(of: filteredPRModels.count) { _, _ in
+            if selectedPR == nil, let first = filteredPRModels.first {
+                selectedPR = first
             }
         }
     }

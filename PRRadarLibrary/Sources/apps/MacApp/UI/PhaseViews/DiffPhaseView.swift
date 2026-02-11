@@ -52,6 +52,11 @@ struct DiffPhaseView: View {
                 diffContent(for: activeDiff)
             }
         }
+        .onAppear {
+            if selectedFile == nil {
+                selectedFile = fullDiff.changedFiles.first
+            }
+        }
     }
 
     // MARK: - Summary Bar
