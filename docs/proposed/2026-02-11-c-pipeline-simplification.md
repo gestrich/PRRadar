@@ -212,7 +212,7 @@ Update service references:
 - Test file renames: `EvaluationFilterTests.swift` → `AnalysisFilterTests.swift`, `EvaluationSummaryModelsUsedTests.swift` → `AnalysisSummaryModelsUsedTests.swift`, `EvaluationCacheServiceTests.swift` → `AnalysisCacheServiceTests.swift`, `EvaluationOutputTests.swift` → `AnalysisOutputTests.swift`
 - All 371 tests pass, build succeeds
 
-## - [ ] Phase 6: Update tests
+## - [x] Phase 6: Update tests ✅
 
 **Skills to read**: `/swift-testing`
 
@@ -220,6 +220,17 @@ Update service references:
 - Any test that references specific phase cases
 - Verify all 230+ tests still pass after rename
 - Consider whether test file names need updating
+
+### Technical Notes
+
+- `PhaseBehaviorTests.swift` already used correct 4-phase names (`.sync`, `.prepare`, `.analyze`, `.report`) from Phase 1 updates — no changes needed
+- Test function name renames in `TaskBehaviorTests.swift`: `evaluationTaskInit` → `analysisTaskInit`, `evaluationTaskFromFactory` → `analysisTaskFromFactory`, `evaluationTaskFromMinimalRule` → `analysisTaskFromMinimalRule`, `evaluationTaskJsonRoundTrip` → `analysisTaskJsonRoundTrip`
+- Test function name renames in `TaskOutputTests.swift`: `evaluationTaskOutputDecode` → `analysisTaskOutputDecode`, `evaluationTaskWithDocs` → `analysisTaskWithDocs`, `evaluationTaskRoundTrip` → `analysisTaskRoundTrip`
+- Test function name renames in `AnalysisOutputTests.swift`: `evaluationSummaryDecode` → `analysisSummaryDecode`, `evaluationSummaryEmpty` → `analysisSummaryEmpty`, `evaluationSummaryRoundTrip` → `analysisSummaryRoundTrip`
+- `AnalysisCacheServiceTests.swift`: `writeEvalResult` helper → `writeAnalysisResult`, `evalExistsButNoTaskSnapshot` → `analysisExistsButNoTaskSnapshot`, temp dir prefix `eval-cache-test` → `analysis-cache-test`
+- Types deliberately NOT renamed (per Phase 5 decision): `RuleEvaluation`, `RuleEvaluationResult` — these describe individual rule evaluations, not the pipeline phase
+- Test file names already correct from Phase 5 renames (`AnalysisFilterTests.swift`, `AnalysisCacheServiceTests.swift`, `AnalysisOutputTests.swift`, `AnalysisSummaryModelsUsedTests.swift`)
+- All 371 tests pass, build succeeds
 
 ## - [ ] Phase 7: Validation
 

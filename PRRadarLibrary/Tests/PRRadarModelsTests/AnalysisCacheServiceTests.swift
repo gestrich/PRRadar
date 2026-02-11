@@ -15,7 +15,7 @@ struct AnalysisCacheServiceTests {
     // MARK: - Helpers
 
     private func makeTempDir() throws -> String {
-        let path = NSTemporaryDirectory() + "eval-cache-test-\(UUID().uuidString)"
+        let path = NSTemporaryDirectory() + "analysis-cache-test-\(UUID().uuidString)"
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
         return path
     }
@@ -61,7 +61,7 @@ struct AnalysisCacheServiceTests {
         )
     }
 
-    private func writeEvalResult(_ result: RuleEvaluationResult, to dir: String) throws {
+    private func writeAnalysisResult(_ result: RuleEvaluationResult, to dir: String) throws {
         let data = try encoder.encode(result)
         let path = "\(dir)/data-\(result.taskId).json"
         try data.write(to: URL(fileURLWithPath: path))
@@ -98,7 +98,7 @@ struct AnalysisCacheServiceTests {
         let dir = try makeTempDir()
         let task = makeTask(id: "t1", blobHash: "aaa")
         let result = makeResult(taskId: "t1", violates: true)
-        try writeEvalResult(result, to: dir)
+        try writeAnalysisResult(result, to: dir)
         try writeTaskSnapshot(task, to: dir)
 
         // Act
@@ -120,7 +120,7 @@ struct AnalysisCacheServiceTests {
         let oldTask = makeTask(id: "t1", blobHash: "old-hash")
         let newTask = makeTask(id: "t1", blobHash: "new-hash")
         let result = makeResult(taskId: "t1")
-        try writeEvalResult(result, to: dir)
+        try writeAnalysisResult(result, to: dir)
         try writeTaskSnapshot(oldTask, to: dir)
 
         // Act
@@ -143,9 +143,9 @@ struct AnalysisCacheServiceTests {
         let newTask = makeTask(id: "t3", blobHash: "brand-new")
 
         // Write prior data for t1 (unchanged) and t2 (old hash)
-        try writeEvalResult(makeResult(taskId: "t1", violates: true), to: dir)
+        try writeAnalysisResult(makeResult(taskId: "t1", violates: true), to: dir)
         try writeTaskSnapshot(unchangedTask, to: dir)
-        try writeEvalResult(makeResult(taskId: "t2"), to: dir)
+        try writeAnalysisResult(makeResult(taskId: "t2"), to: dir)
         try writeTaskSnapshot(makeTask(id: "t2", blobHash: "old-hash"), to: dir)
 
         // Act
@@ -162,12 +162,12 @@ struct AnalysisCacheServiceTests {
 
     // MARK: - partitionTasks: eval exists but no task snapshot
 
-    @Test("Task re-evaluated when eval exists but task snapshot is missing")
-    func evalExistsButNoTaskSnapshot() throws {
+    @Test("Task re-evaluated when analysis exists but task snapshot is missing")
+    func analysisExistsButNoTaskSnapshot() throws {
         // Arrange
         let dir = try makeTempDir()
         let task = makeTask(id: "t1", blobHash: "aaa")
-        try writeEvalResult(makeResult(taskId: "t1"), to: dir)
+        try writeAnalysisResult(makeResult(taskId: "t1"), to: dir)
 
         // Act
         let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [task], evalsDir: dir)
@@ -275,7 +275,7 @@ struct AnalysisCacheServiceTests {
 
         try AnalysisCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: dir)
         for result in results {
-            try writeEvalResult(result, to: dir)
+            try writeAnalysisResult(result, to: dir)
         }
 
         // Act

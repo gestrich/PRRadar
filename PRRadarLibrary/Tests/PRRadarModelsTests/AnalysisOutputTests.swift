@@ -124,7 +124,7 @@ struct AnalysisOutputTests {
     // MARK: - AnalysisSummary
 
     @Test("AnalysisSummary decodes from Python's AnalysisSummary.to_dict()")
-    func evaluationSummaryDecode() throws {
+    func analysisSummaryDecode() throws {
         let json = """
         {
             "pr_number": 42,
@@ -183,7 +183,7 @@ struct AnalysisOutputTests {
     }
 
     @Test("AnalysisSummary with empty results")
-    func evaluationSummaryEmpty() throws {
+    func analysisSummaryEmpty() throws {
         let json = """
         {
             "pr_number": 1,
@@ -202,7 +202,7 @@ struct AnalysisOutputTests {
     }
 
     @Test("AnalysisSummary round-trips through encode/decode")
-    func evaluationSummaryRoundTrip() throws {
+    func analysisSummaryRoundTrip() throws {
         let json = """
         {
             "pr_number": 10,

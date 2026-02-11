@@ -42,7 +42,7 @@ struct TaskBehaviorTests {
     // MARK: - AnalysisTaskOutput init
 
     @Test("AnalysisTaskOutput memberwise init sets all fields")
-    func evaluationTaskInit() {
+    func analysisTaskInit() {
         let taskRule = TaskRule(
             name: "test-rule",
             description: "Test",
@@ -75,7 +75,7 @@ struct TaskBehaviorTests {
     // MARK: - AnalysisTaskOutput.from factory
 
     @Test("from(rule:focusArea:) creates task with correct ID and rule subset")
-    func evaluationTaskFromFactory() {
+    func analysisTaskFromFactory() {
         let rule = ReviewRule(
             name: "error-handling",
             filePath: "/rules/error-handling.md",
@@ -123,7 +123,7 @@ struct TaskBehaviorTests {
     }
 
     @Test("from(rule:focusArea:) with minimal rule")
-    func evaluationTaskFromMinimalRule() {
+    func analysisTaskFromMinimalRule() {
         let rule = ReviewRule(
             name: "simple",
             filePath: "/rules/simple.md",
@@ -153,7 +153,7 @@ struct TaskBehaviorTests {
     // MARK: - JSON round-trip
 
     @Test("AnalysisTaskOutput round-trips through JSON with gitBlobHash")
-    func evaluationTaskJsonRoundTrip() throws {
+    func analysisTaskJsonRoundTrip() throws {
         // Arrange
         let taskRule = TaskRule(
             name: "error-handling",

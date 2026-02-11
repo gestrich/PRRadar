@@ -50,7 +50,7 @@ struct TaskOutputTests {
     // MARK: - AnalysisTaskOutput
 
     @Test("AnalysisTaskOutput decodes from Python's EvaluationTask.to_dict()")
-    func evaluationTaskOutputDecode() throws {
+    func analysisTaskOutputDecode() throws {
         let json = """
         {
             "task_id": "error-handling-method-handler_py-process-10-25",
@@ -86,7 +86,7 @@ struct TaskOutputTests {
     }
 
     @Test("AnalysisTaskOutput with documentation_link in rule")
-    func evaluationTaskWithDocs() throws {
+    func analysisTaskWithDocs() throws {
         let json = """
         {
             "task_id": "docs-rule-file-readme-1-100",
@@ -120,7 +120,7 @@ struct TaskOutputTests {
     }
 
     @Test("AnalysisTaskOutput round-trips through encode/decode")
-    func evaluationTaskRoundTrip() throws {
+    func analysisTaskRoundTrip() throws {
         let json = """
         {
             "task_id": "test-task-id",
