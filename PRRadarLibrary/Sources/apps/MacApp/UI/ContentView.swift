@@ -45,6 +45,7 @@ public struct ContentView: View {
                 } label: {
                     Image(systemName: "gear")
                 }
+                .accessibilityIdentifier("settingsButton")
                 .help("Manage configurations")
             }
 
@@ -59,6 +60,7 @@ public struct ContentView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
+                .accessibilityIdentifier("refreshButton")
                 .help("Refresh PR data")
                 .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
 
@@ -72,6 +74,7 @@ public struct ContentView: View {
                         Image(systemName: "sparkles")
                     }
                 }
+                .accessibilityIdentifier("analyzeButton")
                 .help("Analyze PR")
                 .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
 
@@ -83,6 +86,7 @@ public struct ContentView: View {
                 } label: {
                     Image(systemName: "folder")
                 }
+                .accessibilityIdentifier("folderButton")
                 .help("Open PR data in Finder")
                 .disabled(selectedPR == nil || selectedPR!.prNumber.isEmpty)
 
@@ -95,6 +99,7 @@ public struct ContentView: View {
                 } label: {
                     Image(systemName: "safari")
                 }
+                .accessibilityIdentifier("safariButton")
                 .help("Open PR on GitHub")
                 .disabled(selectedPR?.metadata.url == nil)
             }
@@ -175,8 +180,10 @@ public struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            .accessibilityIdentifier("configRow_\(config.name)")
             .tag(config)
         }
+        .accessibilityIdentifier("configSidebar")
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 150, ideal: 180)
     }
@@ -199,6 +206,7 @@ public struct ContentView: View {
                         PRListRow(prModel: prModel)
                             .tag(prModel)
                     }
+                    .accessibilityIdentifier("prList")
                 }
             } else {
                 ContentUnavailableView(
@@ -218,6 +226,7 @@ public struct ContentView: View {
                     Button("\(days) days") { daysLookBack = days }
                 }
             }
+            .accessibilityIdentifier("daysFilter")
             .help("Days to look back")
 
             Menu(stateFilterLabel) {
@@ -227,6 +236,7 @@ public struct ContentView: View {
                     Button(state.displayName) { selectedPRStateString = state.rawValue }
                 }
             }
+            .accessibilityIdentifier("stateFilter")
             .help("Filter by PR state")
 
             Toggle(isOn: Binding(
@@ -235,6 +245,7 @@ public struct ContentView: View {
             )) {
                 Image(systemName: "text.bubble")
             }
+            .accessibilityIdentifier("pendingCommentsToggle")
             .help("Show only PRs with pending comments")
             .toggleStyle(.button)
 
@@ -259,6 +270,7 @@ public struct ContentView: View {
                     Image(systemName: "arrow.clockwise")
                 }
             }
+            .accessibilityIdentifier("refreshListButton")
             .help(allPRs?.refreshAllState.isRunning == true ? "Show progress" : "Refresh PR list")
 
             Spacer()
@@ -284,6 +296,7 @@ public struct ContentView: View {
                     Image(systemName: "sparkles")
                 }
             }
+            .accessibilityIdentifier("analyzeAllButton")
             .help(allPRs?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
             .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
                 analyzeAllPopover
@@ -295,6 +308,7 @@ public struct ContentView: View {
             } label: {
                 Image(systemName: "plus")
             }
+            .accessibilityIdentifier("newReviewButton")
             .help("Start a new PR review")
             .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
                 newReviewPopover
@@ -338,6 +352,7 @@ public struct ContentView: View {
                 .font(.headline)
 
             TextField("PR number", text: $newPRNumber)
+                .accessibilityIdentifier("prNumberField")
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 160)
                 .onSubmit {
@@ -347,6 +362,7 @@ public struct ContentView: View {
             Button("Start Review") {
                 submitNewReview()
             }
+            .accessibilityIdentifier("startReviewButton")
             .disabled(Int(newPRNumber) == nil)
             .keyboardShortcut(.defaultAction)
         }

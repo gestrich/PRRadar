@@ -111,6 +111,7 @@ struct ReviewDetailView: View {
                                     Label("AI Output", systemImage: "text.bubble")
                                 }
                             }
+                            .accessibilityIdentifier("aiOutputButton")
                         }
                         Spacer()
                         if prModel.diff?.effectiveDiff != nil {
@@ -119,6 +120,7 @@ struct ReviewDetailView: View {
                             } label: {
                                 Label("View Effective Diff", systemImage: "doc.text.magnifyingglass")
                             }
+                            .accessibilityIdentifier("effectiveDiffButton")
                         }
                     }
                     .padding(.horizontal)
@@ -232,7 +234,9 @@ struct ReviewDetailView: View {
     private var diffToolbar: some View {
         HStack(spacing: 12) {
             compactPhaseButton(phase: .pullRequest, label: "Fetch Diff", icon: "arrow.down.doc")
+                .accessibilityIdentifier("fetchDiffButton")
             compactPhaseButton(phase: .rules, label: "Rules & Tasks", icon: "list.bullet.clipboard")
+                .accessibilityIdentifier("rulesTasksButton")
             Spacer()
         }
         .padding(.horizontal)

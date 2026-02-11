@@ -134,7 +134,7 @@ Create `.claude/skills/creating-automated-screenshots/SKILL.md` for pre-scripted
 
 **Completed**: Created `.claude/skills/creating-automated-screenshots/SKILL.md` adapted from the `xcode-sim-automation` template. Key adaptations: all `xcodebuild` commands use `-project PRRadar.xcodeproj -scheme PRRadarMac -destination 'platform=macOS'`; prerequisites simplified (no SPM setup needed — already configured in the Xcode project); added PRRadar-specific navigation patterns section documenting the three-column `NavigationSplitView` layout (Config Sidebar → PR List → Detail View) with navigation steps for common views (Summary, Diff, Report, Settings); retained `captureHierarchy`/`findTappable` helpers, element type discovery docs, iterative debugging workflow, and build-first pattern; added macOS-specific notes (no simulator, window visibility, no pinch). Build verified with `xcodebuild build-for-testing`.
 
-## - [ ] Phase 5: Add Accessibility Identifiers to Key MacApp Views
+## - [x] Phase 5: Add Accessibility Identifiers to Key MacApp Views
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -157,6 +157,8 @@ For reliable XCUITest automation, key UI elements need accessibility identifiers
 - Navigation targets (buttons, tabs, list rows)
 - Text fields (search, config editing)
 - Action buttons (run phase, analyze, refresh)
+
+**Completed**: Added `.accessibilityIdentifier()` to all key interactive elements across 5 view files. **ContentView** (13 identifiers): toolbar buttons (`settingsButton`, `refreshButton`, `analyzeButton`, `folderButton`, `safariButton`), config sidebar list + rows (`configSidebar`, `configRow_\(name)`), PR list (`prList`), filter bar controls (`daysFilter`, `stateFilter`, `pendingCommentsToggle`, `refreshListButton`, `analyzeAllButton`, `newReviewButton`), new review popover (`prNumberField`, `startReviewButton`). **ReviewDetailView** (4 identifiers): diff toolbar buttons (`fetchDiffButton`, `rulesTasksButton`), AI output and effective diff sheet buttons (`aiOutputButton`, `effectiveDiffButton`). **PRListRow** (1 identifier): `prRow_\(pr.number)`. **PipelineStatusView** (3 identifiers): `phaseButton_summary`, `phaseButton_diff`, `phaseButton_report`. **SettingsView** (6 identifiers): `addConfigButton`, `settingsDoneButton`, config row + action buttons (`configRow_\(name)`, `editConfig_\(name)`, `setDefaultConfig_\(name)`, `deleteConfig_\(name)`). Build verified with `swift build`.
 
 ## - [ ] Phase 6: Test xcodebuild Start/Stop Reliability
 

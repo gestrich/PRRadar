@@ -21,6 +21,7 @@ struct SettingsView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityIdentifier("addConfigButton")
             }
             .padding()
 
@@ -54,6 +55,7 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }
+                    .accessibilityIdentifier("settingsDoneButton")
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -111,12 +113,14 @@ private struct ConfigurationRow: View {
             Button(action: onEdit) {
                 Image(systemName: "pencil")
             }
+            .accessibilityIdentifier("editConfig_\(config.name)")
             .buttonStyle(.borderless)
 
             if !config.isDefault {
                 Button(action: onSetDefault) {
                     Image(systemName: "star")
                 }
+                .accessibilityIdentifier("setDefaultConfig_\(config.name)")
                 .buttonStyle(.borderless)
                 .help("Set as default")
             }
@@ -124,9 +128,11 @@ private struct ConfigurationRow: View {
             Button(action: onDelete) {
                 Image(systemName: "trash")
             }
+            .accessibilityIdentifier("deleteConfig_\(config.name)")
             .buttonStyle(.borderless)
             .foregroundStyle(.red)
         }
+        .accessibilityIdentifier("configRow_\(config.name)")
         .padding(.vertical, 4)
     }
 }

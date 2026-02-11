@@ -58,6 +58,7 @@ struct PRListRow: View {
             }
         }
         .padding(.vertical, 2)
+        .accessibilityIdentifier("prRow_\(pr.number)")
     }
 
     // MARK: - Analysis Badge

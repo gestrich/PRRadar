@@ -76,6 +76,7 @@ struct PipelineStatusView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
+        .accessibilityIdentifier("phaseButton_\(navPhase.displayName.lowercased())")
         .buttonStyle(.plain)
         .popover(item: errorPopoverItem(for: navPhase), arrowEdge: .top) { phase in
             errorPopoverContent(for: phase)
