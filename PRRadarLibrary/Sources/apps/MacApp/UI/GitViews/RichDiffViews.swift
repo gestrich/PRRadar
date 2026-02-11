@@ -282,25 +282,10 @@ struct AnnotatedHunkContentView: View {
     let hunk: Hunk
     let commentsAtLine: [Int: [ReviewComment]]
     let searchQuery: String
-    var prModel: PRModel? = nil
-    var imageURLMap: [String: String]? = nil
-    var imageBaseDir: String? = nil
+    var prModel: PRModel
 
-    init(
-        hunk: Hunk,
-        commentsAtLine: [Int: [ReviewComment]],
-        searchQuery: String,
-        prModel: PRModel? = nil,
-        imageURLMap: [String: String]? = nil,
-        imageBaseDir: String? = nil
-    ) {
-        self.hunk = hunk
-        self.commentsAtLine = commentsAtLine
-        self.searchQuery = searchQuery
-        self.prModel = prModel
-        self.imageURLMap = imageURLMap
-        self.imageBaseDir = imageBaseDir
-    }
+    private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
+    private var imageBaseDir: String? { prModel.imageBaseDir }
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
@@ -317,7 +302,7 @@ struct AnnotatedHunkContentView: View {
                     ForEach(comments) { rc in
                         switch rc.state {
                         case .new:
-                            if let prModel, let pending = rc.pending {
+                            if let pending = rc.pending {
                                 InlineCommentView(comment: pending, prModel: prModel)
                             }
                         case .redetected:
@@ -353,31 +338,26 @@ struct AnnotatedDiffContentView: View {
     let diff: GitDiff
     let commentMapping: DiffCommentMapping
     let searchQuery: String
-    var prModel: PRModel? = nil
-    var tasks: [EvaluationTaskOutput] = []
-    var imageURLMap: [String: String]? = nil
-    var imageBaseDir: String? = nil
+    var prModel: PRModel
 
     init(
         diff: GitDiff,
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
-        prModel: PRModel? = nil,
-        tasks: [EvaluationTaskOutput] = [],
-        imageURLMap: [String: String]? = nil,
-        imageBaseDir: String? = nil
+        prModel: PRModel
     ) {
         self.diff = diff
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
         self.prModel = prModel
-        self.tasks = tasks
-        self.imageURLMap = imageURLMap
-        self.imageBaseDir = imageBaseDir
     }
 
+    private var tasks: [EvaluationTaskOutput] { prModel.rules?.tasks ?? [] }
+    private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
+    private var imageBaseDir: String? { prModel.imageBaseDir }
+
     private var canRunSelectiveEvaluation: Bool {
-        prModel?.evaluation != nil && !tasks.isEmpty
+        !tasks.isEmpty
     }
 
     var body: some View {
@@ -419,9 +399,7 @@ struct AnnotatedDiffContentView: View {
                             hunk: hunk,
                             commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
-                            prModel: prModel,
-                            imageURLMap: imageURLMap,
-                            imageBaseDir: imageBaseDir
+                            prModel: prModel
                         )
                     }
                 }
@@ -445,7 +423,7 @@ struct AnnotatedDiffContentView: View {
             ForEach(comments) { rc in
                 switch rc.state {
                 case .new:
-                    if let prModel, let pending = rc.pending {
+                    if let pending = rc.pending {
                         InlineCommentView(comment: pending, prModel: prModel)
                     }
                 case .redetected:
@@ -490,7 +468,6 @@ struct AnnotatedDiffContentView: View {
         let matchingFocusAreas = focusAreasForHunk(hunk)
         if canRunSelectiveEvaluation && !matchingFocusAreas.isEmpty {
             let inFlight = matchingFocusAreas.contains { area in
-                guard let prModel else { return false }
                 let areaTaskIds = Set(tasks.filter { $0.focusArea.focusId == area.focusId }.map(\.taskId))
                 return !areaTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
             }
@@ -502,7 +479,7 @@ struct AnnotatedDiffContentView: View {
 
             if matchingFocusAreas.count == 1, let area = matchingFocusAreas.first {
                 Button {
-                    prModel?.startSelectiveEvaluation(
+                    prModel.startSelectiveEvaluation(
                         filter: EvaluationFilter(focusAreaId: area.focusId)
                     )
                 } label: {
@@ -516,7 +493,7 @@ struct AnnotatedDiffContentView: View {
                     let uniqueRules = Array(Set(rules)).sorted()
 
                     Button {
-                        prModel?.startSelectiveEvaluation(
+                        prModel.startSelectiveEvaluation(
                             filter: EvaluationFilter(focusAreaId: area.focusId)
                         )
                     } label: {
@@ -527,7 +504,7 @@ struct AnnotatedDiffContentView: View {
                         Menu("Run Rule\u{2026}") {
                             ForEach(uniqueRules, id: \.self) { rule in
                                 Button(rule) {
-                                    prModel?.startSelectiveEvaluation(
+                                    prModel.startSelectiveEvaluation(
                                         filter: EvaluationFilter(focusAreaId: area.focusId, ruleNames: [rule])
                                     )
                                 }
@@ -540,7 +517,7 @@ struct AnnotatedDiffContentView: View {
                     ForEach(matchingFocusAreas, id: \.focusId) { area in
                         Section(area.description) {
                             Button {
-                                prModel?.startSelectiveEvaluation(
+                                prModel.startSelectiveEvaluation(
                                     filter: EvaluationFilter(focusAreaId: area.focusId)
                                 )
                             } label: {

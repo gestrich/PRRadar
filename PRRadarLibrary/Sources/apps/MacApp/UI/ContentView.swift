@@ -216,6 +216,7 @@ public struct ContentView: View {
                 )
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .navigationSplitViewColumnWidth(min: 200, ideal: 280)
     }
 

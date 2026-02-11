@@ -51,6 +51,13 @@
   GitDiffModels are general-purpose git diff types, not PRRadar-specific.
   Extract them into a dedicated Git SDK package in the SDKs layer so they
   can be reused independently.
+- [ ] Compact comment status indicators in file list view
+  After a pending comment is posted, the file list only shows a green indicator
+  (meaning a comment exists on the file), but there's no way to distinguish
+  PRRadar-posted comments from unrelated user comments. Need a compact visual
+  system that shows: (1) how many total comments are on a file, (2) which are
+  pending vs submitted, and (3) which were posted by our tool. Orange should
+  indicate pending PRRadar comments; green alone is ambiguous.
 - [ ] Rename "Bridge" references to "ClaudeSDK" (or similar)
   The word "Bridge" in file names, classes, and types is vague. Rename to
   something that describes what it actually is — e.g. ClaudeSDK, ClaudeAgent,
@@ -102,6 +109,12 @@
   current review status (pending, approved, changes requested). Display
   this in both the PR list and detail views so the user can quickly see
   review progress at a glance.
+- [ ] Investigate misclassified "General Comments" in file view
+  In the file view, some comments categorized as "General Comments" don't appear
+  to actually be general (observed in PR 18743). Needs research to determine why
+  non-general comments are ending up in the general section — could be a
+  classification issue in the evaluation pipeline or a filtering/grouping bug in
+  the UI layer.
 - [ ] Audit PullRequests app for reusable ideas
   Audit `/Users/bill/Developer/work/swift/PullRequests` for features and patterns
   worth adopting in PRRadar. Likely candidates: better UI patterns (possible

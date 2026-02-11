@@ -4,15 +4,17 @@ import SwiftUI
 struct DiffPhaseView: View {
 
     let fullDiff: GitDiff
-    let effectiveDiff: GitDiff?
-    var reviewComments: [ReviewComment] = []
-    var evaluationSummary: EvaluationSummary? = nil
-    var prModel: PRModel? = nil
-    var tasks: [EvaluationTaskOutput] = []
+    var prModel: PRModel
 
     @State private var selectedTab = 0
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
+    @State private var showEvaluationHint = false
+
+    private var effectiveDiff: GitDiff? { prModel.effectiveDiff }
+    private var reviewComments: [ReviewComment] { prModel.reconciledComments }
+    private var evaluationSummary: EvaluationSummary? { prModel.evaluation?.summary }
+    private var tasks: [EvaluationTaskOutput] { prModel.rules?.tasks ?? [] }
 
     private var hasEvaluationData: Bool {
         evaluationSummary != nil
@@ -24,7 +26,27 @@ struct DiffPhaseView: View {
     }
 
     private var canRunSelectiveEvaluation: Bool {
-        prModel?.evaluation != nil && !tasks.isEmpty
+        !tasks.isEmpty && hasEvaluationData
+    }
+
+    private var hasPendingTasks: Bool {
+        !tasks.isEmpty && !hasEvaluationData
+    }
+
+    private var evaluationPendingHint: some View {
+        Button {
+            showEvaluationHint.toggle()
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .popover(isPresented: $showEvaluationHint) {
+            Text("Run Evaluate first to enable selective analysis")
+                .font(.callout)
+                .padding(8)
+        }
     }
 
     var body: some View {
@@ -127,6 +149,7 @@ struct DiffPhaseView: View {
                             .opacity(postedCount > 0 ? 1 : 0)
                     }
                     .tag(file)
+                    .accessibilityIdentifier("fileRow_\(file)")
                     .contextMenu { fileContextMenu(for: file) }
                 }
             }
@@ -215,6 +238,11 @@ struct DiffPhaseView: View {
                                 .controlSize(.small)
                         }
                         fileAnalysisMenu(for: file)
+                    } else if hasPendingTasks {
+                        evaluationPendingHint
+                        Label("Run Analysis", systemImage: "play.circle")
+                            .font(.callout)
+                            .foregroundStyle(.tertiary)
                     }
                 }
                 .padding(.horizontal)
@@ -227,10 +255,7 @@ struct DiffPhaseView: View {
                 AnnotatedDiffContentView(
                     diff: filtered,
                     commentMapping: commentMapping(for: diff),
-                    prModel: prModel,
-                    tasks: tasks,
-                    imageURLMap: prModel?.imageURLMap.isEmpty == false ? prModel?.imageURLMap : nil,
-                    imageBaseDir: prModel?.imageBaseDir
+                    prModel: prModel
                 )
             } else {
                 RichDiffContentView(diff: filtered)
@@ -293,13 +318,11 @@ struct DiffPhaseView: View {
     }
 
     private func isFileInFlight(_ file: String) -> Bool {
-        guard let prModel else { return false }
         let fileTaskIds = Set(tasks.filter { $0.focusArea.filePath == file }.map(\.taskId))
         return !fileTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
     }
 
     private func isFocusAreaInFlight(_ focusAreaId: String) -> Bool {
-        guard let prModel else { return false }
         let areaTaskIds = Set(tasks.filter { $0.focusArea.focusId == focusAreaId }.map(\.taskId))
         return !areaTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
     }
@@ -318,7 +341,7 @@ struct DiffPhaseView: View {
             let rules = rulesForFile(file)
 
             Button {
-                prModel?.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
+                prModel.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -327,13 +350,18 @@ struct DiffPhaseView: View {
                 Menu("Run Rule\u{2026}") {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
-                            prModel?.startSelectiveEvaluation(
+                            prModel.startSelectiveEvaluation(
                                 filter: EvaluationFilter(filePath: file, ruleNames: [rule])
                             )
                         }
                     }
                 }
             }
+        } else if hasPendingTasks {
+            Button {} label: {
+                Label("Run Evaluate first", systemImage: "info.circle")
+            }
+            .disabled(true)
         }
     }
 
@@ -342,7 +370,7 @@ struct DiffPhaseView: View {
         let rules = rulesForFile(file)
         Menu {
             Button {
-                prModel?.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
+                prModel.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -351,7 +379,7 @@ struct DiffPhaseView: View {
                 Divider()
                 ForEach(rules, id: \.self) { rule in
                     Button(rule) {
-                        prModel?.startSelectiveEvaluation(
+                        prModel.startSelectiveEvaluation(
                             filter: EvaluationFilter(filePath: file, ruleNames: [rule])
                         )
                     }
@@ -371,7 +399,7 @@ struct DiffPhaseView: View {
             let rules = rulesForFocusArea(focusArea.focusId)
 
             Button {
-                prModel?.startSelectiveEvaluation(
+                prModel.startSelectiveEvaluation(
                     filter: EvaluationFilter(focusAreaId: focusArea.focusId)
                 )
             } label: {
@@ -382,7 +410,7 @@ struct DiffPhaseView: View {
                 Menu("Run Rule\u{2026}") {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
-                            prModel?.startSelectiveEvaluation(
+                            prModel.startSelectiveEvaluation(
                                 filter: EvaluationFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
                             )
                         }

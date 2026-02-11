@@ -130,11 +130,7 @@ struct ReviewDetailView: View {
 
                 DiffPhaseView(
                     fullDiff: fullDiff,
-                    effectiveDiff: prModel.diff?.effectiveDiff,
-                    reviewComments: prModel.reconciledComments,
-                    evaluationSummary: prModel.evaluation?.summary,
-                    prModel: prModel,
-                    tasks: prModel.rules?.tasks ?? []
+                    prModel: prModel
                 )
             }
             .overlay(alignment: .top) {
@@ -237,6 +233,8 @@ struct ReviewDetailView: View {
                 .accessibilityIdentifier("fetchDiffButton")
             compactPhaseButton(phase: .rules, label: "Rules & Tasks", icon: "list.bullet.clipboard")
                 .accessibilityIdentifier("rulesTasksButton")
+            compactPhaseButton(phase: .evaluations, label: "Evaluate", icon: "checkmark.shield")
+                .accessibilityIdentifier("evaluateButton")
             Spacer()
         }
         .padding(.horizontal)
