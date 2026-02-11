@@ -100,6 +100,14 @@ swift test
 - Requires `ANTHROPIC_API_KEY` (via env var or `.env` file)
 - macOS 15+, Swift 6.2+
 
+## Skills
+
+Proactively use these skills when writing or modifying Swift code in this project:
+
+- `/swift-app-architecture:swift-architecture` — 4-layer architecture rules (layer responsibilities, dependency rules, placement guidance, feature creation, configuration, code style). Use when adding code, creating features, or reviewing architectural compliance.
+- `/swift-app-architecture:swift-swiftui` — SwiftUI Model-View patterns (enum-based state, model composition, dependency injection, view identity, observable model conventions). Use when building SwiftUI views, creating observable models, or implementing state management.
+- `/swift-testing` — Test style guide. Use when writing or modifying tests.
+
 ## Plugin Mode
 
 PRRadar also works as a Claude Code plugin. The plugin is in `plugin/` and provides the `/pr-review` skill.
