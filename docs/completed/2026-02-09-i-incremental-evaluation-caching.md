@@ -124,7 +124,7 @@ Review all changes and validate they follow the project's architectural conventi
 - Dependencies flow downward only: Apps → Features → Services → SDKs
 - No architectural violations found. Build succeeds, all 344 tests pass.
 
-- [ ] Phase 5: Validation
+- [x] Phase 5: Validation
 
 **Skills to read**: `swift-testing`
 
@@ -163,3 +163,10 @@ swift run PRRadarMacCLI analyze 1 --config test-repo
 - Output clearly indicates cached vs. fresh evaluations
 - Report output is identical between cached and fresh runs
 - After adding a second violation above the first, re-evaluation finds both and the original violation's line number is updated
+
+**Completed**: All validation passed.
+
+- **Build & tests**: `swift build` succeeds, all 344 tests pass (34+ suites including 7 EvaluationCacheService tests from Phases 1-3).
+- **Manual verification**: First run on PR #1 evaluated 1 task fresh (found violation, score 7/10). Second run showed "Skipping 1 cached evaluations, evaluating 0 new tasks" with `(cached)` indicator. Report identical between runs.
+- **Cache invalidation**: Added `safeReciprocal` function above existing violations on `add-modulo-method` branch. Blob hash changed from `e7605df...` to `1d768ff...`. Re-run correctly re-evaluated (no cache hit). AI identified all three violating functions (`safeReciprocal`, `integerDivide`, `modulo`). Subsequent run correctly cached the new result.
+- **Note**: Test repo rule `guard-divide-by-zero.md` required `focus_type: file` (changed from `method`) to match the focus area generator's output. This was updated on both `main` and `add-modulo-method` branches.
