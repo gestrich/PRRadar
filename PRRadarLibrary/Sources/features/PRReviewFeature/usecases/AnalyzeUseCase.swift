@@ -29,12 +29,12 @@ public struct AnalyzeUseCase: Sendable {
         minScore: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<AnalyzePhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .pullRequest))
+            continuation.yield(.running(phase: .sync))
 
             Task {
                 do {
-                    // Phase 1: Diff
-                    continuation.yield(.log(text: "=== Phase 1: Fetching PR diff ===\n"))
+                    // Phase 1: Sync
+                    continuation.yield(.log(text: "=== Phase 1: Syncing PR data ===\n"))
                     let diffUseCase = FetchDiffUseCase(config: config)
                     var diffCompleted = false
                     for try await progress in diffUseCase.execute(prNumber: prNumber) {
@@ -61,9 +61,9 @@ public struct AnalyzeUseCase: Sendable {
                         return
                     }
 
-                    // Phase 2-4: Rules
-                    continuation.yield(.running(phase: .focusAreas))
-                    continuation.yield(.log(text: "\n=== Phase 2-4: Focus areas, rules, and tasks ===\n"))
+                    // Phase 2: Prepare
+                    continuation.yield(.running(phase: .prepare))
+                    continuation.yield(.log(text: "\n=== Phase 2: Preparing evaluation tasks ===\n"))
                     let rulesUseCase = FetchRulesUseCase(config: config)
                     var rulesCompleted = false
                     for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
@@ -94,9 +94,9 @@ public struct AnalyzeUseCase: Sendable {
                         return
                     }
 
-                    // Phase 5: Evaluate
-                    continuation.yield(.running(phase: .evaluations))
-                    continuation.yield(.log(text: "\n=== Phase 5: Evaluations ===\n"))
+                    // Phase 3: Analyze
+                    continuation.yield(.running(phase: .analyze))
+                    continuation.yield(.log(text: "\n=== Phase 3: Analyzing code ===\n"))
                     let evalUseCase = EvaluateUseCase(config: config)
                     var evalCompleted = false
                     for try await progress in evalUseCase.execute(prNumber: prNumber, repoPath: repoPath) {
@@ -127,9 +127,9 @@ public struct AnalyzeUseCase: Sendable {
                         return
                     }
 
-                    // Phase 6: Report
+                    // Phase 4: Report
                     continuation.yield(.running(phase: .report))
-                    continuation.yield(.log(text: "\n=== Phase 6: Report ===\n"))
+                    continuation.yield(.log(text: "\n=== Phase 4: Report ===\n"))
                     let reportUseCase = GenerateReportUseCase(config: config)
                     var reportOutput: ReportPhaseOutput?
                     for try await progress in reportUseCase.execute(prNumber: prNumber, minScore: minScore) {

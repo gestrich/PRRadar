@@ -134,7 +134,7 @@ struct ReviewDetailView: View {
                 )
             }
             .overlay(alignment: .top) {
-                if case .refreshing = prModel.stateFor(.pullRequest) {
+                if case .refreshing = prModel.stateFor(.sync) {
                     refreshingBanner
                 }
             }
@@ -158,19 +158,19 @@ struct ReviewDetailView: View {
                     .font(.system(.body, design: .monospaced))
             }
             .overlay(alignment: .top) {
-                if case .refreshing = prModel.stateFor(.pullRequest) {
+                if case .refreshing = prModel.stateFor(.sync) {
                     refreshingBanner
                 }
             }
-        } else if case .running = prModel.stateFor(.pullRequest) {
+        } else if case .running = prModel.stateFor(.sync) {
             loadingView("Fetching PR diff...")
-        } else if case .refreshing = prModel.stateFor(.pullRequest) {
+        } else if case .refreshing = prModel.stateFor(.sync) {
             loadingView("Refreshing PR diff...")
         } else {
             ContentUnavailableView(
                 "No Diff Data",
                 systemImage: "doc.text",
-                description: Text("Run Phase 1 to fetch the PR diff.")
+                description: Text("Run Sync to fetch PR data.")
             )
         }
     }
@@ -219,7 +219,7 @@ struct ReviewDetailView: View {
             ContentUnavailableView(
                 "No Report Data",
                 systemImage: "chart.bar.doc.horizontal",
-                description: Text("Run Phase 6 to generate the report.")
+                description: Text("Run Report to generate the report.")
             )
         }
     }
@@ -229,12 +229,12 @@ struct ReviewDetailView: View {
     @ViewBuilder
     private var diffToolbar: some View {
         HStack(spacing: 12) {
-            compactPhaseButton(phase: .pullRequest, label: "Fetch Diff", icon: "arrow.down.doc")
-                .accessibilityIdentifier("fetchDiffButton")
-            compactPhaseButton(phase: .rules, label: "Rules & Tasks", icon: "list.bullet.clipboard")
-                .accessibilityIdentifier("rulesTasksButton")
-            compactPhaseButton(phase: .evaluations, label: "Evaluate", icon: "checkmark.shield")
-                .accessibilityIdentifier("evaluateButton")
+            compactPhaseButton(phase: .sync, label: "Sync PR", icon: "arrow.down.doc")
+                .accessibilityIdentifier("syncButton")
+            compactPhaseButton(phase: .prepare, label: "Prepare", icon: "list.bullet.clipboard")
+                .accessibilityIdentifier("prepareButton")
+            compactPhaseButton(phase: .analyze, label: "Analyze", icon: "checkmark.shield")
+                .accessibilityIdentifier("analyzeButton")
             Spacer()
         }
         .padding(.horizontal)

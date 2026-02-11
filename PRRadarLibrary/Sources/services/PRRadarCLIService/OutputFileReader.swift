@@ -27,4 +27,34 @@ public enum OutputFileReader {
             phase: phase
         )
     }
+
+    public static func files(
+        in config: PRRadarConfig,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String
+    ) -> [String] {
+        let subdir = DataPathsService.phaseSubdirectory(
+            outputDir: config.absoluteOutputDir,
+            prNumber: prNumber,
+            phase: phase,
+            subdirectory: subdirectory
+        )
+        let contents = try? FileManager.default.contentsOfDirectory(atPath: subdir)
+        return (contents ?? []).sorted()
+    }
+
+    public static func phaseSubdirectoryPath(
+        config: PRRadarConfig,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String
+    ) -> String {
+        DataPathsService.phaseSubdirectory(
+            outputDir: config.absoluteOutputDir,
+            prNumber: prNumber,
+            phase: phase,
+            subdirectory: subdirectory
+        )
+    }
 }

@@ -6,11 +6,11 @@ struct AITranscriptView: View {
 
     let transcriptsByPhase: [PRRadarPhase: [BridgeTranscript]]
 
-    @State private var selectedPhase: PRRadarPhase = .focusAreas
+    @State private var selectedPhase: PRRadarPhase = .prepare
     @State private var selectedTranscriptId: String?
 
     private var phases: [PRRadarPhase] {
-        [.focusAreas, .evaluations].filter { transcriptsByPhase[$0] != nil }
+        [.prepare, .analyze].filter { transcriptsByPhase[$0] != nil }
     }
 
     private var transcripts: [BridgeTranscript] {

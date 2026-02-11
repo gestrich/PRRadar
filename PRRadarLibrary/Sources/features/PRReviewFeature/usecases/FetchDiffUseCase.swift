@@ -42,23 +42,23 @@ public struct FetchDiffUseCase: Sendable {
         let files = OutputFileReader.files(
             in: config,
             prNumber: prNumber,
-            phase: .pullRequest
+            phase: .sync
         )
 
         let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "diff-parsed.json"
+            config: config, prNumber: prNumber, phase: .sync, filename: "diff-parsed.json"
         )
 
         let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-parsed.json"
+            config: config, prNumber: prNumber, phase: .sync, filename: "effective-diff-parsed.json"
         )
 
         let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "effective-diff-moves.json"
+            config: config, prNumber: prNumber, phase: .sync, filename: "effective-diff-moves.json"
         )
 
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .pullRequest, filename: "gh-comments.json"
+            config: config, prNumber: prNumber, phase: .sync, filename: "gh-comments.json"
         )
 
         return DiffPhaseSnapshot(
@@ -74,7 +74,7 @@ public struct FetchDiffUseCase: Sendable {
 
     public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<DiffPhaseSnapshot>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .pullRequest))
+            continuation.yield(.running(phase: .sync))
 
             Task {
                 do {

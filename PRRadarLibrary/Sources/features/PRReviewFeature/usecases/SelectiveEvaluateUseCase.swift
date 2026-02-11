@@ -18,7 +18,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
         repoPath: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .evaluations))
+            continuation.yield(.running(phase: .analyze))
 
             Task {
                 do {
@@ -27,7 +27,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
 
                     // Load all tasks from phase-4
                     let allTasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
-                        config: config, prNumber: prNumber, phase: .tasks
+                        config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
                     )
 
                     // Apply filter
@@ -44,7 +44,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
                         return
                     }
 
-                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
 
                     // Partition filtered tasks into cached and fresh
                     let (cachedResults, tasksToEvaluate) = EvaluationCacheService.partitionTasks(
@@ -126,13 +126,13 @@ public struct SelectiveEvaluateUseCase: Sendable {
         cachedCount: Int
     ) throws -> EvaluationPhaseOutput {
         let evalFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .evaluations
+            config: config, prNumber: prNumber, phase: .analyze
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var evaluations: [RuleEvaluationResult] = []
         for file in evalFiles {
             if let evaluation: RuleEvaluationResult = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .evaluations, filename: file
+                config: config, prNumber: prNumber, phase: .analyze, filename: file
             ) {
                 evaluations.append(evaluation)
             }

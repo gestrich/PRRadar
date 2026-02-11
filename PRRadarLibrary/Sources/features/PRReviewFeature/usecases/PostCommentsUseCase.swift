@@ -33,7 +33,7 @@ public struct PostCommentsUseCase: Sendable {
         dryRun: Bool = true
     ) -> AsyncThrowingStream<PhaseProgress<CommentPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .evaluations))
+            continuation.yield(.running(phase: .analyze))
 
             Task {
                 do {

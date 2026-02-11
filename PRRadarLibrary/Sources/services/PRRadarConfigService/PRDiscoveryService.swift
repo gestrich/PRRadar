@@ -15,7 +15,7 @@ public enum PRDiscoveryService {
         let prs: [PRMetadata] = contents.compactMap { dirName in
             guard let prNumber = Int(dirName) else { return nil }
 
-            let phaseDir = "\(expandedPath)/\(dirName)/\(PRRadarPhase.pullRequest.rawValue)"
+            let phaseDir = "\(expandedPath)/\(dirName)/\(PRRadarPhase.sync.rawValue)"
             let ghPRPath = "\(phaseDir)/gh-pr.json"
 
             guard fileManager.fileExists(atPath: ghPRPath),

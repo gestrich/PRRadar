@@ -88,9 +88,9 @@ struct PhaseInputView: View {
 
     private func phaseTitle(for targetPhase: PRRadarPhase) -> String {
         switch targetPhase {
-        case .pullRequest: "Fetch PR Diff"
-        case .focusAreas, .rules, .tasks: "Rules & Tasks"
-        case .evaluations: "Run Evaluations"
+        case .sync: "Sync PR"
+        case .prepare: "Prepare"
+        case .analyze: "Analyze"
         case .report: "Generate Report"
         }
     }
@@ -103,11 +103,11 @@ struct PhaseInputView: View {
     @ViewBuilder
     private func phaseDescription(for targetPhase: PRRadarPhase) -> some View {
         switch targetPhase {
-        case .pullRequest:
-            Text("Fetches the PR diff and parses it into structured data.")
-        case .focusAreas, .rules, .tasks:
+        case .sync:
+            Text("Fetches PR data including diff, metadata, comments, and reviews.")
+        case .prepare:
             Text("Generates focus areas, loads rules, and creates evaluation tasks.")
-        case .evaluations:
+        case .analyze:
             Text("Runs Claude evaluations for each task.")
         case .report:
             Text("Generates a summary report of all evaluation results.")
@@ -137,7 +137,7 @@ struct PhaseInputView: View {
 
     private var showsRulesDir: Bool {
         switch phase {
-        case .focusAreas, .rules, .tasks: true
+        case .prepare: true
         default: false
         }
     }

@@ -99,7 +99,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var isAIPhaseRunning: Bool {
-        let aiPhases: [PRRadarPhase] = [.focusAreas, .evaluations]
+        let aiPhases: [PRRadarPhase] = [.prepare, .analyze]
         return aiPhases.contains { phase in
             if case .running = stateFor(phase) { return true }
             return false
@@ -126,14 +126,14 @@ final class PRModel: Identifiable, Hashable {
             let summary: EvaluationSummary = try PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
-                phase: .evaluations,
+                phase: .analyze,
                 filename: "summary.json"
             )
             let postedCommentCount: Int = {
                 guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
                     config: config,
                     prNumber: prNumber,
-                    phase: .pullRequest,
+                    phase: .sync,
                     filename: "gh-comments.json"
                 ) else { return 0 }
                 return comments.reviewComments.count
@@ -159,7 +159,7 @@ final class PRModel: Identifiable, Hashable {
         do {
             try loadCachedNonDiffOutputs()
         } catch {
-            phaseStates[.pullRequest] = .failed(
+            phaseStates[.sync] = .failed(
                 error: "Failed to load cached outputs: \(error.localizedDescription)",
                 logs: ""
             )
@@ -185,7 +185,7 @@ final class PRModel: Identifiable, Hashable {
             self.postedComments = try PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
-                phase: .pullRequest,
+                phase: .sync,
                 filename: "gh-comments.json"
             )
         } catch is PhaseOutputError {
@@ -195,12 +195,12 @@ final class PRModel: Identifiable, Hashable {
         if let map: [String: String] = try? PhaseOutputParser.parsePhaseOutput(
             config: config,
             prNumber: prNumber,
-            phase: .pullRequest,
+            phase: .sync,
             filename: "image-url-map.json"
         ) {
             self.imageURLMap = map
             let phaseDir = OutputFileReader.phaseDirectoryPath(
-                config: config, prNumber: prNumber, phase: .pullRequest
+                config: config, prNumber: prNumber, phase: .sync
             )
             self.imageBaseDir = "\(phaseDir)/images"
         }
@@ -215,8 +215,8 @@ final class PRModel: Identifiable, Hashable {
         do {
             try loadCachedNonDiffOutputs()
         } catch {
-            let logs = runningLogs(for: .pullRequest)
-            phaseStates[.pullRequest] = .failed(
+            let logs = runningLogs(for: .sync)
+            phaseStates[.sync] = .failed(
                 error: "Failed to load cached outputs: \(error.localizedDescription)",
                 logs: logs
             )
@@ -247,9 +247,9 @@ final class PRModel: Identifiable, Hashable {
         let hasCachedData = diff != nil
         let logPrefix = hasCachedData ? "Refreshing" : "Fetching"
         if hasCachedData {
-            phaseStates[.pullRequest] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+            phaseStates[.sync] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
         } else {
-            phaseStates[.pullRequest] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+            phaseStates[.sync] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
         }
 
         let useCase = FetchDiffUseCase(config: config)
@@ -264,30 +264,30 @@ final class PRModel: Identifiable, Hashable {
                     case .progress:
                         break
                     case .log(let text):
-                        appendLog(text, to: .pullRequest)
+                        appendLog(text, to: .sync)
                     case .aiOutput: break
                     case .aiPrompt: break
                     case .aiToolUse: break
                     case .evaluationResult: break
                     case .completed(let snapshot):
                         diff = snapshot
-                        let logs = runningLogs(for: .pullRequest)
-                        phaseStates[.pullRequest] = .completed(logs: logs)
+                        let logs = runningLogs(for: .sync)
+                        phaseStates[.sync] = .completed(logs: logs)
                     case .failed(let error, let logs):
-                        let existingLogs = runningLogs(for: .pullRequest)
-                        phaseStates[.pullRequest] = .failed(error: error, logs: existingLogs + logs)
+                        let existingLogs = runningLogs(for: .sync)
+                        phaseStates[.sync] = .failed(error: error, logs: existingLogs + logs)
                     }
                 }
             } catch is CancellationError {
                 // Task was cancelled — restore state
                 if diff != nil {
-                    phaseStates[.pullRequest] = .completed(logs: "")
+                    phaseStates[.sync] = .completed(logs: "")
                 } else {
-                    phaseStates[.pullRequest] = .idle
+                    phaseStates[.sync] = .idle
                 }
             } catch {
-                let logs = runningLogs(for: .pullRequest)
-                phaseStates[.pullRequest] = .failed(error: error.localizedDescription, logs: logs)
+                let logs = runningLogs(for: .sync)
+                phaseStates[.sync] = .failed(error: error.localizedDescription, logs: logs)
             }
         }
         refreshTask = task
@@ -298,14 +298,14 @@ final class PRModel: Identifiable, Hashable {
         refreshTask?.cancel()
         refreshTask = nil
         if diff != nil {
-            phaseStates[.pullRequest] = .completed(logs: "")
+            phaseStates[.sync] = .completed(logs: "")
         } else {
-            phaseStates[.pullRequest] = .idle
+            phaseStates[.sync] = .idle
         }
     }
 
     private func loadSavedTranscripts() {
-        let aiPhases: [PRRadarPhase] = [.focusAreas, .evaluations]
+        let aiPhases: [PRRadarPhase] = [.prepare, .analyze]
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
@@ -353,8 +353,8 @@ final class PRModel: Identifiable, Hashable {
         let snapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
         if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
             self.diff = snapshot
-            if case .idle = stateFor(.pullRequest) {
-                phaseStates[.pullRequest] = .completed(logs: "")
+            if case .idle = stateFor(.sync) {
+                phaseStates[.sync] = .completed(logs: "")
             }
         }
     }
@@ -384,14 +384,14 @@ final class PRModel: Identifiable, Hashable {
         guard !isAnyPhaseRunning else { return false }
 
         switch phase {
-        case .pullRequest:
+        case .sync:
             return true
-        case .focusAreas, .rules, .tasks:
-            return isPhaseCompleted(.pullRequest)
-        case .evaluations:
-            return isPhaseCompleted(.tasks)
+        case .prepare:
+            return isPhaseCompleted(.sync)
+        case .analyze:
+            return isPhaseCompleted(.prepare)
         case .report:
-            return isPhaseCompleted(.evaluations)
+            return isPhaseCompleted(.analyze)
         }
     }
 
@@ -404,9 +404,9 @@ final class PRModel: Identifiable, Hashable {
 
     func runPhase(_ phase: PRRadarPhase) async {
         switch phase {
-        case .pullRequest: await runDiff()
-        case .focusAreas, .rules, .tasks: await runRules()
-        case .evaluations: await runEvaluate()
+        case .sync: await runDiff()
+        case .prepare: await runRules()
+        case .analyze: await runEvaluate()
         case .report: await runReport()
         }
     }
@@ -416,7 +416,7 @@ final class PRModel: Identifiable, Hashable {
         loadDetail()
         operationMode = .analyzing
         defer { operationMode = .idle }
-        let phases: [PRRadarPhase] = [.rules, .evaluations, .report]
+        let phases: [PRRadarPhase] = [.prepare, .analyze, .report]
         for phase in phases {
             guard canRunPhase(phase) else { break }
             await runPhase(phase)
@@ -429,11 +429,11 @@ final class PRModel: Identifiable, Hashable {
     func resetPhase(_ phase: PRRadarPhase) {
         phaseStates[phase] = .idle
         switch phase {
-        case .pullRequest:
+        case .sync:
             diff = nil
-        case .focusAreas, .rules, .tasks:
+        case .prepare:
             rules = nil
-        case .evaluations:
+        case .analyze:
             evaluation = nil
         case .report:
             report = nil
@@ -564,10 +564,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func runRules() async {
-        let rulesPhases: [PRRadarPhase] = [.focusAreas, .rules, .tasks]
-        for phase in rulesPhases {
-            phaseStates[phase] = .running(logs: "")
-        }
+        phaseStates[.prepare] = .running(logs: "")
         aiOutputText = ""
         aiCurrentPrompt = ""
 
@@ -577,12 +574,12 @@ final class PRModel: Identifiable, Hashable {
         do {
             for try await progress in useCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
                 switch progress {
-                case .running(let phase):
-                    phaseStates[phase] = .running(logs: "Running \(phase.rawValue)...\n")
+                case .running:
+                    break
                 case .progress:
                     break
                 case .log(let text):
-                    appendLog(text, to: .rules)
+                    appendLog(text, to: .prepare)
                 case .aiOutput(let text):
                     aiOutputText += text
                 case .aiPrompt(let text):
@@ -591,25 +588,19 @@ final class PRModel: Identifiable, Hashable {
                 case .evaluationResult: break
                 case .completed(let output):
                     rules = output
-                    for phase in rulesPhases {
-                        phaseStates[phase] = .completed(logs: "")
-                    }
+                    phaseStates[.prepare] = .completed(logs: "")
                     loadSavedTranscripts()
                 case .failed(let error, let logs):
-                    for phase in rulesPhases {
-                        phaseStates[phase] = .failed(error: error, logs: logs)
-                    }
+                    phaseStates[.prepare] = .failed(error: error, logs: logs)
                 }
             }
         } catch {
-            for phase in rulesPhases {
-                phaseStates[phase] = .failed(error: error.localizedDescription, logs: "")
-            }
+            phaseStates[.prepare] = .failed(error: error.localizedDescription, logs: "")
         }
     }
 
     private func runEvaluate() async {
-        phaseStates[.evaluations] = .running(logs: "Running evaluations...\n")
+        phaseStates[.analyze] = .running(logs: "Running evaluations...\n")
         aiOutputText = ""
         aiCurrentPrompt = ""
 
@@ -623,7 +614,7 @@ final class PRModel: Identifiable, Hashable {
                 case .progress:
                     break
                 case .log(let text):
-                    appendLog(text, to: .evaluations)
+                    appendLog(text, to: .analyze)
                 case .aiOutput(let text):
                     aiOutputText += text
                 case .aiPrompt(let text):
@@ -633,16 +624,16 @@ final class PRModel: Identifiable, Hashable {
                     mergeEvaluationResult(result)
                 case .completed(let output):
                     evaluation = output
-                    let logs = runningLogs(for: .evaluations)
-                    phaseStates[.evaluations] = .completed(logs: logs)
+                    let logs = runningLogs(for: .analyze)
+                    phaseStates[.analyze] = .completed(logs: logs)
                     loadSavedTranscripts()
                 case .failed(let error, let logs):
-                    phaseStates[.evaluations] = .failed(error: error, logs: logs)
+                    phaseStates[.analyze] = .failed(error: error, logs: logs)
                 }
             }
         } catch {
-            let logs = runningLogs(for: .evaluations)
-            phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: logs)
+            let logs = runningLogs(for: .analyze)
+            phaseStates[.analyze] = .failed(error: error.localizedDescription, logs: logs)
         }
     }
 
@@ -657,7 +648,7 @@ final class PRModel: Identifiable, Hashable {
                 case .progress:
                     break
                 case .log(let text):
-                    appendLog(text, to: .evaluations)
+                    appendLog(text, to: .analyze)
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break

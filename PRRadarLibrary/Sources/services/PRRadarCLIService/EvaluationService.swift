@@ -216,7 +216,7 @@ public struct EvaluationService: Sendable {
         onAIText: ((String) -> Void)? = nil,
         onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {
-        let evalsDir = "\(outputDir)/\(PRRadarPhase.evaluations.rawValue)"
+        let evalsDir = "\(outputDir)/\(PRRadarPhase.analyze.rawValue)"
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
 
         var results: [RuleEvaluationResult] = []

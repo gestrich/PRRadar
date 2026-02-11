@@ -58,7 +58,7 @@ public struct PRAcquisitionService: Sendable {
         let phaseDir = DataPathsService.phaseDirectory(
             outputDir: outputDir,
             prNumber: prNumberStr,
-            phase: .pullRequest
+            phase: .sync
         )
         try DataPathsService.ensureDirectoryExists(at: phaseDir)
 
@@ -147,7 +147,7 @@ public struct PRAcquisitionService: Sendable {
 
         // Write phase_result.json to mark successful completion
         try PhaseResultWriter.writeSuccess(
-            phase: .pullRequest,
+            phase: .sync,
             outputDir: outputDir,
             prNumber: prNumberStr,
             stats: PhaseStats(

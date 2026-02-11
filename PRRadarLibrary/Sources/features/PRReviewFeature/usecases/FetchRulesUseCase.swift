@@ -26,7 +26,7 @@ public struct FetchRulesUseCase: Sendable {
 
     public func execute(prNumber: String, rulesDir: String?) -> AsyncThrowingStream<PhaseProgress<RulesPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .focusAreas))
+            continuation.yield(.running(phase: .prepare))
 
             Task {
                 do {
@@ -37,13 +37,14 @@ public struct FetchRulesUseCase: Sendable {
                     }
 
                     let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let prepareDir = "\(prOutputDir)/\(PRRadarPhase.prepare.rawValue)"
 
-                    // Phase 2: Generate focus areas
+                    // Generate focus areas
                     continuation.yield(.log(text: "Generating focus areas...\n"))
 
                     let diffSnapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
                     guard let fullDiff = diffSnapshot.effectiveDiff ?? diffSnapshot.fullDiff else {
-                        continuation.yield(.failed(error: "No diff data found. Run diff phase first.", logs: ""))
+                        continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
                         return
                     }
@@ -51,7 +52,7 @@ public struct FetchRulesUseCase: Sendable {
                     let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
                     let focusGenerator = FocusGeneratorService(bridgeClient: bridgeClient)
 
-                    let focusDir = "\(prOutputDir)/\(PRRadarPhase.focusAreas.rawValue)"
+                    let focusDir = "\(prepareDir)/\(DataPathsService.prepareFocusAreasSubdir)"
 
                     let focusResults = try await focusGenerator.generateAllFocusAreas(
                         hunks: fullDiff.hunks,
@@ -86,21 +87,9 @@ public struct FetchRulesUseCase: Sendable {
                         try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(DataPathsService.dataFilePrefix)\(focusType.rawValue).json"))
                     }
 
-                    // Write phase_result.json for phase 2 (focus areas)
-                    try PhaseResultWriter.writeSuccess(
-                        phase: .focusAreas,
-                        outputDir: config.absoluteOutputDir,
-                        prNumber: prNumber,
-                        stats: PhaseStats(
-                            artifactsProduced: allFocusAreas.count,
-                            costUsd: totalCost
-                        )
-                    )
-
-                    continuation.yield(.running(phase: .rules))
                     continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
 
-                    // Phase 3: Load rules
+                    // Load rules
                     guard let rulesPath = rulesDir, !rulesPath.isEmpty else {
                         continuation.yield(.failed(error: "No rules directory specified", logs: ""))
                         continuation.finish()
@@ -113,25 +102,14 @@ public struct FetchRulesUseCase: Sendable {
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath)
 
-                    let rulesOutputDir = "\(prOutputDir)/\(PRRadarPhase.rules.rawValue)"
+                    let rulesOutputDir = "\(prepareDir)/\(DataPathsService.prepareRulesSubdir)"
                     try FileManager.default.createDirectory(atPath: rulesOutputDir, withIntermediateDirectories: true)
                     let rulesData = try encoder.encode(allRules)
                     try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/all-rules.json"))
 
-                    // Write phase_result.json for phase 3 (rules)
-                    try PhaseResultWriter.writeSuccess(
-                        phase: .rules,
-                        outputDir: config.absoluteOutputDir,
-                        prNumber: prNumber,
-                        stats: PhaseStats(
-                            artifactsProduced: allRules.count
-                        )
-                    )
-
-                    continuation.yield(.running(phase: .tasks))
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
-                    // Phase 4: Create tasks
+                    // Create tasks
                     // Fetch the PR ref so git objects are available locally for blob hash lookups
                     try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNum)/head", repoPath: self.config.repoPath)
 
@@ -144,13 +122,14 @@ public struct FetchRulesUseCase: Sendable {
                         commit: fullDiff.commitHash
                     )
 
-                    // Write phase_result.json for phase 4 (tasks)
+                    // Write phase_result.json for prepare phase
                     try PhaseResultWriter.writeSuccess(
-                        phase: .tasks,
+                        phase: .prepare,
                         outputDir: config.absoluteOutputDir,
                         prNumber: prNumber,
                         stats: PhaseStats(
-                            artifactsProduced: tasks.count
+                            artifactsProduced: allFocusAreas.count + allRules.count + tasks.count,
+                            costUsd: totalCost
                         )
                     )
 
@@ -169,23 +148,23 @@ public struct FetchRulesUseCase: Sendable {
 
     public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> RulesPhaseOutput {
         let focusFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .focusAreas
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var allFocusAreas: [FocusArea] = []
         for file in focusFiles {
             let typeOutput: FocusAreaTypeOutput = try PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .focusAreas, filename: file
+                config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir, filename: file
             )
             allFocusAreas.append(contentsOf: typeOutput.focusAreas)
         }
 
         let rules: [ReviewRule] = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .rules, filename: "all-rules.json"
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: "all-rules.json"
         )
 
         let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
-            config: config, prNumber: prNumber, phase: .tasks
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
         )
 
         return RulesPhaseOutput(focusAreas: allFocusAreas, rules: rules, tasks: tasks)

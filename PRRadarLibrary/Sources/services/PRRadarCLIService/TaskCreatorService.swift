@@ -65,7 +65,7 @@ public struct TaskCreatorService: Sendable {
     ) async throws -> [EvaluationTaskOutput] {
         let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath, commit: commit)
 
-        let tasksDir = "\(outputDir)/\(PRRadarPhase.tasks.rawValue)"
+        let tasksDir = "\(outputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareTasksSubdir)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)
 
         // Remove stale task files from previous runs before writing new ones

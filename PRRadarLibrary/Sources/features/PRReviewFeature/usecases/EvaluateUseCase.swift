@@ -36,23 +36,23 @@ public struct EvaluateUseCase: Sendable {
 
     public func execute(prNumber: String, repoPath: String? = nil) -> AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .evaluations))
+            continuation.yield(.running(phase: .analyze))
 
             Task {
                 do {
                     let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
                     let effectiveRepoPath = repoPath ?? config.repoPath
 
-                    // Load tasks from phase-4
+                    // Load tasks from prepare phase
                     let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
-                        config: config, prNumber: prNumber, phase: .tasks
+                        config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
                     )
 
                     // Handle case where no tasks were generated (legitimate scenario)
                     if tasks.isEmpty {
                         continuation.yield(.log(text: "No tasks to evaluate (phase completed successfully with 0 tasks)\n"))
 
-                        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+                        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
                         try DataPathsService.ensureDirectoryExists(at: evalsDir)
 
                         let encoder = JSONEncoder()
@@ -73,7 +73,7 @@ public struct EvaluateUseCase: Sendable {
 
                         // Write phase_result.json
                         try PhaseResultWriter.writeSuccess(
-                            phase: .evaluations,
+                            phase: .analyze,
                             outputDir: config.absoluteOutputDir,
                             prNumber: prNumber,
                             stats: PhaseStats(artifactsProduced: 0)
@@ -85,7 +85,7 @@ public struct EvaluateUseCase: Sendable {
                         return
                     }
 
-                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
+                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
 
                     // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
                     let (cachedResults, tasksToEvaluate) = EvaluationCacheService.partitionTasks(
@@ -167,7 +167,7 @@ public struct EvaluateUseCase: Sendable {
 
                     // Write phase_result.json
                     try PhaseResultWriter.writeSuccess(
-                        phase: .evaluations,
+                        phase: .analyze,
                         outputDir: config.absoluteOutputDir,
                         prNumber: prNumber,
                         stats: PhaseStats(
@@ -192,23 +192,23 @@ public struct EvaluateUseCase: Sendable {
 
     public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> EvaluationPhaseOutput {
         let summary: EvaluationSummary = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .evaluations, filename: "summary.json"
+            config: config, prNumber: prNumber, phase: .analyze, filename: "summary.json"
         )
 
         let evalFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .evaluations
+            config: config, prNumber: prNumber, phase: .analyze
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var evaluations: [RuleEvaluationResult] = []
         for file in evalFiles {
             let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .evaluations, filename: file
+                config: config, prNumber: prNumber, phase: .analyze, filename: file
             )
             evaluations.append(evaluation)
         }
 
         let tasks: [EvaluationTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
-            config: config, prNumber: prNumber, phase: .tasks
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
         )) ?? []
 
         return EvaluationPhaseOutput(evaluations: evaluations, tasks: tasks, summary: summary)

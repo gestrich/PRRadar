@@ -14,8 +14,8 @@ public struct FetchReviewCommentsUseCase: Sendable {
     public func execute(prNumber: String, minScore: Int = 5) -> [ReviewComment] {
         let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
 
-        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.evaluations.rawValue)"
-        let tasksDir = "\(prOutputDir)/\(PRRadarPhase.tasks.rawValue)"
+        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
+        let tasksDir = "\(prOutputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareTasksSubdir)"
         let pending = ViolationService.loadViolations(
             evaluationsDir: evalsDir,
             tasksDir: tasksDir,
@@ -26,7 +26,7 @@ public struct FetchReviewCommentsUseCase: Sendable {
             guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
-                phase: .pullRequest,
+                phase: .sync,
                 filename: "gh-comments.json"
             ) else { return [] }
             return comments.reviewComments

@@ -11,9 +11,9 @@ public struct ReportGeneratorService: Sendable {
         minScore: Int,
         outputDir: String
     ) throws -> ReviewReport {
-        let evalsDir = "\(outputDir)/\(PRRadarPhase.evaluations.rawValue)"
-        let tasksDir = "\(outputDir)/\(PRRadarPhase.tasks.rawValue)"
-        let focusAreasDir = "\(outputDir)/\(PRRadarPhase.focusAreas.rawValue)"
+        let evalsDir = "\(outputDir)/\(PRRadarPhase.analyze.rawValue)"
+        let tasksDir = "\(outputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareTasksSubdir)"
+        let focusAreasDir = "\(outputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareFocusAreasSubdir)"
 
         let (violations, totalTasks, totalCost, modelsUsed) = loadViolations(
             evaluationsDir: evalsDir,

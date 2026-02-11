@@ -71,6 +71,64 @@ public enum PhaseOutputParser {
             try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, filename: filename) as T
         }
     }
+
+    // MARK: - Subdirectory Variants
+
+    /// Decode a single JSON file from a phase subdirectory.
+    public static func parsePhaseOutput<T: Decodable>(
+        config: PRRadarConfig,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String,
+        filename: String
+    ) throws -> T {
+        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, filename: filename)
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// List all files in a phase subdirectory.
+    public static func listPhaseFiles(
+        config: PRRadarConfig,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String
+    ) -> [String] {
+        OutputFileReader.files(in: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory)
+    }
+
+    /// Read raw file data from a phase subdirectory.
+    public static func readPhaseFile(
+        config: PRRadarConfig,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String,
+        filename: String
+    ) throws -> Data {
+        let dir = OutputFileReader.phaseSubdirectoryPath(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory)
+        let path = "\(dir)/\(filename)"
+        guard FileManager.default.fileExists(atPath: path) else {
+            throw PhaseOutputError.fileNotFound(path)
+        }
+        guard let data = FileManager.default.contents(atPath: path) else {
+            throw PhaseOutputError.unreadableFile(path)
+        }
+        return data
+    }
+
+    /// Decode all data artifact JSON files in a phase subdirectory.
+    public static func parseAllPhaseFiles<T: Decodable>(
+        config: PRRadarConfig,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String
+    ) throws -> [T] {
+        let dataFiles = listPhaseFiles(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory)
+            .filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
+
+        return try dataFiles.compactMap { filename in
+            try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, filename: filename) as T
+        }
+    }
 }
 
 public enum PhaseOutputError: Error, Sendable {

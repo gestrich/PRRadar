@@ -1,14 +1,12 @@
 import Foundation
 
 public enum PRRadarPhase: String, CaseIterable, Sendable {
-    case pullRequest = "phase-1-pull-request"
-    case focusAreas = "phase-2-focus-areas"
-    case rules = "phase-3-rules"
-    case tasks = "phase-4-tasks"
-    case evaluations = "phase-5-evaluations"
-    case report = "phase-6-report"
+    case sync = "phase-1-sync"
+    case prepare = "phase-2-prepare"
+    case analyze = "phase-3-analyze"
+    case report = "phase-4-report"
 
-    /// The numeric phase number (1-6).
+    /// The numeric phase number (1-4).
     public var phaseNumber: Int {
         Self.allCases.firstIndex(of: self)! + 1
     }
@@ -23,11 +21,9 @@ public enum PRRadarPhase: String, CaseIterable, Sendable {
     /// Human-readable display name for the phase.
     public var displayName: String {
         switch self {
-        case .pullRequest: "Pull Request"
-        case .focusAreas: "Focus Areas"
-        case .rules: "Rules"
-        case .tasks: "Tasks"
-        case .evaluations: "Evaluations"
+        case .sync: "Sync PR"
+        case .prepare: "Prepare"
+        case .analyze: "Analyze"
         case .report: "Report"
         }
     }
@@ -82,13 +78,28 @@ public struct PhaseStatus: Sendable {
 public enum DataPathsService {
     public static let phaseResultFilename = "phase_result.json"
     public static let dataFilePrefix = "data-"
-    
+
+    // Subdirectory names within the prepare phase
+    public static let prepareFocusAreasSubdir = "focus-areas"
+    public static let prepareRulesSubdir = "rules"
+    public static let prepareTasksSubdir = "tasks"
+
     public static func phaseDirectory(
         outputDir: String,
         prNumber: String,
         phase: PRRadarPhase
     ) -> String {
         "\(outputDir)/\(prNumber)/\(phase.rawValue)"
+    }
+
+    /// Get a subdirectory within a phase directory (e.g., focus-areas within prepare).
+    public static func phaseSubdirectory(
+        outputDir: String,
+        prNumber: String,
+        phase: PRRadarPhase,
+        subdirectory: String
+    ) -> String {
+        "\(phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase))/\(subdirectory)"
     }
 
     public static func ensureDirectoryExists(at path: String) throws {

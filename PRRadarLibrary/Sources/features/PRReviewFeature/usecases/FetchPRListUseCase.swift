@@ -18,7 +18,7 @@ public struct FetchPRListUseCase: Sendable {
         repoSlug: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<[PRMetadata]>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .pullRequest))
+            continuation.yield(.running(phase: .sync))
 
             Task {
                 do {
@@ -50,7 +50,7 @@ public struct FetchPRListUseCase: Sendable {
                         let prDir = DataPathsService.phaseDirectory(
                             outputDir: config.absoluteOutputDir,
                             prNumber: String(pr.number),
-                            phase: .pullRequest
+                            phase: .sync
                         )
                         try DataPathsService.ensureDirectoryExists(at: prDir)
                         let prData = try encoder.encode(pr)

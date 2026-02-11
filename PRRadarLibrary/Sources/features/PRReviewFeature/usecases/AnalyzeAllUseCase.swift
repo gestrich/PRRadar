@@ -26,7 +26,7 @@ public struct AnalyzeAllUseCase: Sendable {
         state: PRState? = nil
     ) -> AsyncThrowingStream<PhaseProgress<AnalyzeAllOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .pullRequest))
+            continuation.yield(.running(phase: .sync))
 
             Task {
                 do {
