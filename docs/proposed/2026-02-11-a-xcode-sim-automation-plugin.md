@@ -326,7 +326,7 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
 
 **Completed**: Created `.xcuitest-config.json` with all 9 config fields. Created `.claude/xcuitest-notes.md` with PRRadar-specific content: three-column NavigationSplitView layout diagram, column descriptions, navigation steps for Summary/Diff/Report/Settings views, accessibility identifier table, app-specific tips (done timeout, stale process cleanup, orphaned processes), and screenshot test patterns with common navigation code. Removed both local skills (`interactive-xcuitest` and `creating-automated-screenshots`). Updated `CLAUDE.md` to reference plugin skills (`/xcode-sim-automation:interactive-xcuitest` and `/xcode-sim-automation:creating-automated-screenshots`).
 
-## - [ ] Phase 4: Install and Test Plugin
+## - [x] Phase 4: Install and Test Plugin
 
 **Repos**: Both
 
@@ -349,6 +349,14 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
    /plugin marketplace add gestrich/xcode-sim-automation
    claude plugin install xcode-sim-automation@gestrich-xcode-sim-automation --scope local
    ```
+
+**Completed**: All tests passed:
+
+- **Plugin loading**: `claude --plugin-dir ~/Developer/personal/xcode-sim-automation/plugin` loads successfully. Both skills (`xcode-sim-automation:interactive-xcuitest` and `xcode-sim-automation:creating-automated-screenshots`) appear in the skill list.
+- **interactive-xcuitest skill**: Reads all 9 values from `.xcuitest-config.json` correctly (xcodeProject, scheme, destination, uiTestTarget, testClass, testMethod, containerPath, processName, appSpecificNotes). Reads `.claude/xcuitest-notes.md` and finds all 8 sections (UI Layout, Column descriptions, Navigation Steps, Accessibility Identifiers, PRRadar-Specific Tips, Screenshot Test Patterns, etc.).
+- **creating-automated-screenshots skill**: Same config reading verified — all 9 values from `.xcuitest-config.json` and `.claude/xcuitest-notes.md` sections confirmed.
+- **Python CLI location**: Found at both `~/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py` and `plugin/tools/xcuitest-control.py` when `--add-dir` grants access to the xcode-sim-automation repo. Note: When using `--plugin-dir` alone, the sandbox restricts file access to the current project directory, so `--add-dir ~/Developer/personal/xcode-sim-automation` is needed for the CLI to be located.
+- **Marketplace install**: Skipped (not set up yet).
 
 ## - [ ] Phase 5: Clean Up and Commit
 
