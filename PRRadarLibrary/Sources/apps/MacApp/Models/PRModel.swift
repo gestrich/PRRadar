@@ -5,9 +5,9 @@ import PRRadarModels
 import PRReviewFeature
 
 struct ReviewSnapshot {
-    let diff: DiffPhaseSnapshot?
-    let rules: RulesPhaseOutput?
-    let evaluation: EvaluationPhaseOutput?
+    let diff: SyncSnapshot?
+    let rules: PrepareOutput?
+    let evaluation: AnalysisOutput?
     let report: ReportPhaseOutput?
     let comments: CommentPhaseOutput?
 }
@@ -25,9 +25,9 @@ final class PRModel: Identifiable, Hashable {
     private(set) var analysisState: AnalysisState = .loading
     private(set) var detailState: DetailState = .unloaded
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
-    private(set) var diff: DiffPhaseSnapshot?
-    private(set) var rules: RulesPhaseOutput?
-    private(set) var evaluation: EvaluationPhaseOutput?
+    private(set) var diff: SyncSnapshot?
+    private(set) var rules: PrepareOutput?
+    private(set) var evaluation: AnalysisOutput?
     private(set) var report: ReportPhaseOutput?
     private(set) var comments: CommentPhaseOutput?
 
@@ -177,8 +177,8 @@ final class PRModel: Identifiable, Hashable {
 
     func loadCachedNonDiffOutputs() throws {
         let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber)
-        self.rules = snapshot.rules
-        self.evaluation = snapshot.evaluation
+        self.rules = snapshot.preparation
+        self.evaluation = snapshot.analysis
         self.report = snapshot.report
 
         do {
@@ -252,7 +252,7 @@ final class PRModel: Identifiable, Hashable {
             phaseStates[.sync] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
         }
 
-        let useCase = FetchDiffUseCase(config: config)
+        let useCase = SyncPRUseCase(config: config)
 
         let task = Task {
             do {
@@ -350,7 +350,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func loadCachedDiff() {
-        let snapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
+        let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
         if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
             self.diff = snapshot
             if case .idle = stateFor(.sync) {
@@ -568,7 +568,7 @@ final class PRModel: Identifiable, Hashable {
         aiOutputText = ""
         aiCurrentPrompt = ""
 
-        let useCase = FetchRulesUseCase(config: config)
+        let useCase = PrepareUseCase(config: config)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
 
         do {
@@ -604,7 +604,7 @@ final class PRModel: Identifiable, Hashable {
         aiOutputText = ""
         aiCurrentPrompt = ""
 
-        let useCase = EvaluateUseCase(config: config)
+        let useCase = AnalyzeUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber) {
@@ -638,7 +638,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func runSelectiveEvaluation(filter: EvaluationFilter) async {
-        let useCase = SelectiveEvaluateUseCase(config: config)
+        let useCase = SelectiveAnalyzeUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber, filter: filter) {
@@ -690,7 +690,7 @@ final class PRModel: Identifiable, Hashable {
                 totalDurationMs: result.durationMs,
                 results: [result]
             )
-            evaluation = EvaluationPhaseOutput(
+            evaluation = AnalysisOutput(
                 evaluations: [result],
                 summary: summary
             )
@@ -711,7 +711,7 @@ final class PRModel: Identifiable, Hashable {
             results: evaluations
         )
 
-        evaluation = EvaluationPhaseOutput(
+        evaluation = AnalysisOutput(
             evaluations: evaluations,
             tasks: existing.tasks,
             summary: summary,

@@ -3,12 +3,12 @@ import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 
-public struct AnalyzeAllOutput: Sendable {
+public struct RunAllOutput: Sendable {
     public let analyzedCount: Int
     public let failedCount: Int
 }
 
-public struct AnalyzeAllUseCase: Sendable {
+public struct RunAllUseCase: Sendable {
 
     private let config: PRRadarConfig
 
@@ -24,7 +24,7 @@ public struct AnalyzeAllUseCase: Sendable {
         comment: Bool = false,
         limit: String? = nil,
         state: PRState? = nil
-    ) -> AsyncThrowingStream<PhaseProgress<AnalyzeAllOutput>, Error> {
+    ) -> AsyncThrowingStream<PhaseProgress<RunAllOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .sync))
 
@@ -55,7 +55,7 @@ public struct AnalyzeAllUseCase: Sendable {
                         continuation.yield(.progress(current: current, total: totalCount))
                         continuation.yield(.log(text: "\n[\(current)/\(totalCount)] PR #\(prNumber): \(pr.title)\n"))
 
-                        let analyzeUseCase = AnalyzeUseCase(config: config)
+                        let analyzeUseCase = RunPipelineUseCase(config: config)
                         var succeeded = false
 
                         for try await progress in analyzeUseCase.execute(
@@ -93,7 +93,7 @@ public struct AnalyzeAllUseCase: Sendable {
 
                     continuation.yield(.log(text: "\nAnalyze-all complete: \(analyzedCount) succeeded, \(failedCount) failed\n"))
 
-                    let output = AnalyzeAllOutput(analyzedCount: analyzedCount, failedCount: failedCount)
+                    let output = RunAllOutput(analyzedCount: analyzedCount, failedCount: failedCount)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {

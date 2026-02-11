@@ -14,11 +14,11 @@ struct RefreshPRCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = FetchDiffUseCase(config: config)
+        let useCase = SyncPRUseCase(config: config)
 
         print("Refreshing PR #\(options.prNumber)...")
 
-        var result: DiffPhaseSnapshot?
+        var result: SyncSnapshot?
 
         for try await progress in useCase.execute(prNumber: options.prNumber) {
             switch progress {

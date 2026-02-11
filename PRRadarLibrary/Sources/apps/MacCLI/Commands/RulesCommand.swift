@@ -23,14 +23,14 @@ struct RulesCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = FetchRulesUseCase(config: config)
+        let useCase = PrepareUseCase(config: config)
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         if !options.json {
             print("Running rules phase for PR #\(options.prNumber)...")
         }
 
-        var result: RulesPhaseOutput?
+        var result: PrepareOutput?
 
         for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: effectiveRulesDir) {
             switch progress {

@@ -4,7 +4,7 @@ import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 
-public struct RulesPhaseOutput: Sendable {
+public struct PrepareOutput: Sendable {
     public let focusAreas: [FocusArea]
     public let rules: [ReviewRule]
     public let tasks: [EvaluationTaskOutput]
@@ -16,7 +16,7 @@ public struct RulesPhaseOutput: Sendable {
     }
 }
 
-public struct FetchRulesUseCase: Sendable {
+public struct PrepareUseCase: Sendable {
 
     private let config: PRRadarConfig
 
@@ -24,7 +24,7 @@ public struct FetchRulesUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, rulesDir: String?) -> AsyncThrowingStream<PhaseProgress<RulesPhaseOutput>, Error> {
+    public func execute(prNumber: String, rulesDir: String?) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .prepare))
 
@@ -42,7 +42,7 @@ public struct FetchRulesUseCase: Sendable {
                     // Generate focus areas
                     continuation.yield(.log(text: "Generating focus areas...\n"))
 
-                    let diffSnapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
+                    let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
                     guard let fullDiff = diffSnapshot.effectiveDiff ?? diffSnapshot.fullDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
@@ -135,7 +135,7 @@ public struct FetchRulesUseCase: Sendable {
 
                     continuation.yield(.log(text: "Tasks created: \(tasks.count)\n"))
 
-                    let output = RulesPhaseOutput(focusAreas: allFocusAreas, rules: allRules, tasks: tasks)
+                    let output = PrepareOutput(focusAreas: allFocusAreas, rules: allRules, tasks: tasks)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
@@ -146,7 +146,7 @@ public struct FetchRulesUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> RulesPhaseOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> PrepareOutput {
         let focusFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
@@ -167,6 +167,6 @@ public struct FetchRulesUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
         )
 
-        return RulesPhaseOutput(focusAreas: allFocusAreas, rules: rules, tasks: tasks)
+        return PrepareOutput(focusAreas: allFocusAreas, rules: rules, tasks: tasks)
     }
 }

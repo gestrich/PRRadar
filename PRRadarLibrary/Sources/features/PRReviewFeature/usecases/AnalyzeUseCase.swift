@@ -1,15 +1,28 @@
+import CLISDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 
-public struct AnalyzePhaseOutput: Sendable {
-    public let files: [PRRadarPhase: [String]]
-    public let report: ReportPhaseOutput?
+public struct AnalysisOutput: Sendable {
+    public let evaluations: [RuleEvaluationResult]
+    public let tasks: [EvaluationTaskOutput]
+    public let summary: EvaluationSummary
+    public let cachedCount: Int
 
-    public init(files: [PRRadarPhase: [String]], report: ReportPhaseOutput? = nil) {
-        self.files = files
-        self.report = report
+    public init(evaluations: [RuleEvaluationResult], tasks: [EvaluationTaskOutput] = [], summary: EvaluationSummary, cachedCount: Int = 0) {
+        self.evaluations = evaluations
+        self.tasks = tasks
+        self.summary = summary
+        self.cachedCount = cachedCount
+    }
+
+    /// Merge evaluations with task metadata into structured comments.
+    public var comments: [PRComment] {
+        let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
+        return evaluations
+            .filter(\.evaluation.violatesRule)
+            .map { PRComment.from(evaluation: $0, task: taskMap[$0.taskId]) }
     }
 }
 
@@ -21,167 +34,152 @@ public struct AnalyzeUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(
-        prNumber: String,
-        rulesDir: String? = nil,
-        repoPath: String? = nil,
-        noDryRun: Bool = false,
-        minScore: String? = nil
-    ) -> AsyncThrowingStream<PhaseProgress<AnalyzePhaseOutput>, Error> {
+    public func execute(prNumber: String, repoPath: String? = nil) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .sync))
+            continuation.yield(.running(phase: .analyze))
 
             Task {
                 do {
-                    // Phase 1: Sync
-                    continuation.yield(.log(text: "=== Phase 1: Syncing PR data ===\n"))
-                    let diffUseCase = FetchDiffUseCase(config: config)
-                    var diffCompleted = false
-                    for try await progress in diffUseCase.execute(prNumber: prNumber) {
-                        switch progress {
-                        case .running: break
-                        case .progress: break
-                        case .log(let text):
-                            continuation.yield(.log(text: text))
-                        case .aiOutput: break
-                        case .aiPrompt: break
-                        case .aiToolUse: break
-                        case .evaluationResult: break
-                        case .completed:
-                            diffCompleted = true
-                        case .failed(let error, let logs):
-                            continuation.yield(.failed(error: "Diff phase failed: \(error)", logs: logs))
-                            continuation.finish()
-                            return
-                        }
-                    }
-                    guard diffCompleted else {
-                        continuation.yield(.failed(error: "Diff phase produced no output", logs: ""))
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let effectiveRepoPath = repoPath ?? config.repoPath
+
+                    // Load tasks from prepare phase
+                    let tasks: [EvaluationTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+                        config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
+                    )
+
+                    // Handle case where no tasks were generated (legitimate scenario)
+                    if tasks.isEmpty {
+                        continuation.yield(.log(text: "No tasks to evaluate (phase completed successfully with 0 tasks)\n"))
+
+                        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
+                        try DataPathsService.ensureDirectoryExists(at: evalsDir)
+
+                        let encoder = JSONEncoder()
+                        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+                        // Write empty summary
+                        let summary = EvaluationSummary(
+                            prNumber: Int(prNumber) ?? 0,
+                            evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+                            totalTasks: 0,
+                            violationsFound: 0,
+                            totalCostUsd: 0.0,
+                            totalDurationMs: 0,
+                            results: []
+                        )
+                        let summaryData = try encoder.encode(summary)
+                        try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+
+                        // Write phase_result.json
+                        try PhaseResultWriter.writeSuccess(
+                            phase: .analyze,
+                            outputDir: config.absoluteOutputDir,
+                            prNumber: prNumber,
+                            stats: PhaseStats(artifactsProduced: 0)
+                        )
+
+                        let output = AnalysisOutput(evaluations: [], tasks: [], summary: summary)
+                        continuation.yield(.completed(output: output))
                         continuation.finish()
                         return
                     }
 
-                    // Phase 2: Prepare
-                    continuation.yield(.running(phase: .prepare))
-                    continuation.yield(.log(text: "\n=== Phase 2: Preparing evaluation tasks ===\n"))
-                    let rulesUseCase = FetchRulesUseCase(config: config)
-                    var rulesCompleted = false
-                    for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
-                        switch progress {
-                        case .running(let phase):
-                            continuation.yield(.running(phase: phase))
-                        case .progress: break
-                        case .log(let text):
-                            continuation.yield(.log(text: text))
-                        case .aiOutput(let text):
-                            continuation.yield(.aiOutput(text: text))
-                        case .aiPrompt(let text):
-                            continuation.yield(.aiPrompt(text: text))
-                        case .aiToolUse(let name):
-                            continuation.yield(.aiToolUse(name: name))
-                        case .evaluationResult: break
-                        case .completed:
-                            rulesCompleted = true
-                        case .failed(let error, let logs):
-                            continuation.yield(.failed(error: "Rules phase failed: \(error)", logs: logs))
-                            continuation.finish()
-                            return
-                        }
-                    }
-                    guard rulesCompleted else {
-                        continuation.yield(.failed(error: "Rules phase produced no output", logs: ""))
-                        continuation.finish()
-                        return
+                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
+
+                    // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
+                    let (cachedResults, tasksToEvaluate) = EvaluationCacheService.partitionTasks(
+                        tasks: tasks, evalsDir: evalsDir
+                    )
+
+                    let cachedCount = cachedResults.count
+                    let freshCount = tasksToEvaluate.count
+                    let totalCount = tasks.count
+
+                    continuation.yield(.log(text: EvaluationCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
+
+                    for (index, result) in cachedResults.enumerated() {
+                        continuation.yield(.log(text: EvaluationCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
+                        continuation.yield(.evaluationResult(result))
                     }
 
-                    // Phase 3: Analyze
-                    continuation.yield(.running(phase: .analyze))
-                    continuation.yield(.log(text: "\n=== Phase 3: Analyzing code ===\n"))
-                    let evalUseCase = EvaluateUseCase(config: config)
-                    var evalCompleted = false
-                    for try await progress in evalUseCase.execute(prNumber: prNumber, repoPath: repoPath) {
-                        switch progress {
-                        case .running: break
-                        case .progress: break
-                        case .log(let text):
-                            continuation.yield(.log(text: text))
-                        case .aiOutput(let text):
-                            continuation.yield(.aiOutput(text: text))
-                        case .aiPrompt(let text):
-                            continuation.yield(.aiPrompt(text: text))
-                        case .aiToolUse(let name):
-                            continuation.yield(.aiToolUse(name: name))
-                        case .evaluationResult(let result):
-                            continuation.yield(.evaluationResult(result))
-                        case .completed:
-                            evalCompleted = true
-                        case .failed(let error, let logs):
-                            continuation.yield(.failed(error: "Evaluation phase failed: \(error)", logs: logs))
-                            continuation.finish()
-                            return
-                        }
-                    }
-                    guard evalCompleted else {
-                        continuation.yield(.failed(error: "Evaluation phase produced no output", logs: ""))
-                        continuation.finish()
-                        return
-                    }
+                    var freshResults: [RuleEvaluationResult] = []
+                    var durationMs = 0
+                    var totalCost = 0.0
 
-                    // Phase 4: Report
-                    continuation.yield(.running(phase: .report))
-                    continuation.yield(.log(text: "\n=== Phase 4: Report ===\n"))
-                    let reportUseCase = GenerateReportUseCase(config: config)
-                    var reportOutput: ReportPhaseOutput?
-                    for try await progress in reportUseCase.execute(prNumber: prNumber, minScore: minScore) {
-                        switch progress {
-                        case .running: break
-                        case .progress: break
-                        case .log(let text):
-                            continuation.yield(.log(text: text))
-                        case .aiOutput: break
-                        case .aiPrompt: break
-                        case .aiToolUse: break
-                        case .evaluationResult: break
-                        case .completed(let output):
-                            reportOutput = output
-                        case .failed(let error, let logs):
-                            continuation.yield(.failed(error: "Report phase failed: \(error)", logs: logs))
-                            continuation.finish()
-                            return
-                        }
-                    }
+                    if !tasksToEvaluate.isEmpty {
+                        let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
+                        let evaluationService = EvaluationService(bridgeClient: bridgeClient)
 
-                    // Optional: Post comments
-                    if noDryRun {
-                        continuation.yield(.log(text: "\n=== Posting comments ===\n"))
-                        let commentUseCase = PostCommentsUseCase(config: config)
-                        for try await progress in commentUseCase.execute(prNumber: prNumber, minScore: minScore, dryRun: false) {
-                            switch progress {
-                            case .running: break
-                            case .progress: break
-                            case .log(let text):
-                                continuation.yield(.log(text: text))
-                            case .aiOutput: break
-                            case .aiPrompt: break
-                            case .aiToolUse: break
-                            case .evaluationResult: break
-                            case .completed: break
-                            case .failed(let error, _):
-                                continuation.yield(.log(text: "Comment posting failed: \(error)\n"))
+                        let startTime = Date()
+                        freshResults = try await evaluationService.runBatchEvaluation(
+                            tasks: tasksToEvaluate,
+                            outputDir: prOutputDir,
+                            repoPath: effectiveRepoPath,
+                            transcriptDir: evalsDir,
+                            onStart: { index, total, task in
+                                let globalIndex = cachedCount + index
+                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] Evaluating \(task.rule.name)...\n"))
+                            },
+                            onResult: { index, total, result in
+                                let globalIndex = cachedCount + index
+                                let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
+                                continuation.yield(.evaluationResult(result))
+                            },
+                            onPrompt: { text in
+                                continuation.yield(.aiPrompt(text: text))
+                            },
+                            onAIText: { text in
+                                continuation.yield(.aiOutput(text: text))
+                            },
+                            onAIToolUse: { name in
+                                continuation.yield(.aiToolUse(name: name))
                             }
-                        }
+                        )
+
+                        durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
+                        totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)
                     }
 
-                    // Collect output files per phase
-                    var filesByPhase: [PRRadarPhase: [String]] = [:]
-                    for phase in PRRadarPhase.allCases {
-                        let files = OutputFileReader.files(in: config, prNumber: prNumber, phase: phase)
-                        if !files.isEmpty {
-                            filesByPhase[phase] = files
-                        }
-                    }
+                    // Write task snapshots to phase-5 for future cache checks
+                    try EvaluationCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: evalsDir)
 
-                    let output = AnalyzePhaseOutput(files: filesByPhase, report: reportOutput)
+                    // Combine cached and fresh results
+                    let allResults = cachedResults + freshResults
+                    let violationCount = allResults.filter(\.evaluation.violatesRule).count
+
+                    let summary = EvaluationSummary(
+                        prNumber: Int(prNumber) ?? 0,
+                        evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+                        totalTasks: allResults.count,
+                        violationsFound: violationCount,
+                        totalCostUsd: totalCost,
+                        totalDurationMs: durationMs,
+                        results: allResults
+                    )
+
+                    // Write summary
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                    let summaryData = try encoder.encode(summary)
+                    try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+
+                    // Write phase_result.json
+                    try PhaseResultWriter.writeSuccess(
+                        phase: .analyze,
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        stats: PhaseStats(
+                            artifactsProduced: allResults.count,
+                            durationMs: durationMs,
+                            costUsd: totalCost
+                        )
+                    )
+
+                    continuation.yield(.log(text: EvaluationCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
+
+                    let output = AnalysisOutput(evaluations: allResults, tasks: tasks, summary: summary, cachedCount: cachedCount)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
@@ -190,5 +188,29 @@ public struct AnalyzeUseCase: Sendable {
                 }
             }
         }
+    }
+
+    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> AnalysisOutput {
+        let summary: EvaluationSummary = try PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .analyze, filename: "summary.json"
+        )
+
+        let evalFiles = PhaseOutputParser.listPhaseFiles(
+            config: config, prNumber: prNumber, phase: .analyze
+        ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
+
+        var evaluations: [RuleEvaluationResult] = []
+        for file in evalFiles {
+            let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .analyze, filename: file
+            )
+            evaluations.append(evaluation)
+        }
+
+        let tasks: [EvaluationTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
+        )) ?? []
+
+        return AnalysisOutput(evaluations: evaluations, tasks: tasks, summary: summary)
     }
 }

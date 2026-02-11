@@ -37,12 +37,12 @@ struct EvaluateCommand: AsyncParsableCommand {
             ruleNames: rule.isEmpty ? nil : rule
         )
 
-        let stream: AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error>
+        let stream: AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error>
         if filter.isEmpty {
-            let useCase = EvaluateUseCase(config: config)
+            let useCase = AnalyzeUseCase(config: config)
             stream = useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath)
         } else {
-            let useCase = SelectiveEvaluateUseCase(config: config)
+            let useCase = SelectiveAnalyzeUseCase(config: config)
             stream = useCase.execute(prNumber: options.prNumber, filter: filter, repoPath: options.repoPath)
         }
 
@@ -50,7 +50,7 @@ struct EvaluateCommand: AsyncParsableCommand {
             print("Running evaluations for PR #\(options.prNumber)...")
         }
 
-        var result: EvaluationPhaseOutput?
+        var result: AnalysisOutput?
 
         for try await progress in stream {
             switch progress {

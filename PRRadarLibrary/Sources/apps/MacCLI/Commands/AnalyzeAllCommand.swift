@@ -61,7 +61,7 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
         let prRadarConfig = resolved.config
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
-        let useCase = AnalyzeAllUseCase(config: prRadarConfig)
+        let useCase = RunAllUseCase(config: prRadarConfig)
 
         for try await progress in useCase.execute(
             since: since,

@@ -4,7 +4,7 @@ import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 
-public struct SelectiveEvaluateUseCase: Sendable {
+public struct SelectiveAnalyzeUseCase: Sendable {
 
     private let config: PRRadarConfig
 
@@ -16,7 +16,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
         prNumber: String,
         filter: EvaluationFilter,
         repoPath: String? = nil
-    ) -> AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error> {
+    ) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
@@ -115,7 +115,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
         }
     }
 
-    /// Build an EvaluationPhaseOutput by reading all individual result files from disk.
+    /// Build an AnalysisOutput by reading all individual result files from disk.
     ///
     /// This merges selective results with any prior full-run results,
     /// giving the UI a complete picture of all evaluations.
@@ -124,7 +124,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
         prNumber: String,
         allTasks: [EvaluationTaskOutput],
         cachedCount: Int
-    ) throws -> EvaluationPhaseOutput {
+    ) throws -> AnalysisOutput {
         let evalFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .analyze
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
@@ -149,7 +149,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
             results: evaluations
         )
 
-        return EvaluationPhaseOutput(
+        return AnalysisOutput(
             evaluations: evaluations,
             tasks: allTasks,
             summary: summary,

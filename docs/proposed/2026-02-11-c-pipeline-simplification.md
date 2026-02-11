@@ -101,7 +101,7 @@ Key changes:
 - `PRModel.runRules()` was simplified from tracking 3 separate phase states to tracking 1 `.prepare` state
 - All 371 tests pass, build succeeds
 
-## - [ ] Phase 2: Update output types and use cases
+## - [x] Phase 2: Update output types and use cases ✅
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -120,6 +120,15 @@ Update use cases:
 - `LoadExistingOutputsUseCase` → update phase references
 
 Update `PhaseProgress<Output>` references where `.running(phase:)` uses old phase cases.
+
+### Technical Notes
+
+- Renamed 7 use case files via `git mv` for clean history tracking
+- Output type renames: `DiffPhaseSnapshot` → `SyncSnapshot`, `RulesPhaseOutput` → `PrepareOutput`, `EvaluationPhaseOutput` → `AnalysisOutput`, `AnalyzePhaseOutput` → `RunPipelineOutput`, `AnalyzeAllOutput` → `RunAllOutput`
+- Use case renames: `FetchDiffUseCase` → `SyncPRUseCase`, `FetchRulesUseCase` → `PrepareUseCase`, `EvaluateUseCase` → `AnalyzeUseCase`, `SelectiveEvaluateUseCase` → `SelectiveAnalyzeUseCase`, `AnalyzeUseCase` (orchestrator) → `RunPipelineUseCase`, `AnalyzeAllUseCase` → `RunAllUseCase`
+- `PipelineSnapshot` property renames: `diff` → `sync`, `rules` → `preparation`, `evaluation` → `analysis`
+- `PhaseProgress<Output>` required no changes — `.running(phase:)` already uses `PRRadarPhase` cases (renamed in Phase 1)
+- All 371 tests pass, build succeeds
 
 ## - [ ] Phase 3: Update CLI commands
 

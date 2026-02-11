@@ -2,7 +2,7 @@ import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 
-public struct DiffPhaseSnapshot: Sendable {
+public struct SyncSnapshot: Sendable {
     public let files: [String]
     public let fullDiff: GitDiff?
     public let effectiveDiff: GitDiff?
@@ -30,7 +30,7 @@ public struct DiffPhaseSnapshot: Sendable {
     }
 }
 
-public struct FetchDiffUseCase: Sendable {
+public struct SyncPRUseCase: Sendable {
 
     private let config: PRRadarConfig
 
@@ -38,7 +38,7 @@ public struct FetchDiffUseCase: Sendable {
         self.config = config
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String) -> DiffPhaseSnapshot {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String) -> SyncSnapshot {
         let files = OutputFileReader.files(
             in: config,
             prNumber: prNumber,
@@ -61,7 +61,7 @@ public struct FetchDiffUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .sync, filename: "gh-comments.json"
         )
 
-        return DiffPhaseSnapshot(
+        return SyncSnapshot(
             files: files,
             fullDiff: fullDiff,
             effectiveDiff: effectiveDiff,
@@ -72,7 +72,7 @@ public struct FetchDiffUseCase: Sendable {
         )
     }
 
-    public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<DiffPhaseSnapshot>, Error> {
+    public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .sync))
 

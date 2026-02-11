@@ -17,7 +17,7 @@ struct DiffCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = FetchDiffUseCase(config: config)
+        let useCase = SyncPRUseCase(config: config)
 
         if !options.json {
             print("Fetching diff for PR #\(options.prNumber)...")

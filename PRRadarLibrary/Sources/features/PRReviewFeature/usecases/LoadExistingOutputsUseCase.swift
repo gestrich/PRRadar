@@ -3,15 +3,15 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct PipelineSnapshot: Sendable {
-    public let diff: DiffPhaseSnapshot?
-    public let rules: RulesPhaseOutput?
-    public let evaluation: EvaluationPhaseOutput?
+    public let sync: SyncSnapshot?
+    public let preparation: PrepareOutput?
+    public let analysis: AnalysisOutput?
     public let report: ReportPhaseOutput?
 
-    public init(diff: DiffPhaseSnapshot?, rules: RulesPhaseOutput?, evaluation: EvaluationPhaseOutput?, report: ReportPhaseOutput?) {
-        self.diff = diff
-        self.rules = rules
-        self.evaluation = evaluation
+    public init(sync: SyncSnapshot?, preparation: PrepareOutput?, analysis: AnalysisOutput?, report: ReportPhaseOutput?) {
+        self.sync = sync
+        self.preparation = preparation
+        self.analysis = analysis
         self.report = report
     }
 }
@@ -25,20 +25,20 @@ public struct LoadExistingOutputsUseCase: Sendable {
     }
 
     public func execute(prNumber: String) -> PipelineSnapshot {
-        let diff: DiffPhaseSnapshot? = {
-            let snapshot = FetchDiffUseCase.parseOutput(config: config, prNumber: prNumber)
+        let sync: SyncSnapshot? = {
+            let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
             if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
                 return snapshot
             }
             return nil
         }()
 
-        let rules = try? FetchRulesUseCase.parseOutput(config: config, prNumber: prNumber)
+        let preparation = try? PrepareUseCase.parseOutput(config: config, prNumber: prNumber)
 
-        let evaluation = try? EvaluateUseCase.parseOutput(config: config, prNumber: prNumber)
+        let analysis = try? AnalyzeUseCase.parseOutput(config: config, prNumber: prNumber)
 
         let report = try? GenerateReportUseCase.parseOutput(config: config, prNumber: prNumber)
 
-        return PipelineSnapshot(diff: diff, rules: rules, evaluation: evaluation, report: report)
+        return PipelineSnapshot(sync: sync, preparation: preparation, analysis: analysis, report: report)
     }
 }

@@ -30,14 +30,14 @@ struct AnalyzeCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = AnalyzeUseCase(config: config)
+        let useCase = RunPipelineUseCase(config: config)
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         if !options.json {
             print("Running full analysis for PR #\(options.prNumber)...")
         }
 
-        var result: AnalyzePhaseOutput?
+        var result: RunPipelineOutput?
 
         for try await progress in useCase.execute(
             prNumber: options.prNumber,
