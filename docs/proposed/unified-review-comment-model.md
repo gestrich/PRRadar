@@ -387,7 +387,7 @@ Verify the full post-then-fetch cycle works end-to-end from the CLI against http
 
 **Completed.** Updated `PostCommentsUseCase` to use `FetchReviewCommentsUseCase` for reconciliation — it now loads all `ReviewComment`s, filters to `.new` only for posting, and reports `.redetected` as skipped. Added `skipped` field to `CommentPhaseOutput` (with default `0` for backward compatibility). Updated `CommentCommand` to display skip counts. Validated against test repo PR #1: the `guard-divide-by-zero` violation at `Calculator.swift:19` was correctly matched as `.redetected` against the posted GitHub comment, and the CLI reported "Skipping 1 already-posted comments" / "All violations already posted — nothing new to comment." Build and all 330 tests pass.
 
-## - [ ] Phase 10: Line-Shift Investigation (Stale Line Numbers)
+## - [x] Phase 10: Line-Shift Investigation (Stale Line Numbers)
 
 Test what happens to posted comment line numbers when the diff changes underneath them. This determines whether `reconcile()` needs to account for shifted lines or if GitHub metadata already handles it.
 
@@ -402,3 +402,29 @@ Test what happens to posted comment line numbers when the diff changes underneat
    - If GitHub updates `line` to the new position → matching works as-is
    - If GitHub keeps the original `line` → the matching heuristic needs adjustment (e.g., fall back to `body.contains(ruleName)` for same-file matches regardless of line, or use `diff_hunk` context)
 7. Document findings — this may surface a follow-up task to improve the matching heuristic for line drift
+
+**Completed.** Investigated against PR #1 (`Calculator.swift`, `guard-divide-by-zero` at original line 19).
+
+### Findings
+
+**GitHub updates `line` automatically.** When a commit shifts code, GitHub's API returns:
+- `line: 26` (updated to reflect the new position after the shift)
+- `original_line: 19` (preserved from when the comment was first posted)
+- `commit_id` updated to the latest commit; `original_commit_id` preserved
+
+However, **the AI evaluator reports stale line numbers.** When re-analyzing the updated diff, the Claude evaluator returned `line_number: 19` (the line number from the diff context, not the actual file line). This creates a mismatch: pending says line 19, posted says line 26 — `reconcile()` with exact `(file, line)` matching fails to find the match.
+
+### Fix: Two-Pass Matching with Fuzzy Fallback
+
+Updated `ViolationService.reconcile()` to use a two-pass strategy per pending comment:
+
+1. **Pass 1 (exact):** Same file, same line, body contains rule name — unchanged from before
+2. **Pass 2 (fuzzy):** Same file, **any** line, body contains rule name — new fallback for line drift
+
+Constraints on the fuzzy fallback:
+- Only activates when Pass 1 finds no match
+- Only applies to line-specific comments (`lineNumber != nil`) — file-level comments (nil line) must match exactly
+- Only considers line-specific posted comments (`line != nil`) — prevents file-level posted comments from being consumed by line-specific pending
+- Still requires `body.contains(ruleName)` — prevents false matches across different rules
+
+3 new unit tests added for the fuzzy fallback: exact-preferred-over-fuzzy, no-false-match-with-different-rules, and no-match-across-different-files. The existing "no match when line number differs" test was updated to "same file + same rule matches even when line number differs (line drift)". Build and all 333 tests pass.
