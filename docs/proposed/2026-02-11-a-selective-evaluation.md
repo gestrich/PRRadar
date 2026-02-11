@@ -300,7 +300,7 @@ Run selective evaluation via CLI against `/Users/bill/Developer/personal/PRRadar
 - CLI routing tested implicitly via `EvaluationFilter.isEmpty` — the `EvaluateCommand` routes to `SelectiveEvaluateUseCase` when `!filter.isEmpty` and to `EvaluateUseCase` otherwise; `isEmpty` tests confirm the routing predicate works correctly
 - 370 tests pass across 45 suites (26 new tests added), build succeeds
 
-## - [ ] Phase 8: GUI Validation via Interactive XCUITest
+## - [x] Phase 8: GUI Validation via Interactive XCUITest
 
 **Skills to read**: `xcode-sim-automation:interactive-xcuitest`
 
@@ -333,3 +333,30 @@ Use `/interactive-xcuitest` to:
 ### What to Verify Without XCUITest
 
 If any interaction is hard to automate (e.g., context menu submenus), document the manual steps clearly and verify what's automatable.
+
+### Completion Notes
+
+- Used existing PR #6 ("Add inverse method to Calculator") in PRRadar-TestRepo which has a `guard-divide-by-zero` rule violation
+- Ran full pipeline via CLI (`analyze 6 --config test-repo`) to populate all 6 phases — 1 task, 1 violation found (score 7/10)
+- Interactive XCUITest validated the following GUI elements and behaviors:
+
+**Verified via XCUITest (hierarchy inspection):**
+1. **Config selection**: Tapped `configRow_test-repo` in sidebar → test-repo config selected, PR list loaded with PRs #1–#6
+2. **PR selection**: Tapped `prRow_6` → PR #6 detail view loaded with title "Add inverse method to Calculator"
+3. **Pipeline status bar**: `phaseButton_summary`, `phaseButton_diff`, `phaseButton_report` all rendered as completed buttons
+4. **Diff view navigation**: Tapped `phaseButton_diff` → diff view loaded with full content
+5. **File sidebar**: "Changed Files" section with `Calculator.swift` displaying task count badge (1) and violation count badge (1)
+6. **Summary bar**: Files: 1, Hunks: 1, Evaluated: 1, Violations: 1, Cost: $0.1348, Model: Sonnet 4
+7. **Hunk header**: `@@ -15,4 +15,9 @@` with "Run Analysis" button visible on hunk header line
+8. **Inline violation annotation**: `guard-divide-by-zero` rule name as clickable link, violation comment ("Division operations should use Swift's error handling..."), severity score badge (7), "Assisted by PR Radar" attribution
+9. **Code diff content**: Line numbers (15–22), context lines, added lines (`+`) with `func inverse(`, `guard a != 0`, `return 1.0 / Double(a)`, closing braces
+10. **"Submit" button**: Present on the inline violation annotation for posting comments to GitHub
+11. **Selective evaluation trigger**: Tapped "Run Analysis" on hunk header → `ActivityIndicator` appeared on hunk header confirming evaluation kicked off; summary bar maintained correct counts during and after evaluation
+12. **State consistency**: After selective evaluation trigger, diff content remained intact, violation annotations persisted, file sidebar badges unchanged, full diff view navigable without refresh
+
+**Not automatable via XCUITest (documented for manual verification):**
+- **Context menu submenus**: Right-click on file → "Run Rule..." submenu with individual rule selection. SwiftUI context menus are not reliably triggerable via XCUITest on macOS
+- **Full analysis streaming**: Running a full analysis from the toolbar "Analyze" button and observing results appearing one-by-one requires a multi-minute API call; verified the mechanism works via code review (Phase 4/6 implementation) rather than live automation
+- **Window position**: App window rendered on secondary display; XCUITest screenshots captured primary display. Hierarchy inspection was used for all validation instead of visual screenshots
+
+- 370 tests pass across 45 suites, build succeeds
