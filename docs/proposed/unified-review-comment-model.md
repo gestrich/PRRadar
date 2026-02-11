@@ -336,7 +336,7 @@ private var isSubmitted: Bool {
 
 **Completed.** The `isRedetected` indicator on `InlinePostedCommentView` was already added in Phase 5. This phase removed the `isAlreadyPostedOnGitHub` computed property from `InlineCommentView` and simplified `isSubmitted` to only check `submittedCommentIds` — deduplication is now fully handled by `ViolationService.reconcile()` in the Services layer. Build and all 330 tests pass.
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
 
 **Automated:**
 ```bash
@@ -368,6 +368,8 @@ swift test
 1. Open a PR in MacApp that has posted comments but no evaluation data
 2. Verify posted comments still render normally (green, no indicator)
 3. Verify the diff view works without evaluation data (plain diff, no comment annotations)
+
+**Completed.** Build succeeds and all 330 tests pass across 43 suites. The 12 unit tests in `ViolationReconciliationTests.swift` cover all specified reconciliation scenarios: pending-only (`.new`), posted-only (`.postedOnly`), matched (`.redetected`), multiple-pending-one-posted consumption, file-level nil-line matching, and no-false-match guards for differing rule names, file paths, and line numbers. Manual verification (MacApp dedup, no-evaluation mode) deferred to user.
 
 ## - [ ] Phase 9: CLI Round-Trip Validation (Post + Fetch)
 
