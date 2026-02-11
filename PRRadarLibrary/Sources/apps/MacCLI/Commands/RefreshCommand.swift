@@ -55,6 +55,7 @@ struct RefreshCommand: AsyncParsableCommand {
             case .aiOutput: break
             case .aiPrompt: break
             case .aiToolUse: break
+            case .evaluationResult: break
             case .completed(let prs):
                 if json {
                     let encoded = prs.map { pr in

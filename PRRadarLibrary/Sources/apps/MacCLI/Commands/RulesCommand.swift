@@ -51,6 +51,7 @@ struct RulesCommand: AsyncParsableCommand {
                 if !options.json && !quiet && verbose {
                     printAIToolUse(name)
                 }
+            case .evaluationResult: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

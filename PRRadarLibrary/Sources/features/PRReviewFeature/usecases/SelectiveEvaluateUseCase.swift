@@ -60,6 +60,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
 
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: EvaluationCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
+                        continuation.yield(.evaluationResult(result))
                     }
 
                     if !tasksToEvaluate.isEmpty {
@@ -80,6 +81,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
                                 let globalIndex = cachedCount + index
                                 let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
+                                continuation.yield(.evaluationResult(result))
                             },
                             onPrompt: { text in
                                 continuation.yield(.aiPrompt(text: text))

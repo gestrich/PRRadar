@@ -263,6 +263,7 @@ final class PRModel: Identifiable, Hashable {
                     case .aiOutput: break
                     case .aiPrompt: break
                     case .aiToolUse: break
+                    case .evaluationResult: break
                     case .completed(let snapshot):
                         diff = snapshot
                         let logs = runningLogs(for: .pullRequest)
@@ -457,6 +458,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
+                case .evaluationResult: break
                 case .completed(let output):
                     comments = output
                     let logs = commentPostingLogs
@@ -581,6 +583,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiPrompt(let text):
                     aiCurrentPrompt = text
                 case .aiToolUse: break
+                case .evaluationResult: break
                 case .completed(let output):
                     rules = output
                     for phase in rulesPhases {
@@ -621,6 +624,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiPrompt(let text):
                     aiCurrentPrompt = text
                 case .aiToolUse: break
+                case .evaluationResult: break
                 case .completed(let output):
                     evaluation = output
                     let logs = runningLogs(for: .evaluations)
@@ -653,6 +657,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
+                case .evaluationResult: break
                 case .completed(let output):
                     report = output
                     let logs = runningLogs(for: .report)

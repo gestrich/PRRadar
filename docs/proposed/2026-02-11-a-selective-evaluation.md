@@ -88,7 +88,7 @@ public struct SelectiveEvaluateUseCase: Sendable {
 - Task snapshots are written for evaluated tasks (enabling cache on re-runs) but `summary.json` and `phase_result.json` are not written
 - Per-task incremental `.evaluationResult` streaming deferred to Phase 2 — current implementation uses `.log` for progress like `EvaluateUseCase`
 
-## - [ ] Phase 2: Incremental Result Streaming
+## - [x] Phase 2: Incremental Result Streaming
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -105,6 +105,15 @@ Add a new `PhaseProgress` case that carries an individual evaluation result, so 
 - `PRReviewFeature/` — `PhaseProgress` enum (wherever defined)
 - `SelectiveEvaluateUseCase.swift` (from Phase 1)
 - `EvaluateUseCase.swift` — add per-result yields
+
+### Completion Notes
+
+- Added `.evaluationResult(RuleEvaluationResult)` case to `PhaseProgress` enum in `PRReviewFeature/models/PhaseProgress.swift` — required adding `import PRRadarModels`
+- Both `EvaluateUseCase` and `SelectiveEvaluateUseCase` now yield `.evaluationResult(result)` for each task (both cached and freshly evaluated)
+- `AnalyzeUseCase` forwards `.evaluationResult` from the evaluation phase up through its own stream, so full-pipeline consumers also receive per-task results
+- `AnalyzeAllUseCase` likewise forwards `.evaluationResult` from each PR's analyze stream
+- All 19 switch-statement consumers across CLI commands, app models, and feature use cases updated to handle the new case (all currently `break` — Phase 4/6 will make the GUI consumers react to results incrementally)
+- 344 tests pass, build succeeds
 
 ## - [ ] Phase 3: CLI `evaluate` Command Filtering
 

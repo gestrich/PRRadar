@@ -100,6 +100,7 @@ final class AllPRsModel {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
+                case .evaluationResult: break
                 case .completed:
                     updatedMetadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
                 case .failed(let error, _):

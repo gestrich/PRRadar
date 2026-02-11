@@ -88,6 +88,7 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
                 if !quiet && verbose {
                     printAIToolUse(name)
                 }
+            case .evaluationResult: break
             case .completed(let output):
                 print("\nAnalyze-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
             case .failed(let error, let logs):
