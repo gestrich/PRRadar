@@ -221,7 +221,7 @@ All three documentation updates completed:
 2. **`docs/proposed/TODO.md`** — Added "Clean phase output directories before each pipeline run" as a Small item, documenting the stale data root cause and fix options.
 3. **`docs/proposed/TODO.md`** — Added "Fix focus_type mismatch: method-typed rules produce 0 tasks" as a Small item, documenting the `requestedTypes: [.file]` limitation and three fix options.
 
-## - [ ] Phase 8: Architecture Validation
+## - [x] Phase 8: Architecture Validation
 
 Review all changes made during the preceding phases and validate they follow the project's architectural conventions.
 
@@ -238,6 +238,26 @@ Review all changes made during the preceding phases and validate they follow the
 5. Fix any violations found
 
 Note: This plan is primarily investigative. If no code changes are made (only documentation and pipeline runs), this phase is a no-op.
+
+**Result:**
+
+Reviewed all Swift code changes (commits `09f1ca2..7a8a39a`) against both `swift-architecture` and `swift-swiftui` skills from `gestrich/swift-app-architecture`. The changes touched two files:
+
+1. **`ViolationService.swift`** (Services layer, `PRRadarCLIService`) — Removed fuzzy fallback from `reconcile()`, added doc comment clarifying matching semantics.
+2. **`ViolationReconciliationTests.swift`** — Removed 3 fuzzy-specific tests, updated line-drift test to expect no match.
+
+**Validation against conventions — no violations found:**
+
+- **Layer placement:** `ViolationService` is a stateless transformation service in `services/PRRadarCLIService/` — correct for Services layer.
+- **Sendable struct:** `public struct ViolationService: Sendable` — matches "SDKs/Services are stateless Sendable structs" convention.
+- **No @Observable/@MainActor:** Neither annotation appears outside the Apps layer — correct.
+- **No default/fallback values:** The fuzzy fallback removal *improves* compliance — the fuzzy pass was a silent fallback that masked stale data errors. Exact matching aligns with "avoid default/fallback values; missing values should surface as errors."
+- **Imports:** Alphabetical order (`Foundation`, `PRRadarConfigService`, `PRRadarModels`) — correct.
+- **File organization:** Properties → init → methods — correct.
+- **Dependency rules:** Services layer depends only on other Services — `PRRadarConfigService` and `PRRadarModels` are both Services. Correct.
+- **No type aliases or re-exports:** None present — correct.
+
+Build succeeds and all 330 tests pass (43 suites).
 
 ## - [ ] Phase 9: Validation
 
