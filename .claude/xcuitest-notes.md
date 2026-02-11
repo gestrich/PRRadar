@@ -49,6 +49,9 @@ PRRadar uses a three-column `NavigationSplitView`:
 **Settings sheet**:
 Tap the gear toolbar button → `app.buttons["Manage configurations"]`
 
+**Config selection via Settings sheet**:
+The config sidebar (column 1) may be hidden on launch. The "Show Sidebar" toggle reveals the config list, but tapping a `configRow_<name>` StaticText doesn't always register as an OutlineRow selection. Instead, open Settings (`settingsButton`), tap the config in the settings sidebar, then close with `settingsDoneButton`. The selected config persists across app restarts.
+
 ## Known Accessibility Identifiers
 
 | Identifier Pattern | Element Type | Location |
@@ -65,13 +68,17 @@ Tap the gear toolbar button → `app.buttons["Manage configurations"]`
 | `Diff` | Button/StaticText | Pipeline tabs |
 | `Report` | Button/StaticText | Pipeline tabs |
 
+**Note on `configRow_<name>` identifiers**: These land on **StaticText** children, not on the Cell/OutlineRow. Use `--target-type staticText` to tap them. See the plugin's `macos-notes.md` for general SwiftUI List identifier behavior.
+
 ## PRRadar-Specific Tips
 
 - The `done` command will report a timeout from the Python CLI — this is expected. The test exits before writing a "completed" status. Check the xcodebuild output for "TEST EXECUTE SUCCEEDED" to confirm clean shutdown.
 - Always kill stale `PRRadarMac` processes before starting a test: `pkill -f "PRRadarMac" 2>/dev/null; sleep 2`
 - After exiting the test, kill orphaned app processes: `pkill -f "PRRadarMac" 2>/dev/null`
-- The Xcode project (`PRRadar.xcodeproj`) already has the `XCUITestControl` package configured as a local SPM dependency and the `PRRadarMacUITests` target linked to it. No additional package setup is needed.
+- The Xcode project (`PRRadar.xcodeproj`) is at the **repo root** — run all `xcodebuild` commands from there, not from `pr-radar-mac/`. The Swift package at `pr-radar-mac/` is a local dependency of the Xcode project but has no `.xcodeproj` of its own.
+- The Xcode project already has the `XCUITestControl` package configured as a local SPM dependency and the `PRRadarMacUITests` target linked to it. No additional package setup is needed.
 - The `xcode-sim-automation` package is shared and reusable — when improvements are identified (new commands, bug fixes, better error handling), edit the package directly and commit the changes.
+- The PRRadar-TestRepo is under the `gestrich` GitHub account. Must `gh auth switch --user gestrich` before creating PRs, then switch back afterward.
 
 ## Screenshot Test Patterns
 
