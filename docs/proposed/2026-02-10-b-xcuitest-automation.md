@@ -57,7 +57,7 @@ Update the `xcode-sim-automation` package at `/Users/bill/Developer/personal/xco
 
 **Completed**: Bumped `swift-tools-version` from 5.9 to 6.0 (required because `.macOS(.v15)` is only available in PackageDescription 6.0+). All 4 source files reviewed — no iOS-only API usage found. All XCUITest APIs used (`tap()`, `swipeUp()`, `typeText()`, `pinch(withScale:velocity:)`, `coordinate(withNormalizedOffset:)`, `press(forDuration:thenDragTo:)`) are available on macOS. `swift package dump-package` and `swift package resolve` both pass.
 
-## - [ ] Phase 2: Wire Up InteractiveControlLoop in PRRadarMacUITests
+## - [x] Phase 2: Wire Up InteractiveControlLoop in PRRadarMacUITests
 
 **Skills to read**: none
 
@@ -84,6 +84,8 @@ Replace the boilerplate test files with a proper interactive control test.
 **Notes:**
 - The test class is named `InteractiveControlTests` to match the convention used in the iOS app and the skill documentation
 - The test method `testInteractiveControl` is the entry point that the skill's `xcodebuild` command references
+
+**Completed**: Replaced boilerplate `PRRadarMacUITests.swift` with `InteractiveControlTests` importing `XCUITestControl`. Build initially failed because `XCUIElement.pinch(withScale:velocity:)` is iOS-only — fixed in `xcode-sim-automation` by guarding the call with `#if os(iOS)` (committed as `b1ed645`). `xcodebuild build-for-testing` now succeeds. `PRRadarMacUITestsLaunchTests.swift` kept as-is.
 
 ## - [ ] Phase 3: Create the Interactive XCUITest Skill
 

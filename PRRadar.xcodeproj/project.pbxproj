@@ -8,16 +8,33 @@
 
 /* Begin PBXBuildFile section */
 		A97704A82F3A78560000674F /* MacApp in Frameworks */ = {isa = PBXBuildFile; productRef = A97704A72F3A78560000674F /* MacApp */; };
+		A99968BB2F3C228000FB9B91 /* XCUITestControl in Frameworks */ = {isa = PBXBuildFile; productRef = A99968BA2F3C228000FB9B91 /* XCUITestControl */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A99968B42F3C226500FB9B91 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A977047E2F3A774A0000674F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A97704852F3A774A0000674F;
+			remoteInfo = PRRadarMac;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A97704862F3A774A0000674F /* PRRadarMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PRRadarMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A99968AE2F3C226500FB9B91 /* PRRadarMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PRRadarMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A97704882F3A774A0000674F /* PRRadar */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = PRRadar;
+			sourceTree = "<group>";
+		};
+		A99968AF2F3C226500FB9B91 /* PRRadarMacUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PRRadarMacUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +48,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A99968AB2F3C226500FB9B91 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A99968BB2F3C228000FB9B91 /* XCUITestControl in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -38,6 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				A97704882F3A774A0000674F /* PRRadar */,
+				A99968AF2F3C226500FB9B91 /* PRRadarMacUITests */,
 				A97704872F3A774A0000674F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +72,7 @@
 			isa = PBXGroup;
 			children = (
 				A97704862F3A774A0000674F /* PRRadarMac.app */,
+				A99968AE2F3C226500FB9B91 /* PRRadarMacUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +103,30 @@
 			productReference = A97704862F3A774A0000674F /* PRRadarMac.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A99968AD2F3C226500FB9B91 /* PRRadarMacUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A99968B82F3C226500FB9B91 /* Build configuration list for PBXNativeTarget "PRRadarMacUITests" */;
+			buildPhases = (
+				A99968AA2F3C226500FB9B91 /* Sources */,
+				A99968AB2F3C226500FB9B91 /* Frameworks */,
+				A99968AC2F3C226500FB9B91 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A99968B52F3C226500FB9B91 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A99968AF2F3C226500FB9B91 /* PRRadarMacUITests */,
+			);
+			name = PRRadarMacUITests;
+			packageProductDependencies = (
+				A99968BA2F3C228000FB9B91 /* XCUITestControl */,
+			);
+			productName = PRRadarMacUITests;
+			productReference = A99968AE2F3C226500FB9B91 /* PRRadarMacUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -88,6 +139,10 @@
 				TargetAttributes = {
 					A97704852F3A774A0000674F = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					A99968AD2F3C226500FB9B91 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = A97704852F3A774A0000674F;
 					};
 				};
 			};
@@ -102,6 +157,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A97704A62F3A78560000674F /* XCLocalSwiftPackageReference "PRRadarLibrary" */,
+				A99968B92F3C228000FB9B91 /* XCLocalSwiftPackageReference "../xcode-sim-automation" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A97704872F3A774A0000674F /* Products */;
@@ -109,12 +165,20 @@
 			projectRoot = "";
 			targets = (
 				A97704852F3A774A0000674F /* PRRadarMac */,
+				A99968AD2F3C226500FB9B91 /* PRRadarMacUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A97704842F3A774A0000674F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A99968AC2F3C226500FB9B91 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,7 +195,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A99968AA2F3C226500FB9B91 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A99968B52F3C226500FB9B91 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A97704852F3A774A0000674F /* PRRadarMac */;
+			targetProxy = A99968B42F3C226500FB9B91 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A977048F2F3A774A0000674F /* Debug */ = {
@@ -316,6 +395,44 @@
 			};
 			name = Release;
 		};
+		A99968B62F3C226500FB9B91 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = WE374FT5S8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.gestrich.PRRadarMacUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = PRRadarMac;
+			};
+			name = Debug;
+		};
+		A99968B72F3C226500FB9B91 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = WE374FT5S8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.gestrich.PRRadarMacUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = PRRadarMac;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -337,6 +454,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A99968B82F3C226500FB9B91 /* Build configuration list for PBXNativeTarget "PRRadarMacUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A99968B62F3C226500FB9B91 /* Debug */,
+				A99968B72F3C226500FB9B91 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -344,12 +470,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = PRRadarLibrary;
 		};
+		A99968B92F3C228000FB9B91 /* XCLocalSwiftPackageReference "../xcode-sim-automation" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../xcode-sim-automation";
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		A97704A72F3A78560000674F /* MacApp */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MacApp;
+		};
+		A99968BA2F3C228000FB9B91 /* XCUITestControl */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = XCUITestControl;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
