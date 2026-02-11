@@ -123,7 +123,7 @@ This method is a pure transformation — no I/O, no side effects. Easy to unit t
 
 **Completed.** Implemented as a static method on `ViolationService` using a `[String: [Int?: [GitHubReviewComment]]]` working dictionary keyed by `(path, line)`. The `Int?` key naturally handles file-level (nil line) matching. 12 unit tests added in `ViolationReconciliationTests.swift` covering all spec scenarios. Build and all 330 tests pass.
 
-## - [ ] Phase 3: Add `FetchReviewCommentsUseCase` (Features layer)
+## - [x] Phase 3: Add `FetchReviewCommentsUseCase` (Features layer)
 
 New file: `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/FetchReviewCommentsUseCase.swift`
 
@@ -163,6 +163,8 @@ public struct FetchReviewCommentsUseCase: Sendable {
 ```
 
 Both `PostCommentsUseCase` and the MacApp's `PRModel`/`DiffPhaseView` call this use case instead of loading pending and posted separately.
+
+**Completed.** Implemented as specified. The use case is synchronous (no `AsyncThrowingStream`) since all data comes from disk — follows the same simple return pattern as `LoadExistingOutputsUseCase`. The `PhaseOutputParser.parsePhaseOutput` call uses `prNumber: String` (matching the actual API, not `Int` as shown in the pseudocode above). Build verified.
 
 ## - [ ] Phase 4: Simplify `DiffCommentMapper` (Apps layer)
 
