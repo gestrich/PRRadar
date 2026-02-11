@@ -42,7 +42,7 @@ This ensures no files from prior runs can be picked up by any phase.
 
 **Result:** Deleted. Directory contained 6 phase output subdirectories (`phase-1-pull-request` through `phase-6-report`) from prior runs. All removed.
 
-## - [ ] Phase 2: Check Current Test Repo State
+## - [x] Phase 2: Check Current Test Repo State
 
 Before running the pipeline, inspect the current state of the test repo and PR #1 to understand what line numbers we should expect.
 
@@ -53,6 +53,18 @@ Before running the pipeline, inspect the current state of the test repo and PR #
 5. Record the expected line number for the modulo function in the current state
 
 **Expected outcome:** A concrete expected line number (e.g., "modulo is at line 26 in the current file") to compare against the pipeline output.
+
+**Result:**
+
+The line-shift that previously moved modulo to line 26 has been **reverted**. The `add-modulo-method` branch now has 3 commits beyond main: the original modulo addition (`815cd86`), a comment-header addition (`51a6a11`), and its revert (`1b725fe`). The net diff is identical to the original commit.
+
+1. **Recent commits:** `1b725fe` (revert comment header), `51a6a11` (add comment header), `815cd86` (add modulo method) — plus unrelated commits on main (greeting function, README).
+2. **Calculator.swift on `add-modulo-method`:** 23 lines. `func modulo` starts at **line 19**.
+3. **PR diff:** `@@ -15,4 +15,9 @@` — both old and new start at line 15 (no line shift). The diff adds the modulo method at lines 19-22 of the new file.
+4. **Posted GitHub comment:** `line: 19`, `original_line: 19`, targeting `func modulo(_ a: Int, _ b: Int) -> Int?`. The comment is a `guard-divide-by-zero` evaluation (score 6/10).
+5. **Expected line number for modulo: 19.**
+
+Key implication: since the revert undid the line shift, the "stale line number" scenario from the background section (line 19 vs 26) **no longer exists** in the current test repo state. The pipeline should now produce `line_number: 19`, which matches both the actual file and the existing posted comment.
 
 ## - [ ] Phase 3: Run Fresh Analysis
 
