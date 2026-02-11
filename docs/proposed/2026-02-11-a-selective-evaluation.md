@@ -260,7 +260,7 @@ Ensure that full analysis runs (`runAnalysis` / `runEvaluate`) also display eval
 - `DiffPhaseView.summaryItems()` reads `evaluationSummary` from the `@Observable` `PRModel`, triggering SwiftUI view refresh on each merge
 - 344 tests pass, build succeeds
 
-## - [ ] Phase 7: Unit Tests & CLI Validation
+## - [x] Phase 7: Unit Tests & CLI Validation
 
 **Skills to read**: `swift-testing`
 
@@ -286,6 +286,19 @@ Run selective evaluation via CLI against `/Users/bill/Developer/personal/PRRadar
 - `evaluate --rule` filters to tasks for that rule only
 - `evaluate` with no flags runs all tasks (existing behavior preserved)
 - Combined flags work (e.g., `--file X --rule Y`)
+
+### Completion Notes
+
+- Created `EvaluationFilterTests.swift` with 26 tests in the `EvaluationFilter` suite covering:
+  - `isEmpty` — all-nil returns true, any non-nil field returns false (4 tests)
+  - `matches` single-dimension — filePath exact match/mismatch, focusAreaId match/mismatch, ruleNames match/mismatch including multi-element arrays and empty arrays (8 tests)
+  - `matches` AND logic — combined filePath+ruleNames, all three criteria, partial matches rejected (5 tests)
+  - Task list filtering — filter by file, rule names, focus area, combined filters, and no-matches edge case (5 tests)
+  - Init defaults — verifies default nil values and partial init (2 tests + empty filter matches all test)
+  - `EvaluationFilter.matches()` is the core of `SelectiveEvaluateUseCase`'s filter logic (`allTasks.filter { filter.matches($0) }`), so these tests cover the selective use case's filtering behavior without needing a Feature layer dependency
+- `PRModel` incremental merging not tested in this target — it requires `MacApp` (App layer) which is not a test target dependency, and `@Observable` state merging is better verified via GUI validation in Phase 8
+- CLI routing tested implicitly via `EvaluationFilter.isEmpty` — the `EvaluateCommand` routes to `SelectiveEvaluateUseCase` when `!filter.isEmpty` and to `EvaluateUseCase` otherwise; `isEmpty` tests confirm the routing predicate works correctly
+- 370 tests pass across 45 suites (26 new tests added), build succeeds
 
 ## - [ ] Phase 8: GUI Validation via Interactive XCUITest
 
