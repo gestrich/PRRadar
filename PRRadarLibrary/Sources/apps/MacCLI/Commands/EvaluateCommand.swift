@@ -12,6 +12,15 @@ struct EvaluateCommand: AsyncParsableCommand {
 
     @OptionGroup var options: CLIOptions
 
+    @Option(name: .long, help: "Filter tasks by file path")
+    var file: String?
+
+    @Option(name: .long, help: "Filter tasks by focus area ID")
+    var focusArea: String?
+
+    @Option(name: .long, parsing: .upToNextOption, help: "Filter tasks by rule name(s)")
+    var rule: [String] = []
+
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
 
@@ -21,7 +30,21 @@ struct EvaluateCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = EvaluateUseCase(config: config)
+
+        let filter = EvaluationFilter(
+            filePath: file,
+            focusAreaId: focusArea,
+            ruleNames: rule.isEmpty ? nil : rule
+        )
+
+        let stream: AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error>
+        if filter.isEmpty {
+            let useCase = EvaluateUseCase(config: config)
+            stream = useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath)
+        } else {
+            let useCase = SelectiveEvaluateUseCase(config: config)
+            stream = useCase.execute(prNumber: options.prNumber, filter: filter, repoPath: options.repoPath)
+        }
 
         if !options.json {
             print("Running evaluations for PR #\(options.prNumber)...")
@@ -29,7 +52,7 @@ struct EvaluateCommand: AsyncParsableCommand {
 
         var result: EvaluationPhaseOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath) {
+        for try await progress in stream {
             switch progress {
             case .running(let phase):
                 if !options.json {

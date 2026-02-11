@@ -115,7 +115,7 @@ Add a new `PhaseProgress` case that carries an individual evaluation result, so 
 - All 19 switch-statement consumers across CLI commands, app models, and feature use cases updated to handle the new case (all currently `break` — Phase 4/6 will make the GUI consumers react to results incrementally)
 - 344 tests pass, build succeeds
 
-## - [ ] Phase 3: CLI `evaluate` Command Filtering
+## - [x] Phase 3: CLI `evaluate` Command Filtering
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -139,6 +139,14 @@ swift run PRRadarMacCLI evaluate 1 --config test-repo --focus-area method-handle
 ### Files to Modify
 
 - `MacCLI/Commands/EvaluateCommand.swift` — add `@Option` parameters and routing logic
+
+### Completion Notes
+
+- Added three new options to `EvaluateCommand`: `--file` (String?), `--focus-area` (String?), `--rule` ([String], repeatable via `.upToNextOption` parsing)
+- Constructs `EvaluationFilter` from the option values; `rule` array maps to `ruleNames` (nil when empty)
+- When `filter.isEmpty`, routes to `EvaluateUseCase` (preserving existing behavior exactly); otherwise routes to `SelectiveEvaluateUseCase`
+- Both use cases return the same `AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error>` type, so stream handling and output formatting are shared with zero duplication
+- 344 tests pass, build succeeds
 
 ## - [ ] Phase 4: GUI — PRModel Incremental Evaluation Support
 
