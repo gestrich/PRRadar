@@ -44,7 +44,7 @@ public struct PRAcquisitionService: Sendable {
         public let repository: GitHubRepository
     }
 
-    /// Fetch all PR data artifacts and write them to the phase-1 output directory.
+    /// Fetch all PR data artifacts and write them to the sync phase output directory.
     ///
     /// Fetches PR metadata, diff content, comments, and repository info from GitHub,
     /// parses the diff, and writes all artifacts to disk.

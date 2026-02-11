@@ -25,7 +25,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
                     let effectiveRepoPath = repoPath ?? config.repoPath
 
-                    // Load all tasks from phase-4
+                    // Load all tasks from prepare phase
                     let allTasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
                     )

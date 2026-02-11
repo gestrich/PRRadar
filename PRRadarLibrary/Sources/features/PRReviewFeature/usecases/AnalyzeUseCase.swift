@@ -142,7 +142,7 @@ public struct AnalyzeUseCase: Sendable {
                         totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)
                     }
 
-                    // Write task snapshots to phase-5 for future cache checks
+                    // Write task snapshots for future cache checks
                     try AnalysisCacheService.writeTaskSnapshots(tasks: tasks, evalsDir: evalsDir)
 
                     // Combine cached and fresh results

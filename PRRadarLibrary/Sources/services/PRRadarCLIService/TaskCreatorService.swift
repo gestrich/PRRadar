@@ -6,7 +6,7 @@ import PRRadarModels
 ///
 /// For each focus area, filters rules by applicability (file patterns and grep patterns),
 /// then creates an `AnalysisTaskOutput` for each (rule, focusArea) pair. Writes task
-/// files to the phase-4 output directory.
+/// files to the prepare phase output directory.
 public struct TaskCreatorService: Sendable {
     private let ruleLoader: RuleLoaderService
     private let gitOps: GitOperationsService
@@ -48,7 +48,7 @@ public struct TaskCreatorService: Sendable {
         return tasks
     }
 
-    /// Create tasks and write them to the phase-4 output directory.
+    /// Create tasks and write them to the prepare phase output directory.
     ///
     /// - Parameters:
     ///   - rules: All loaded review rules
