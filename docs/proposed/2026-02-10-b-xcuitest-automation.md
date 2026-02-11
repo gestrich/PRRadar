@@ -87,7 +87,7 @@ Replace the boilerplate test files with a proper interactive control test.
 
 **Completed**: Replaced boilerplate `PRRadarMacUITests.swift` with `InteractiveControlTests` importing `XCUITestControl`. Build initially failed because `XCUIElement.pinch(withScale:velocity:)` is iOS-only — fixed in `xcode-sim-automation` by guarding the call with `#if os(iOS)` (committed as `b1ed645`). `xcodebuild build-for-testing` now succeeds. `PRRadarMacUITestsLaunchTests.swift` kept as-is.
 
-## - [ ] Phase 3: Create the Interactive XCUITest Skill
+## - [x] Phase 3: Create the Interactive XCUITest Skill
 
 **Skills to read**: none
 
@@ -114,6 +114,8 @@ Create `.claude/skills/interactive-xcuitest/SKILL.md` adapted for macOS PRRadar.
 - macOS destination instead of iOS simulator
 - No `run-ui-tests.sh` — just `xcodebuild test` directly
 - App window focus may differ (macOS windows can be behind other windows)
+
+**Completed**: Created `.claude/skills/interactive-xcuitest/SKILL.md` adapted from the `xcode-sim-automation` template. Key adaptations: all `xcodebuild` commands use `-project PRRadar.xcodeproj -scheme PRRadarMac -destination 'platform=macOS'`; prerequisites simplified (no SPM setup needed — already configured in the Xcode project); Python CLI referenced at absolute path `/Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py`; removed `pinch` from macOS (iOS-only); added macOS-specific notes section covering window visibility, no simulator needed, and build-before-test pattern; added clean-stale-files step to workflow; added skill reference to `CLAUDE.md`. Build verified with `xcodebuild build-for-testing`.
 
 ## - [ ] Phase 4: Create the Automated Screenshots Skill
 
