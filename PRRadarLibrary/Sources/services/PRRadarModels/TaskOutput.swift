@@ -50,24 +50,27 @@ public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
     public let taskId: String
     public let rule: TaskRule
     public let focusArea: FocusArea
+    public let gitBlobHash: String
 
-    public init(taskId: String, rule: TaskRule, focusArea: FocusArea) {
+    public init(taskId: String, rule: TaskRule, focusArea: FocusArea, gitBlobHash: String) {
         self.taskId = taskId
         self.rule = rule
         self.focusArea = focusArea
+        self.gitBlobHash = gitBlobHash
     }
 
     enum CodingKeys: String, CodingKey {
         case taskId = "task_id"
         case rule
         case focusArea = "focus_area"
+        case gitBlobHash = "git_blob_hash"
     }
 
     /// Create an evaluation task from a full rule and focus area.
     ///
     /// Generates a task ID from the rule name and focus ID,
     /// and extracts the subset of rule fields needed for evaluation.
-    public static func from(rule: ReviewRule, focusArea: FocusArea) -> EvaluationTaskOutput {
+    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String) -> EvaluationTaskOutput {
         let taskId = "\(rule.name)_\(focusArea.focusId)"
         let taskRule = TaskRule(
             name: rule.name,
@@ -79,6 +82,6 @@ public struct EvaluationTaskOutput: Codable, Sendable, Equatable {
             relevantClaudeSkill: rule.relevantClaudeSkill,
             ruleUrl: rule.ruleUrl
         )
-        return EvaluationTaskOutput(taskId: taskId, rule: taskRule, focusArea: focusArea)
+        return EvaluationTaskOutput(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash)
     }
 }

@@ -70,7 +70,8 @@ struct TaskOutputTests {
                 "hunk_index": 0,
                 "hunk_content": "@@ -10,5 +10,10 @@\\n def process():",
                 "focus_type": "method"
-            }
+            },
+            "git_blob_hash": "abc123def456789"
         }
         """.data(using: .utf8)!
 
@@ -81,6 +82,7 @@ struct TaskOutputTests {
         #expect(task.focusArea.filePath == "src/handler.py")
         #expect(task.focusArea.startLine == 10)
         #expect(task.focusArea.focusType == .method)
+        #expect(task.gitBlobHash == "abc123def456789")
     }
 
     @Test("EvaluationTaskOutput with documentation_link in rule")
@@ -105,7 +107,8 @@ struct TaskOutputTests {
                 "hunk_index": 0,
                 "hunk_content": "@@ -1,5 +1,10 @@\\n # README",
                 "focus_type": "file"
-            }
+            },
+            "git_blob_hash": "fedcba987654321"
         }
         """.data(using: .utf8)!
 
@@ -113,6 +116,7 @@ struct TaskOutputTests {
         #expect(task.rule.documentationLink == "https://example.com/docs-guide")
         #expect(task.rule.model == nil)
         #expect(task.focusArea.focusType == .file)
+        #expect(task.gitBlobHash == "fedcba987654321")
     }
 
     @Test("EvaluationTaskOutput round-trips through encode/decode")
@@ -136,7 +140,8 @@ struct TaskOutputTests {
                 "hunk_index": 0,
                 "hunk_content": "@@ -1,3 +1,4 @@",
                 "focus_type": "file"
-            }
+            },
+            "git_blob_hash": "roundtrip123"
         }
         """.data(using: .utf8)!
 
@@ -147,5 +152,6 @@ struct TaskOutputTests {
         #expect(original.taskId == decoded.taskId)
         #expect(original.rule.name == decoded.rule.name)
         #expect(original.focusArea.focusId == decoded.focusArea.focusId)
+        #expect(original.gitBlobHash == decoded.gitBlobHash)
     }
 }

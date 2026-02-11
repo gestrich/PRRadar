@@ -162,4 +162,13 @@ public struct GitOperationsService: Sendable {
             printCommand: false
         )
     }
+
+    public func getBlobHash(commit: String, filePath: String, repoPath: String) async throws -> String {
+        let output = try await client.execute(
+            GitCLI.RevParse(ref: "\(commit):\(filePath)"),
+            workingDirectory: repoPath,
+            printCommand: false
+        )
+        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }

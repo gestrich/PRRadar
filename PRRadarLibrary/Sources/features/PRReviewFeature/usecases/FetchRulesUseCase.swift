@@ -132,11 +132,12 @@ public struct FetchRulesUseCase: Sendable {
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
                     // Phase 4: Create tasks
-                    let taskCreator = TaskCreatorService(ruleLoader: ruleLoader)
-                    let tasks = try taskCreator.createAndWriteTasks(
+                    let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps)
+                    let tasks = try await taskCreator.createAndWriteTasks(
                         rules: allRules,
                         focusAreas: allFocusAreas,
-                        outputDir: prOutputDir
+                        outputDir: prOutputDir,
+                        repoPath: self.config.repoPath
                     )
 
                     // Write phase_result.json for phase 4 (tasks)

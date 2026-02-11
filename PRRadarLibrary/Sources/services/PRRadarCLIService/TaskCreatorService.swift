@@ -9,9 +9,11 @@ import PRRadarModels
 /// files to the phase-4 output directory.
 public struct TaskCreatorService: Sendable {
     private let ruleLoader: RuleLoaderService
+    private let gitOps: GitOperationsService
 
-    public init(ruleLoader: RuleLoaderService) {
+    public init(ruleLoader: RuleLoaderService, gitOps: GitOperationsService) {
         self.ruleLoader = ruleLoader
+        self.gitOps = gitOps
     }
 
     /// Create evaluation tasks by pairing rules with focus areas.
@@ -19,15 +21,26 @@ public struct TaskCreatorService: Sendable {
     /// - Parameters:
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate (both method and file level)
+    ///   - repoPath: Path to the git repository (for blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea]) -> [EvaluationTaskOutput] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], repoPath: String) async throws -> [EvaluationTaskOutput] {
+        var blobHashCache: [String: String] = [:]
         var tasks: [EvaluationTaskOutput] = []
 
         for focusArea in focusAreas {
             let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea)
             for rule in applicableRules {
                 guard rule.focusType == focusArea.focusType else { continue }
-                let task = EvaluationTaskOutput.from(rule: rule, focusArea: focusArea)
+
+                let filePath = focusArea.filePath
+                if blobHashCache[filePath] == nil {
+                    blobHashCache[filePath] = try await gitOps.getBlobHash(
+                        commit: "HEAD", filePath: filePath, repoPath: repoPath
+                    )
+                }
+                let blobHash = blobHashCache[filePath]!
+
+                let task = EvaluationTaskOutput.from(rule: rule, focusArea: focusArea, gitBlobHash: blobHash)
                 tasks.append(task)
             }
         }
@@ -41,13 +54,15 @@ public struct TaskCreatorService: Sendable {
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate
     ///   - outputDir: PR-specific output directory (e.g., `<base>/<pr_number>`)
+    ///   - repoPath: Path to the git repository (for blob hash lookups)
     /// - Returns: List of created evaluation tasks
     public func createAndWriteTasks(
         rules: [ReviewRule],
         focusAreas: [FocusArea],
-        outputDir: String
-    ) throws -> [EvaluationTaskOutput] {
-        let tasks = createTasks(rules: rules, focusAreas: focusAreas)
+        outputDir: String,
+        repoPath: String
+    ) async throws -> [EvaluationTaskOutput] {
+        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath)
 
         let tasksDir = "\(outputDir)/\(PRRadarPhase.tasks.rawValue)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)
