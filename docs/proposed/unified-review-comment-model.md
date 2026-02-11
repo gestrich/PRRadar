@@ -274,7 +274,7 @@ if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty 
 
 **Completed.** The structural changes (unified `[ReviewComment]` params, single state-based switch, merged `fileLevelSection`) were done in Phase 4 for compilation. This phase added the `isRedetected` distinction: `.redetected` comments now pass `isRedetected: true` to `InlinePostedCommentView`, which shows an orange "Still detected in latest analysis" label. The `isRedetected: Bool = false` property was added to `InlinePostedCommentView` with a default so existing call sites are unaffected. Build verified.
 
-## - [ ] Phase 6: Update `DiffPhaseView` Helpers
+## - [x] Phase 6: Update `DiffPhaseView` Helpers
 
 These helpers in [DiffPhaseView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/PhaseViews/DiffPhaseView.swift) access fields on the old `DiffCommentMapping`. Update them to work with `ReviewComment`:
 
@@ -301,6 +301,8 @@ counts += comments.filter { $0.state != .new }.count
 **`maxSeverity`** — use `ReviewComment.score`, only consider `.new` comments.
 
 **`filesNotInDiff`** — use `ReviewComment.filePath` accessor.
+
+**Completed.** All changes were implemented during Phase 4 for compilation. `DiffPhaseView` accepts `reviewComments: [ReviewComment]` (non-optional, defaults to `[]`). The caller (`ReviewDetailView`) passes `prModel.reconciledComments`. All helper methods already filter by `.state`: `filesWithViolationCounts` counts `.new` only, `postedCommentCountsByFile` counts non-`.new`, `maxSeverity` considers `.new` only, and `filesNotInDiff` uses `ReviewComment.filePath`. Build verified.
 
 ## - [ ] Phase 7: Add "Still Detected" Indicator + Cleanup
 
