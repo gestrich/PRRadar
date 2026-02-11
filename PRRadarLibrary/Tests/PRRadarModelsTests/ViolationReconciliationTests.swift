@@ -99,48 +99,10 @@ struct ViolationReconciliationTests {
         #expect(states == [.new, .postedOnly])
     }
 
-    @Test("Same file + same rule matches even when line number differs (line drift)")
-    func matchWhenLineNumberDrifts() {
+    @Test("No match when line number differs")
+    func noMatchWhenLineNumberDiffers() {
         let pending = [makePending(lineNumber: 42)]
         let posted = [makePosted(line: 99)]
-        let result = ViolationService.reconcile(pending: pending, posted: posted)
-
-        #expect(result.count == 1)
-        #expect(result[0].state == .redetected)
-        #expect(result[0].pending?.lineNumber == 42)
-        #expect(result[0].posted?.line == 99)
-    }
-
-    // MARK: - Line drift (fuzzy fallback)
-
-    @Test("Line drift: exact match preferred over fuzzy")
-    func exactMatchPreferredOverFuzzy() {
-        let pending = [makePending(lineNumber: 42)]
-        let exactPosted = makePosted(id: "exact", line: 42)
-        let fuzzyPosted = makePosted(id: "fuzzy", line: 99)
-        let result = ViolationService.reconcile(pending: pending, posted: [exactPosted, fuzzyPosted])
-
-        #expect(result.count == 2)
-        let redetected = result.filter { $0.state == .redetected }
-        #expect(redetected.count == 1)
-        #expect(redetected[0].posted?.id == "exact")
-    }
-
-    @Test("Line drift: different rules in same file do not falsely match")
-    func lineDriftNoFalseMatchDifferentRules() {
-        let pending = [makePending(ruleName: "no-force-unwrap", lineNumber: 42)]
-        let posted = [makePosted(body: "**use-guard-let**\n\ntext", line: 99)]
-        let result = ViolationService.reconcile(pending: pending, posted: posted)
-
-        #expect(result.count == 2)
-        let states = Set(result.map { $0.state })
-        #expect(states == [.new, .postedOnly])
-    }
-
-    @Test("Line drift: different files do not match")
-    func lineDriftNoMatchDifferentFiles() {
-        let pending = [makePending(filePath: "A.swift", lineNumber: 42)]
-        let posted = [makePosted(path: "B.swift", line: 99)]
         let result = ViolationService.reconcile(pending: pending, posted: posted)
 
         #expect(result.count == 2)

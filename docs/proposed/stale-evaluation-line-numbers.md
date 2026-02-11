@@ -171,7 +171,7 @@ Reverted the test repo rule back to `focus_type: method` after the experiment.
 
 This is a separate bug from the stale line number issue and should be tracked as a follow-up item.
 
-## - [ ] Phase 6: Evaluate Fuzzy Fallback Necessity
+## - [x] Phase 6: Evaluate Fuzzy Fallback Necessity
 
 Based on findings from Phases 4-5, determine the fate of the fuzzy fallback in `ViolationService.reconcile()`:
 
@@ -186,6 +186,24 @@ Based on findings from Phases 4-5, determine the fate of the fuzzy fallback in `
 - Document the new findings for further investigation
 
 **Document the decision** — whether removing, keeping, or deferring — and the reasoning.
+
+**Result:**
+
+**Decision: Remove the fuzzy fallback.** Line numbers are correct when the pipeline runs fresh (confirmed in Phases 4-5). The fuzzy fallback was compensating for stale pipeline data, not genuine line drift.
+
+**Reasoning:**
+
+1. **Root cause is stale data, not line drift.** Phases 3-5 confirmed that a clean-slate `analyze` run produces correct line numbers at every pipeline stage. The original "line 19 vs 26" discrepancy was caused by stale task files surviving across runs, not by the AI reporting wrong numbers or GitHub shifting comment positions.
+
+2. **Fuzzy matching masks the real problem.** The "standalone evaluate" scenario (running `evaluate` without re-running `diff` + `rules` + `tasks`) would still read stale task files from disk. The fuzzy fallback doesn't fix the underlying data freshness issue — it just makes the reconciliation appear to work by matching on file + rule name alone, ignoring the stale line number. This creates false confidence.
+
+3. **Exact matching is the correct contract.** If the pipeline data is fresh, exact (file, line, rule) matching is sufficient and produces correct results. If the data is stale, the correct fix is to ensure data freshness (e.g., cleaning output directories before each run), not to relax the matching criteria.
+
+**Changes made:**
+
+- **`ViolationService.swift`**: Removed Pass 2 (fuzzy fallback, lines 103-124). `reconcile()` now uses a single-pass exact match: same file, same line, body contains rule name.
+- **`ViolationReconciliationTests.swift`**: Removed 3 fuzzy-specific tests (`exactMatchPreferredOverFuzzy`, `lineDriftNoFalseMatchDifferentRules`, `lineDriftNoMatchDifferentFiles`). Changed `matchWhenLineNumberDrifts` to `noMatchWhenLineNumberDiffers` — now expects `.new` + `.postedOnly` instead of `.redetected`.
+- **Build and tests pass.** 330 tests in 43 suites, all green.
 
 ## - [ ] Phase 7: Document Findings
 

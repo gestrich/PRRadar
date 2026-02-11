@@ -66,12 +66,7 @@ public struct ViolationService: Sendable {
     /// comments become `.new`, unmatched posted comments become `.postedOnly`, and matches
     /// become `.redetected`.
     ///
-    /// Matching uses a two-pass strategy per pending comment:
-    /// 1. **Exact match:** same file, same line, body contains rule name
-    /// 2. **Fuzzy fallback:** same file, any line, body contains rule name
-    ///    This handles line-shift scenarios where GitHub updates posted comment line numbers
-    ///    after new commits are pushed to the branch, causing them to drift from the AI
-    ///    evaluator's reported line numbers.
+    /// Matching requires same file, same line, and body containing the rule name.
     public static func reconcile(
         pending: [PRComment],
         posted: [GitHubReviewComment]
@@ -86,7 +81,6 @@ public struct ViolationService: Sendable {
         var results: [ReviewComment] = []
 
         for p in pending {
-            // Pass 1: exact (file, line) match
             let key = p.lineNumber
             if var candidates = postedByFileAndLine[p.filePath]?[key] {
                 if let matchIndex = candidates.firstIndex(where: { $0.body.contains(p.ruleName) }) {
@@ -95,29 +89,6 @@ public struct ViolationService: Sendable {
                     if candidates.isEmpty {
                         postedByFileAndLine[p.filePath]!.removeValue(forKey: key)
                     }
-                    results.append(ReviewComment(pending: p, posted: matched))
-                    continue
-                }
-            }
-
-            // Pass 2: same file, different line — handles line drift from branch updates.
-            // Only applies when the pending comment is line-specific (non-nil lineNumber).
-            // File-level comments (nil line) must match exactly in Pass 1.
-            if p.lineNumber != nil, let byLine = postedByFileAndLine[p.filePath] {
-                var matched: GitHubReviewComment?
-                for (lineKey, candidates) in byLine where lineKey != nil {
-                    if let matchIndex = candidates.firstIndex(where: { $0.body.contains(p.ruleName) }) {
-                        matched = candidates[matchIndex]
-                        var remaining = candidates
-                        remaining.remove(at: matchIndex)
-                        postedByFileAndLine[p.filePath]![lineKey] = remaining
-                        if remaining.isEmpty {
-                            postedByFileAndLine[p.filePath]!.removeValue(forKey: lineKey)
-                        }
-                        break
-                    }
-                }
-                if let matched {
                     results.append(ReviewComment(pending: p, posted: matched))
                     continue
                 }
