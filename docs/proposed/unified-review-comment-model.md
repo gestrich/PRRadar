@@ -166,7 +166,7 @@ Both `PostCommentsUseCase` and the MacApp's `PRModel`/`DiffPhaseView` call this 
 
 **Completed.** Implemented as specified. The use case is synchronous (no `AsyncThrowingStream`) since all data comes from disk — follows the same simple return pattern as `LoadExistingOutputsUseCase`. The `PhaseOutputParser.parsePhaseOutput` call uses `prNumber: String` (matching the actual API, not `Int` as shown in the pseudocode above). Build verified.
 
-## - [ ] Phase 4: Simplify `DiffCommentMapper` (Apps layer)
+## - [x] Phase 4: Simplify `DiffCommentMapper` (Apps layer)
 
 The mapper no longer does any pending/posted matching. It just maps `[ReviewComment]` to diff line positions for the view hierarchy.
 
@@ -202,6 +202,8 @@ Input changes from `comments: [PRComment], postedReviewComments: [GitHubReviewCo
 4. If file not in diff → `unmatchedNoFile`.
 
 **Complication — ordering within a line:** Sort each line's array: `.postedOnly` first, then `.redetected`, then `.new`. Preserves the current UI order (green posted above blue pending).
+
+**Completed.** Simplified `DiffCommentMapping` from 5 fields to 3, and `DiffCommentMapper.map()` from two input arrays to one `[ReviewComment]`. Also updated the downstream consumers required for compilation: `AnnotatedHunkContentView` and `AnnotatedDiffContentView` now render via a state-based switch on `ReviewComment.state`, and two separate file-level section helpers (`postedFileLevelSection` + `unmatchedSection`) were merged into one `fileLevelSection`. `DiffPhaseView` updated to accept `reviewComments: [ReviewComment]` (non-optional, defaults to `[]`), with helper methods (`filesWithViolationCounts`, `maxSeverity`, `postedCommentCountsByFile`) filtering by `.state`. `PRModel` gained a `reconciledComments` computed property that calls `ViolationService.reconcile()`. Build and all 330 tests pass.
 
 ## - [ ] Phase 5: Update View Hierarchy (`RichDiffViews.swift`)
 

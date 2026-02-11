@@ -5,10 +5,9 @@ struct DiffPhaseView: View {
 
     let fullDiff: GitDiff
     let effectiveDiff: GitDiff?
-    var comments: [PRComment]? = nil
+    var reviewComments: [ReviewComment] = []
     var evaluationSummary: EvaluationSummary? = nil
     var prModel: PRModel? = nil
-    var postedReviewComments: [GitHubReviewComment] = []
     var tasks: [EvaluationTaskOutput] = []
 
     @State private var selectedTab = 0
@@ -16,7 +15,7 @@ struct DiffPhaseView: View {
     @State private var showTasksForFile: String?
 
     private var hasEvaluationData: Bool {
-        comments != nil && evaluationSummary != nil
+        evaluationSummary != nil
     }
 
     private var taskCountsByFile: [String: Int] {
@@ -105,7 +104,6 @@ struct DiffPhaseView: View {
     @ViewBuilder
     private func plainFileList(for diff: GitDiff) -> some View {
         let postedCounts: [String: Int] = {
-            guard !postedReviewComments.isEmpty else { return [:] }
             let mapping = commentMapping(for: diff)
             return postedCommentCountsByFile(mapping: mapping)
         }()
@@ -260,18 +258,19 @@ struct DiffPhaseView: View {
     private func commentMapping(for diff: GitDiff) -> DiffCommentMapping {
         DiffCommentMapper.map(
             diff: diff,
-            comments: comments ?? [],
-            postedReviewComments: postedReviewComments
+            comments: reviewComments
         )
     }
 
     private func filesWithViolationCounts(mapping: DiffCommentMapping) -> [String: Int] {
         var counts: [String: Int] = [:]
-        for (file, lineMap) in mapping.commentsByFileAndLine {
-            counts[file, default: 0] += lineMap.values.reduce(0) { $0 + $1.count }
+        for (file, lineMap) in mapping.byFileAndLine {
+            counts[file, default: 0] += lineMap.values.reduce(0) { total, comments in
+                total + comments.filter { $0.state == .new }.count
+            }
         }
         for (file, comments) in mapping.unmatchedByFile {
-            counts[file, default: 0] += comments.count
+            counts[file, default: 0] += comments.filter { $0.state == .new }.count
         }
         return counts
     }
@@ -283,16 +282,16 @@ struct DiffPhaseView: View {
 
     private func maxSeverity(for file: String, mapping: DiffCommentMapping) -> Int {
         var maxScore = 0
-        if let lineMap = mapping.commentsByFileAndLine[file] {
+        if let lineMap = mapping.byFileAndLine[file] {
             for comments in lineMap.values {
-                for comment in comments {
-                    maxScore = max(maxScore, comment.score)
+                for comment in comments where comment.state == .new {
+                    maxScore = max(maxScore, comment.score ?? 0)
                 }
             }
         }
         if let comments = mapping.unmatchedByFile[file] {
-            for comment in comments {
-                maxScore = max(maxScore, comment.score)
+            for comment in comments where comment.state == .new {
+                maxScore = max(maxScore, comment.score ?? 0)
             }
         }
         return maxScore
@@ -300,11 +299,13 @@ struct DiffPhaseView: View {
 
     private func postedCommentCountsByFile(mapping: DiffCommentMapping) -> [String: Int] {
         var counts: [String: Int] = [:]
-        for (file, lineMap) in mapping.postedByFileAndLine {
-            counts[file, default: 0] += lineMap.values.reduce(0) { $0 + $1.count }
+        for (file, lineMap) in mapping.byFileAndLine {
+            counts[file, default: 0] += lineMap.values.reduce(0) { total, comments in
+                total + comments.filter { $0.state != .new }.count
+            }
         }
-        for (file, comments) in mapping.postedUnmatchedByFile {
-            counts[file, default: 0] += comments.count
+        for (file, comments) in mapping.unmatchedByFile {
+            counts[file, default: 0] += comments.filter { $0.state != .new }.count
         }
         return counts
     }

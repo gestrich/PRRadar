@@ -267,8 +267,7 @@ struct PureRenameContentView: View {
 
 struct AnnotatedHunkContentView: View {
     let hunk: Hunk
-    let commentsAtLine: [Int: [PRComment]]
-    let postedAtLine: [Int: [GitHubReviewComment]]
+    let commentsAtLine: [Int: [ReviewComment]]
     let searchQuery: String
     var prModel: PRModel? = nil
     var imageURLMap: [String: String]? = nil
@@ -276,8 +275,7 @@ struct AnnotatedHunkContentView: View {
 
     init(
         hunk: Hunk,
-        commentsAtLine: [Int: [PRComment]],
-        postedAtLine: [Int: [GitHubReviewComment]] = [:],
+        commentsAtLine: [Int: [ReviewComment]],
         searchQuery: String,
         prModel: PRModel? = nil,
         imageURLMap: [String: String]? = nil,
@@ -285,7 +283,6 @@ struct AnnotatedHunkContentView: View {
     ) {
         self.hunk = hunk
         self.commentsAtLine = commentsAtLine
-        self.postedAtLine = postedAtLine
         self.searchQuery = searchQuery
         self.prModel = prModel
         self.imageURLMap = imageURLMap
@@ -302,21 +299,22 @@ struct AnnotatedHunkContentView: View {
                     searchQuery: searchQuery
                 )
 
-                if let newLine = line.newLine {
-                    if let posted = postedAtLine[newLine] {
-                        ForEach(posted) { comment in
-                            InlinePostedCommentView(
-                                comment: comment,
-                                imageURLMap: imageURLMap,
-                                imageBaseDir: imageBaseDir
-                            )
-                        }
-                    }
-
-                    if let comments = commentsAtLine[newLine],
-                       let prModel {
-                        ForEach(comments) { comment in
-                            InlineCommentView(comment: comment, prModel: prModel)
+                if let newLine = line.newLine,
+                   let comments = commentsAtLine[newLine] {
+                    ForEach(comments) { rc in
+                        switch rc.state {
+                        case .new:
+                            if let prModel, let pending = rc.pending {
+                                InlineCommentView(comment: pending, prModel: prModel)
+                            }
+                        case .redetected, .postedOnly:
+                            if let posted = rc.posted {
+                                InlinePostedCommentView(
+                                    comment: posted,
+                                    imageURLMap: imageURLMap,
+                                    imageBaseDir: imageBaseDir
+                                )
+                            }
                         }
                     }
                 }
@@ -357,7 +355,7 @@ struct AnnotatedDiffContentView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if !commentMapping.unmatchedNoFile.isEmpty {
-                    unmatchedSection(commentMapping.unmatchedNoFile, title: "General Comments")
+                    fileLevelSection(commentMapping.unmatchedNoFile, title: "General Comments")
                 }
 
                 ForEach(diff.changedFiles, id: \.self) { filePath in
@@ -380,20 +378,15 @@ struct AnnotatedDiffContentView: View {
                         PureRenameContentView()
                     }
 
-                    if let postedUnmatched = commentMapping.postedUnmatchedByFile[filePath] {
-                        postedFileLevelSection(postedUnmatched)
-                    }
-
-                    if let unmatched = commentMapping.unmatchedByFile[filePath] {
-                        unmatchedSection(unmatched, title: "File-level comments")
+                    if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty {
+                        fileLevelSection(fileLevel)
                     }
 
                     ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
                         HunkHeaderView(hunk: hunk)
                         AnnotatedHunkContentView(
                             hunk: hunk,
-                            commentsAtLine: commentMapping.commentsByFileAndLine[filePath] ?? [:],
-                            postedAtLine: commentMapping.postedByFileAndLine[filePath] ?? [:],
+                            commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
                             prModel: prModel,
                             imageURLMap: imageURLMap,
@@ -408,28 +401,7 @@ struct AnnotatedDiffContentView: View {
     }
 
     @ViewBuilder
-    private func postedFileLevelSection(_ comments: [GitHubReviewComment]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Posted file-level comments")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.green.opacity(0.08))
-
-            ForEach(comments) { comment in
-                InlinePostedCommentView(
-                    comment: comment,
-                    imageURLMap: imageURLMap,
-                    imageBaseDir: imageBaseDir
-                )
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func unmatchedSection(_ comments: [PRComment], title: String) -> some View {
+    private func fileLevelSection(_ comments: [ReviewComment], title: String = "File-level comments") -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.caption)
@@ -439,9 +411,20 @@ struct AnnotatedDiffContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.orange.opacity(0.08))
 
-            if let prModel {
-                ForEach(comments) { comment in
-                    InlineCommentView(comment: comment, prModel: prModel)
+            ForEach(comments) { rc in
+                switch rc.state {
+                case .new:
+                    if let prModel, let pending = rc.pending {
+                        InlineCommentView(comment: pending, prModel: prModel)
+                    }
+                case .redetected, .postedOnly:
+                    if let posted = rc.posted {
+                        InlinePostedCommentView(
+                            comment: posted,
+                            imageURLMap: imageURLMap,
+                            imageBaseDir: imageBaseDir
+                        )
+                    }
                 }
             }
         }

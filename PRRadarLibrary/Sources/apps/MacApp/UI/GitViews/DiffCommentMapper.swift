@@ -1,18 +1,14 @@
 import PRRadarModels
 
 struct DiffCommentMapping {
-    let commentsByFileAndLine: [String: [Int: [PRComment]]]
-    let unmatchedByFile: [String: [PRComment]]
-    let unmatchedNoFile: [PRComment]
-    let postedByFileAndLine: [String: [Int: [GitHubReviewComment]]]
-    let postedUnmatchedByFile: [String: [GitHubReviewComment]]
+    let byFileAndLine: [String: [Int: [ReviewComment]]]
+    let unmatchedByFile: [String: [ReviewComment]]
+    let unmatchedNoFile: [ReviewComment]
 
     static let empty = DiffCommentMapping(
-        commentsByFileAndLine: [:],
+        byFileAndLine: [:],
         unmatchedByFile: [:],
-        unmatchedNoFile: [],
-        postedByFileAndLine: [:],
-        postedUnmatchedByFile: [:]
+        unmatchedNoFile: []
     )
 }
 
@@ -20,14 +16,13 @@ enum DiffCommentMapper {
 
     static func map(
         diff: GitDiff,
-        comments: [PRComment],
-        postedReviewComments: [GitHubReviewComment] = []
+        comments: [ReviewComment]
     ) -> DiffCommentMapping {
         let diffFiles = Set(diff.changedFiles)
 
-        var byFileAndLine: [String: [Int: [PRComment]]] = [:]
-        var unmatchedByFile: [String: [PRComment]] = [:]
-        var unmatchedNoFile: [PRComment] = []
+        var byFileAndLine: [String: [Int: [ReviewComment]]] = [:]
+        var unmatchedByFile: [String: [ReviewComment]] = [:]
+        var unmatchedNoFile: [ReviewComment] = []
 
         for comment in comments {
             let filePath = comment.filePath
@@ -49,34 +44,29 @@ enum DiffCommentMapper {
             }
         }
 
-        var postedByFileAndLine: [String: [Int: [GitHubReviewComment]]] = [:]
-        var postedUnmatchedByFile: [String: [GitHubReviewComment]] = [:]
-
-        for reviewComment in postedReviewComments {
-            let filePath = reviewComment.path
-
-            guard diffFiles.contains(filePath) else {
-                continue
-            }
-
-            guard let lineNumber = reviewComment.line else {
-                postedUnmatchedByFile[filePath, default: []].append(reviewComment)
-                continue
-            }
-
-            if diff.findHunk(containingLine: lineNumber, inFile: filePath) != nil {
-                postedByFileAndLine[filePath, default: [:]][lineNumber, default: []].append(reviewComment)
-            } else {
-                postedUnmatchedByFile[filePath, default: []].append(reviewComment)
+        // Sort within each line: postedOnly first, then redetected, then new
+        for (file, lineMap) in byFileAndLine {
+            for (line, lineComments) in lineMap {
+                byFileAndLine[file]![line] = lineComments.sorted { a, b in
+                    a.state.sortOrder < b.state.sortOrder
+                }
             }
         }
 
         return DiffCommentMapping(
-            commentsByFileAndLine: byFileAndLine,
+            byFileAndLine: byFileAndLine,
             unmatchedByFile: unmatchedByFile,
-            unmatchedNoFile: unmatchedNoFile,
-            postedByFileAndLine: postedByFileAndLine,
-            postedUnmatchedByFile: postedUnmatchedByFile
+            unmatchedNoFile: unmatchedNoFile
         )
+    }
+}
+
+private extension ReviewComment.State {
+    var sortOrder: Int {
+        switch self {
+        case .postedOnly: 0
+        case .redetected: 1
+        case .new: 2
+        }
     }
 }

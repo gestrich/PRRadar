@@ -129,10 +129,9 @@ struct ReviewDetailView: View {
                 DiffPhaseView(
                     fullDiff: fullDiff,
                     effectiveDiff: prModel.diff?.effectiveDiff,
-                    comments: prModel.evaluation?.comments,
+                    reviewComments: prModel.reconciledComments,
                     evaluationSummary: prModel.evaluation?.summary,
                     prModel: prModel,
-                    postedReviewComments: prModel.postedComments?.reviewComments ?? [],
                     tasks: prModel.rules?.tasks ?? []
                 )
             }

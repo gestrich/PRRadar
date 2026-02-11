@@ -61,6 +61,13 @@ final class PRModel: Identifiable, Hashable {
         String(metadata.number)
     }
 
+    var reconciledComments: [ReviewComment] {
+        ViolationService.reconcile(
+            pending: evaluation?.comments ?? [],
+            posted: postedComments?.reviewComments ?? []
+        )
+    }
+
     var fullDiff: GitDiff? {
         diff?.fullDiff
     }
