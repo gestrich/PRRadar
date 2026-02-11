@@ -307,7 +307,16 @@ struct AnnotatedHunkContentView: View {
                             if let prModel, let pending = rc.pending {
                                 InlineCommentView(comment: pending, prModel: prModel)
                             }
-                        case .redetected, .postedOnly:
+                        case .redetected:
+                            if let posted = rc.posted {
+                                InlinePostedCommentView(
+                                    comment: posted,
+                                    isRedetected: true,
+                                    imageURLMap: imageURLMap,
+                                    imageBaseDir: imageBaseDir
+                                )
+                            }
+                        case .postedOnly:
                             if let posted = rc.posted {
                                 InlinePostedCommentView(
                                     comment: posted,
@@ -417,7 +426,16 @@ struct AnnotatedDiffContentView: View {
                     if let prModel, let pending = rc.pending {
                         InlineCommentView(comment: pending, prModel: prModel)
                     }
-                case .redetected, .postedOnly:
+                case .redetected:
+                    if let posted = rc.posted {
+                        InlinePostedCommentView(
+                            comment: posted,
+                            isRedetected: true,
+                            imageURLMap: imageURLMap,
+                            imageBaseDir: imageBaseDir
+                        )
+                    }
+                case .postedOnly:
                     if let posted = rc.posted {
                         InlinePostedCommentView(
                             comment: posted,

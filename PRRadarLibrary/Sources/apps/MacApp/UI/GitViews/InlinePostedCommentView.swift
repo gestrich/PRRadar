@@ -4,6 +4,7 @@ import SwiftUI
 struct InlinePostedCommentView: View {
 
     let comment: GitHubReviewComment
+    var isRedetected: Bool = false
     var imageURLMap: [String: String]? = nil
     var imageBaseDir: String? = nil
 
@@ -24,6 +25,12 @@ struct InlinePostedCommentView: View {
                         Text(createdAt)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+
+                    if isRedetected {
+                        Label("Still detected in latest analysis", systemImage: "arrow.trianglehead.2.counterclockwise")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
                     }
 
                     Spacer()

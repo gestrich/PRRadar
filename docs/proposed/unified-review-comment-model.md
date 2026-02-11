@@ -205,7 +205,7 @@ Input changes from `comments: [PRComment], postedReviewComments: [GitHubReviewCo
 
 **Completed.** Simplified `DiffCommentMapping` from 5 fields to 3, and `DiffCommentMapper.map()` from two input arrays to one `[ReviewComment]`. Also updated the downstream consumers required for compilation: `AnnotatedHunkContentView` and `AnnotatedDiffContentView` now render via a state-based switch on `ReviewComment.state`, and two separate file-level section helpers (`postedFileLevelSection` + `unmatchedSection`) were merged into one `fileLevelSection`. `DiffPhaseView` updated to accept `reviewComments: [ReviewComment]` (non-optional, defaults to `[]`), with helper methods (`filesWithViolationCounts`, `maxSeverity`, `postedCommentCountsByFile`) filtering by `.state`. `PRModel` gained a `reconciledComments` computed property that calls `ViolationService.reconcile()`. Build and all 330 tests pass.
 
-## - [ ] Phase 5: Update View Hierarchy (`RichDiffViews.swift`)
+## - [x] Phase 5: Update View Hierarchy (`RichDiffViews.swift`)
 
 ### `AnnotatedHunkContentView`
 
@@ -271,6 +271,8 @@ if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty 
     fileLevelSection(fileLevel)
 }
 ```
+
+**Completed.** The structural changes (unified `[ReviewComment]` params, single state-based switch, merged `fileLevelSection`) were done in Phase 4 for compilation. This phase added the `isRedetected` distinction: `.redetected` comments now pass `isRedetected: true` to `InlinePostedCommentView`, which shows an orange "Still detected in latest analysis" label. The `isRedetected: Bool = false` property was added to `InlinePostedCommentView` with a default so existing call sites are unaffected. Build verified.
 
 ## - [ ] Phase 6: Update `DiffPhaseView` Helpers
 
