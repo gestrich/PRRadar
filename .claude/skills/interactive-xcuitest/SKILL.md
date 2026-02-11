@@ -53,7 +53,7 @@ export XCUITEST_HIERARCHY_PATH="$CONTAINER_TMP/xcuitest-hierarchy.txt"
 export XCUITEST_SCREENSHOT_PATH="$CONTAINER_TMP/xcuitest-screenshot.png"
 ```
 
-Set these exports once at the start of your session. All subsequent `python3 $CLI` commands will use the correct paths.
+**IMPORTANT**: Shell state does not persist between Bash tool calls. You must re-export these environment variables in **every** Bash command that uses the Python CLI.
 
 ## Python CLI
 
@@ -142,12 +142,17 @@ xcodebuild build-for-testing \
   -project PRRadar.xcodeproj \
   -scheme PRRadarMac \
   -destination 'platform=macOS'
+```
 
+**CRITICAL**: The `xcodebuild test-without-building` command **must** be run using the Bash tool's `run_in_background: true` parameter. Do NOT use shell `&` backgrounding — the process will be killed when the Bash tool call completes.
+
+```bash
+# Use run_in_background: true on the Bash tool for this command
 xcodebuild test-without-building \
   -project PRRadar.xcodeproj \
   -scheme PRRadarMac \
   -destination 'platform=macOS' \
-  -only-testing:"PRRadarMacUITests/InteractiveControlTests/testInteractiveControl" &
+  -only-testing:"PRRadarMacUITests/InteractiveControlTests/testInteractiveControl"
 ```
 
 The test will:
@@ -457,6 +462,7 @@ When this happens:
 - **Kill stale processes**: Always kill any running PRRadarMac before starting a test. Stale app processes cause "Failed to terminate" errors.
 - **Orphaned processes**: Killing `xcodebuild` terminates the test runner but leaves the PRRadarMac app running. Always `pkill -f "PRRadarMac"` after stopping.
 - **Automation mode timeout**: The first run after an Xcode restart may fail with "Timed out while enabling automation mode." Retry usually succeeds.
+- **"Automation Running" notification**: macOS shows a system notification/banner when XCUITest starts automating a native app. This is normal macOS behavior — it doesn't happen on iOS because iOS tests run inside the Simulator. The notification is harmless and does not indicate a different automation mechanism is being used. The implementation uses standard XCUITest APIs (same as the iOS project).
 
 ## Example Session
 
@@ -480,12 +486,12 @@ xcodebuild build-for-testing \
   -scheme PRRadarMac \
   -destination 'platform=macOS'
 
-# 3. Start the test
+# 3. Start the test (MUST use Bash tool's run_in_background: true)
 xcodebuild test-without-building \
   -project PRRadar.xcodeproj \
   -scheme PRRadarMac \
   -destination 'platform=macOS' \
-  -only-testing:"PRRadarMacUITests/InteractiveControlTests/testInteractiveControl" &
+  -only-testing:"PRRadarMacUITests/InteractiveControlTests/testInteractiveControl"
 
 # 4. Wait for initialization (~2 seconds)
 while [ ! -f "$CONTAINER_TMP/xcuitest-hierarchy.txt" ]; do sleep 1; done
@@ -598,3 +604,5 @@ This typically means `app.debugDescription` is taking a long time (the UI hierar
 8. **Handle keyboard** — Dismiss by tapping non-interactive labels
 9. **Retry with alternatives** — Use `--target-type any` if specific type fails
 10. **Build before test** — Always `build-for-testing` first to avoid hangs
+11. **Hierarchy is large (2000+ lines)** — Use Grep to search for specific identifiers or text values rather than reading the entire file linearly. Read the screenshot first to know what to search for.
+12. **Re-export env vars every command** — Shell state doesn't persist between Bash tool calls. Every CLI invocation needs the `XCUITEST_*_PATH` exports.
