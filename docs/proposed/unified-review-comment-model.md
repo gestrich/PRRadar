@@ -304,7 +304,7 @@ counts += comments.filter { $0.state != .new }.count
 
 **Completed.** All changes were implemented during Phase 4 for compilation. `DiffPhaseView` accepts `reviewComments: [ReviewComment]` (non-optional, defaults to `[]`). The caller (`ReviewDetailView`) passes `prModel.reconciledComments`. All helper methods already filter by `.state`: `filesWithViolationCounts` counts `.new` only, `postedCommentCountsByFile` counts non-`.new`, `maxSeverity` considers `.new` only, and `filesNotInDiff` uses `ReviewComment.filePath`. Build verified.
 
-## - [ ] Phase 7: Add "Still Detected" Indicator + Cleanup
+## - [x] Phase 7: Add "Still Detected" Indicator + Cleanup
 
 ### `InlinePostedCommentView` ([InlinePostedCommentView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/GitViews/InlinePostedCommentView.swift))
 
@@ -333,6 +333,8 @@ private var isSubmitted: Bool {
     prModel.submittedCommentIds.contains(comment.id)
 }
 ```
+
+**Completed.** The `isRedetected` indicator on `InlinePostedCommentView` was already added in Phase 5. This phase removed the `isAlreadyPostedOnGitHub` computed property from `InlineCommentView` and simplified `isSubmitted` to only check `submittedCommentIds` — deduplication is now fully handled by `ViolationService.reconcile()` in the Services layer. Build and all 330 tests pass.
 
 ## - [ ] Phase 8: Validation
 
