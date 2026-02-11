@@ -156,7 +156,7 @@ Update command abstracts to use new terminology:
 - All user-facing messages updated (status logs, error messages, completion summaries)
 - Both `PRRadarMacCLI` and `MacApp` targets build successfully
 
-## - [ ] Phase 4: Update PRModel and UI
+## - [x] Phase 4: Update PRModel and UI ✅
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -178,6 +178,17 @@ Update views:
 Update `NavigationPhase`:
 - `.diff` → `.diff` (still shows the diff, name is fine for navigation)
 - Or reconsider whether NavigationPhase needs renaming too
+
+### Technical Notes
+
+- `PRModel` stored property renames: `diff` → `syncSnapshot`, `rules` → `preparation`, `evaluation` → `analysis`
+- `ReviewSnapshot` struct field renames match: `diff` → `syncSnapshot`, `rules` → `preparation`, `evaluation` → `analysis`
+- Method renames: `runDiff()` → `runSync()`, `runRules()` → `runPrepare()`, `runEvaluate()` → `runAnalyze()`, `startSelectiveEvaluation()` → `startSelectiveAnalysis()`
+- All computed properties updated: `reconciledComments` now reads from `analysis`, diff accessors read from `syncSnapshot`
+- View updates across 4 files: `ReviewDetailView` (6 `prModel.diff` → `prModel.syncSnapshot`), `DiffPhaseView` (2 property refs + 6 `startSelectiveAnalysis` calls), `RichDiffViews` (`AnnotatedDiffContentView` — 1 property ref + 4 `startSelectiveAnalysis` calls)
+- `NavigationPhase`, `PipelineStatusView`, `PhaseInputView`, `RulesPhaseView` required no changes — they already use `PRRadarPhase` enum cases (renamed in Phase 1) and don't directly access PRModel data properties
+- Toolbar button labels were already correct from Phase 3: "Sync PR", "Prepare", "Analyze"
+- All 371 tests pass, build succeeds
 
 ## - [ ] Phase 5: Update services layer
 

@@ -13,8 +13,8 @@ struct DiffPhaseView: View {
 
     private var effectiveDiff: GitDiff? { prModel.effectiveDiff }
     private var reviewComments: [ReviewComment] { prModel.reconciledComments }
-    private var evaluationSummary: EvaluationSummary? { prModel.evaluation?.summary }
-    private var tasks: [EvaluationTaskOutput] { prModel.rules?.tasks ?? [] }
+    private var evaluationSummary: EvaluationSummary? { prModel.analysis?.summary }
+    private var tasks: [EvaluationTaskOutput] { prModel.preparation?.tasks ?? [] }
 
     private var hasEvaluationData: Bool {
         evaluationSummary != nil
@@ -341,7 +341,7 @@ struct DiffPhaseView: View {
             let rules = rulesForFile(file)
 
             Button {
-                prModel.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
+                prModel.startSelectiveAnalysis(filter: EvaluationFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -350,7 +350,7 @@ struct DiffPhaseView: View {
                 Menu("Run Rule\u{2026}") {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
-                            prModel.startSelectiveEvaluation(
+                            prModel.startSelectiveAnalysis(
                                 filter: EvaluationFilter(filePath: file, ruleNames: [rule])
                             )
                         }
@@ -370,7 +370,7 @@ struct DiffPhaseView: View {
         let rules = rulesForFile(file)
         Menu {
             Button {
-                prModel.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
+                prModel.startSelectiveAnalysis(filter: EvaluationFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -379,7 +379,7 @@ struct DiffPhaseView: View {
                 Divider()
                 ForEach(rules, id: \.self) { rule in
                     Button(rule) {
-                        prModel.startSelectiveEvaluation(
+                        prModel.startSelectiveAnalysis(
                             filter: EvaluationFilter(filePath: file, ruleNames: [rule])
                         )
                     }
@@ -399,7 +399,7 @@ struct DiffPhaseView: View {
             let rules = rulesForFocusArea(focusArea.focusId)
 
             Button {
-                prModel.startSelectiveEvaluation(
+                prModel.startSelectiveAnalysis(
                     filter: EvaluationFilter(focusAreaId: focusArea.focusId)
                 )
             } label: {
@@ -410,7 +410,7 @@ struct DiffPhaseView: View {
                 Menu("Run Rule\u{2026}") {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
-                            prModel.startSelectiveEvaluation(
+                            prModel.startSelectiveAnalysis(
                                 filter: EvaluationFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
                             )
                         }

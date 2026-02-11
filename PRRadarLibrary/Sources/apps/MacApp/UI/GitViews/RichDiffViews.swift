@@ -352,7 +352,7 @@ struct AnnotatedDiffContentView: View {
         self.prModel = prModel
     }
 
-    private var tasks: [EvaluationTaskOutput] { prModel.rules?.tasks ?? [] }
+    private var tasks: [EvaluationTaskOutput] { prModel.preparation?.tasks ?? [] }
     private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
     private var imageBaseDir: String? { prModel.imageBaseDir }
 
@@ -479,7 +479,7 @@ struct AnnotatedDiffContentView: View {
 
             if matchingFocusAreas.count == 1, let area = matchingFocusAreas.first {
                 Button {
-                    prModel.startSelectiveEvaluation(
+                    prModel.startSelectiveAnalysis(
                         filter: EvaluationFilter(focusAreaId: area.focusId)
                     )
                 } label: {
@@ -493,7 +493,7 @@ struct AnnotatedDiffContentView: View {
                     let uniqueRules = Array(Set(rules)).sorted()
 
                     Button {
-                        prModel.startSelectiveEvaluation(
+                        prModel.startSelectiveAnalysis(
                             filter: EvaluationFilter(focusAreaId: area.focusId)
                         )
                     } label: {
@@ -504,7 +504,7 @@ struct AnnotatedDiffContentView: View {
                         Menu("Run Rule\u{2026}") {
                             ForEach(uniqueRules, id: \.self) { rule in
                                 Button(rule) {
-                                    prModel.startSelectiveEvaluation(
+                                    prModel.startSelectiveAnalysis(
                                         filter: EvaluationFilter(focusAreaId: area.focusId, ruleNames: [rule])
                                     )
                                 }
@@ -517,7 +517,7 @@ struct AnnotatedDiffContentView: View {
                     ForEach(matchingFocusAreas, id: \.focusId) { area in
                         Section(area.description) {
                             Button {
-                                prModel.startSelectiveEvaluation(
+                                prModel.startSelectiveAnalysis(
                                     filter: EvaluationFilter(focusAreaId: area.focusId)
                                 )
                             } label: {

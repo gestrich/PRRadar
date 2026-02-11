@@ -95,9 +95,9 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var diffOutputView: some View {
-        if let fullDiff = prModel.diff?.fullDiff {
+        if let fullDiff = prModel.syncSnapshot?.fullDiff {
             VStack(spacing: 0) {
-                if hasAIOutput || prModel.diff?.effectiveDiff != nil {
+                if hasAIOutput || prModel.syncSnapshot?.effectiveDiff != nil {
                     HStack {
                         if hasAIOutput {
                             Button {
@@ -114,7 +114,7 @@ struct ReviewDetailView: View {
                             .accessibilityIdentifier("aiOutputButton")
                         }
                         Spacer()
-                        if prModel.diff?.effectiveDiff != nil {
+                        if prModel.syncSnapshot?.effectiveDiff != nil {
                             Button {
                                 showEffectiveDiff = true
                             } label: {
@@ -139,11 +139,11 @@ struct ReviewDetailView: View {
                 }
             }
             .sheet(isPresented: $showEffectiveDiff) {
-                if let effectiveDiff = prModel.diff?.effectiveDiff {
+                if let effectiveDiff = prModel.syncSnapshot?.effectiveDiff {
                     EffectiveDiffView(
                         fullDiff: fullDiff,
                         effectiveDiff: effectiveDiff,
-                        moveReport: prModel.diff?.moveReport
+                        moveReport: prModel.syncSnapshot?.moveReport
                     )
                     .frame(minWidth: 900, minHeight: 600)
                 }
@@ -152,7 +152,7 @@ struct ReviewDetailView: View {
                 aiOutputView
                     .frame(minWidth: 800, minHeight: 500)
             }
-        } else if let files = prModel.diff?.files {
+        } else if let files = prModel.syncSnapshot?.files {
             List(files, id: \.self) { file in
                 Text(file)
                     .font(.system(.body, design: .monospaced))

@@ -5,9 +5,9 @@ import PRRadarModels
 import PRReviewFeature
 
 struct ReviewSnapshot {
-    let diff: SyncSnapshot?
-    let rules: PrepareOutput?
-    let evaluation: AnalysisOutput?
+    let syncSnapshot: SyncSnapshot?
+    let preparation: PrepareOutput?
+    let analysis: AnalysisOutput?
     let report: ReportPhaseOutput?
     let comments: CommentPhaseOutput?
 }
@@ -25,9 +25,9 @@ final class PRModel: Identifiable, Hashable {
     private(set) var analysisState: AnalysisState = .loading
     private(set) var detailState: DetailState = .unloaded
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
-    private(set) var diff: SyncSnapshot?
-    private(set) var rules: PrepareOutput?
-    private(set) var evaluation: AnalysisOutput?
+    private(set) var syncSnapshot: SyncSnapshot?
+    private(set) var preparation: PrepareOutput?
+    private(set) var analysis: AnalysisOutput?
     private(set) var report: ReportPhaseOutput?
     private(set) var comments: CommentPhaseOutput?
 
@@ -64,25 +64,25 @@ final class PRModel: Identifiable, Hashable {
 
     var reconciledComments: [ReviewComment] {
         ViolationService.reconcile(
-            pending: evaluation?.comments ?? [],
+            pending: analysis?.comments ?? [],
             posted: postedComments?.reviewComments ?? []
         )
     }
 
     var fullDiff: GitDiff? {
-        diff?.fullDiff
+        syncSnapshot?.fullDiff
     }
 
     var effectiveDiff: GitDiff? {
-        diff?.effectiveDiff
+        syncSnapshot?.effectiveDiff
     }
 
     var moveReport: MoveReport? {
-        diff?.moveReport
+        syncSnapshot?.moveReport
     }
 
     var diffFiles: [String]? {
-        diff?.files
+        syncSnapshot?.files
     }
 
     var isAnyPhaseRunning: Bool {
@@ -167,9 +167,9 @@ final class PRModel: Identifiable, Hashable {
         loadSavedTranscripts()
 
         detailState = .loaded(ReviewSnapshot(
-            diff: self.diff,
-            rules: self.rules,
-            evaluation: self.evaluation,
+            syncSnapshot: self.syncSnapshot,
+            preparation: self.preparation,
+            analysis: self.analysis,
             report: self.report,
             comments: nil
         ))
@@ -177,8 +177,8 @@ final class PRModel: Identifiable, Hashable {
 
     func loadCachedNonDiffOutputs() throws {
         let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber)
-        self.rules = snapshot.preparation
-        self.evaluation = snapshot.analysis
+        self.preparation = snapshot.preparation
+        self.analysis = snapshot.analysis
         self.report = snapshot.report
 
         do {
@@ -235,7 +235,7 @@ final class PRModel: Identifiable, Hashable {
         let shouldFetch: Bool
         if force {
             shouldFetch = true
-        } else if diff == nil {
+        } else if syncSnapshot == nil {
             shouldFetch = true
         } else {
             shouldFetch = await isStale()
@@ -244,7 +244,7 @@ final class PRModel: Identifiable, Hashable {
         guard shouldFetch else { return }
 
         // Step 3: Fetch from GitHub
-        let hasCachedData = diff != nil
+        let hasCachedData = syncSnapshot != nil
         let logPrefix = hasCachedData ? "Refreshing" : "Fetching"
         if hasCachedData {
             phaseStates[.sync] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
@@ -270,7 +270,7 @@ final class PRModel: Identifiable, Hashable {
                     case .aiToolUse: break
                     case .evaluationResult: break
                     case .completed(let snapshot):
-                        diff = snapshot
+                        syncSnapshot = snapshot
                         let logs = runningLogs(for: .sync)
                         phaseStates[.sync] = .completed(logs: logs)
                     case .failed(let error, let logs):
@@ -280,7 +280,7 @@ final class PRModel: Identifiable, Hashable {
                 }
             } catch is CancellationError {
                 // Task was cancelled — restore state
-                if diff != nil {
+                if syncSnapshot != nil {
                     phaseStates[.sync] = .completed(logs: "")
                 } else {
                     phaseStates[.sync] = .idle
@@ -297,7 +297,7 @@ final class PRModel: Identifiable, Hashable {
     func cancelRefresh() {
         refreshTask?.cancel()
         refreshTask = nil
-        if diff != nil {
+        if syncSnapshot != nil {
             phaseStates[.sync] = .completed(logs: "")
         } else {
             phaseStates[.sync] = .idle
@@ -352,7 +352,7 @@ final class PRModel: Identifiable, Hashable {
     private func loadCachedDiff() {
         let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
         if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
-            self.diff = snapshot
+            self.syncSnapshot = snapshot
             if case .idle = stateFor(.sync) {
                 phaseStates[.sync] = .completed(logs: "")
             }
@@ -404,9 +404,9 @@ final class PRModel: Identifiable, Hashable {
 
     func runPhase(_ phase: PRRadarPhase) async {
         switch phase {
-        case .sync: await runDiff()
-        case .prepare: await runRules()
-        case .analyze: await runEvaluate()
+        case .sync: await runSync()
+        case .prepare: await runPrepare()
+        case .analyze: await runAnalyze()
         case .report: await runReport()
         }
     }
@@ -430,11 +430,11 @@ final class PRModel: Identifiable, Hashable {
         phaseStates[phase] = .idle
         switch phase {
         case .sync:
-            diff = nil
+            syncSnapshot = nil
         case .prepare:
-            rules = nil
+            preparation = nil
         case .analyze:
-            evaluation = nil
+            analysis = nil
         case .report:
             report = nil
         }
@@ -442,7 +442,7 @@ final class PRModel: Identifiable, Hashable {
 
     // MARK: - Phase Runners
 
-    func runDiff() async {
+    func runSync() async {
         await refreshDiff(force: true)
     }
 
@@ -563,7 +563,7 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .running(logs: existing + text)
     }
 
-    private func runRules() async {
+    private func runPrepare() async {
         phaseStates[.prepare] = .running(logs: "")
         aiOutputText = ""
         aiCurrentPrompt = ""
@@ -587,7 +587,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiToolUse: break
                 case .evaluationResult: break
                 case .completed(let output):
-                    rules = output
+                    preparation = output
                     phaseStates[.prepare] = .completed(logs: "")
                     loadSavedTranscripts()
                 case .failed(let error, let logs):
@@ -599,7 +599,7 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    private func runEvaluate() async {
+    private func runAnalyze() async {
         phaseStates[.analyze] = .running(logs: "Running evaluations...\n")
         aiOutputText = ""
         aiCurrentPrompt = ""
@@ -623,7 +623,7 @@ final class PRModel: Identifiable, Hashable {
                 case .evaluationResult(let result):
                     mergeEvaluationResult(result)
                 case .completed(let output):
-                    evaluation = output
+                    analysis = output
                     let logs = runningLogs(for: .analyze)
                     phaseStates[.analyze] = .completed(logs: logs)
                     loadSavedTranscripts()
@@ -656,7 +656,7 @@ final class PRModel: Identifiable, Hashable {
                     selectiveEvaluationInFlight.remove(result.taskId)
                     mergeEvaluationResult(result)
                 case .completed(let output):
-                    evaluation = output
+                    analysis = output
                     selectiveEvaluationInFlight = []
                 case .failed:
                     selectiveEvaluationInFlight = []
@@ -667,9 +667,9 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func startSelectiveEvaluation(filter: EvaluationFilter) {
-        guard let evaluation else { return }
-        let matchingTaskIds = evaluation.tasks
+    func startSelectiveAnalysis(filter: EvaluationFilter) {
+        guard let analysis else { return }
+        let matchingTaskIds = analysis.tasks
             .filter { filter.matches($0) }
             .map(\.taskId)
         selectiveEvaluationInFlight.formUnion(matchingTaskIds)
@@ -680,7 +680,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func mergeEvaluationResult(_ result: RuleEvaluationResult) {
-        guard let existing = evaluation else {
+        guard let existing = analysis else {
             let summary = EvaluationSummary(
                 prNumber: Int(prNumber) ?? 0,
                 evaluatedAt: ISO8601DateFormatter().string(from: Date()),
@@ -690,7 +690,7 @@ final class PRModel: Identifiable, Hashable {
                 totalDurationMs: result.durationMs,
                 results: [result]
             )
-            evaluation = AnalysisOutput(
+            analysis = AnalysisOutput(
                 evaluations: [result],
                 summary: summary
             )
@@ -711,7 +711,7 @@ final class PRModel: Identifiable, Hashable {
             results: evaluations
         )
 
-        evaluation = AnalysisOutput(
+        analysis = AnalysisOutput(
             evaluations: evaluations,
             tasks: existing.tasks,
             summary: summary,
