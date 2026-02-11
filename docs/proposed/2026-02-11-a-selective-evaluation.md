@@ -233,7 +233,7 @@ When showing applicable rules for a file or focus area:
 - **Context menus are conditional** — Only appear when `canRunSelectiveEvaluation` is true (requires `evaluation != nil` and non-empty `tasks` array), so they don't show before the pipeline has generated tasks
 - 344 tests pass, build succeeds
 
-## - [ ] Phase 6: Incremental Results in Full Analysis Runs
+## - [x] Phase 6: Incremental Results in Full Analysis Runs
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -248,6 +248,17 @@ Ensure that full analysis runs (`runAnalysis` / `runEvaluate`) also display eval
 ### Files to Modify
 
 - `MacApp/Models/PRModel.swift` — `.evaluationResult` handling in `runEvaluate()`
+
+### Completion Notes
+
+- All required functionality was already implemented during Phase 4 — no additional code changes needed
+- `PRModel.runEvaluate()` handles `.evaluationResult` at line 632 via `mergeEvaluationResult()`, which incrementally updates the `evaluation` property with each arriving result
+- `mergeEvaluationResult()` rebuilds `EvaluationSummary` (violation count, total tasks, cost, duration) on every result, so the summary bar updates in real-time
+- `runAnalysis()` calls `runPhase(.evaluations)` → `runEvaluate()`, so full analysis runs inherit incremental display
+- `EvaluateUseCase` yields `.evaluationResult` for both cached results (batch) and freshly evaluated results (via `onResult` callback), ensuring all results stream incrementally
+- `AnalyzeUseCase` also forwards `.evaluationResult` from the evaluation phase, so the pipeline is fully transparent
+- `DiffPhaseView.summaryItems()` reads `evaluationSummary` from the `@Observable` `PRModel`, triggering SwiftUI view refresh on each merge
+- 344 tests pass, build succeeds
 
 ## - [ ] Phase 7: Unit Tests & CLI Validation
 
