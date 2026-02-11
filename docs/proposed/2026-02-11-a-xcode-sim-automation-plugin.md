@@ -358,7 +358,7 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
 - **Python CLI location**: Found at both `~/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py` and `plugin/tools/xcuitest-control.py` when `--add-dir` grants access to the xcode-sim-automation repo. Note: When using `--plugin-dir` alone, the sandbox restricts file access to the current project directory, so `--add-dir ~/Developer/personal/xcode-sim-automation` is needed for the CLI to be located.
 - **Marketplace install**: Skipped (not set up yet).
 
-## - [ ] Phase 5: Clean Up and Commit
+## - [x] Phase 5: Clean Up and Commit
 
 **Repos**: Both
 
@@ -372,6 +372,8 @@ Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest a
    - Commit removal of local skills
    - Commit new config files (`.xcuitest-config.json`, `.claude/xcuitest-notes.md`)
    - Commit CLAUDE.md updates
+
+**Completed**: All changes were already committed in prior phases. xcode-sim-automation repo pushed to GitHub (`gestrich/xcode-sim-automation` — created as public repo). PRRadar repo changes (config files, skill removal, CLAUDE.md updates) were committed in earlier phases. Note: Had to switch `gh` CLI to `gestrich` account to create the GitHub repo (was defaulting to Enterprise Managed User account).
 
 ## - [ ] Phase 6: Validation
 
