@@ -137,7 +137,7 @@ Inspected all phase output files in `/Users/bill/Desktop/code-reviews/1/`. Line 
 
 **Key finding:** The pipeline produces correct line numbers at every stage where data exists. The inability to fully verify the end-to-end line number chain (diff → focus → task → evaluation → AI response) is blocked by the `focus_type` mismatch, which prevents task creation. Phase 5 will address this mismatch to enable a complete verification.
 
-## - [ ] Phase 5: Determine Focus Type Mismatch Impact
+## - [x] Phase 5: Determine Focus Type Mismatch Impact
 
 The test repo rule (`guard-divide-by-zero`) has `focus_type: method`, but the pipeline requests only `.file` focus areas. This is a separate bug that may prevent tasks from being created at all.
 
@@ -145,6 +145,31 @@ The test repo rule (`guard-divide-by-zero`) has `focus_type: method`, but the pi
 2. Check `FetchRulesUseCase.execute()` line 59 — confirm `requestedTypes: [.file]`
 3. If there's a mismatch: temporarily change the rule's `focus_type` to `file` (or change the pipeline to include `.method`), re-run Phase 3-4, and verify the task is created with correct line numbers
 4. Document whether the mismatch is intentional or a bug
+
+**Result:**
+
+Confirmed the mismatch at both locations:
+
+1. **Rule file** (`PRRadar-TestRepo/rules/guard-divide-by-zero.md`): has `focus_type: method` in YAML frontmatter.
+2. **FetchRulesUseCase** (`FetchRulesUseCase.swift:59`): hardcodes `requestedTypes: [.file]`. Only file-level focus areas are generated.
+3. **TaskCreatorService** (`TaskCreatorService.swift:29`): strict guard `rule.focusType == focusArea.focusType` filters out the method-typed rule against file-typed focus areas, producing 0 tasks.
+
+**Experiment:** Temporarily changed the test repo rule's `focus_type` from `method` to `file`, deleted all prior output (`rm -rf /Users/bill/Desktop/code-reviews/1/`), and re-ran `analyze 1 --config test-repo`. Results:
+
+- **Task created:** 1 task (`guard-divide-by-zero_Calculator.swift`) with correct focus area data — `start_line: 15`, `end_line: 23`, `hunk_content` showing `func modulo` at line 19.
+- **Evaluation produced:** `line_number: 19`, `score: 6/10`, `violates_rule: true`. The AI correctly identified the modulo function at line 19 — matching the expected line number from Phase 2.
+- **Report:** 1 violation at `Calculator.swift:19`.
+- **Complete line number chain verified:** diff (`newStart: 15`) → focus area (`start_line: 15`, modulo at line 19 in annotated content) → task (same) → AI evaluation (`line_number: 19`) → report (`line_number: 19`). All correct.
+
+Reverted the test repo rule back to `focus_type: method` after the experiment.
+
+**Conclusion — this is a bug.** The `focus_type` mismatch is not intentional. The pipeline hardcodes `requestedTypes: [.file]` (likely as a simplification during the Swift rewrite), but rules can specify `focus_type: method`. The `TaskCreatorService` guard correctly enforces type matching, but the pipeline never generates method-level focus areas, making all method-typed rules silently inoperative. There are two possible fixes:
+
+1. **Change the pipeline to include `.method`** in `requestedTypes` (adds an AI call per hunk via `FocusGeneratorService.generateFocusAreasForHunk()` — increases cost and latency).
+2. **Change `TaskCreatorService` to allow `.file` focus areas to satisfy `.method` rules** (a file-level focus area contains the full hunk, which includes all methods — so a method rule can still evaluate it). This avoids the extra AI call.
+3. **Default rules to `focus_type: file`** unless explicitly set to `method`, and update existing rules.
+
+This is a separate bug from the stale line number issue and should be tracked as a follow-up item.
 
 ## - [ ] Phase 6: Evaluate Fuzzy Fallback Necessity
 
