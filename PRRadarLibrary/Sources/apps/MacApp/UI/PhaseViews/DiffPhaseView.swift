@@ -23,6 +23,10 @@ struct DiffPhaseView: View {
             .mapValues(\.count)
     }
 
+    private var canRunSelectiveEvaluation: Bool {
+        prModel?.evaluation != nil && !tasks.isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedTab) {
@@ -116,12 +120,14 @@ struct DiffPhaseView: View {
                     HStack {
                         fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
+                        fileInFlightIndicator(for: file)
                         taskBadge(count: max(taskCount, 1))
                             .opacity(taskCount > 0 ? 1 : 0)
                         postedCommentBadge(count: max(postedCount, 1))
                             .opacity(postedCount > 0 ? 1 : 0)
                     }
                     .tag(file)
+                    .contextMenu { fileContextMenu(for: file) }
                 }
             }
         }
@@ -143,6 +149,7 @@ struct DiffPhaseView: View {
                     HStack {
                         fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
                         Spacer()
+                        fileInFlightIndicator(for: file)
                         taskBadge(count: max(taskCount, 1))
                             .opacity(taskCount > 0 ? 1 : 0)
                         violationBadge(count: max(violationCount, 1), file: file, mapping: mapping)
@@ -151,6 +158,7 @@ struct DiffPhaseView: View {
                             .opacity(postedCount > 0 ? 1 : 0)
                     }
                     .tag(file)
+                    .contextMenu { fileContextMenu(for: file) }
                 }
             }
 
@@ -201,6 +209,13 @@ struct DiffPhaseView: View {
                             .font(.callout)
                     }
                     Spacer()
+                    if canRunSelectiveEvaluation {
+                        if isFileInFlight(file) {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        fileAnalysisMenu(for: file)
+                    }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 6)
@@ -213,6 +228,7 @@ struct DiffPhaseView: View {
                     diff: filtered,
                     commentMapping: commentMapping(for: diff),
                     prModel: prModel,
+                    tasks: tasks,
                     imageURLMap: prModel?.imageURLMap.isEmpty == false ? prModel?.imageURLMap : nil,
                     imageBaseDir: prModel?.imageBaseDir
                 )
@@ -251,6 +267,129 @@ struct DiffPhaseView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(.blue, in: Capsule())
+    }
+
+    // MARK: - Selective Evaluation Actions
+
+    private func rulesForFile(_ file: String) -> [String] {
+        let fileTasks = tasks.filter { $0.focusArea.filePath == file }
+        let ruleNames = Set(fileTasks.map(\.rule.name))
+        return ruleNames.sorted()
+    }
+
+    private func focusAreasForFile(_ file: String) -> [FocusArea] {
+        let fileTasks = tasks.filter { $0.focusArea.filePath == file }
+        var seen = Set<String>()
+        return fileTasks.compactMap { task in
+            guard seen.insert(task.focusArea.focusId).inserted else { return nil }
+            return task.focusArea
+        }
+    }
+
+    private func rulesForFocusArea(_ focusAreaId: String) -> [String] {
+        let areaTasks = tasks.filter { $0.focusArea.focusId == focusAreaId }
+        let ruleNames = Set(areaTasks.map(\.rule.name))
+        return ruleNames.sorted()
+    }
+
+    private func isFileInFlight(_ file: String) -> Bool {
+        guard let prModel else { return false }
+        let fileTaskIds = Set(tasks.filter { $0.focusArea.filePath == file }.map(\.taskId))
+        return !fileTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
+    }
+
+    private func isFocusAreaInFlight(_ focusAreaId: String) -> Bool {
+        guard let prModel else { return false }
+        let areaTaskIds = Set(tasks.filter { $0.focusArea.focusId == focusAreaId }.map(\.taskId))
+        return !areaTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
+    }
+
+    @ViewBuilder
+    private func fileInFlightIndicator(for file: String) -> some View {
+        if isFileInFlight(file) {
+            ProgressView()
+                .controlSize(.mini)
+        }
+    }
+
+    @ViewBuilder
+    private func fileContextMenu(for file: String) -> some View {
+        if canRunSelectiveEvaluation {
+            let rules = rulesForFile(file)
+
+            Button {
+                prModel?.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
+            } label: {
+                Label("Run All Rules", systemImage: "play.fill")
+            }
+
+            if rules.count > 1 {
+                Menu("Run Rule\u{2026}") {
+                    ForEach(rules, id: \.self) { rule in
+                        Button(rule) {
+                            prModel?.startSelectiveEvaluation(
+                                filter: EvaluationFilter(filePath: file, ruleNames: [rule])
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fileAnalysisMenu(for file: String) -> some View {
+        let rules = rulesForFile(file)
+        Menu {
+            Button {
+                prModel?.startSelectiveEvaluation(filter: EvaluationFilter(filePath: file))
+            } label: {
+                Label("Run All Rules", systemImage: "play.fill")
+            }
+
+            if rules.count > 1 {
+                Divider()
+                ForEach(rules, id: \.self) { rule in
+                    Button(rule) {
+                        prModel?.startSelectiveEvaluation(
+                            filter: EvaluationFilter(filePath: file, ruleNames: [rule])
+                        )
+                    }
+                }
+            }
+        } label: {
+            Label("Run Analysis", systemImage: "play.circle")
+                .font(.callout)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private func focusAreaContextMenu(for focusArea: FocusArea) -> some View {
+        if canRunSelectiveEvaluation {
+            let rules = rulesForFocusArea(focusArea.focusId)
+
+            Button {
+                prModel?.startSelectiveEvaluation(
+                    filter: EvaluationFilter(focusAreaId: focusArea.focusId)
+                )
+            } label: {
+                Label("Run All Rules", systemImage: "play.fill")
+            }
+
+            if rules.count > 1 {
+                Menu("Run Rule\u{2026}") {
+                    ForEach(rules, id: \.self) { rule in
+                        Button(rule) {
+                            prModel?.startSelectiveEvaluation(
+                                filter: EvaluationFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Evaluation Helpers

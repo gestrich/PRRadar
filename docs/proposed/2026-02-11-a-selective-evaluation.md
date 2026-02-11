@@ -188,7 +188,7 @@ Update `PRModel` to support running selective evaluations and displaying results
 - `runEvaluate()` now handles `.evaluationResult` via `mergeEvaluationResult` — full evaluation runs also show results incrementally in the diff view
 - Selective evaluation does NOT set `phaseStates[.evaluations]` to `.running`, so `canRunPhase()` and `isAnyPhaseRunning` are unaffected — selective runs don't block other phases or each other
 
-## - [ ] Phase 5: GUI — Diff View "Run Analysis" Actions
+## - [x] Phase 5: GUI — Diff View "Run Analysis" Actions
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -223,6 +223,15 @@ When showing applicable rules for a file or focus area:
 
 - `MacApp/UI/PhaseViews/DiffPhaseView.swift` — add context menus, file-level and hunk-level actions
 - May need a small helper view for rule selection (submenu or popover)
+
+### Completion Notes
+
+- **File sidebar context menus** — Both `plainFileList` and `annotatedFileList` now have `.contextMenu` on each file row with "Run All Rules" and "Run Rule..." submenu (submenu only appears when multiple rules apply)
+- **File-level task bar** — When a file is selected in the diff content area, a "Run Analysis" dropdown menu appears in the task bar alongside the task count button, with the same "Run All Rules" + individual rule options
+- **Hunk-level actions** — `HunkHeaderView` was extended with a generic `TrailingContent` parameter; `AnnotatedDiffContentView` now accepts `tasks` and renders a "Run Analysis" button on each hunk header that has matching focus areas (matched via line range overlap between hunk and focus area). Single focus area shows a direct button with context menu for rule selection; multiple focus areas show a grouped menu
+- **Per-task progress indicators** — Spinner (`ProgressView`) shown in the file sidebar next to files with in-flight selective evaluations, in the file task bar during evaluation, and on hunk headers with in-flight focus areas. Uses `PRModel.selectiveEvaluationInFlight` set to determine which tasks are running
+- **Context menus are conditional** — Only appear when `canRunSelectiveEvaluation` is true (requires `evaluation != nil` and non-empty `tasks` array), so they don't show before the pipeline has generated tasks
+- 344 tests pass, build succeeds
 
 ## - [ ] Phase 6: Incremental Results in Full Analysis Runs
 

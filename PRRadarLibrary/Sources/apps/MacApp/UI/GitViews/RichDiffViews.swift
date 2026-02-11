@@ -151,8 +151,19 @@ struct HunkContentView: View {
     }
 }
 
-struct HunkHeaderView: View {
+struct HunkHeaderView<TrailingContent: View>: View {
     let hunk: Hunk
+    let trailingContent: TrailingContent
+
+    init(hunk: Hunk) where TrailingContent == EmptyView {
+        self.hunk = hunk
+        self.trailingContent = EmptyView()
+    }
+
+    init(hunk: Hunk, @ViewBuilder trailing: () -> TrailingContent) {
+        self.hunk = hunk
+        self.trailingContent = trailing()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -164,6 +175,8 @@ struct HunkHeaderView: View {
                     .foregroundStyle(.secondary)
 
                 Spacer()
+
+                trailingContent
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -341,6 +354,7 @@ struct AnnotatedDiffContentView: View {
     let commentMapping: DiffCommentMapping
     let searchQuery: String
     var prModel: PRModel? = nil
+    var tasks: [EvaluationTaskOutput] = []
     var imageURLMap: [String: String]? = nil
     var imageBaseDir: String? = nil
 
@@ -349,6 +363,7 @@ struct AnnotatedDiffContentView: View {
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
         prModel: PRModel? = nil,
+        tasks: [EvaluationTaskOutput] = [],
         imageURLMap: [String: String]? = nil,
         imageBaseDir: String? = nil
     ) {
@@ -356,8 +371,13 @@ struct AnnotatedDiffContentView: View {
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
         self.prModel = prModel
+        self.tasks = tasks
         self.imageURLMap = imageURLMap
         self.imageBaseDir = imageBaseDir
+    }
+
+    private var canRunSelectiveEvaluation: Bool {
+        prModel?.evaluation != nil && !tasks.isEmpty
     }
 
     var body: some View {
@@ -392,7 +412,9 @@ struct AnnotatedDiffContentView: View {
                     }
 
                     ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
-                        HunkHeaderView(hunk: hunk)
+                        HunkHeaderView(hunk: hunk) {
+                            hunkActions(for: hunk)
+                        }
                         AnnotatedHunkContentView(
                             hunk: hunk,
                             commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
@@ -444,6 +466,94 @@ struct AnnotatedDiffContentView: View {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Hunk Actions
+
+    private func focusAreasForHunk(_ hunk: Hunk) -> [FocusArea] {
+        let fileTasks = tasks.filter { $0.focusArea.filePath == hunk.filePath }
+        let hunkNewEnd = hunk.newStart + hunk.newLength - 1
+        let matching = fileTasks.filter { task in
+            task.focusArea.startLine <= hunkNewEnd && task.focusArea.endLine >= hunk.newStart
+        }
+        var seen = Set<String>()
+        return matching.compactMap { task in
+            guard seen.insert(task.focusArea.focusId).inserted else { return nil }
+            return task.focusArea
+        }
+    }
+
+    @ViewBuilder
+    private func hunkActions(for hunk: Hunk) -> some View {
+        let matchingFocusAreas = focusAreasForHunk(hunk)
+        if canRunSelectiveEvaluation && !matchingFocusAreas.isEmpty {
+            let inFlight = matchingFocusAreas.contains { area in
+                guard let prModel else { return false }
+                let areaTaskIds = Set(tasks.filter { $0.focusArea.focusId == area.focusId }.map(\.taskId))
+                return !areaTaskIds.isDisjoint(with: prModel.selectiveEvaluationInFlight)
+            }
+
+            if inFlight {
+                ProgressView()
+                    .controlSize(.mini)
+            }
+
+            if matchingFocusAreas.count == 1, let area = matchingFocusAreas.first {
+                Button {
+                    prModel?.startSelectiveEvaluation(
+                        filter: EvaluationFilter(focusAreaId: area.focusId)
+                    )
+                } label: {
+                    Label("Run Analysis", systemImage: "play.circle")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .contextMenu {
+                    let rules = tasks.filter { $0.focusArea.focusId == area.focusId }
+                        .map(\.rule.name)
+                    let uniqueRules = Array(Set(rules)).sorted()
+
+                    Button {
+                        prModel?.startSelectiveEvaluation(
+                            filter: EvaluationFilter(focusAreaId: area.focusId)
+                        )
+                    } label: {
+                        Label("Run All Rules", systemImage: "play.fill")
+                    }
+
+                    if uniqueRules.count > 1 {
+                        Menu("Run Rule\u{2026}") {
+                            ForEach(uniqueRules, id: \.self) { rule in
+                                Button(rule) {
+                                    prModel?.startSelectiveEvaluation(
+                                        filter: EvaluationFilter(focusAreaId: area.focusId, ruleNames: [rule])
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Menu {
+                    ForEach(matchingFocusAreas, id: \.focusId) { area in
+                        Section(area.description) {
+                            Button {
+                                prModel?.startSelectiveEvaluation(
+                                    filter: EvaluationFilter(focusAreaId: area.focusId)
+                                )
+                            } label: {
+                                Label("Run All Rules", systemImage: "play.fill")
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Run Analysis", systemImage: "play.circle")
+                        .font(.caption)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
             }
         }
     }
