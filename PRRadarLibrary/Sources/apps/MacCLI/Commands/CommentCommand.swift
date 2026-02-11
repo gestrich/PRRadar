@@ -60,9 +60,21 @@ struct CommentCommand: AsyncParsableCommand {
         }
 
         if output.posted {
-            print("\(output.successful) comments posted, \(output.failed) failed.")
+            var summary = "\(output.successful) comments posted, \(output.failed) failed."
+            if output.skipped > 0 {
+                summary += " \(output.skipped) already-posted skipped."
+            }
+            print(summary)
+        } else if !output.violations.isEmpty {
+            var summary = "Dry run complete. \(output.violations.count) new comments would be posted."
+            if output.skipped > 0 {
+                summary += " \(output.skipped) already-posted skipped."
+            }
+            print(summary)
+        } else if output.skipped > 0 {
+            print("All \(output.skipped) violations already posted — nothing new to comment.")
         } else {
-            print("Dry run complete. \(output.violations.count) comments would be posted.")
+            print("No violations found.")
         }
     }
 }

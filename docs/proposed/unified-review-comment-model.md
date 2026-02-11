@@ -371,7 +371,7 @@ swift test
 
 **Completed.** Build succeeds and all 330 tests pass across 43 suites. The 12 unit tests in `ViolationReconciliationTests.swift` cover all specified reconciliation scenarios: pending-only (`.new`), posted-only (`.postedOnly`), matched (`.redetected`), multiple-pending-one-posted consumption, file-level nil-line matching, and no-false-match guards for differing rule names, file paths, and line numbers. Manual verification (MacApp dedup, no-evaluation mode) deferred to user.
 
-## - [ ] Phase 9: CLI Round-Trip Validation (Post + Fetch)
+## - [x] Phase 9: CLI Round-Trip Validation (Post + Fetch)
 
 Verify the full post-then-fetch cycle works end-to-end from the CLI against https://github.com/gestrich/PRRadar-TestRepo/pull/1.
 
@@ -384,6 +384,8 @@ Verify the full post-then-fetch cycle works end-to-end from the CLI against http
    - `PostCommentsUseCase` should skip it (already posted)
    - Any new violations not yet posted should remain `.new`
 6. Inspect the cached `gh-comments.json` to confirm the posted comment data matches what was sent
+
+**Completed.** Updated `PostCommentsUseCase` to use `FetchReviewCommentsUseCase` for reconciliation — it now loads all `ReviewComment`s, filters to `.new` only for posting, and reports `.redetected` as skipped. Added `skipped` field to `CommentPhaseOutput` (with default `0` for backward compatibility). Updated `CommentCommand` to display skip counts. Validated against test repo PR #1: the `guard-divide-by-zero` violation at `Calculator.swift:19` was correctly matched as `.redetected` against the posted GitHub comment, and the CLI reported "Skipping 1 already-posted comments" / "All violations already posted — nothing new to comment." Build and all 330 tests pass.
 
 ## - [ ] Phase 10: Line-Shift Investigation (Stale Line Numbers)
 
