@@ -45,6 +45,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var savedTranscripts: [PRRadarPhase: [BridgeTranscript]] = [:]
 
     private(set) var operationMode: OperationMode = .idle
+    private(set) var selectiveEvaluationInFlight: Set<String> = []
     private var refreshTask: Task<Void, Never>?
 
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
@@ -91,6 +92,10 @@ final class PRModel: Identifiable, Hashable {
             default: return false
             }
         }
+    }
+
+    var isSelectiveEvaluationRunning: Bool {
+        !selectiveEvaluationInFlight.isEmpty
     }
 
     var isAIPhaseRunning: Bool {
@@ -624,7 +629,8 @@ final class PRModel: Identifiable, Hashable {
                 case .aiPrompt(let text):
                     aiCurrentPrompt = text
                 case .aiToolUse: break
-                case .evaluationResult: break
+                case .evaluationResult(let result):
+                    mergeEvaluationResult(result)
                 case .completed(let output):
                     evaluation = output
                     let logs = runningLogs(for: .evaluations)
@@ -638,6 +644,88 @@ final class PRModel: Identifiable, Hashable {
             let logs = runningLogs(for: .evaluations)
             phaseStates[.evaluations] = .failed(error: error.localizedDescription, logs: logs)
         }
+    }
+
+    func runSelectiveEvaluation(filter: EvaluationFilter) async {
+        let useCase = SelectiveEvaluateUseCase(config: config)
+
+        do {
+            for try await progress in useCase.execute(prNumber: prNumber, filter: filter) {
+                switch progress {
+                case .running:
+                    break
+                case .progress:
+                    break
+                case .log(let text):
+                    appendLog(text, to: .evaluations)
+                case .aiOutput: break
+                case .aiPrompt: break
+                case .aiToolUse: break
+                case .evaluationResult(let result):
+                    selectiveEvaluationInFlight.remove(result.taskId)
+                    mergeEvaluationResult(result)
+                case .completed(let output):
+                    evaluation = output
+                    selectiveEvaluationInFlight = []
+                case .failed:
+                    selectiveEvaluationInFlight = []
+                }
+            }
+        } catch {
+            selectiveEvaluationInFlight = []
+        }
+    }
+
+    func startSelectiveEvaluation(filter: EvaluationFilter) {
+        guard let evaluation else { return }
+        let matchingTaskIds = evaluation.tasks
+            .filter { filter.matches($0) }
+            .map(\.taskId)
+        selectiveEvaluationInFlight.formUnion(matchingTaskIds)
+
+        Task {
+            await runSelectiveEvaluation(filter: filter)
+        }
+    }
+
+    private func mergeEvaluationResult(_ result: RuleEvaluationResult) {
+        guard let existing = evaluation else {
+            let summary = EvaluationSummary(
+                prNumber: Int(prNumber) ?? 0,
+                evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+                totalTasks: 1,
+                violationsFound: result.evaluation.violatesRule ? 1 : 0,
+                totalCostUsd: result.costUsd ?? 0,
+                totalDurationMs: result.durationMs,
+                results: [result]
+            )
+            evaluation = EvaluationPhaseOutput(
+                evaluations: [result],
+                summary: summary
+            )
+            return
+        }
+
+        var evaluations = existing.evaluations.filter { $0.taskId != result.taskId }
+        evaluations.append(result)
+
+        let violationCount = evaluations.filter(\.evaluation.violatesRule).count
+        let summary = EvaluationSummary(
+            prNumber: Int(prNumber) ?? 0,
+            evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+            totalTasks: evaluations.count,
+            violationsFound: violationCount,
+            totalCostUsd: evaluations.compactMap(\.costUsd).reduce(0, +),
+            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +),
+            results: evaluations
+        )
+
+        evaluation = EvaluationPhaseOutput(
+            evaluations: evaluations,
+            tasks: existing.tasks,
+            summary: summary,
+            cachedCount: existing.cachedCount
+        )
     }
 
     private func runReport() async {

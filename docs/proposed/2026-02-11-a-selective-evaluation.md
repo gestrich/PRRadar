@@ -148,7 +148,7 @@ swift run PRRadarMacCLI evaluate 1 --config test-repo --focus-area method-handle
 - Both use cases return the same `AsyncThrowingStream<PhaseProgress<EvaluationPhaseOutput>, Error>` type, so stream handling and output formatting are shared with zero duplication
 - 344 tests pass, build succeeds
 
-## - [ ] Phase 4: GUI — PRModel Incremental Evaluation Support
+## - [x] Phase 4: GUI — PRModel Incremental Evaluation Support
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -177,6 +177,16 @@ Update `PRModel` to support running selective evaluations and displaying results
 ### Files to Modify
 
 - `MacApp/Models/PRModel.swift` — add `runSelectiveEvaluation`, handle `.evaluationResult` in `runEvaluate`
+
+### Completion Notes
+
+- Added `selectiveEvaluationInFlight: Set<String>` to track in-flight task IDs for selective evaluations (enables per-task spinners in the UI)
+- Added `isSelectiveEvaluationRunning` computed property for convenient UI binding
+- `runSelectiveEvaluation(filter:)` — async method that streams `SelectiveEvaluateUseCase` results, removes task IDs from in-flight set as each result arrives, and merges into `evaluation` incrementally
+- `startSelectiveEvaluation(filter:)` — fire-and-forget entry point that populates `selectiveEvaluationInFlight` from matching tasks and kicks off the async stream in a detached `Task`
+- `mergeEvaluationResult(_:)` — private helper that replaces any existing result with the same `taskId` (or creates a new `EvaluationPhaseOutput` if none exists), rebuilds `EvaluationSummary` from the merged list
+- `runEvaluate()` now handles `.evaluationResult` via `mergeEvaluationResult` — full evaluation runs also show results incrementally in the diff view
+- Selective evaluation does NOT set `phaseStates[.evaluations]` to `.running`, so `canRunPhase()` and `isAnyPhaseRunning` are unaffected — selective runs don't block other phases or each other
 
 ## - [ ] Phase 5: GUI — Diff View "Run Analysis" Actions
 
