@@ -259,7 +259,7 @@ Reviewed all Swift code changes (commits `09f1ca2..7a8a39a`) against both `swift
 
 Build succeeds and all 330 tests pass (43 suites).
 
-## - [ ] Phase 9: Validation
+## - [x] Phase 9: Validation
 
 **Automated:**
 ```bash
@@ -273,3 +273,17 @@ All tests must pass. If the fuzzy fallback was removed in Phase 6, the removed t
 **Manual verification:**
 - Confirm the Phase 4 inspection data matches expectations from Phase 2
 - Confirm the documented findings are accurate and complete
+
+**Result:**
+
+**Automated — all green.** Build succeeds, 330 tests in 43 suites pass. No fuzzy fallback code remains in `ViolationService.swift` or `ViolationReconciliationTests.swift`.
+
+**Manual verification — confirmed:**
+
+1. **Phase 4 data matches Phase 2 expectations.** Phase 2 established the expected line number for modulo as **19**. Phase 4 confirmed `newStart: 15` with `func modulo` at line 19 throughout the pipeline (diff, focus areas, annotated content). Phase 5's experiment (with focus_type temporarily fixed) verified the full end-to-end chain: diff → focus → task → evaluation → report all produce `line_number: 19`.
+
+2. **Documented findings are accurate and complete:**
+   - `ViolationService.reconcile()` uses single-pass exact `(file, line, rule)` matching — no fuzzy fallback remains.
+   - Test `noMatchWhenLineNumberDiffers` correctly expects no match when line numbers differ (previously `matchWhenLineNumberDrifts` expected a fuzzy match).
+   - `docs/proposed/TODO.md` has both follow-up items: stale data cleanup and focus_type mismatch.
+   - `docs/completed/unified-review-comment-model.md` Phase 10 has the post-investigation update documenting the root cause.
