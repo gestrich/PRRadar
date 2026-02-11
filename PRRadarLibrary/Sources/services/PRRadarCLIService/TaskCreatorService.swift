@@ -23,7 +23,7 @@ public struct TaskCreatorService: Sendable {
     ///   - focusAreas: Focus areas to evaluate (both method and file level)
     ///   - repoPath: Path to the git repository (for blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], repoPath: String) async throws -> [EvaluationTaskOutput] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], repoPath: String, commit: String) async throws -> [EvaluationTaskOutput] {
         var blobHashCache: [String: String] = [:]
         var tasks: [EvaluationTaskOutput] = []
 
@@ -35,7 +35,7 @@ public struct TaskCreatorService: Sendable {
                 let filePath = focusArea.filePath
                 if blobHashCache[filePath] == nil {
                     blobHashCache[filePath] = try await gitOps.getBlobHash(
-                        commit: "HEAD", filePath: filePath, repoPath: repoPath
+                        commit: commit, filePath: filePath, repoPath: repoPath
                     )
                 }
                 let blobHash = blobHashCache[filePath]!
@@ -60,12 +60,21 @@ public struct TaskCreatorService: Sendable {
         rules: [ReviewRule],
         focusAreas: [FocusArea],
         outputDir: String,
-        repoPath: String
+        repoPath: String,
+        commit: String
     ) async throws -> [EvaluationTaskOutput] {
-        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath)
+        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath, commit: commit)
 
         let tasksDir = "\(outputDir)/\(PRRadarPhase.tasks.rawValue)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)
+
+        // Remove stale task files from previous runs before writing new ones
+        let fm = FileManager.default
+        if let existing = try? fm.contentsOfDirectory(atPath: tasksDir) {
+            for file in existing where file.hasPrefix(DataPathsService.dataFilePrefix) {
+                try? fm.removeItem(atPath: "\(tasksDir)/\(file)")
+            }
+        }
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

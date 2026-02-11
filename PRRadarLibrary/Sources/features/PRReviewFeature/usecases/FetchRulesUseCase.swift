@@ -132,12 +132,16 @@ public struct FetchRulesUseCase: Sendable {
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
                     // Phase 4: Create tasks
+                    // Fetch the PR ref so git objects are available locally for blob hash lookups
+                    try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNum)/head", repoPath: self.config.repoPath)
+
                     let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps)
                     let tasks = try await taskCreator.createAndWriteTasks(
                         rules: allRules,
                         focusAreas: allFocusAreas,
                         outputDir: prOutputDir,
-                        repoPath: self.config.repoPath
+                        repoPath: self.config.repoPath,
+                        commit: fullDiff.commitHash
                     )
 
                     // Write phase_result.json for phase 4 (tasks)

@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "swift-app-architecture@gestrich-swift-app-architecture": true
+    "swift-app-architecture@gestrich-swift-app-architecture": true,
+    "xcode-sim-automation@gestrich-xcode-sim-automation": true
   }
 }

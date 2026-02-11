@@ -3,6 +3,30 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct PRAcquisitionService: Sendable {
+
+    public enum AcquisitionError: LocalizedError {
+        case fetchRepositoryFailed(underlying: Error)
+        case fetchDiffFailed(underlying: Error)
+        case fetchMetadataFailed(underlying: Error)
+        case fetchCommentsFailed(underlying: Error)
+        case missingHeadCommitSHA
+
+        public var errorDescription: String? {
+            switch self {
+            case .fetchRepositoryFailed(let error):
+                "Failed to fetch repository info: \(error.localizedDescription)"
+            case .fetchDiffFailed(let error):
+                "Failed to fetch PR diff: \(error.localizedDescription)"
+            case .fetchMetadataFailed(let error):
+                "Failed to fetch PR metadata: \(error.localizedDescription)"
+            case .fetchCommentsFailed(let error):
+                "Failed to fetch PR comments: \(error.localizedDescription)"
+            case .missingHeadCommitSHA:
+                "PR is missing headRefOid (head commit SHA)"
+            }
+        }
+    }
+
     private let gitHub: GitHubService
     private let gitOps: GitOperationsService
     private let imageDownload: ImageDownloadService
@@ -42,9 +66,7 @@ public struct PRAcquisitionService: Sendable {
         do {
             repository = try await gitHub.getRepository()
         } catch {
-            throw NSError(domain: "PRAcquisition", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to fetch repository info: \(error.localizedDescription)"
-            ])
+            throw AcquisitionError.fetchRepositoryFailed(underlying: error)
         }
 
         let rawDiff: String
@@ -52,27 +74,21 @@ public struct PRAcquisitionService: Sendable {
             rawDiff = try await gitHub.getPRDiff(number: prNumber)
             try write(rawDiff, to: "\(phaseDir)/diff-raw.diff")
         } catch {
-            throw NSError(domain: "PRAcquisition", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to fetch PR diff: \(error.localizedDescription)"
-            ])
+            throw AcquisitionError.fetchDiffFailed(underlying: error)
         }
 
         var pullRequest: GitHubPullRequest
         do {
             pullRequest = try await gitHub.getPullRequest(number: prNumber)
         } catch {
-            throw NSError(domain: "PRAcquisition", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to fetch PR metadata: \(error.localizedDescription)"
-            ])
+            throw AcquisitionError.fetchMetadataFailed(underlying: error)
         }
 
         var comments: GitHubPullRequestComments
         do {
             comments = try await gitHub.getPullRequestComments(number: prNumber)
         } catch {
-            throw NSError(domain: "PRAcquisition", code: 4, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to fetch PR comments: \(error.localizedDescription)"
-            ])
+            throw AcquisitionError.fetchCommentsFailed(underlying: error)
         }
 
         // Resolve author display names via cache
@@ -88,7 +104,9 @@ public struct PRAcquisitionService: Sendable {
         let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
         try write(prJSON, to: "\(phaseDir)/gh-pr.json")
 
-        let commitHash = pullRequest.headRefOid ?? ""
+        guard let commitHash = pullRequest.headRefOid else {
+            throw AcquisitionError.missingHeadCommitSHA
+        }
         let gitDiff = GitDiff.fromDiffContent(rawDiff, commitHash: commitHash)
         let parsedDiffJSON = try JSONEncoder.prettyPrinted.encode(gitDiff)
         try write(parsedDiffJSON, to: "\(phaseDir)/diff-parsed.json")
