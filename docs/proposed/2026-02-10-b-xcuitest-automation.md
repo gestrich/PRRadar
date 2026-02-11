@@ -214,7 +214,7 @@ Starting and stopping XCUITests from the command line can be flaky. This phase e
 
 10. **Use `test-without-building`**: Separating build and test steps is reliable. `xcodebuild build-for-testing` then `xcodebuild test-without-building` avoids hangs on build failures.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 **Skills to read**: `swift-testing`
 
@@ -241,3 +241,13 @@ End-to-end validation that the full interactive control loop works.
 - Skills are well-documented and usable by Claude in future sessions
 
 **Unit tests:** Not applicable — XCUITests require a running app and can't be tested via `swift test`. Validation is manual/interactive.
+
+**Completed**: Full end-to-end validation passed. All success criteria met:
+
+1. **Build**: `xcodebuild build-for-testing` succeeded (** TEST BUILD SUCCEEDED **)
+2. **Test launch**: `xcodebuild test-without-building` started the interactive control test and launched PRRadarMac. Hierarchy file appeared in <1 second.
+3. **Hierarchy readable**: 207KB hierarchy file showing full UI tree — sidebar with PR list (PRs #18770, #18767, #18766, etc.), filter controls (`daysFilter`, `stateFilter`, `pendingCommentsToggle`), toolbar buttons, and detail pane.
+4. **Screenshot readable**: 874KB PNG showing the full app window with PR list, config sidebar, and "Select a Pull Request" placeholder in detail pane.
+5. **Python CLI commands**: `screenshot` command returned `status: completed`. `tap --target settingsButton` returned `status: completed, info: "Tapped button at index 0 of 2 matches"` — the Repo Configurations dialog opened with "ios" (Default) and "test-repo" configs visible. `tap --target settingsDoneButton` closed the dialog.
+6. **`done` command**: Python CLI reported timeout (expected — test exits before writing "completed" status), but xcodebuild exited with code 0 (** TEST SUCCEEDED **). Both xcodebuild and PRRadarMac processes terminated cleanly.
+7. **All sandbox paths work correctly**: Container path `~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/` is used for all file I/O via environment variables.
