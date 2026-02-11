@@ -195,7 +195,7 @@ xcode-sim-automation/
 
 **Completed**: Structure created with all 4 files. Skill directories contain `.gitkeep` placeholders — SKILL.md files will be added in Phase 2. Swift build verified unaffected.
 
-## - [ ] Phase 2: Create Plugin Skills (Generic + Config-Aware)
+## - [x] Phase 2: Create Plugin Skills (Generic + Config-Aware)
 
 **Repo**: `~/Developer/personal/xcode-sim-automation`
 
@@ -287,6 +287,8 @@ python3 <plugin-tools-dir>/xcuitest-control.py
 ```
 
 Where `<plugin-tools-dir>` is determined by the skill at runtime. The simplest approach: the SKILL.md instructs Claude to locate the Python CLI by searching for the xcode-sim-automation package (checking common locations or using the config).
+
+**Completed**: Both skills created with modular structure. The interactive-xcuitest skill was split into SKILL.md (main workflow + config loading), cli-reference.md (all commands + multiple match handling + file protocol), error-handling.md (robustness config + common errors + troubleshooting), and macos-notes.md (sandbox, window focus, build-first, orphaned processes). The creating-automated-screenshots skill was split into SKILL.md (workflow + test template + extraction), test-patterns.md (helpers + navigation patterns + assertions), and element-discovery.md (type mismatches + hierarchy reading + iterative debugging). Both skills use the config loading pattern with `$PROJECT`, `$SCHEME`, etc. variables from `.xcuitest-config.json`. `.gitkeep` placeholders removed. Swift build verified unaffected.
 
 ## - [ ] Phase 3: Create PRRadar Configuration
 
