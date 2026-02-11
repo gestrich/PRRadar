@@ -117,7 +117,7 @@ Create `.claude/skills/interactive-xcuitest/SKILL.md` adapted for macOS PRRadar.
 
 **Completed**: Created `.claude/skills/interactive-xcuitest/SKILL.md` adapted from the `xcode-sim-automation` template. Key adaptations: all `xcodebuild` commands use `-project PRRadar.xcodeproj -scheme PRRadarMac -destination 'platform=macOS'`; prerequisites simplified (no SPM setup needed — already configured in the Xcode project); Python CLI referenced at absolute path `/Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py`; removed `pinch` from macOS (iOS-only); added macOS-specific notes section covering window visibility, no simulator needed, and build-before-test pattern; added clean-stale-files step to workflow; added skill reference to `CLAUDE.md`. Build verified with `xcodebuild build-for-testing`.
 
-## - [ ] Phase 4: Create the Automated Screenshots Skill
+## - [x] Phase 4: Create the Automated Screenshots Skill
 
 **Skills to read**: none
 
@@ -131,6 +131,8 @@ Create `.claude/skills/creating-automated-screenshots/SKILL.md` for pre-scripted
   - Update test target references to `PRRadarMacUITests`
   - Add PRRadar-specific navigation patterns (e.g., sidebar → PR list → detail view)
 - Keep: `captureHierarchy`/`findTappable` helpers, element type discovery docs, iterative debugging workflow
+
+**Completed**: Created `.claude/skills/creating-automated-screenshots/SKILL.md` adapted from the `xcode-sim-automation` template. Key adaptations: all `xcodebuild` commands use `-project PRRadar.xcodeproj -scheme PRRadarMac -destination 'platform=macOS'`; prerequisites simplified (no SPM setup needed — already configured in the Xcode project); added PRRadar-specific navigation patterns section documenting the three-column `NavigationSplitView` layout (Config Sidebar → PR List → Detail View) with navigation steps for common views (Summary, Diff, Report, Settings); retained `captureHierarchy`/`findTappable` helpers, element type discovery docs, iterative debugging workflow, and build-first pattern; added macOS-specific notes (no simulator, window visibility, no pinch). Build verified with `xcodebuild build-for-testing`.
 
 ## - [ ] Phase 5: Add Accessibility Identifiers to Key MacApp Views
 
