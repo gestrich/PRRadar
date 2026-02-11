@@ -2,6 +2,22 @@
 
 ## Small
 
+- [ ] Clean phase output directories before each pipeline run
+  The pipeline doesn't delete existing phase output files before writing new
+  results. When a run produces 0 artifacts for a phase (e.g., 0 tasks), stale
+  files from prior runs survive on disk and get picked up by downstream phases.
+  This was the root cause of the "stale line numbers" bug — the evaluation phase
+  read old task files containing outdated hunk content. Each phase should clear
+  its output directory before writing, or the `analyze` command should wipe the
+  entire PR output directory at the start.
+- [ ] Fix focus_type mismatch: method-typed rules produce 0 tasks
+  `FetchRulesUseCase` hardcodes `requestedTypes: [.file]`, so the pipeline only
+  generates file-level focus areas. Rules with `focus_type: method` are silently
+  filtered out by `TaskCreatorService`'s guard (`rule.focusType == focusArea.focusType`),
+  producing 0 tasks. Options: (1) add `.method` to `requestedTypes` (extra AI
+  call per hunk), (2) let file-level focus areas satisfy method rules (a file
+  hunk contains all methods), or (3) default rules to `focus_type: file`.
+
 - [ ] Persist AI output as artifacts and support viewing in app/CLI
   AI output from each pipeline step should be saved to a file alongside the other
   artifacts. When browsing results in the MacApp or CLI, the AI output from the run

@@ -205,13 +205,21 @@ Based on findings from Phases 4-5, determine the fate of the fuzzy fallback in `
 - **`ViolationReconciliationTests.swift`**: Removed 3 fuzzy-specific tests (`exactMatchPreferredOverFuzzy`, `lineDriftNoFalseMatchDifferentRules`, `lineDriftNoMatchDifferentFiles`). Changed `matchWhenLineNumberDrifts` to `noMatchWhenLineNumberDiffers` — now expects `.new` + `.postedOnly` instead of `.redetected`.
 - **Build and tests pass.** 330 tests in 43 suites, all green.
 
-## - [ ] Phase 7: Document Findings
+## - [x] Phase 7: Document Findings
 
 Update or create documentation summarizing the investigation results:
 
 1. Add a summary to the completed spec (`docs/completed/unified-review-comment-model.md`) Phase 10 section, noting the actual root cause (stale pipeline data, not AI reporting wrong numbers)
 2. If a separate pipeline data freshness bug is confirmed, add it to `docs/proposed/TODO.md` as a follow-up item (the pipeline should clean phase output dirs before writing new output)
 3. If the focus_type mismatch is confirmed as a bug, add that to `docs/proposed/TODO.md` as well
+
+**Result:**
+
+All three documentation updates completed:
+
+1. **`docs/completed/unified-review-comment-model.md`** — Added a "Post-Investigation Update" subsection to Phase 10 explaining that the stale line numbers were caused by stale pipeline data on disk (not AI or GitHub line drift), and that the fuzzy fallback added in Phase 10 was subsequently removed.
+2. **`docs/proposed/TODO.md`** — Added "Clean phase output directories before each pipeline run" as a Small item, documenting the stale data root cause and fix options.
+3. **`docs/proposed/TODO.md`** — Added "Fix focus_type mismatch: method-typed rules produce 0 tasks" as a Small item, documenting the `requestedTypes: [.file]` limitation and three fix options.
 
 ## - [ ] Phase 8: Architecture Validation
 

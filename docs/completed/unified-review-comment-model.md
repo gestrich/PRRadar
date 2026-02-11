@@ -428,3 +428,9 @@ Constraints on the fuzzy fallback:
 - Still requires `body.contains(ruleName)` — prevents false matches across different rules
 
 3 new unit tests added for the fuzzy fallback: exact-preferred-over-fuzzy, no-false-match-with-different-rules, and no-match-across-different-files. The existing "no match when line number differs" test was updated to "same file + same rule matches even when line number differs (line drift)". Build and all 333 tests pass.
+
+### Post-Investigation Update: Stale Line Numbers Root Cause
+
+A follow-up investigation ([stale-evaluation-line-numbers.md](../proposed/stale-evaluation-line-numbers.md)) determined that the "stale line numbers" observed here were **not caused by the AI evaluator or GitHub line drift**. The actual root cause was **stale pipeline data on disk**: the pipeline doesn't clean phase output directories before writing new output, so when a re-analysis produces 0 tasks (due to a separate `focus_type` mismatch bug), old task files from prior runs survive on disk and get picked up by the evaluation phase. The AI faithfully reported the line numbers it was shown in the stale task data.
+
+As a result, the fuzzy fallback added in this phase was **removed** — exact `(file, line, rule)` matching is sufficient when the pipeline produces fresh data. See the stale-evaluation-line-numbers investigation for full details.
