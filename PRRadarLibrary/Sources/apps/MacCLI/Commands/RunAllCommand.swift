@@ -4,10 +4,10 @@ import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
-struct AnalyzeAllCommand: AsyncParsableCommand {
+struct RunAllCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "analyze-all",
-        abstract: "Analyze all PRs created since a given date"
+        commandName: "run-all",
+        abstract: "Run the full pipeline for all PRs created since a given date"
     )
 
     @Option(name: .long, help: "Date in YYYY-MM-DD format")
@@ -90,10 +90,10 @@ struct AnalyzeAllCommand: AsyncParsableCommand {
                 }
             case .evaluationResult: break
             case .completed(let output):
-                print("\nAnalyze-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
+                print("\nRun-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
             case .failed(let error, let logs):
                 if !logs.isEmpty { printError(logs) }
-                throw CLIError.phaseFailed("analyze-all failed: \(error)")
+                throw CLIError.phaseFailed("run-all failed: \(error)")
             }
         }
     }

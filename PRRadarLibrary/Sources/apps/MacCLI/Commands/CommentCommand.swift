@@ -6,7 +6,7 @@ import PRReviewFeature
 struct CommentCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "comment",
-        abstract: "Post review comments to GitHub PR (Phase 5)"
+        abstract: "Post review comments to GitHub PR"
     )
 
     @OptionGroup var options: CLIOptions

@@ -1,18 +1,25 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
+import PRRadarModels
 import PRReviewFeature
 
-struct RulesCommand: AsyncParsableCommand {
+struct RunCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "rules",
-        abstract: "Generate focus areas, load rules, and create evaluation tasks (Phase 2)"
+        commandName: "run",
+        abstract: "Run the full review pipeline (all phases)"
     )
 
     @OptionGroup var options: CLIOptions
 
     @Option(name: .long, help: "Path to rules directory")
     var rulesDir: String?
+
+    @Flag(name: .long, help: "Post comments without dry-run")
+    var noDryRun: Bool = false
+
+    @Option(name: .long, help: "Minimum violation score")
+    var minScore: String?
 
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
@@ -23,16 +30,22 @@ struct RulesCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = PrepareUseCase(config: config)
+        let useCase = RunPipelineUseCase(config: config)
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
         if !options.json {
-            print("Running rules phase for PR #\(options.prNumber)...")
+            print("Running full pipeline for PR #\(options.prNumber)...")
         }
 
-        var result: PrepareOutput?
+        var result: RunPipelineOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: effectiveRulesDir) {
+        for try await progress in useCase.execute(
+            prNumber: options.prNumber,
+            rulesDir: effectiveRulesDir,
+            repoPath: options.repoPath,
+            noDryRun: noDryRun,
+            minScore: minScore
+        ) {
             switch progress {
             case .running(let phase):
                 if !options.json {
@@ -58,40 +71,26 @@ struct RulesCommand: AsyncParsableCommand {
                 if !logs.isEmpty {
                     printError(logs)
                 }
-                throw CLIError.phaseFailed("Rules failed: \(error)")
+                throw CLIError.phaseFailed("Run failed: \(error)")
             }
         }
 
         guard let output = result else {
-            throw CLIError.phaseFailed("Rules phase produced no output")
+            throw CLIError.phaseFailed("Run pipeline produced no output")
         }
 
         if options.json {
-            let jsonOutput: [String: Any] = [
-                "focus_areas": output.focusAreas.count,
-                "rules": output.rules.count,
-                "tasks": output.tasks.count,
-            ]
+            var jsonOutput: [String: [String]] = [:]
+            for (phase, files) in output.files {
+                jsonOutput[phase.rawValue] = files
+            }
             let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
             print(String(data: data, encoding: .utf8)!)
         } else {
-            print("\nRules phase complete:")
-            print("  Focus areas: \(output.focusAreas.count)")
-            print("  Rules loaded: \(output.rules.count)")
-            print("  Evaluation tasks: \(output.tasks.count)")
-
-            if !output.focusAreas.isEmpty {
-                print("\nFocus areas:")
-                for area in output.focusAreas {
-                    print("  [\(area.focusType.rawValue)] \(area.filePath):\(area.startLine)-\(area.endLine)")
-                    print("    \(area.description)")
-                }
-            }
-
-            if !output.rules.isEmpty {
-                print("\nRules:")
-                for rule in output.rules {
-                    print("  [\(rule.category)] \(rule.name)")
+            print("\nPipeline complete:")
+            for phase in PRRadarPhase.allCases {
+                if let files = output.files[phase] {
+                    print("  \(phase.rawValue): \(files.count) files")
                 }
             }
         }

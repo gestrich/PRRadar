@@ -130,7 +130,7 @@ Update `PhaseProgress<Output>` references where `.running(phase:)` uses old phas
 - `PhaseProgress<Output>` required no changes — `.running(phase:)` already uses `PRRadarPhase` cases (renamed in Phase 1)
 - All 371 tests pass, build succeeds
 
-## - [ ] Phase 3: Update CLI commands
+## - [x] Phase 3: Update CLI commands ✅
 
 Rename CLI commands and update descriptions:
 - `DiffCommand` → `SyncCommand` (or keep `diff` as alias for familiarity?)
@@ -144,6 +144,17 @@ Update command abstracts to use new terminology:
 - "Prepare evaluation tasks (Phase 2)"
 - "Analyze code against rules (Phase 3)"
 - "Generate summary report (Phase 4)"
+
+### Technical Notes
+
+- Renamed 5 command files via `git mv` for clean history tracking
+- Command renames: `diff` → `sync`, `rules` → `prepare`, `evaluate` → `analyze`, `analyze` (orchestrator) → `run`, `analyze-all` → `run-all`
+- Struct renames: `DiffCommand` → `SyncCommand`, `RulesCommand` → `PrepareCommand`, `EvaluateCommand` → `AnalyzeCommand`, `AnalyzeCommand` → `RunCommand`, `AnalyzeAllCommand` → `RunAllCommand`
+- `CommentCommand` abstract updated to remove "Phase 5" reference (comment is a post-pipeline action, not a pipeline phase)
+- `StatusCommand` required no changes — it already uses `PRRadarPhase.allCases` dynamically
+- `ReportCommand` required no changes — name and abstract already match the 4-phase model
+- All user-facing messages updated (status logs, error messages, completion summaries)
+- Both `PRRadarMacCLI` and `MacApp` targets build successfully
 
 ## - [ ] Phase 4: Update PRModel and UI
 

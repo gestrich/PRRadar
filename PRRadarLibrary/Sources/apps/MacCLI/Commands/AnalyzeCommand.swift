@@ -7,19 +7,19 @@ import PRReviewFeature
 struct AnalyzeCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "analyze",
-        abstract: "Run the full review pipeline (all phases)"
+        abstract: "Analyze code against rules (Phase 3)"
     )
 
     @OptionGroup var options: CLIOptions
 
-    @Option(name: .long, help: "Path to rules directory")
-    var rulesDir: String?
+    @Option(name: .long, help: "Filter tasks by file path")
+    var file: String?
 
-    @Flag(name: .long, help: "Post comments without dry-run")
-    var noDryRun: Bool = false
+    @Option(name: .long, help: "Filter tasks by focus area ID")
+    var focusArea: String?
 
-    @Option(name: .long, help: "Minimum violation score")
-    var minScore: String?
+    @Option(name: .long, parsing: .upToNextOption, help: "Filter tasks by rule name(s)")
+    var rule: [String] = []
 
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
@@ -30,22 +30,29 @@ struct AnalyzeCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
-        let useCase = RunPipelineUseCase(config: config)
-        let effectiveRulesDir = rulesDir ?? resolved.rulesDir
 
-        if !options.json {
-            print("Running full analysis for PR #\(options.prNumber)...")
+        let filter = EvaluationFilter(
+            filePath: file,
+            focusAreaId: focusArea,
+            ruleNames: rule.isEmpty ? nil : rule
+        )
+
+        let stream: AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error>
+        if filter.isEmpty {
+            let useCase = AnalyzeUseCase(config: config)
+            stream = useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath)
+        } else {
+            let useCase = SelectiveAnalyzeUseCase(config: config)
+            stream = useCase.execute(prNumber: options.prNumber, filter: filter, repoPath: options.repoPath)
         }
 
-        var result: RunPipelineOutput?
+        if !options.json {
+            print("Analyzing PR #\(options.prNumber)...")
+        }
 
-        for try await progress in useCase.execute(
-            prNumber: options.prNumber,
-            rulesDir: effectiveRulesDir,
-            repoPath: options.repoPath,
-            noDryRun: noDryRun,
-            minScore: minScore
-        ) {
+        var result: AnalysisOutput?
+
+        for try await progress in stream {
             switch progress {
             case .running(let phase):
                 if !options.json {
@@ -76,21 +83,38 @@ struct AnalyzeCommand: AsyncParsableCommand {
         }
 
         guard let output = result else {
-            throw CLIError.phaseFailed("Analyze pipeline produced no output")
+            throw CLIError.phaseFailed("Analyze phase produced no output")
         }
 
         if options.json {
-            var jsonOutput: [String: [String]] = [:]
-            for (phase, files) in output.files {
-                jsonOutput[phase.rawValue] = files
-            }
-            let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
+            let data = try JSONEncoder.prettyEncoder.encode(output.summary)
             print(String(data: data, encoding: .utf8)!)
         } else {
             print("\nAnalysis complete:")
-            for phase in PRRadarPhase.allCases {
-                if let files = output.files[phase] {
-                    print("  \(phase.rawValue): \(files.count) files")
+            let newCount = output.summary.totalTasks - output.cachedCount
+            if output.cachedCount > 0 {
+                print("  Tasks evaluated: \(newCount) new, \(output.cachedCount) cached, \(output.summary.totalTasks) total")
+            } else {
+                print("  Total tasks: \(output.summary.totalTasks)")
+            }
+            print("  Violations found: \(output.summary.violationsFound)")
+            print("  Cost: $\(String(format: "%.4f", output.summary.totalCostUsd))")
+            let models = output.summary.modelsUsed
+            if !models.isEmpty {
+                let modelNames = models.map { displayName(forModelId: $0) }.joined(separator: ", ")
+                print("  Model: \(modelNames)")
+            }
+            print("  Duration: \(output.summary.totalDurationMs)ms")
+
+            let violations = output.evaluations.filter { $0.evaluation.violatesRule }
+            if !violations.isEmpty {
+                print("\nViolations:")
+                for eval in violations.sorted(by: { $0.evaluation.score > $1.evaluation.score }) {
+                    let score = eval.evaluation.score
+                    let color = severityColor(score)
+                    print("  \(color)[\(score)/10]\u{001B}[0m \(eval.ruleName)")
+                    print("    \(eval.filePath):\(eval.evaluation.lineNumber ?? 0)")
+                    print("    \(eval.evaluation.comment)")
                 }
             }
         }

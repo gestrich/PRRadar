@@ -3,10 +3,10 @@ import Foundation
 import PRRadarConfigService
 import PRReviewFeature
 
-struct DiffCommand: AsyncParsableCommand {
+struct SyncCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "diff",
-        abstract: "Fetch and parse PR diff (Phase 1)"
+        commandName: "sync",
+        abstract: "Sync PR data (Phase 1)"
     )
 
     @OptionGroup var options: CLIOptions
@@ -20,7 +20,7 @@ struct DiffCommand: AsyncParsableCommand {
         let useCase = SyncPRUseCase(config: config)
 
         if !options.json {
-            print("Fetching diff for PR #\(options.prNumber)...")
+            print("Syncing PR #\(options.prNumber)...")
         }
 
         var outputFiles: [String] = []
@@ -41,7 +41,7 @@ struct DiffCommand: AsyncParsableCommand {
                 outputFiles = snapshot.files
             case .failed(let error, let logs):
                 if !logs.isEmpty { printError(logs) }
-                throw CLIError.phaseFailed("Diff failed: \(error)")
+                throw CLIError.phaseFailed("Sync failed: \(error)")
             }
         }
 
@@ -49,7 +49,7 @@ struct DiffCommand: AsyncParsableCommand {
             let data = try JSONEncoder.prettyEncoder.encode(["files": outputFiles])
             print(String(data: data, encoding: .utf8)!)
         } else {
-            print("Phase 1 complete: \(outputFiles.count) files generated")
+            print("Sync complete: \(outputFiles.count) files generated")
             for file in outputFiles {
                 print("  \(file)")
             }
