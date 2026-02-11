@@ -412,6 +412,8 @@ xcodebuild test \
 ## macOS-Specific Notes
 
 - **No simulator needed**: The app runs natively on macOS. Use `-destination 'platform=macOS'`.
+- **Sandbox**: Xcode always sandboxes the XCUITest runner on macOS. The runner cannot write to `/tmp/`. The interactive control test writes to `~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/` instead.
+- **Kill stale processes**: Always `pkill -f "PRRadarMac"` before running tests — stale app processes cause "Failed to terminate" errors.
 - **Window visibility**: The app window must be visible (not minimized or fully occluded) for screenshots and interactions to work.
 - **Window focus**: macOS windows can be behind other windows. If interactions fail, ensure the PRRadar window is frontmost.
 - **Pinch not available**: The `pinch` command is iOS-only and will not work on macOS.

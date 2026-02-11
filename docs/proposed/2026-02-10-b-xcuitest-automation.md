@@ -160,7 +160,7 @@ For reliable XCUITest automation, key UI elements need accessibility identifiers
 
 **Completed**: Added `.accessibilityIdentifier()` to all key interactive elements across 5 view files. **ContentView** (13 identifiers): toolbar buttons (`settingsButton`, `refreshButton`, `analyzeButton`, `folderButton`, `safariButton`), config sidebar list + rows (`configSidebar`, `configRow_\(name)`), PR list (`prList`), filter bar controls (`daysFilter`, `stateFilter`, `pendingCommentsToggle`, `refreshListButton`, `analyzeAllButton`, `newReviewButton`), new review popover (`prNumberField`, `startReviewButton`). **ReviewDetailView** (4 identifiers): diff toolbar buttons (`fetchDiffButton`, `rulesTasksButton`), AI output and effective diff sheet buttons (`aiOutputButton`, `effectiveDiffButton`). **PRListRow** (1 identifier): `prRow_\(pr.number)`. **PipelineStatusView** (3 identifiers): `phaseButton_summary`, `phaseButton_diff`, `phaseButton_report`. **SettingsView** (6 identifiers): `addConfigButton`, `settingsDoneButton`, config row + action buttons (`configRow_\(name)`, `editConfig_\(name)`, `setDefaultConfig_\(name)`, `deleteConfig_\(name)`). Build verified with `swift build`.
 
-## - [ ] Phase 6: Test xcodebuild Start/Stop Reliability
+## - [x] Phase 6: Test xcodebuild Start/Stop Reliability
 
 **Skills to read**: none
 
@@ -191,6 +191,28 @@ Starting and stopping XCUITests from the command line can be flaky. This phase e
 - The 5-minute inactivity timeout in `InteractiveControlLoop` will kill the test if Claude takes too long between commands
 
 **Document findings** in the skill's troubleshooting section.
+
+**Completed**: Discovered and resolved a critical macOS sandbox issue. Key findings:
+
+1. **macOS App Sandbox blocks `/tmp/` writes**: Xcode always sandboxes the XCUITest runner (`PRRadarMacUITests-Runner.app`) regardless of `ENABLE_APP_SANDBOX` build settings. File writes to `/tmp/` silently fail (InteractiveControlLoop uses `try?`). Fixed by configuring `InteractiveControlLoop.Configuration` with container paths: `~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/`.
+
+2. **Added `ENABLE_APP_SANDBOX = NO` to PRRadarMacUITests target** (Debug + Release) in `project.pbxproj`. While this doesn't fully disable the runner's sandbox (Xcode overrides it), it's the correct project setting.
+
+3. **Updated `PRRadarMacUITests.swift`** to use `NSHomeDirectory() + "/tmp"` for all file paths via `InteractiveControlLoop.Configuration`.
+
+4. **Stale processes cause failures**: If PRRadarMac is already running, `app.launch()` fails with "Failed to terminate." Must `pkill -f PRRadarMac` before starting tests.
+
+5. **First-run automation timeout**: "Timed out while enabling automation mode" can occur on the first attempt after Xcode restart. Retry succeeds.
+
+6. **`done` command behavior**: Test exits cleanly (TEST SUCCEEDED), but the Python CLI reports a timeout because the test exits before writing a "completed" status. This is expected.
+
+7. **Killing xcodebuild**: Terminates the test runner but leaves PRRadarMac running as an orphan. Must also `pkill -f PRRadarMac` after stopping.
+
+8. **Initialization time**: ~2 seconds from `xcodebuild test-without-building` to hierarchy file appearing.
+
+9. **Updated both skills** (`interactive-xcuitest`, `creating-automated-screenshots`) with sandbox paths, environment variable setup, kill-stale-processes workflow, and comprehensive troubleshooting section.
+
+10. **Use `test-without-building`**: Separating build and test steps is reliable. `xcodebuild build-for-testing` then `xcodebuild test-without-building` avoids hangs on build failures.
 
 ## - [ ] Phase 7: Validation
 

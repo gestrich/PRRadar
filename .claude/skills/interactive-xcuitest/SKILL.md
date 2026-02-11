@@ -33,6 +33,28 @@ The CLI tool is located at:
 
 No additional Python dependencies are required — the script uses only the standard library.
 
+## macOS Sandbox and File Paths
+
+**IMPORTANT**: On macOS, Xcode always sandboxes the XCUITest runner. The test runner **cannot** write to `/tmp/`. Files are written to the runner's sandbox container instead.
+
+The test is configured to write files to:
+```
+~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/
+```
+
+All Python CLI commands **must** set environment variables to use these paths:
+
+```bash
+CLI=/Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py
+CONTAINER_TMP="$HOME/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp"
+
+export XCUITEST_COMMAND_PATH="$CONTAINER_TMP/xcuitest-command.json"
+export XCUITEST_HIERARCHY_PATH="$CONTAINER_TMP/xcuitest-hierarchy.txt"
+export XCUITEST_SCREENSHOT_PATH="$CONTAINER_TMP/xcuitest-screenshot.png"
+```
+
+Set these exports once at the start of your session. All subsequent `python3 $CLI` commands will use the correct paths.
+
 ## Python CLI
 
 The `xcuitest-control.py` script provides a simple interface for controlling XCUITest:
@@ -72,8 +94,8 @@ Each command returns JSON with paths to the latest hierarchy and screenshot:
 ```json
 {
   "status": "completed",
-  "hierarchy": "/tmp/xcuitest-hierarchy.txt",
-  "screenshot": "/tmp/xcuitest-screenshot.png"
+  "hierarchy": "~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-hierarchy.txt",
+  "screenshot": "~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-screenshot.png"
 }
 ```
 
@@ -82,25 +104,46 @@ On error:
 {
   "status": "error",
   "error": "Element 'missingButton' not found after waiting 10 seconds",
-  "hierarchy": "/tmp/xcuitest-hierarchy.txt",
-  "screenshot": "/tmp/xcuitest-screenshot.png"
+  "hierarchy": "~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-hierarchy.txt",
+  "screenshot": "~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-screenshot.png"
 }
 ```
 
 ## Workflow
 
-### 1. Start the XCUITest
+### 1. Set Up Environment
 
-First, clean stale files from any previous run:
+Set the CLI path and sandbox container paths:
 
 ```bash
-rm -f /tmp/xcuitest-command.json /tmp/xcuitest-hierarchy.txt /tmp/xcuitest-screenshot.png
+CLI=/Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py
+CONTAINER_TMP="$HOME/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp"
+
+export XCUITEST_COMMAND_PATH="$CONTAINER_TMP/xcuitest-command.json"
+export XCUITEST_HIERARCHY_PATH="$CONTAINER_TMP/xcuitest-hierarchy.txt"
+export XCUITEST_SCREENSHOT_PATH="$CONTAINER_TMP/xcuitest-screenshot.png"
 ```
 
-Then build and run the interactive control test:
+### 2. Kill Stale Processes and Clean Files
+
+Kill any PRRadarMac processes from previous runs (stale processes cause "Failed to terminate" errors):
 
 ```bash
-xcodebuild test \
+pkill -f "PRRadarMac" 2>/dev/null; sleep 2
+rm -f "$CONTAINER_TMP/xcuitest-command.json" "$CONTAINER_TMP/xcuitest-hierarchy.txt" "$CONTAINER_TMP/xcuitest-screenshot.png"
+```
+
+### 3. Build and Start the XCUITest
+
+Always build first (catches errors without hanging), then run:
+
+```bash
+xcodebuild build-for-testing \
+  -project PRRadar.xcodeproj \
+  -scheme PRRadarMac \
+  -destination 'platform=macOS'
+
+xcodebuild test-without-building \
   -project PRRadar.xcodeproj \
   -scheme PRRadarMac \
   -destination 'platform=macOS' \
@@ -109,50 +152,55 @@ xcodebuild test \
 
 The test will:
 - Launch the PRRadar MacApp
-- Write initial hierarchy and screenshot
+- Write initial hierarchy and screenshot to the sandbox container
 - Begin polling for commands
 
 **macOS note**: No simulator is needed — the app runs natively on the Mac. The app window must be visible (not minimized) for screenshots and element interactions to work correctly.
 
-### 2. Wait for Test Initialization
+### 4. Wait for Test Initialization
 
-Poll until the hierarchy file exists:
+Poll until the hierarchy file exists (~2 seconds):
 
 ```bash
-while [ ! -f /tmp/xcuitest-hierarchy.txt ]; do sleep 1; done
+while [ ! -f "$CONTAINER_TMP/xcuitest-hierarchy.txt" ]; do sleep 1; done
 ```
 
 Or use the status command:
 ```bash
-python3 /Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py status
+python3 $CLI status
 ```
 
-### 3. Execute Commands
+### 5. Execute Commands
 
 Use the CLI to execute actions:
 
 ```bash
-CLI=/Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py
+# Read current UI state (use the Read tool)
+# Read $CONTAINER_TMP/xcuitest-hierarchy.txt
 
-# Read current UI state
-cat /tmp/xcuitest-hierarchy.txt
-
-# View screenshot
-# Use the Read tool on /tmp/xcuitest-screenshot.png
+# View screenshot (use the Read tool)
+# Read $CONTAINER_TMP/xcuitest-screenshot.png
 
 # Execute action
 python3 $CLI tap --target settingsButton --target-type button
 
-# View updated hierarchy and screenshot after action
-cat /tmp/xcuitest-hierarchy.txt
+# Read updated hierarchy and screenshot after action
 ```
 
-### 4. Exit Gracefully
+### 6. Exit Gracefully
 
 When the goal is achieved:
 
 ```bash
-python3 /Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py done
+python3 $CLI done
+```
+
+**Note**: The `done` command will report a timeout from the Python CLI — this is expected. The test exits before writing a "completed" status. Check the xcodebuild output for "TEST EXECUTE SUCCEEDED" to confirm clean shutdown.
+
+After exit, kill any orphaned app processes:
+
+```bash
+pkill -f "PRRadarMac" 2>/dev/null
 ```
 
 ## CLI Commands Reference
@@ -260,8 +308,8 @@ When a tap succeeds on one of multiple matches, the response includes info:
 {
   "status": "completed",
   "info": "Tapped button at index 0 of 5 matches",
-  "hierarchy": "/tmp/xcuitest-hierarchy.txt",
-  "screenshot": "/tmp/xcuitest-screenshot.png"
+  "hierarchy": "...",
+  "screenshot": "..."
 }
 ```
 
@@ -273,8 +321,8 @@ When multiple elements match but none are hittable:
 {
   "status": "error",
   "error": "Found 5 elements matching 'Edit', none were hittable. Specify --index 0 to 4 to select a specific element.",
-  "hierarchy": "/tmp/xcuitest-hierarchy.txt",
-  "screenshot": "/tmp/xcuitest-screenshot.png"
+  "hierarchy": "...",
+  "screenshot": "..."
 }
 ```
 
@@ -286,8 +334,8 @@ When the specified index exceeds available matches:
 {
   "status": "error",
   "error": "Index 10 out of range. Found 5 'Edit' element(s). Use --index 0 to 4.",
-  "hierarchy": "/tmp/xcuitest-hierarchy.txt",
-  "screenshot": "/tmp/xcuitest-screenshot.png"
+  "hierarchy": "...",
+  "screenshot": "..."
 }
 ```
 
@@ -375,8 +423,8 @@ On error, the CLI returns:
 {
   "status": "error",
   "error": "Element 'missingButton' not found after waiting 10 seconds",
-  "hierarchy": "/tmp/xcuitest-hierarchy.txt",
-  "screenshot": "/tmp/xcuitest-screenshot.png"
+  "hierarchy": "...",
+  "screenshot": "..."
 }
 ```
 
@@ -401,10 +449,14 @@ When this happens:
 ## macOS-Specific Notes
 
 - **No simulator needed**: The app runs natively on macOS. Use `-destination 'platform=macOS'`.
+- **Sandbox**: Xcode always sandboxes the XCUITest runner on macOS. Files must be written to the sandbox container, not `/tmp/`. See "macOS Sandbox and File Paths" section above.
 - **Window visibility**: The app window must be visible (not minimized or fully occluded) for screenshots and interactions to work.
 - **Window focus**: macOS windows can be behind other windows. If interactions fail, ensure the PRRadar window is frontmost.
 - **Pinch not available**: The `pinch` command is iOS-only and will not work on macOS.
 - **Build first**: Always run `xcodebuild build-for-testing` before `xcodebuild test` to catch build errors early — `xcodebuild test` can hang if the build fails.
+- **Kill stale processes**: Always kill any running PRRadarMac before starting a test. Stale app processes cause "Failed to terminate" errors.
+- **Orphaned processes**: Killing `xcodebuild` terminates the test runner but leaves the PRRadarMac app running. Always `pkill -f "PRRadarMac"` after stopping.
+- **Automation mode timeout**: The first run after an Xcode restart may fail with "Timed out while enabling automation mode." Retry usually succeeds.
 
 ## Example Session
 
@@ -412,9 +464,15 @@ When this happens:
 
 ```bash
 CLI=/Users/bill/Developer/personal/xcode-sim-automation/Tools/xcuitest-control.py
+CONTAINER_TMP="$HOME/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp"
 
-# 1. Clean stale files
-rm -f /tmp/xcuitest-command.json /tmp/xcuitest-hierarchy.txt /tmp/xcuitest-screenshot.png
+export XCUITEST_COMMAND_PATH="$CONTAINER_TMP/xcuitest-command.json"
+export XCUITEST_HIERARCHY_PATH="$CONTAINER_TMP/xcuitest-hierarchy.txt"
+export XCUITEST_SCREENSHOT_PATH="$CONTAINER_TMP/xcuitest-screenshot.png"
+
+# 1. Kill stale processes and clean files
+pkill -f "PRRadarMac" 2>/dev/null; sleep 2
+rm -f "$CONTAINER_TMP/xcuitest-command.json" "$CONTAINER_TMP/xcuitest-hierarchy.txt" "$CONTAINER_TMP/xcuitest-screenshot.png"
 
 # 2. Build first (catches build errors without hanging)
 xcodebuild build-for-testing \
@@ -423,51 +481,45 @@ xcodebuild build-for-testing \
   -destination 'platform=macOS'
 
 # 3. Start the test
-xcodebuild test \
+xcodebuild test-without-building \
   -project PRRadar.xcodeproj \
   -scheme PRRadarMac \
   -destination 'platform=macOS' \
   -only-testing:"PRRadarMacUITests/InteractiveControlTests/testInteractiveControl" &
 
-# 4. Wait for initialization
-while [ ! -f /tmp/xcuitest-hierarchy.txt ]; do sleep 1; done
+# 4. Wait for initialization (~2 seconds)
+while [ ! -f "$CONTAINER_TMP/xcuitest-hierarchy.txt" ]; do sleep 1; done
 
 # 5. Read initial state
-cat /tmp/xcuitest-hierarchy.txt
+# Use the Read tool on $CONTAINER_TMP/xcuitest-hierarchy.txt
 
 # 6. Read the screenshot to see the current view
-# Use the Read tool on /tmp/xcuitest-screenshot.png
+# Use the Read tool on $CONTAINER_TMP/xcuitest-screenshot.png
 
 # 7. Tap an element based on what you see
 python3 $CLI tap --target settingsButton --target-type button
 
 # 8. Read updated hierarchy and screenshot
-cat /tmp/xcuitest-hierarchy.txt
+# Use the Read tool on $CONTAINER_TMP/xcuitest-hierarchy.txt
 
 # 9. Exit when done
 python3 $CLI done
+
+# 10. Clean up orphaned app process
+pkill -f "PRRadarMac" 2>/dev/null
 ```
 
 ## Environment Variable Overrides
 
-The CLI supports environment variable overrides for file paths:
+The CLI **requires** environment variable overrides on macOS because the XCUITest runner is sandboxed and cannot write to `/tmp/`. These must be set for every session:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `XCUITEST_COMMAND_PATH` | `/tmp/xcuitest-command.json` | Path to command JSON file |
-| `XCUITEST_HIERARCHY_PATH` | `/tmp/xcuitest-hierarchy.txt` | Path to hierarchy output |
-| `XCUITEST_SCREENSHOT_PATH` | `/tmp/xcuitest-screenshot.png` | Path to screenshot output |
+| Variable | Required Value (macOS PRRadar) |
+|----------|-------------------------------|
+| `XCUITEST_COMMAND_PATH` | `~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-command.json` |
+| `XCUITEST_HIERARCHY_PATH` | `~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-hierarchy.txt` |
+| `XCUITEST_SCREENSHOT_PATH` | `~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/xcuitest-screenshot.png` |
 
-When using custom paths, also configure the Swift `InteractiveControlLoop.Configuration` to match:
-
-```swift
-let config = InteractiveControlLoop.Configuration(
-    commandPath: "/custom/path/command.json",
-    hierarchyPath: "/custom/path/hierarchy.txt",
-    screenshotPath: "/custom/path/screenshot.png"
-)
-InteractiveControlLoop(configuration: config).run(app: app)
-```
+The Swift test file (`PRRadarMacUITests.swift`) is already configured to write to these paths via `InteractiveControlLoop.Configuration`.
 
 ## File-Based Protocol (Advanced)
 
@@ -475,9 +527,11 @@ For direct JSON manipulation, the CLI uses these files:
 
 | File | Purpose |
 |------|---------|
-| `/tmp/xcuitest-command.json` | Commands from Claude → XCUITest |
-| `/tmp/xcuitest-hierarchy.txt` | UI hierarchy from XCUITest → Claude |
-| `/tmp/xcuitest-screenshot.png` | Screenshot from XCUITest → Claude |
+| `$CONTAINER_TMP/xcuitest-command.json` | Commands from Claude → XCUITest |
+| `$CONTAINER_TMP/xcuitest-hierarchy.txt` | UI hierarchy from XCUITest → Claude |
+| `$CONTAINER_TMP/xcuitest-screenshot.png` | Screenshot from XCUITest → Claude |
+
+Where `CONTAINER_TMP=~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp`.
 
 ### Command JSON Schema
 
@@ -494,6 +548,43 @@ For direct JSON manipulation, the CLI uses these files:
   "info": "optional diagnostic info (e.g., which index was tapped)"
 }
 ```
+
+## Troubleshooting
+
+### Files not appearing / hierarchy not written
+
+The XCUITest runner is sandboxed on macOS and **cannot write to `/tmp/`**. Ensure:
+1. The test uses `InteractiveControlLoop.Configuration` with container paths (already configured in `PRRadarMacUITests.swift`)
+2. The Python CLI has `XCUITEST_*_PATH` environment variables set to the container paths
+3. Check the container directory: `ls ~/Library/Containers/org.gestrich.PRRadarMacUITests.xctrunner/Data/tmp/`
+
+### "Failed to terminate org.gestrich.PRRadar"
+
+A PRRadarMac process from a previous run is still active. Fix:
+```bash
+pkill -f "PRRadarMac" 2>/dev/null; sleep 2
+```
+
+### "Timed out while enabling automation mode"
+
+This can happen on the first run after an Xcode restart, or when running from a non-GUI terminal. Fix:
+- Retry the test — second attempt usually succeeds
+- Ensure Xcode is running and the terminal has Accessibility permissions (System Settings > Privacy & Security > Accessibility)
+
+### `done` command reports timeout
+
+This is **expected behavior**. The test exits immediately on `done` without writing a "completed" status back. The Python CLI times out waiting for a response that never comes. The test itself exits cleanly — check the xcodebuild output for "TEST EXECUTE SUCCEEDED".
+
+### Orphaned PRRadarMac process after test exit
+
+Killing `xcodebuild` or sending `done` terminates the test runner but leaves the app running. Always clean up:
+```bash
+pkill -f "PRRadarMac" 2>/dev/null
+```
+
+### Test hangs at "Find the Target Application"
+
+This typically means `app.debugDescription` is taking a long time (the UI hierarchy can be 200KB+). Wait longer — it should complete within 5-10 seconds. If it persists, kill and restart.
 
 ## Tips for Effective Control
 
