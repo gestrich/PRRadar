@@ -54,20 +54,20 @@ public struct SyncPRUseCase: Sendable {
         )
 
         let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "diff-parsed.json", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.diffParsedJSONFilename, commitHash: resolvedCommit
         )
 
         let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "effective-diff-parsed.json", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: resolvedCommit
         )
 
         let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "effective-diff-moves.json", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
         )
 
         // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .metadata, filename: "gh-comments.json"
+            config: config, prNumber: prNumber, phase: .metadata, filename: DataPathsService.ghCommentsFilename
         )
 
         return SyncSnapshot(

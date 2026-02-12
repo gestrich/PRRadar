@@ -93,11 +93,11 @@ public struct GenerateReportUseCase: Sendable {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let report: ReviewReport = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .report, filename: "summary.json", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .report, filename: DataPathsService.summaryJSONFilename, commitHash: resolvedCommit
         )
 
         let markdown = try PhaseOutputParser.readPhaseTextFile(
-            config: config, prNumber: prNumber, phase: .report, filename: "summary.md", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .report, filename: DataPathsService.summaryMarkdownFilename, commitHash: resolvedCommit
         )
 
         return ReportPhaseOutput(report: report, markdownContent: markdown)

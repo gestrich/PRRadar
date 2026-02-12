@@ -116,7 +116,7 @@ public struct PrepareUseCase: Sendable {
                     )
                     try FileManager.default.createDirectory(atPath: rulesOutputDir, withIntermediateDirectories: true)
                     let rulesData = try encoder.encode(allRules)
-                    try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/all-rules.json"))
+                    try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/\(DataPathsService.allRulesFilename)"))
 
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
@@ -181,7 +181,7 @@ public struct PrepareUseCase: Sendable {
         }
 
         let rules: [ReviewRule] = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: "all-rules.json", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: DataPathsService.allRulesFilename, commitHash: resolvedCommit
         )
 
         let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(

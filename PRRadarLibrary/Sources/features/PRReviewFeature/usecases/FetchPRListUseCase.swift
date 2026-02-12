@@ -47,17 +47,16 @@ public struct FetchPRListUseCase: Sendable {
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
                     for pr in prs.map({ $0.withAuthorNames(from: nameMap) }) {
-                        let prDir = DataPathsService.phaseDirectory(
+                        let metadataDir = DataPathsService.metadataDirectory(
                             outputDir: config.absoluteOutputDir,
-                            prNumber: String(pr.number),
-                            phase: .diff
+                            prNumber: String(pr.number)
                         )
-                        try DataPathsService.ensureDirectoryExists(at: prDir)
+                        try DataPathsService.ensureDirectoryExists(at: metadataDir)
                         let prData = try encoder.encode(pr)
-                        try prData.write(to: URL(fileURLWithPath: "\(prDir)/gh-pr.json"))
-                        
+                        try prData.write(to: URL(fileURLWithPath: "\(metadataDir)/\(DataPathsService.ghPRFilename)"))
+
                         let repoData = try encoder.encode(repo)
-                        try repoData.write(to: URL(fileURLWithPath: "\(prDir)/gh-repo.json"))
+                        try repoData.write(to: URL(fileURLWithPath: "\(metadataDir)/\(DataPathsService.ghRepoFilename)"))
                     }
 
                     let discoveredPRs = PRDiscoveryService.discoverPRs(

@@ -135,7 +135,7 @@ final class PRModel: Identifiable, Hashable {
                 config: config,
                 prNumber: prNumber,
                 phase: .analyze,
-                filename: "summary.json",
+                filename: DataPathsService.summaryJSONFilename,
                 commitHash: commit
             )
             let postedCommentCount: Int = {
@@ -143,7 +143,7 @@ final class PRModel: Identifiable, Hashable {
                     config: config,
                     prNumber: prNumber,
                     phase: .metadata,
-                    filename: "gh-comments.json"
+                    filename: DataPathsService.ghCommentsFilename
                 ) else { return 0 }
                 return comments.reviewComments.count
             }()
@@ -200,7 +200,7 @@ final class PRModel: Identifiable, Hashable {
                 config: config,
                 prNumber: prNumber,
                 phase: .metadata,
-                filename: "gh-comments.json"
+                filename: DataPathsService.ghCommentsFilename
             )
         } catch is PhaseOutputError {
             self.postedComments = nil
@@ -210,7 +210,7 @@ final class PRModel: Identifiable, Hashable {
             config: config,
             prNumber: prNumber,
             phase: .metadata,
-            filename: "image-url-map.json"
+            filename: DataPathsService.imageURLMapFilename
         ) {
             self.imageURLMap = map
             let phaseDir = OutputFileReader.phaseDirectoryPath(
@@ -323,30 +323,58 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func loadSavedTranscripts() {
-        let aiPhases: [PRRadarPhase] = [.prepare, .analyze]
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
-        for phase in aiPhases {
-            let files = PhaseOutputParser.listPhaseFiles(
-                config: config, prNumber: prNumber, phase: phase, commitHash: currentCommitHash
-            )
-            let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
+        // Prepare transcripts live in the focus-areas/ subdirectory
+        let prepareFiles = PhaseOutputParser.listPhaseFiles(
+            config: config, prNumber: prNumber, phase: .prepare,
+            subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: currentCommitHash
+        )
+        let prepareTranscripts = loadTranscripts(
+            from: prepareFiles, phase: .prepare,
+            subdirectory: DataPathsService.prepareFocusAreasSubdir, decoder: decoder
+        )
+        if !prepareTranscripts.isEmpty {
+            savedTranscripts[.prepare] = prepareTranscripts
+        }
 
-            var transcripts: [ClaudeAgentTranscript] = []
-            for filename in transcriptFiles {
-                if let data = try? PhaseOutputParser.readPhaseFile(
-                    config: config, prNumber: prNumber, phase: phase, filename: filename, commitHash: currentCommitHash
-                ),
-                   let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data)
-                {
-                    transcripts.append(transcript)
-                }
+        // Analyze transcripts live in the phase root
+        let analyzeFiles = PhaseOutputParser.listPhaseFiles(
+            config: config, prNumber: prNumber, phase: .analyze, commitHash: currentCommitHash
+        )
+        let analyzeTranscripts = loadTranscripts(
+            from: analyzeFiles, phase: .analyze, subdirectory: nil, decoder: decoder
+        )
+        if !analyzeTranscripts.isEmpty {
+            savedTranscripts[.analyze] = analyzeTranscripts
+        }
+    }
+
+    private func loadTranscripts(
+        from files: [String], phase: PRRadarPhase,
+        subdirectory: String?, decoder: JSONDecoder
+    ) -> [ClaudeAgentTranscript] {
+        let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
+        var transcripts: [ClaudeAgentTranscript] = []
+        for filename in transcriptFiles {
+            let data: Data?
+            if let subdirectory {
+                data = try? PhaseOutputParser.readPhaseFile(
+                    config: config, prNumber: prNumber, phase: phase,
+                    subdirectory: subdirectory, filename: filename, commitHash: currentCommitHash
+                )
+            } else {
+                data = try? PhaseOutputParser.readPhaseFile(
+                    config: config, prNumber: prNumber, phase: phase,
+                    filename: filename, commitHash: currentCommitHash
+                )
             }
-            if !transcripts.isEmpty {
-                savedTranscripts[phase] = transcripts
+            if let data, let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data) {
+                transcripts.append(transcript)
             }
         }
+        return transcripts
     }
 
     private func loadPhaseStates() {

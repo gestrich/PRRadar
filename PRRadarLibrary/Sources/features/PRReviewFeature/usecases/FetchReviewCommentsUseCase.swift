@@ -32,7 +32,7 @@ public struct FetchReviewCommentsUseCase: Sendable {
                 config: config,
                 prNumber: prNumber,
                 phase: .metadata,
-                filename: "gh-comments.json"
+                filename: DataPathsService.ghCommentsFilename
             ) else { return [] }
             return comments.reviewComments
         }()

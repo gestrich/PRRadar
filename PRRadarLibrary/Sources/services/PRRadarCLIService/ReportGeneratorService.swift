@@ -56,10 +56,10 @@ public struct ReportGeneratorService: Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let jsonData = try encoder.encode(report)
 
-        let jsonPath = "\(reportDir)/summary.json"
+        let jsonPath = "\(reportDir)/\(DataPathsService.summaryJSONFilename)"
         try jsonData.write(to: URL(fileURLWithPath: jsonPath))
 
-        let mdPath = "\(reportDir)/summary.md"
+        let mdPath = "\(reportDir)/\(DataPathsService.summaryMarkdownFilename)"
         try report.toMarkdown().write(toFile: mdPath, atomically: true, encoding: .utf8)
 
         return (jsonPath, mdPath)

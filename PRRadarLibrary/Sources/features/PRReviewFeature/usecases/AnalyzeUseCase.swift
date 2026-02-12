@@ -75,7 +75,7 @@ public struct AnalyzeUseCase: Sendable {
                             results: []
                         )
                         let summaryData = try encoder.encode(summary)
-                        try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+                        try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/\(DataPathsService.summaryJSONFilename)"))
 
                         // Write phase_result.json
                         try PhaseResultWriter.writeSuccess(
@@ -168,7 +168,7 @@ public struct AnalyzeUseCase: Sendable {
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                     let summaryData = try encoder.encode(summary)
-                    try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/summary.json"))
+                    try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/\(DataPathsService.summaryJSONFilename)"))
 
                     // Write phase_result.json
                     try PhaseResultWriter.writeSuccess(
@@ -200,7 +200,7 @@ public struct AnalyzeUseCase: Sendable {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .analyze, filename: "summary.json", commitHash: resolvedCommit
+            config: config, prNumber: prNumber, phase: .analyze, filename: DataPathsService.summaryJSONFilename, commitHash: resolvedCommit
         )
 
         let evalFiles = PhaseOutputParser.listPhaseFiles(

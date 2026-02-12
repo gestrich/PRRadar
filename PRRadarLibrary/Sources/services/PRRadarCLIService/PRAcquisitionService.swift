@@ -113,13 +113,13 @@ public struct PRAcquisitionService: Sendable {
         try DataPathsService.ensureDirectoryExists(at: metadataDir)
 
         let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
-        try write(prJSON, to: "\(metadataDir)/gh-pr.json")
+        try write(prJSON, to: "\(metadataDir)/\(DataPathsService.ghPRFilename)")
 
         let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
-        try write(commentsJSON, to: "\(metadataDir)/gh-comments.json")
+        try write(commentsJSON, to: "\(metadataDir)/\(DataPathsService.ghCommentsFilename)")
 
         let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
-        try write(repoJSON, to: "\(metadataDir)/gh-repo.json")
+        try write(repoJSON, to: "\(metadataDir)/\(DataPathsService.ghRepoFilename)")
 
         let imageURLMap = await downloadImages(
             prNumber: prNumber,
@@ -129,7 +129,7 @@ public struct PRAcquisitionService: Sendable {
         )
         if !imageURLMap.isEmpty {
             let mapJSON = try JSONEncoder.prettyPrinted.encode(imageURLMap)
-            try write(mapJSON, to: "\(metadataDir)/image-url-map.json")
+            try write(mapJSON, to: "\(metadataDir)/\(DataPathsService.imageURLMapFilename)")
         }
 
         try PhaseResultWriter.writeSuccess(
@@ -152,17 +152,17 @@ public struct PRAcquisitionService: Sendable {
         )
         try DataPathsService.ensureDirectoryExists(at: diffDir)
 
-        try write(rawDiff, to: "\(diffDir)/diff-raw.diff")
+        try write(rawDiff, to: "\(diffDir)/\(DataPathsService.diffRawFilename)")
 
         let gitDiff = GitDiff.fromDiffContent(rawDiff, commitHash: fullCommitHash)
         let parsedDiffJSON = try JSONEncoder.prettyPrinted.encode(gitDiff)
-        try write(parsedDiffJSON, to: "\(diffDir)/diff-parsed.json")
+        try write(parsedDiffJSON, to: "\(diffDir)/\(DataPathsService.diffParsedJSONFilename)")
 
         let parsedMD = formatDiffAsMarkdown(gitDiff)
-        try write(parsedMD, to: "\(diffDir)/diff-parsed.md")
+        try write(parsedMD, to: "\(diffDir)/\(DataPathsService.diffParsedMarkdownFilename)")
 
-        try write(parsedDiffJSON, to: "\(diffDir)/effective-diff-parsed.json")
-        try write(parsedMD, to: "\(diffDir)/effective-diff-parsed.md")
+        try write(parsedDiffJSON, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedJSONFilename)")
+        try write(parsedMD, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedMarkdownFilename)")
 
         let emptyMoveReport = MoveReport(
             movesDetected: 0,
@@ -171,7 +171,7 @@ public struct PRAcquisitionService: Sendable {
             moves: []
         )
         let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
-        try write(movesJSON, to: "\(diffDir)/effective-diff-moves.json")
+        try write(movesJSON, to: "\(diffDir)/\(DataPathsService.effectiveDiffMovesFilename)")
 
         try PhaseResultWriter.writeSuccess(
             phase: .diff,

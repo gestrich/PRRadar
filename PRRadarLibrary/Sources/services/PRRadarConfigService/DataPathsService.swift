@@ -101,6 +101,27 @@ public enum DataPathsService {
     public static let metadataDirectoryName = "metadata"
     public static let analysisDirectoryName = "analysis"
 
+    // MARK: - Metadata Phase Filenames
+    public static let ghPRFilename = "gh-pr.json"
+    public static let ghCommentsFilename = "gh-comments.json"
+    public static let ghRepoFilename = "gh-repo.json"
+    public static let imageURLMapFilename = "image-url-map.json"
+
+    // MARK: - Diff Phase Filenames
+    public static let diffRawFilename = "diff-raw.diff"
+    public static let diffParsedJSONFilename = "diff-parsed.json"
+    public static let diffParsedMarkdownFilename = "diff-parsed.md"
+    public static let effectiveDiffParsedJSONFilename = "effective-diff-parsed.json"
+    public static let effectiveDiffParsedMarkdownFilename = "effective-diff-parsed.md"
+    public static let effectiveDiffMovesFilename = "effective-diff-moves.json"
+
+    // MARK: - Prepare Phase Filenames
+    public static let allRulesFilename = "all-rules.json"
+
+    // MARK: - Analyze / Report Phase Filenames
+    public static let summaryJSONFilename = "summary.json"
+    public static let summaryMarkdownFilename = "summary.md"
+
     // MARK: - Directory Construction
 
     /// PR-level metadata directory: `<output>/<prNumber>/metadata/`
