@@ -15,8 +15,8 @@ public enum PRDiscoveryService {
         let prs: [PRMetadata] = contents.compactMap { dirName in
             guard let prNumber = Int(dirName) else { return nil }
 
-            let phaseDir = "\(expandedPath)/\(dirName)/\(PRRadarPhase.sync.rawValue)"
-            let ghPRPath = "\(phaseDir)/gh-pr.json"
+            let metadataDir = DataPathsService.metadataDirectory(outputDir: expandedPath, prNumber: dirName)
+            let ghPRPath = "\(metadataDir)/gh-pr.json"
 
             guard fileManager.fileExists(atPath: ghPRPath),
                   let data = fileManager.contents(atPath: ghPRPath)
@@ -47,7 +47,7 @@ public enum PRDiscoveryService {
             }
 
             if let repoSlug {
-                let ghRepoPath = "\(phaseDir)/gh-repo.json"
+                let ghRepoPath = "\(metadataDir)/gh-repo.json"
                 guard let repoData = fileManager.contents(atPath: ghRepoPath),
                       let repoJSON = try? JSONSerialization.jsonObject(with: repoData) as? [String: Any],
                       let owner = (repoJSON["owner"] as? [String: Any])?["login"] as? String,

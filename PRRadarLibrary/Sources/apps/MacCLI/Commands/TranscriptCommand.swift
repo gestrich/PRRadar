@@ -12,7 +12,7 @@ struct TranscriptCommand: AsyncParsableCommand {
 
     @OptionGroup var options: CLIOptions
 
-    @Option(name: .long, help: "Filter by phase (phase-2-prepare, phase-3-analyze)")
+    @Option(name: .long, help: "Filter by phase (prepare, evaluate)")
     var phase: String?
 
     @Option(name: .long, help: "Display a specific task's transcript by identifier")
@@ -31,7 +31,7 @@ struct TranscriptCommand: AsyncParsableCommand {
         let phasesToCheck: [PRRadarPhase]
         if let phaseStr = phase {
             guard let matched = PRRadarPhase.allCases.first(where: { $0.rawValue == phaseStr }) else {
-                throw CLIError.phaseFailed("Unknown phase '\(phaseStr)'. Valid: phase-2-prepare, phase-3-analyze")
+                throw CLIError.phaseFailed("Unknown phase '\(phaseStr)'. Valid: prepare, evaluate")
             }
             phasesToCheck = [matched]
         } else {

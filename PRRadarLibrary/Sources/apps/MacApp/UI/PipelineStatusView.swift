@@ -17,8 +17,8 @@ enum NavigationPhase: CaseIterable, Identifiable {
 
     var primaryPhase: PRRadarPhase {
         switch self {
-        case .summary: .sync
-        case .diff: .sync
+        case .summary: .diff
+        case .diff: .diff
         case .report: .report
         }
     }
@@ -26,7 +26,7 @@ enum NavigationPhase: CaseIterable, Identifiable {
     var representedPhases: [PRRadarPhase] {
         switch self {
         case .summary: []
-        case .diff: [.sync, .prepare, .analyze]
+        case .diff: [.diff, .prepare, .analyze]
         case .report: [.report]
         }
     }

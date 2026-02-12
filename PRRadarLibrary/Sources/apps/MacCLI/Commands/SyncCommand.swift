@@ -59,7 +59,7 @@ struct SyncCommand: AsyncParsableCommand {
             let phaseDir = DataPathsService.phaseDirectory(
                 outputDir: config.absoluteOutputDir,
                 prNumber: options.prNumber,
-                phase: .sync
+                phase: .diff
             )
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/open")

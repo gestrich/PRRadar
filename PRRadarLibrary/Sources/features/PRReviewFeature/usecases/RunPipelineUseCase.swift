@@ -29,7 +29,7 @@ public struct RunPipelineUseCase: Sendable {
         minScore: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<RunPipelineOutput>, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.running(phase: .sync))
+            continuation.yield(.running(phase: .diff))
 
             Task {
                 do {

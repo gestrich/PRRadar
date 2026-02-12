@@ -88,7 +88,8 @@ struct PhaseInputView: View {
 
     private func phaseTitle(for targetPhase: PRRadarPhase) -> String {
         switch targetPhase {
-        case .sync: "Sync PR"
+        case .metadata: "Metadata"
+        case .diff: "Sync PR"
         case .prepare: "Prepare"
         case .analyze: "Analyze"
         case .report: "Generate Report"
@@ -103,7 +104,9 @@ struct PhaseInputView: View {
     @ViewBuilder
     private func phaseDescription(for targetPhase: PRRadarPhase) -> some View {
         switch targetPhase {
-        case .sync:
+        case .metadata:
+            Text("Fetches PR metadata, comments, and repository info.")
+        case .diff:
             Text("Fetches PR data including diff, metadata, comments, and reviews.")
         case .prepare:
             Text("Generates focus areas, loads rules, and creates evaluation tasks.")

@@ -1,27 +1,40 @@
 import Foundation
 
 public enum PRRadarPhase: String, CaseIterable, Sendable {
-    case sync = "phase-1-sync"
-    case prepare = "phase-2-prepare"
-    case analyze = "phase-3-analyze"
-    case report = "phase-4-report"
+    case metadata = "metadata"
+    case diff = "diff"
+    case prepare = "prepare"
+    case analyze = "evaluate"
+    case report = "report"
 
-    /// The numeric phase number (1-4).
+    /// The numeric phase number (1-5).
     public var phaseNumber: Int {
         Self.allCases.firstIndex(of: self)! + 1
     }
 
-    /// The phase that must complete before this one can run, or nil for phase 1.
+    /// Whether this phase operates under a commit-scoped directory.
+    /// Metadata is PR-scoped; all other phases are commit-scoped.
+    public var isCommitScoped: Bool {
+        self != .metadata
+    }
+
+    /// The phase that must complete before this one can run, or nil if none.
+    /// Metadata and diff are independent roots; prepare → analyze → report is the linear chain.
     public var requiredPredecessor: PRRadarPhase? {
-        let all = Self.allCases
-        guard let idx = all.firstIndex(of: self), idx > 0 else { return nil }
-        return all[idx - 1]
+        switch self {
+        case .metadata: nil
+        case .diff: nil
+        case .prepare: .diff
+        case .analyze: .prepare
+        case .report: .analyze
+        }
     }
 
     /// Human-readable display name for the phase.
     public var displayName: String {
         switch self {
-        case .sync: "Sync PR"
+        case .metadata: "Metadata"
+        case .diff: "Diff"
         case .prepare: "Prepare"
         case .analyze: "Analyze"
         case .report: "Report"
@@ -84,12 +97,50 @@ public enum DataPathsService {
     public static let prepareRulesSubdir = "rules"
     public static let prepareTasksSubdir = "tasks"
 
+    // Top-level directory names
+    public static let metadataDirectoryName = "metadata"
+    public static let analysisDirectoryName = "analysis"
+
+    // MARK: - Directory Construction
+
+    /// PR-level metadata directory: `<output>/<prNumber>/metadata/`
+    public static func metadataDirectory(
+        outputDir: String,
+        prNumber: String
+    ) -> String {
+        "\(outputDir)/\(prNumber)/\(metadataDirectoryName)"
+    }
+
+    /// Commit-level analysis root: `<output>/<prNumber>/analysis/<commitHash>/`
+    public static func analysisDirectory(
+        outputDir: String,
+        prNumber: String,
+        commitHash: String
+    ) -> String {
+        "\(outputDir)/\(prNumber)/\(analysisDirectoryName)/\(commitHash)"
+    }
+
+    /// Directory for a specific phase.
+    ///
+    /// - For `.metadata` (PR-scoped): `<output>/<prNumber>/metadata/`
+    /// - For commit-scoped phases with `commitHash`: `<output>/<prNumber>/analysis/<commitHash>/<phase>/`
+    /// - For commit-scoped phases without `commitHash`: `<output>/<prNumber>/<phase>/` (legacy flat layout)
+    ///
+    /// The legacy flat layout is a transitional path. Once all callers provide a commit hash,
+    /// the nil-commitHash branch can be removed.
     public static func phaseDirectory(
         outputDir: String,
         prNumber: String,
-        phase: PRRadarPhase
+        phase: PRRadarPhase,
+        commitHash: String? = nil
     ) -> String {
-        "\(outputDir)/\(prNumber)/\(phase.rawValue)"
+        if phase == .metadata {
+            return metadataDirectory(outputDir: outputDir, prNumber: prNumber)
+        }
+        guard let commitHash else {
+            return "\(outputDir)/\(prNumber)/\(phase.rawValue)"
+        }
+        return "\(analysisDirectory(outputDir: outputDir, prNumber: prNumber, commitHash: commitHash))/\(phase.rawValue)"
     }
 
     /// Get a subdirectory within a phase directory (e.g., focus-areas within prepare).
@@ -97,9 +148,10 @@ public enum DataPathsService {
         outputDir: String,
         prNumber: String,
         phase: PRRadarPhase,
-        subdirectory: String
+        subdirectory: String,
+        commitHash: String? = nil
     ) -> String {
-        "\(phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase))/\(subdirectory)"
+        "\(phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase, commitHash: commitHash))/\(subdirectory)"
     }
 
     public static func ensureDirectoryExists(at path: String) throws {
@@ -110,8 +162,13 @@ public enum DataPathsService {
     }
 
     /// Check whether a phase directory exists and has content.
-    public static func phaseExists(outputDir: String, prNumber: String, phase: PRRadarPhase) -> Bool {
-        let dir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase)
+    public static func phaseExists(
+        outputDir: String,
+        prNumber: String,
+        phase: PRRadarPhase,
+        commitHash: String? = nil
+    ) -> Bool {
+        let dir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase, commitHash: commitHash)
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue else {
             return false
@@ -124,19 +181,21 @@ public enum DataPathsService {
     public static func canRunPhase(
         _ phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String
+        prNumber: String,
+        commitHash: String? = nil
     ) -> Bool {
         guard let predecessor = phase.requiredPredecessor else { return true }
-        return phaseExists(outputDir: outputDir, prNumber: prNumber, phase: predecessor)
+        return phaseExists(outputDir: outputDir, prNumber: prNumber, phase: predecessor, commitHash: commitHash)
     }
 
     /// Validate that a phase can run, returning an error message if not.
     public static func validateCanRun(
         _ phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String
+        prNumber: String,
+        commitHash: String? = nil
     ) -> String? {
-        guard canRunPhase(phase, outputDir: outputDir, prNumber: prNumber) else {
+        guard canRunPhase(phase, outputDir: outputDir, prNumber: prNumber, commitHash: commitHash) else {
             let predecessor = phase.requiredPredecessor!
             return "Cannot run \(phase.rawValue): \(predecessor.rawValue) has not completed"
         }
@@ -152,12 +211,12 @@ public enum DataPathsService {
     public static func phaseStatus(
         _ phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String
+        prNumber: String,
+        commitHash: String? = nil
     ) -> PhaseStatus {
-        let dir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase)
+        let dir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase, commitHash: commitHash)
 
         guard let phaseResult = readPhaseResult(directory: dir, phase: phase) else {
-            // No phase_result.json means phase hasn't been run
             return PhaseStatus(
                 phase: phase,
                 exists: false,
@@ -169,7 +228,6 @@ public enum DataPathsService {
         }
 
         if phaseResult.status == .success {
-            // Phase completed successfully - trust the result file
             let artifactCount = phaseResult.stats?.artifactsProduced ?? 0
             return PhaseStatus(
                 phase: phase,
@@ -180,7 +238,6 @@ public enum DataPathsService {
                 missingItems: []
             )
         } else {
-            // Phase failed - report the error
             return PhaseStatus(
                 phase: phase,
                 exists: true,
@@ -195,11 +252,12 @@ public enum DataPathsService {
     /// Get status for all phases.
     public static func allPhaseStatuses(
         outputDir: String,
-        prNumber: String
+        prNumber: String,
+        commitHash: String? = nil
     ) -> [PRRadarPhase: PhaseStatus] {
         var result: [PRRadarPhase: PhaseStatus] = [:]
         for phase in PRRadarPhase.allCases {
-            result[phase] = phaseStatus(phase, outputDir: outputDir, prNumber: prNumber)
+            result[phase] = phaseStatus(phase, outputDir: outputDir, prNumber: prNumber, commitHash: commitHash)
         }
         return result
     }

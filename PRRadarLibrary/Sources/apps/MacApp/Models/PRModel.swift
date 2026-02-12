@@ -137,7 +137,7 @@ final class PRModel: Identifiable, Hashable {
                 guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
                     config: config,
                     prNumber: prNumber,
-                    phase: .sync,
+                    phase: .diff,
                     filename: "gh-comments.json"
                 ) else { return 0 }
                 return comments.reviewComments.count
@@ -163,7 +163,7 @@ final class PRModel: Identifiable, Hashable {
         do {
             try loadCachedNonDiffOutputs()
         } catch {
-            phaseStates[.sync] = .failed(
+            phaseStates[.diff] = .failed(
                 error: "Failed to load cached outputs: \(error.localizedDescription)",
                 logs: ""
             )
@@ -189,7 +189,7 @@ final class PRModel: Identifiable, Hashable {
             self.postedComments = try PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
-                phase: .sync,
+                phase: .diff,
                 filename: "gh-comments.json"
             )
         } catch is PhaseOutputError {
@@ -199,12 +199,12 @@ final class PRModel: Identifiable, Hashable {
         if let map: [String: String] = try? PhaseOutputParser.parsePhaseOutput(
             config: config,
             prNumber: prNumber,
-            phase: .sync,
+            phase: .diff,
             filename: "image-url-map.json"
         ) {
             self.imageURLMap = map
             let phaseDir = OutputFileReader.phaseDirectoryPath(
-                config: config, prNumber: prNumber, phase: .sync
+                config: config, prNumber: prNumber, phase: .diff
             )
             self.imageBaseDir = "\(phaseDir)/images"
         }
@@ -219,8 +219,8 @@ final class PRModel: Identifiable, Hashable {
         do {
             try loadCachedNonDiffOutputs()
         } catch {
-            let logs = runningLogs(for: .sync)
-            phaseStates[.sync] = .failed(
+            let logs = runningLogs(for: .diff)
+            phaseStates[.diff] = .failed(
                 error: "Failed to load cached outputs: \(error.localizedDescription)",
                 logs: logs
             )
@@ -251,9 +251,9 @@ final class PRModel: Identifiable, Hashable {
         let hasCachedData = syncSnapshot != nil
         let logPrefix = hasCachedData ? "Refreshing" : "Fetching"
         if hasCachedData {
-            phaseStates[.sync] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+            phaseStates[.diff] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
         } else {
-            phaseStates[.sync] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+            phaseStates[.diff] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
         }
 
         let useCase = SyncPRUseCase(config: config)
@@ -268,30 +268,30 @@ final class PRModel: Identifiable, Hashable {
                     case .progress:
                         break
                     case .log(let text):
-                        appendLog(text, to: .sync)
+                        appendLog(text, to: .diff)
                     case .aiOutput: break
                     case .aiPrompt: break
                     case .aiToolUse: break
                     case .analysisResult: break
                     case .completed(let snapshot):
                         syncSnapshot = snapshot
-                        let logs = runningLogs(for: .sync)
-                        phaseStates[.sync] = .completed(logs: logs)
+                        let logs = runningLogs(for: .diff)
+                        phaseStates[.diff] = .completed(logs: logs)
                     case .failed(let error, let logs):
-                        let existingLogs = runningLogs(for: .sync)
-                        phaseStates[.sync] = .failed(error: error, logs: existingLogs + logs)
+                        let existingLogs = runningLogs(for: .diff)
+                        phaseStates[.diff] = .failed(error: error, logs: existingLogs + logs)
                     }
                 }
             } catch is CancellationError {
                 // Task was cancelled — restore state
                 if syncSnapshot != nil {
-                    phaseStates[.sync] = .completed(logs: "")
+                    phaseStates[.diff] = .completed(logs: "")
                 } else {
-                    phaseStates[.sync] = .idle
+                    phaseStates[.diff] = .idle
                 }
             } catch {
-                let logs = runningLogs(for: .sync)
-                phaseStates[.sync] = .failed(error: error.localizedDescription, logs: logs)
+                let logs = runningLogs(for: .diff)
+                phaseStates[.diff] = .failed(error: error.localizedDescription, logs: logs)
             }
         }
         refreshTask = task
@@ -302,9 +302,9 @@ final class PRModel: Identifiable, Hashable {
         refreshTask?.cancel()
         refreshTask = nil
         if syncSnapshot != nil {
-            phaseStates[.sync] = .completed(logs: "")
+            phaseStates[.diff] = .completed(logs: "")
         } else {
-            phaseStates[.sync] = .idle
+            phaseStates[.diff] = .idle
         }
     }
 
@@ -357,8 +357,8 @@ final class PRModel: Identifiable, Hashable {
         let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
         if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
             self.syncSnapshot = snapshot
-            if case .idle = stateFor(.sync) {
-                phaseStates[.sync] = .completed(logs: "")
+            if case .idle = stateFor(.diff) {
+                phaseStates[.diff] = .completed(logs: "")
             }
         }
     }
@@ -388,10 +388,12 @@ final class PRModel: Identifiable, Hashable {
         guard !isAnyPhaseRunning else { return false }
 
         switch phase {
-        case .sync:
+        case .metadata:
+            return true
+        case .diff:
             return true
         case .prepare:
-            return isPhaseCompleted(.sync)
+            return isPhaseCompleted(.diff)
         case .analyze:
             return isPhaseCompleted(.prepare)
         case .report:
@@ -408,7 +410,8 @@ final class PRModel: Identifiable, Hashable {
 
     func runPhase(_ phase: PRRadarPhase) async {
         switch phase {
-        case .sync: await runSync()
+        case .metadata: break
+        case .diff: await runSync()
         case .prepare: await runPrepare()
         case .analyze: await runAnalyze()
         case .report: await runReport()
@@ -433,7 +436,9 @@ final class PRModel: Identifiable, Hashable {
     func resetPhase(_ phase: PRRadarPhase) {
         phaseStates[phase] = .idle
         switch phase {
-        case .sync:
+        case .metadata:
+            break
+        case .diff:
             syncSnapshot = nil
         case .prepare:
             preparation = nil

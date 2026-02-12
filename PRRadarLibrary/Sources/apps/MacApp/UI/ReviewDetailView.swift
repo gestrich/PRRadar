@@ -134,7 +134,7 @@ struct ReviewDetailView: View {
                 )
             }
             .overlay(alignment: .top) {
-                if case .refreshing = prModel.stateFor(.sync) {
+                if case .refreshing = prModel.stateFor(.diff) {
                     refreshingBanner
                 }
             }
@@ -158,13 +158,13 @@ struct ReviewDetailView: View {
                     .font(.system(.body, design: .monospaced))
             }
             .overlay(alignment: .top) {
-                if case .refreshing = prModel.stateFor(.sync) {
+                if case .refreshing = prModel.stateFor(.diff) {
                     refreshingBanner
                 }
             }
-        } else if case .running = prModel.stateFor(.sync) {
+        } else if case .running = prModel.stateFor(.diff) {
             loadingView("Fetching PR diff...")
-        } else if case .refreshing = prModel.stateFor(.sync) {
+        } else if case .refreshing = prModel.stateFor(.diff) {
             loadingView("Refreshing PR diff...")
         } else {
             ContentUnavailableView(
@@ -221,7 +221,7 @@ struct ReviewDetailView: View {
     @ViewBuilder
     private var diffToolbar: some View {
         HStack(spacing: 12) {
-            compactPhaseButton(phase: .sync, label: "Sync PR", icon: "arrow.down.doc")
+            compactPhaseButton(phase: .diff, label: "Sync PR", icon: "arrow.down.doc")
                 .accessibilityIdentifier("syncButton")
             compactPhaseButton(phase: .prepare, label: "Prepare", icon: "list.bullet.clipboard")
                 .accessibilityIdentifier("prepareButton")

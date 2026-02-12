@@ -9,26 +9,38 @@ struct PhaseBehaviorTests {
 
     @Test("phaseNumber returns correct numbers for all phases")
     func phaseNumbers() {
-        #expect(PRRadarPhase.sync.phaseNumber == 1)
-        #expect(PRRadarPhase.prepare.phaseNumber == 2)
-        #expect(PRRadarPhase.analyze.phaseNumber == 3)
-        #expect(PRRadarPhase.report.phaseNumber == 4)
+        #expect(PRRadarPhase.metadata.phaseNumber == 1)
+        #expect(PRRadarPhase.diff.phaseNumber == 2)
+        #expect(PRRadarPhase.prepare.phaseNumber == 3)
+        #expect(PRRadarPhase.analyze.phaseNumber == 4)
+        #expect(PRRadarPhase.report.phaseNumber == 5)
     }
 
     @Test("requiredPredecessor returns correct predecessor")
     func requiredPredecessor() {
-        #expect(PRRadarPhase.sync.requiredPredecessor == nil)
-        #expect(PRRadarPhase.prepare.requiredPredecessor == .sync)
+        #expect(PRRadarPhase.metadata.requiredPredecessor == nil)
+        #expect(PRRadarPhase.diff.requiredPredecessor == nil)
+        #expect(PRRadarPhase.prepare.requiredPredecessor == .diff)
         #expect(PRRadarPhase.analyze.requiredPredecessor == .prepare)
         #expect(PRRadarPhase.report.requiredPredecessor == .analyze)
     }
 
     @Test("displayName returns human-readable names")
     func displayNames() {
-        #expect(PRRadarPhase.sync.displayName == "Sync PR")
+        #expect(PRRadarPhase.metadata.displayName == "Metadata")
+        #expect(PRRadarPhase.diff.displayName == "Diff")
         #expect(PRRadarPhase.prepare.displayName == "Prepare")
         #expect(PRRadarPhase.analyze.displayName == "Analyze")
         #expect(PRRadarPhase.report.displayName == "Report")
+    }
+
+    @Test("isCommitScoped returns correct scope")
+    func isCommitScoped() {
+        #expect(!PRRadarPhase.metadata.isCommitScoped)
+        #expect(PRRadarPhase.diff.isCommitScoped)
+        #expect(PRRadarPhase.prepare.isCommitScoped)
+        #expect(PRRadarPhase.analyze.isCommitScoped)
+        #expect(PRRadarPhase.report.isCommitScoped)
     }
 
     // MARK: - PhaseStatus
@@ -36,13 +48,13 @@ struct PhaseBehaviorTests {
     @Test("PhaseStatus summary reflects state correctly")
     func phaseStatusSummary() {
         let notStarted = PhaseStatus(
-            phase: .sync, exists: false, isComplete: false,
+            phase: .metadata, exists: false, isComplete: false,
             completedCount: 0, totalCount: 5, missingItems: []
         )
         #expect(notStarted.summary == "not started")
 
         let complete = PhaseStatus(
-            phase: .sync, exists: true, isComplete: true,
+            phase: .metadata, exists: true, isComplete: true,
             completedCount: 5, totalCount: 5, missingItems: []
         )
         #expect(complete.summary == "complete")
@@ -85,20 +97,78 @@ struct PhaseBehaviorTests {
 
     // MARK: - DataPathsService
 
-    @Test("phaseDirectory builds correct path")
-    func phaseDirectory() {
+    @Test("phaseDirectory builds correct path for metadata (PR-scoped)")
+    func phaseDirectoryMetadata() {
         let dir = DataPathsService.phaseDirectory(
             outputDir: "/output",
             prNumber: "42",
-            phase: .sync
+            phase: .metadata
         )
-        #expect(dir == "/output/42/phase-1-sync")
+        #expect(dir == "/output/42/metadata")
+    }
+
+    @Test("phaseDirectory builds correct path for commit-scoped phases")
+    func phaseDirectoryCommitScoped() {
+        let dir = DataPathsService.phaseDirectory(
+            outputDir: "/output",
+            prNumber: "42",
+            phase: .diff,
+            commitHash: "abc1234"
+        )
+        #expect(dir == "/output/42/analysis/abc1234/diff")
+    }
+
+    @Test("metadataDirectory builds correct path")
+    func metadataDirectory() {
+        let dir = DataPathsService.metadataDirectory(
+            outputDir: "/output",
+            prNumber: "42"
+        )
+        #expect(dir == "/output/42/metadata")
+    }
+
+    @Test("analysisDirectory builds correct path")
+    func analysisDirectory() {
+        let dir = DataPathsService.analysisDirectory(
+            outputDir: "/output",
+            prNumber: "42",
+            commitHash: "abc1234"
+        )
+        #expect(dir == "/output/42/analysis/abc1234")
+    }
+
+    @Test("commit-scoped phase subdirectories build correct paths")
+    func commitScopedSubdirectories() {
+        let prepareDir = DataPathsService.phaseDirectory(
+            outputDir: "/output", prNumber: "42", phase: .prepare, commitHash: "abc1234"
+        )
+        #expect(prepareDir == "/output/42/analysis/abc1234/prepare")
+
+        let analyzeDir = DataPathsService.phaseDirectory(
+            outputDir: "/output", prNumber: "42", phase: .analyze, commitHash: "abc1234"
+        )
+        #expect(analyzeDir == "/output/42/analysis/abc1234/evaluate")
+
+        let reportDir = DataPathsService.phaseDirectory(
+            outputDir: "/output", prNumber: "42", phase: .report, commitHash: "abc1234"
+        )
+        #expect(reportDir == "/output/42/analysis/abc1234/report")
     }
 
     @Test("canRunPhase returns true for first phase")
     func canRunFirstPhase() {
         let canRun = DataPathsService.canRunPhase(
-            .sync,
+            .metadata,
+            outputDir: "/nonexistent",
+            prNumber: "1"
+        )
+        #expect(canRun)
+    }
+
+    @Test("canRunPhase returns true for diff (no predecessor)")
+    func canRunDiffPhase() {
+        let canRun = DataPathsService.canRunPhase(
+            .diff,
             outputDir: "/nonexistent",
             prNumber: "1"
         )
@@ -113,17 +183,28 @@ struct PhaseBehaviorTests {
             prNumber: "1"
         )
         #expect(error != nil)
-        #expect(error!.contains("phase-1-sync"))
+        #expect(error!.contains("diff"))
     }
 
-    @Test("phaseSubdirectory builds correct path")
+    @Test("phaseDirectory uses legacy flat path when commitHash is nil")
+    func phaseDirectoryLegacyFallback() {
+        let dir = DataPathsService.phaseDirectory(
+            outputDir: "/output",
+            prNumber: "42",
+            phase: .diff
+        )
+        #expect(dir == "/output/42/diff")
+    }
+
+    @Test("phaseSubdirectory builds correct path with commit hash")
     func phaseSubdirectory() {
         let dir = DataPathsService.phaseSubdirectory(
             outputDir: "/output",
             prNumber: "42",
             phase: .prepare,
-            subdirectory: DataPathsService.prepareFocusAreasSubdir
+            subdirectory: DataPathsService.prepareFocusAreasSubdir,
+            commitHash: "abc1234"
         )
-        #expect(dir == "/output/42/phase-2-prepare/focus-areas")
+        #expect(dir == "/output/42/analysis/abc1234/prepare/focus-areas")
     }
 }
