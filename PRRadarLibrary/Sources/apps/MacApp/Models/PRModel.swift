@@ -303,6 +303,11 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Phase Execution
 
     func runPhase(_ phase: PRRadarPhase) async {
+        let shouldManageMode = operationMode == .idle
+        if shouldManageMode {
+            operationMode = phase == .diff ? .refreshing : .analyzing
+        }
+        defer { if shouldManageMode { operationMode = .idle } }
         switch phase {
         case .metadata: break
         case .diff: await runSync()
@@ -462,11 +467,13 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .running(logs: existing + text)
     }
 
-    private func appendAIPrompt(_ text: String) {
+    private func appendAIPrompt(_ context: AIPromptContext) {
         let count = liveAccumulators.count
         liveAccumulators.append(LiveTranscriptAccumulator(
             identifier: "task-\(count + 1)",
-            prompt: text,
+            prompt: context.text,
+            filePath: context.filePath,
+            ruleName: context.ruleName,
             startedAt: Date()
         ))
     }
@@ -512,14 +519,16 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .prepare)
                 case .aiOutput(let text):
                     appendAIOutput(text)
-                case .aiPrompt(let text):
-                    appendAIPrompt(text)
+                case .aiPrompt(let context):
+                    appendAIPrompt(context)
                 case .aiToolUse(let name):
                     appendAIToolUse(name)
                 case .analysisResult: break
                 case .completed:
                     currentLivePhase = nil
+                    let logs = runningLogs(for: .prepare)
                     reloadDetail()
+                    phaseStates[.prepare] = .completed(logs: logs)
                 case .failed(let error, let logs):
                     currentLivePhase = nil
                     phaseStates[.prepare] = .failed(error: error, logs: logs)
@@ -549,8 +558,8 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .analyze)
                 case .aiOutput(let text):
                     appendAIOutput(text)
-                case .aiPrompt(let text):
-                    appendAIPrompt(text)
+                case .aiPrompt(let context):
+                    appendAIPrompt(context)
                 case .aiToolUse(let name):
                     appendAIToolUse(name)
                 case .analysisResult(let result):
@@ -558,7 +567,9 @@ final class PRModel: Identifiable, Hashable {
                 case .completed:
                     inProgressAnalysis = nil
                     currentLivePhase = nil
+                    let logs = runningLogs(for: .analyze)
                     reloadDetail()
+                    phaseStates[.analyze] = .completed(logs: logs)
                 case .failed(let error, let logs):
                     currentLivePhase = nil
                     phaseStates[.analyze] = .failed(error: error, logs: logs)
@@ -718,6 +729,8 @@ final class PRModel: Identifiable, Hashable {
     struct LiveTranscriptAccumulator {
         let identifier: String
         var prompt: String
+        var filePath: String?
+        var ruleName: String?
         var textChunks: String = ""
         var events: [ClaudeAgentTranscriptEvent] = []
         let startedAt: Date
@@ -733,6 +746,8 @@ final class PRModel: Identifiable, Hashable {
                 model: "streaming",
                 startedAt: formatter.string(from: startedAt),
                 prompt: prompt.isEmpty ? nil : prompt,
+                filePath: filePath ?? "",
+                ruleName: ruleName ?? "",
                 events: finalEvents,
                 costUsd: 0,
                 durationMs: Int(Date().timeIntervalSince(startedAt) * 1000)

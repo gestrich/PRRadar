@@ -76,8 +76,8 @@ public struct RunPipelineUseCase: Sendable {
                             continuation.yield(.log(text: text))
                         case .aiOutput(let text):
                             continuation.yield(.aiOutput(text: text))
-                        case .aiPrompt(let text):
-                            continuation.yield(.aiPrompt(text: text))
+                        case .aiPrompt(let context):
+                            continuation.yield(.aiPrompt(context))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
                         case .analysisResult: break
@@ -108,8 +108,8 @@ public struct RunPipelineUseCase: Sendable {
                             continuation.yield(.log(text: text))
                         case .aiOutput(let text):
                             continuation.yield(.aiOutput(text: text))
-                        case .aiPrompt(let text):
-                            continuation.yield(.aiPrompt(text: text))
+                        case .aiPrompt(let context):
+                            continuation.yield(.aiPrompt(context))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
                         case .analysisResult(let result):

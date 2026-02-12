@@ -105,7 +105,7 @@ public struct AnalysisService: Sendable {
         _ task: AnalysisTaskOutput,
         repoPath: String,
         transcriptDir: String? = nil,
-        onPrompt: ((String) -> Void)? = nil,
+        onPrompt: ((String, AnalysisTaskOutput) -> Void)? = nil,
         onAIText: ((String) -> Void)? = nil,
         onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> RuleEvaluationResult {
@@ -123,7 +123,7 @@ public struct AnalysisService: Sendable {
             .replacingOccurrences(of: "{diff_content}", with: focusedContent)
             .replacingOccurrences(of: "{repo_path}", with: repoPath)
 
-        onPrompt?(prompt)
+        onPrompt?(prompt, task)
 
         let request = ClaudeAgentRequest(
             prompt: prompt,
@@ -160,6 +160,8 @@ public struct AnalysisService: Sendable {
                 model: model,
                 startedAt: startedAt,
                 prompt: prompt,
+                filePath: task.focusArea.filePath,
+                ruleName: task.rule.name,
                 events: transcriptEvents,
                 costUsd: agentResult.costUsd,
                 durationMs: agentResult.durationMs
@@ -211,7 +213,7 @@ public struct AnalysisService: Sendable {
         repoPath: String,
         onStart: ((Int, Int, AnalysisTaskOutput) -> Void)? = nil,
         onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
-        onPrompt: ((String) -> Void)? = nil,
+        onPrompt: ((String, AnalysisTaskOutput) -> Void)? = nil,
         onAIText: ((String) -> Void)? = nil,
         onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {

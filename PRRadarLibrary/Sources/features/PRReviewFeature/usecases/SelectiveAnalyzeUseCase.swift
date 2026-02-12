@@ -89,8 +89,8 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 continuation.yield(.analysisResult(result))
                             },
-                            onPrompt: { text in
-                                continuation.yield(.aiPrompt(text: text))
+                            onPrompt: { text, task in
+                                continuation.yield(.aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))
                             },
                             onAIText: { text in
                                 continuation.yield(.aiOutput(text: text))

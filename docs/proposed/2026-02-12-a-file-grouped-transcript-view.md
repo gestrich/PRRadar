@@ -39,33 +39,34 @@ Add `filePath` and `ruleName` fields to `ClaudeAgentTranscript` for metadata emb
 - Updated JSON decode tests to include `file_path`/`rule_name` fields; added encoding/round-trip assertions for new fields
 - Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
-## - [ ] Phase 2: Thread metadata through the pipeline
+## - [x] Phase 2: Thread metadata through the pipeline
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
 Carry file path and rule name from task evaluation through the event pipeline to the UI layer.
 
 ### 2a. `PhaseProgress.swift`
-- Add `AIPromptContext` struct: `text: String`, `filePath: String?`, `ruleName: String?`
-- Change `case aiPrompt(text: String)` → `case aiPrompt(AIPromptContext)`
-- ~14 wildcard `case .aiPrompt: break` sites compile unchanged
+- Added `AIPromptContext` struct with `text: String`, `filePath: String?`, `ruleName: String?` and convenience init with nil defaults
+- Changed `case aiPrompt(text: String)` → `case aiPrompt(AIPromptContext)`
+- ~14 wildcard `case .aiPrompt: break` sites compiled unchanged (no associated value destructuring needed)
 
 ### 2b. `AnalysisService.swift`
-- Change `onPrompt` callback in `analyzeTask` and `runBatchAnalysis`: `((String) -> Void)?` → `((String, AnalysisTaskOutput) -> Void)?`
-- In `analyzeTask`: call `onPrompt?(prompt, task)` instead of `onPrompt?(prompt)`
-- In `ClaudeAgentTranscript` construction (line ~158): pass `filePath: task.focusArea.filePath, ruleName: task.rule.name`
+- Changed `onPrompt` callback in both `analyzeTask` and `runBatchAnalysis`: `((String) -> Void)?` → `((String, AnalysisTaskOutput) -> Void)?`
+- In `analyzeTask`: calls `onPrompt?(prompt, task)` to pass the task along
+- In `ClaudeAgentTranscript` construction: passes `filePath: task.focusArea.filePath, ruleName: task.rule.name`
 
 ### 2c. Use case updates (emit sites)
-- `AnalyzeUseCase.swift` (line 136): `onPrompt: { text, task in .aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)) }`
-- `SelectiveAnalyzeUseCase.swift` (line 92-93): same pattern
-- `RunPipelineUseCase.swift` (lines 79-80, 111-112): destructure context, re-emit
-- `RunAllUseCase.swift` (lines 74-75): destructure context, re-emit
+- `AnalyzeUseCase.swift`: `onPrompt: { text, task in .aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)) }`
+- `SelectiveAnalyzeUseCase.swift`: same pattern
+- `RunPipelineUseCase.swift`: two pass-through sites destructure context and re-emit as `.aiPrompt(context)`
+- `RunAllUseCase.swift`: same pass-through pattern
 
 ### 2d. `PRModel.swift`
-- Add `filePath: String?` and `ruleName: String?` to `LiveTranscriptAccumulator`
-- Update `appendAIPrompt` to accept `AIPromptContext` and extract fields
-- Update `toClaudeAgentTranscript()` to pass through `filePath`/`ruleName`
-- Update `runPrepare()` and `runAnalyze()` switch arms (lines 520, 559) to destructure `AIPromptContext`
+- Added `filePath: String?` and `ruleName: String?` to `LiveTranscriptAccumulator`
+- `appendAIPrompt` now accepts `AIPromptContext` and extracts fields into the accumulator
+- `toClaudeAgentTranscript()` passes through `filePath`/`ruleName` (defaulting `nil` to `""`)
+- Updated `runPrepare()` and `runAnalyze()` switch arms to destructure `AIPromptContext`
+- Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
 ## - [ ] Phase 3: Redesign AITranscriptView sidebar
 
