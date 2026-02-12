@@ -40,9 +40,9 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
-    private(set) var aiOutputText: String = ""
-    private(set) var aiCurrentPrompt: String = ""
     private(set) var savedTranscripts: [PRRadarPhase: [BridgeTranscript]] = [:]
+    private var liveAccumulators: [LiveTranscriptAccumulator] = []
+    private(set) var currentLivePhase: PRRadarPhase?
 
     private(set) var operationMode: OperationMode = .idle
     private(set) var selectiveAnalysisInFlight: Set<String> = []
@@ -106,6 +106,10 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
+    var liveTranscripts: [PRRadarPhase: [BridgeTranscript]] {
+        guard let phase = currentLivePhase, !liveAccumulators.isEmpty else { return [:] }
+        return [phase: liveAccumulators.map { $0.toBridgeTranscript() }]
+    }
 
     var hasPendingComments: Bool {
         guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
@@ -563,10 +567,41 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .running(logs: existing + text)
     }
 
+    private func appendAIPrompt(_ text: String) {
+        let count = liveAccumulators.count
+        liveAccumulators.append(LiveTranscriptAccumulator(
+            identifier: "task-\(count + 1)",
+            prompt: text,
+            startedAt: Date()
+        ))
+    }
+
+    private func appendAIOutput(_ text: String) {
+        if liveAccumulators.isEmpty {
+            liveAccumulators.append(LiveTranscriptAccumulator(
+                identifier: "task-1",
+                prompt: "",
+                startedAt: Date()
+            ))
+        }
+        liveAccumulators[liveAccumulators.count - 1].textChunks += text
+    }
+
+    private func appendAIToolUse(_ name: String) {
+        guard !liveAccumulators.isEmpty else { return }
+        var last = liveAccumulators[liveAccumulators.count - 1]
+        if !last.textChunks.isEmpty {
+            last.events.append(BridgeTranscriptEvent(type: .text, content: last.textChunks))
+            last.textChunks = ""
+        }
+        last.events.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
+        liveAccumulators[liveAccumulators.count - 1] = last
+    }
+
     private func runPrepare() async {
         phaseStates[.prepare] = .running(logs: "")
-        aiOutputText = ""
-        aiCurrentPrompt = ""
+        liveAccumulators = []
+        currentLivePhase = .prepare
 
         let useCase = PrepareUseCase(config: config)
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
@@ -581,28 +616,32 @@ final class PRModel: Identifiable, Hashable {
                 case .log(let text):
                     appendLog(text, to: .prepare)
                 case .aiOutput(let text):
-                    aiOutputText += text
+                    appendAIOutput(text)
                 case .aiPrompt(let text):
-                    aiCurrentPrompt = text
-                case .aiToolUse: break
+                    appendAIPrompt(text)
+                case .aiToolUse(let name):
+                    appendAIToolUse(name)
                 case .analysisResult: break
                 case .completed(let output):
                     preparation = output
+                    currentLivePhase = nil
                     phaseStates[.prepare] = .completed(logs: "")
                     loadSavedTranscripts()
                 case .failed(let error, let logs):
+                    currentLivePhase = nil
                     phaseStates[.prepare] = .failed(error: error, logs: logs)
                 }
             }
         } catch {
+            currentLivePhase = nil
             phaseStates[.prepare] = .failed(error: error.localizedDescription, logs: "")
         }
     }
 
     private func runAnalyze() async {
         phaseStates[.analyze] = .running(logs: "Running evaluations...\n")
-        aiOutputText = ""
-        aiCurrentPrompt = ""
+        liveAccumulators = []
+        currentLivePhase = .analyze
 
         let useCase = AnalyzeUseCase(config: config)
 
@@ -616,22 +655,26 @@ final class PRModel: Identifiable, Hashable {
                 case .log(let text):
                     appendLog(text, to: .analyze)
                 case .aiOutput(let text):
-                    aiOutputText += text
+                    appendAIOutput(text)
                 case .aiPrompt(let text):
-                    aiCurrentPrompt = text
-                case .aiToolUse: break
+                    appendAIPrompt(text)
+                case .aiToolUse(let name):
+                    appendAIToolUse(name)
                 case .analysisResult(let result):
                     mergeAnalysisResult(result)
                 case .completed(let output):
                     analysis = output
+                    currentLivePhase = nil
                     let logs = runningLogs(for: .analyze)
                     phaseStates[.analyze] = .completed(logs: logs)
                     loadSavedTranscripts()
                 case .failed(let error, let logs):
+                    currentLivePhase = nil
                     phaseStates[.analyze] = .failed(error: error, logs: logs)
                 }
             }
         } catch {
+            currentLivePhase = nil
             let logs = runningLogs(for: .analyze)
             phaseStates[.analyze] = .failed(error: error.localizedDescription, logs: logs)
         }
@@ -785,5 +828,30 @@ final class PRModel: Identifiable, Hashable {
         case running(logs: String)
         case completed(logs: String)
         case failed(error: String, logs: String)
+    }
+
+    struct LiveTranscriptAccumulator {
+        let identifier: String
+        var prompt: String
+        var textChunks: String = ""
+        var events: [BridgeTranscriptEvent] = []
+        let startedAt: Date
+
+        func toBridgeTranscript() -> BridgeTranscript {
+            var finalEvents = events
+            if !textChunks.isEmpty {
+                finalEvents.append(BridgeTranscriptEvent(type: .text, content: textChunks))
+            }
+            let formatter = ISO8601DateFormatter()
+            return BridgeTranscript(
+                identifier: identifier,
+                model: "streaming",
+                startedAt: formatter.string(from: startedAt),
+                prompt: prompt.isEmpty ? nil : prompt,
+                events: finalEvents,
+                costUsd: 0,
+                durationMs: Int(Date().timeIntervalSince(startedAt) * 1000)
+            )
+        }
     }
 }
