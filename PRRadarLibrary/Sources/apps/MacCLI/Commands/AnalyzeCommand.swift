@@ -40,10 +40,10 @@ struct AnalyzeCommand: AsyncParsableCommand {
         let stream: AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error>
         if filter.isEmpty {
             let useCase = AnalyzeUseCase(config: config)
-            stream = useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath)
+            stream = useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath, commitHash: options.commit)
         } else {
             let useCase = SelectiveAnalyzeUseCase(config: config)
-            stream = useCase.execute(prNumber: options.prNumber, filter: filter, repoPath: options.repoPath)
+            stream = useCase.execute(prNumber: options.prNumber, filter: filter, repoPath: options.repoPath, commitHash: options.commit)
         }
 
         if !options.json {

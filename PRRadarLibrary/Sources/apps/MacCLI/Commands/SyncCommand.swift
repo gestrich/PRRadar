@@ -24,6 +24,7 @@ struct SyncCommand: AsyncParsableCommand {
         }
 
         var outputFiles: [String] = []
+        var commitHash: String?
 
         for try await progress in useCase.execute(prNumber: options.prNumber) {
             switch progress {
@@ -39,6 +40,7 @@ struct SyncCommand: AsyncParsableCommand {
             case .analysisResult: break
             case .completed(let snapshot):
                 outputFiles = snapshot.files
+                commitHash = snapshot.commitHash
             case .failed(let error, let logs):
                 if !logs.isEmpty { printError(logs) }
                 throw CLIError.phaseFailed("Sync failed: \(error)")
@@ -46,10 +48,15 @@ struct SyncCommand: AsyncParsableCommand {
         }
 
         if options.json {
-            let data = try JSONEncoder.prettyEncoder.encode(["files": outputFiles])
+            var jsonDict: [String: Any] = ["files": outputFiles]
+            if let commitHash { jsonDict["commitHash"] = commitHash }
+            let data = try JSONSerialization.data(withJSONObject: jsonDict, options: [.prettyPrinted, .sortedKeys])
             print(String(data: data, encoding: .utf8)!)
         } else {
             print("Sync complete: \(outputFiles.count) files generated")
+            if let commitHash {
+                print("  Commit: \(commitHash)")
+            }
             for file in outputFiles {
                 print("  \(file)")
             }
@@ -59,7 +66,8 @@ struct SyncCommand: AsyncParsableCommand {
             let phaseDir = DataPathsService.phaseDirectory(
                 outputDir: config.absoluteOutputDir,
                 prNumber: options.prNumber,
-                phase: .diff
+                phase: .diff,
+                commitHash: commitHash
             )
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/open")

@@ -41,6 +41,9 @@ struct CLIOptions: ParsableArguments {
     @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
     var githubToken: String?
 
+    @Option(name: .long, help: "Commit hash to target (defaults to latest)")
+    var commit: String?
+
     @Flag(name: .long, help: "Output results as JSON")
     var json: Bool = false
 }

@@ -25,7 +25,7 @@ struct ReportCommand: AsyncParsableCommand {
 
         var result: ReportPhaseOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, minScore: minScore) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, minScore: minScore, commitHash: options.commit) {
             switch progress {
             case .running:
                 break

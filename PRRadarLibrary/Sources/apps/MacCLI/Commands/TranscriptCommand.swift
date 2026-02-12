@@ -3,6 +3,7 @@ import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
+import PRReviewFeature
 
 struct TranscriptCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -27,6 +28,7 @@ struct TranscriptCommand: AsyncParsableCommand {
     func run() async throws {
         let resolved = try resolveConfigFromOptions(options)
         let config = resolved.config
+        let commitHash = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
 
         let phasesToCheck: [PRRadarPhase]
         if let phaseStr = phase {
@@ -45,13 +47,13 @@ struct TranscriptCommand: AsyncParsableCommand {
 
         for p in phasesToCheck {
             let files = PhaseOutputParser.listPhaseFiles(
-                config: config, prNumber: options.prNumber, phase: p
+                config: config, prNumber: options.prNumber, phase: p, commitHash: commitHash
             )
             let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
 
             for filename in transcriptFiles {
                 guard let data = try? PhaseOutputParser.readPhaseFile(
-                    config: config, prNumber: options.prNumber, phase: p, filename: filename
+                    config: config, prNumber: options.prNumber, phase: p, filename: filename, commitHash: commitHash
                 ),
                       let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data)
                 else { continue }

@@ -214,7 +214,7 @@ Update `RunPipelineUseCase.execute()`:
 - No API changes to `RunPipelineUseCase.execute()` — all callers (`RunCommand`, `RunAllUseCase`) compile without changes
 - 393 tests pass across 45 suites, build succeeds
 
-## - [ ] Phase 7: Update CLI commands
+## - [x] Phase 7: Update CLI commands
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -222,6 +222,16 @@ Update individual CLI commands (`DiffCommand`, `RulesCommand`, `EvaluateCommand`
 - Commands that run a single phase need to resolve the commit hash (from latest metadata/gh-pr.json or a `--commit` flag)
 - `StatusCommand` — show status for latest commit, list available commits
 - `AnalyzeCommand` — full pipeline, gets commit hash from sync output
+
+**Technical notes:**
+- `CLIOptions` gains a `--commit` option (`String?`) available to all commands that use `@OptionGroup var options: CLIOptions`
+- `SyncCommand` now captures and displays the commit hash from `SyncSnapshot`, and passes it to `DataPathsService.phaseDirectory()` for `--open`; JSON output includes `commitHash` field
+- `PrepareCommand`, `AnalyzeCommand`, `ReportCommand`, `CommentCommand` all forward `options.commit` to their respective use case `execute()` calls; when nil, use cases auto-resolve via `SyncPRUseCase.resolveCommitHash()`
+- `StatusCommand` resolves commit hash via `options.commit ?? SyncPRUseCase.resolveCommitHash()`, passes it to `allPhaseStatuses()`, displays `@ <commitHash>` in header, and lists all available commits when more than one exists; JSON output restructured to include `commitHash`, `availableCommits`, and `phases` fields
+- `TranscriptCommand` resolves commit hash and passes it to `listPhaseFiles()` and `readPhaseFile()` so transcripts are read from the correct commit-scoped directory
+- `RunCommand` unchanged — `RunPipelineUseCase` already threads commit hash internally (Phase 6)
+- `RunAllCommand`, `RefreshCommand` don't use `CLIOptions` so unaffected; `RefreshPRCommand` uses `CLIOptions` but syncs fresh (commit is determined by sync)
+- 393 tests pass across 45 suites, build succeeds
 
 ## - [ ] Phase 8: Update Mac app
 

@@ -33,7 +33,8 @@ struct CommentCommand: AsyncParsableCommand {
         for try await progress in useCase.execute(
             prNumber: options.prNumber,
             minScore: minScore,
-            dryRun: dryRun
+            dryRun: dryRun,
+            commitHash: options.commit
         ) {
             switch progress {
             case .running:
