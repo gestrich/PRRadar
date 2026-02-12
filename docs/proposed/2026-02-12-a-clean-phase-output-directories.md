@@ -254,7 +254,7 @@ Update `PRModel` and related views:
 - `ReviewDetailView` adds a commit picker (Picker with `.menu` style) in the diff toolbar when multiple commits exist; single commit shown as monospaced text label
 - 393 tests pass across 45 suites, build succeeds
 
-## - [ ] Phase 9: Tests and validation
+## - [x] Phase 9: Tests and validation
 
 **Skills to read**: `/swift-testing`
 
@@ -274,3 +274,10 @@ Confirm:
 - Output lands in `<output>/1/metadata/` and `<output>/1/analysis/<commit>/`
 - A second run on the same commit reuses cache
 - A run after a PR update creates a new commit directory with cross-commit cache hits
+
+**Technical notes:**
+- Added 19 new tests: 15 in `PhaseBehaviorTests` and 4 in `AnalysisCacheServiceTests`
+- `PhaseBehaviorTests` new coverage: `phaseExists()` with empty/populated/isolated commit directories, `phaseStatus()` reading real `phase_result.json` files (success, failure, metadata), `allPhaseStatuses()` with commit-scoped isolation, `canRunPhase()` with commit-scoped predecessor checking, `PhaseResultWriter` round-trip and missing file handling, metadata phase ignoring commitHash
+- `AnalysisCacheServiceTests` new coverage: cross-commit cache miss on `ruleBlobHash` change, multi-commit cache scanning across multiple prior commits, mixed cache hit/miss partitioning across commits, nil `prOutputDir` disabling cross-commit lookup, `findPriorEvalsDirs` with multiple prior commits
+- Integration validation confirmed: sync writes to `metadata/` and `analysis/<commit>/diff/`, status command reads from commit-scoped paths
+- 412 tests pass across 45 suites, build succeeds

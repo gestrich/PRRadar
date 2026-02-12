@@ -1,9 +1,18 @@
 import Foundation
 import Testing
 @testable import PRRadarConfigService
+@testable import PRRadarCLIService
 
 @Suite("Phase Behavior")
 struct PhaseBehaviorTests {
+
+    // MARK: - Helpers
+
+    private func makeTempDir() throws -> String {
+        let path = NSTemporaryDirectory() + "phase-behavior-test-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+        return path
+    }
 
     // MARK: - PRRadarPhase
 
@@ -206,5 +215,289 @@ struct PhaseBehaviorTests {
             commitHash: "abc1234"
         )
         #expect(dir == "/output/42/analysis/abc1234/prepare/focus-areas")
+    }
+
+    // MARK: - phaseDirectory: metadata ignores commitHash
+
+    @Test("phaseDirectory for metadata ignores commitHash parameter")
+    func metadataIgnoresCommitHash() {
+        // Act
+        let withHash = DataPathsService.phaseDirectory(
+            outputDir: "/output", prNumber: "42", phase: .metadata, commitHash: "abc1234"
+        )
+        let withoutHash = DataPathsService.phaseDirectory(
+            outputDir: "/output", prNumber: "42", phase: .metadata
+        )
+
+        // Assert
+        #expect(withHash == withoutHash)
+        #expect(withHash == "/output/42/metadata")
+    }
+
+    // MARK: - phaseExists: filesystem tests
+
+    @Test("phaseExists returns false for nonexistent directory")
+    func phaseExistsNonexistent() {
+        // Act
+        let exists = DataPathsService.phaseExists(
+            outputDir: "/nonexistent", prNumber: "1", phase: .diff, commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(!exists)
+    }
+
+    @Test("phaseExists returns false for empty directory")
+    func phaseExistsEmptyDir() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        let diffDir = "\(outputDir)/1/analysis/abc1234/diff"
+        try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
+
+        // Act
+        let exists = DataPathsService.phaseExists(
+            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(!exists)
+    }
+
+    @Test("phaseExists returns true for directory with files")
+    func phaseExistsWithFiles() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        let diffDir = "\(outputDir)/1/analysis/abc1234/diff"
+        try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
+        try "content".write(toFile: "\(diffDir)/diff-raw.diff", atomically: true, encoding: .utf8)
+
+        // Act
+        let exists = DataPathsService.phaseExists(
+            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(exists)
+    }
+
+    @Test("phaseExists checks correct commit directory, not adjacent commits")
+    func phaseExistsIsolatesBetweenCommits() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        let commitADir = "\(outputDir)/1/analysis/abc1234/diff"
+        let commitBDir = "\(outputDir)/1/analysis/def5678/diff"
+        try FileManager.default.createDirectory(atPath: commitADir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: commitBDir, withIntermediateDirectories: true)
+        try "content".write(toFile: "\(commitADir)/diff-raw.diff", atomically: true, encoding: .utf8)
+
+        // Act
+        let existsA = DataPathsService.phaseExists(
+            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+        )
+        let existsB = DataPathsService.phaseExists(
+            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "def5678"
+        )
+
+        // Assert
+        #expect(existsA)
+        #expect(!existsB)
+    }
+
+    // MARK: - phaseStatus: filesystem tests
+
+    @Test("phaseStatus returns not started when no phase_result.json exists")
+    func phaseStatusNotStarted() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+
+        // Act
+        let status = DataPathsService.phaseStatus(
+            .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(!status.exists)
+        #expect(!status.isComplete)
+        #expect(status.summary == "not started")
+    }
+
+    @Test("phaseStatus returns complete when phase_result.json has success")
+    func phaseStatusComplete() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        try PhaseResultWriter.writeSuccess(
+            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            stats: PhaseStats(artifactsProduced: 3)
+        )
+
+        // Act
+        let status = DataPathsService.phaseStatus(
+            .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(status.exists)
+        #expect(status.isComplete)
+        #expect(status.completedCount == 3)
+        #expect(status.summary == "complete")
+    }
+
+    @Test("phaseStatus returns incomplete when phase_result.json has failure")
+    func phaseStatusFailed() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        try PhaseResultWriter.writeFailure(
+            phase: .analyze, outputDir: outputDir, prNumber: "1",
+            commitHash: "abc1234", error: "API timeout"
+        )
+
+        // Act
+        let status = DataPathsService.phaseStatus(
+            .analyze, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(status.exists)
+        #expect(!status.isComplete)
+        #expect(status.summary == "incomplete")
+    }
+
+    @Test("phaseStatus reads from metadata directory for metadata phase")
+    func phaseStatusMetadata() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        try PhaseResultWriter.writeSuccess(
+            phase: .metadata, outputDir: outputDir, prNumber: "1",
+            stats: PhaseStats(artifactsProduced: 4)
+        )
+
+        // Act
+        let status = DataPathsService.phaseStatus(
+            .metadata, outputDir: outputDir, prNumber: "1"
+        )
+
+        // Assert
+        #expect(status.exists)
+        #expect(status.isComplete)
+        #expect(status.completedCount == 4)
+    }
+
+    // MARK: - allPhaseStatuses: commit-scoped
+
+    @Test("allPhaseStatuses returns status for all phases with commit hash")
+    func allPhaseStatusesCommitScoped() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        try PhaseResultWriter.writeSuccess(
+            phase: .metadata, outputDir: outputDir, prNumber: "1",
+            stats: PhaseStats(artifactsProduced: 3)
+        )
+        try PhaseResultWriter.writeSuccess(
+            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            stats: PhaseStats(artifactsProduced: 5)
+        )
+        try PhaseResultWriter.writeSuccess(
+            phase: .prepare, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            stats: PhaseStats(artifactsProduced: 10)
+        )
+
+        // Act
+        let statuses = DataPathsService.allPhaseStatuses(
+            outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(statuses[.metadata]?.isComplete == true)
+        #expect(statuses[.diff]?.isComplete == true)
+        #expect(statuses[.prepare]?.isComplete == true)
+        #expect(statuses[.analyze]?.summary == "not started")
+        #expect(statuses[.report]?.summary == "not started")
+    }
+
+    @Test("allPhaseStatuses isolates between different commits")
+    func allPhaseStatusesDifferentCommits() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        try PhaseResultWriter.writeSuccess(
+            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            stats: PhaseStats(artifactsProduced: 5)
+        )
+
+        // Act
+        let statusesA = DataPathsService.allPhaseStatuses(
+            outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+        let statusesB = DataPathsService.allPhaseStatuses(
+            outputDir: outputDir, prNumber: "1", commitHash: "def5678"
+        )
+
+        // Assert
+        #expect(statusesA[.diff]?.isComplete == true)
+        #expect(statusesB[.diff]?.summary == "not started")
+    }
+
+    // MARK: - canRunPhase: commit-scoped
+
+    @Test("canRunPhase checks predecessor in commit-scoped directory")
+    func canRunPhaseCommitScoped() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        let diffDir = DataPathsService.phaseDirectory(
+            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+        )
+        try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
+        try "content".write(toFile: "\(diffDir)/diff-raw.diff", atomically: true, encoding: .utf8)
+
+        // Act
+        let canRunPrepare = DataPathsService.canRunPhase(
+            .prepare, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+        let canRunAnalyze = DataPathsService.canRunPhase(
+            .analyze, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(canRunPrepare)
+        #expect(!canRunAnalyze)
+    }
+
+    // MARK: - PhaseResultWriter round-trip
+
+    @Test("PhaseResultWriter write then read round-trips correctly")
+    func phaseResultWriterRoundTrip() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        let stats = PhaseStats(artifactsProduced: 7, durationMs: 1500, costUsd: 0.42)
+
+        // Act
+        try PhaseResultWriter.writeSuccess(
+            phase: .analyze, outputDir: outputDir, prNumber: "1",
+            commitHash: "abc1234", stats: stats
+        )
+        let result = PhaseResultWriter.read(
+            phase: .analyze, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        let readResult = try #require(result)
+        #expect(readResult.phase == "evaluate")
+        #expect(readResult.status == .success)
+        #expect(readResult.stats?.artifactsProduced == 7)
+        #expect(readResult.stats?.durationMs == 1500)
+        #expect(readResult.stats?.costUsd == 0.42)
+    }
+
+    @Test("PhaseResultWriter returns nil for nonexistent phase")
+    func phaseResultWriterReadMissing() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+
+        // Act
+        let result = PhaseResultWriter.read(
+            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+        )
+
+        // Assert
+        #expect(result == nil)
     }
 }
