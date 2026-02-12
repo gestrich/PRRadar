@@ -39,6 +39,8 @@ public struct ClaudeAgentTranscript: Codable, Sendable {
     public let model: String
     public let startedAt: String
     public let prompt: String?
+    public let filePath: String
+    public let ruleName: String
     public let events: [ClaudeAgentTranscriptEvent]
     public let costUsd: Double
     public let durationMs: Int
@@ -48,6 +50,8 @@ public struct ClaudeAgentTranscript: Codable, Sendable {
         model: String,
         startedAt: String,
         prompt: String? = nil,
+        filePath: String = "",
+        ruleName: String = "",
         events: [ClaudeAgentTranscriptEvent],
         costUsd: Double,
         durationMs: Int
@@ -56,6 +60,8 @@ public struct ClaudeAgentTranscript: Codable, Sendable {
         self.model = model
         self.startedAt = startedAt
         self.prompt = prompt
+        self.filePath = filePath
+        self.ruleName = ruleName
         self.events = events
         self.costUsd = costUsd
         self.durationMs = durationMs
@@ -66,6 +72,8 @@ public struct ClaudeAgentTranscript: Codable, Sendable {
         case model
         case startedAt = "started_at"
         case prompt
+        case filePath = "file_path"
+        case ruleName = "rule_name"
         case events
         case costUsd = "cost_usd"
         case durationMs = "duration_ms"

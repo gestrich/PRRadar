@@ -128,6 +128,8 @@ struct ClaudeAgentTranscriptTests {
             "identifier": "task-1",
             "model": "claude-sonnet-4-20250514",
             "started_at": "2025-06-01T10:00:00Z",
+            "file_path": "Sources/App.swift",
+            "rule_name": "guard-for-early-return",
             "events": [
                 {
                     "type": "text",
@@ -156,6 +158,8 @@ struct ClaudeAgentTranscriptTests {
         #expect(transcript.identifier == "task-1")
         #expect(transcript.model == "claude-sonnet-4-20250514")
         #expect(transcript.startedAt == "2025-06-01T10:00:00Z")
+        #expect(transcript.filePath == "Sources/App.swift")
+        #expect(transcript.ruleName == "guard-for-early-return")
         #expect(transcript.events.count == 3)
         #expect(transcript.events[0].type == .text)
         #expect(transcript.events[1].type == .toolUse)
@@ -170,6 +174,8 @@ struct ClaudeAgentTranscriptTests {
             identifier: "hunk-0",
             model: "claude-haiku-4-5-20251001",
             startedAt: "2025-06-01T00:00:00Z",
+            filePath: "Sources/Model.swift",
+            ruleName: "naming-convention",
             events: [],
             costUsd: 0.001,
             durationMs: 500
@@ -183,9 +189,13 @@ struct ClaudeAgentTranscriptTests {
         #expect(jsonString.contains("\"started_at\""))
         #expect(jsonString.contains("\"cost_usd\""))
         #expect(jsonString.contains("\"duration_ms\""))
+        #expect(jsonString.contains("\"file_path\""))
+        #expect(jsonString.contains("\"rule_name\""))
         #expect(!jsonString.contains("\"startedAt\""))
         #expect(!jsonString.contains("\"costUsd\""))
         #expect(!jsonString.contains("\"durationMs\""))
+        #expect(!jsonString.contains("\"filePath\""))
+        #expect(!jsonString.contains("\"ruleName\""))
     }
 
     @Test("ClaudeAgentTranscript round-trips through encode/decode")
@@ -200,6 +210,8 @@ struct ClaudeAgentTranscriptTests {
             identifier: "hunk-3",
             model: "claude-haiku-4-5-20251001",
             startedAt: "2025-06-01T10:00:00Z",
+            filePath: "Tests/MyTest.swift",
+            ruleName: "test-coverage",
             events: events,
             costUsd: 0.002,
             durationMs: 1500
@@ -216,6 +228,8 @@ struct ClaudeAgentTranscriptTests {
         #expect(decoded.identifier == original.identifier)
         #expect(decoded.model == original.model)
         #expect(decoded.startedAt == original.startedAt)
+        #expect(decoded.filePath == original.filePath)
+        #expect(decoded.ruleName == original.ruleName)
         #expect(decoded.events.count == original.events.count)
         #expect(decoded.costUsd == original.costUsd)
         #expect(decoded.durationMs == original.durationMs)
@@ -228,6 +242,8 @@ struct ClaudeAgentTranscriptTests {
             "identifier": "empty-test",
             "model": "claude-sonnet-4-20250514",
             "started_at": "2025-01-01T00:00:00Z",
+            "file_path": "",
+            "rule_name": "",
             "events": [],
             "cost_usd": 0.0,
             "duration_ms": 0
@@ -251,6 +267,8 @@ struct ClaudeAgentTranscriptTests {
             "identifier": "old-task",
             "model": "claude-sonnet-4-20250514",
             "started_at": "2025-06-01T10:00:00Z",
+            "file_path": "",
+            "rule_name": "",
             "events": [],
             "cost_usd": 0.001,
             "duration_ms": 500
@@ -271,6 +289,8 @@ struct ClaudeAgentTranscriptTests {
             model: "claude-sonnet-4-20250514",
             startedAt: "2025-06-01T10:00:00Z",
             prompt: "You are a code reviewer evaluating rule X.",
+            filePath: "Sources/Review.swift",
+            ruleName: "rule-x",
             events: [
                 ClaudeAgentTranscriptEvent(type: .text, content: "Analyzing...", timestamp: Date(timeIntervalSince1970: 1717200001)),
             ],
@@ -287,6 +307,8 @@ struct ClaudeAgentTranscriptTests {
         let decoded = try decoder.decode(ClaudeAgentTranscript.self, from: data)
 
         #expect(decoded.prompt == "You are a code reviewer evaluating rule X.")
+        #expect(decoded.filePath == "Sources/Review.swift")
+        #expect(decoded.ruleName == "rule-x")
         #expect(decoded.identifier == original.identifier)
         #expect(decoded.events.count == 1)
     }
@@ -299,6 +321,8 @@ struct ClaudeAgentTranscriptTests {
             "model": "claude-sonnet-4-20250514",
             "started_at": "2025-06-01T10:00:00Z",
             "prompt": "Evaluate this code for violations.",
+            "file_path": "Sources/Auth.swift",
+            "rule_name": "auth-validation",
             "events": [],
             "cost_usd": 0.002,
             "duration_ms": 1000
