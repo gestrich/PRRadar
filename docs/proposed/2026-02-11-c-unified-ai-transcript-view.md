@@ -109,7 +109,7 @@ Remove [AIOutputStreamView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/PhaseVie
 
 **Completed notes**: Deleted `AIOutputStreamView.swift`. No remaining code references — only documentation files mention it. Build succeeds.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -120,3 +120,5 @@ Remove [AIOutputStreamView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/PhaseVie
    - Detail view shows prompt disclosure + streaming text
    - "AI is running..." banner visible during streaming
    - After completion, view switches to saved transcripts with full metadata (model, cost, duration)
+
+**Completed notes**: Build succeeds with no errors. All 371 tests pass across 45 suites. Code verification confirms: `AIOutputStreamView` fully deleted with no remaining references, `AITranscriptView` used in all three display branches (streaming live, saved, stale live), `liveTranscripts` computed property properly wired in `ReviewDetailView`, and old `aiOutputText`/`aiCurrentPrompt` properties completely removed. Manual GUI testing (step 3) deferred to Bill.
