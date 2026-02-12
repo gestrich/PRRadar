@@ -66,7 +66,10 @@ final class AllPRsModel {
     init(config: PRRadarConfig, repoConfig: RepoConfiguration) {
         self.config = config
         self.repoConfig = repoConfig
-        Task { await load() }
+        Task {
+            await load()
+            await refresh()
+        }
     }
 
     // MARK: - PR Discovery

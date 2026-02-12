@@ -176,7 +176,7 @@ struct ReviewDetailView: View {
     }
 
     private var hasAIOutput: Bool {
-        prModel.isAIPhaseRunning || !prModel.savedTranscripts.isEmpty || !prModel.liveTranscripts.isEmpty
+        !prModel.savedTranscripts.isEmpty || !prModel.liveTranscripts.isEmpty
     }
 
     @ViewBuilder
@@ -189,8 +189,6 @@ struct ReviewDetailView: View {
             AITranscriptView(transcriptsByPhase: prModel.savedTranscripts)
         } else if !prModel.liveTranscripts.isEmpty {
             AITranscriptView(transcriptsByPhase: prModel.liveTranscripts)
-        } else if prModel.isAIPhaseRunning {
-            ProgressView("Waiting for AI output...")
         } else {
             ContentUnavailableView(
                 "No AI Output",
