@@ -34,9 +34,14 @@ public struct TaskCreatorService: Sendable {
 
                 let filePath = focusArea.filePath
                 if blobHashCache[filePath] == nil {
-                    blobHashCache[filePath] = try await gitOps.getBlobHash(
-                        commit: commit, filePath: filePath, repoPath: repoPath
-                    )
+                    do {
+                        blobHashCache[filePath] = try await gitOps.getBlobHash(
+                            commit: commit, filePath: filePath, repoPath: repoPath
+                        )
+                    } catch {
+                        // File may have been deleted or renamed — use commit:path as fallback
+                        blobHashCache[filePath] = "\(commit):\(filePath)"
+                    }
                 }
                 let blobHash = blobHashCache[filePath]!
 

@@ -273,6 +273,92 @@ struct RuleBehaviorTests {
         #expect(rule.grep?.any == ["test"])
     }
 
+    // MARK: - Grep patterns with escaped quotes (localization rules)
+
+    @Test("parseFrontmatter parses grep pattern with escaped quotes from localization-swift-package rule")
+    func parseFrontmatterLocalizationSwiftPackageGrep() {
+        // Arrange — raw string preserves literal backslashes as they appear in the YAML file
+        let text = #"""
+        ---
+        description: Ensures newly added user-facing strings in Swift packages are properly localized using String Catalogs.
+        category: api-usage
+        applies_to:
+          file_patterns: ["*.swift"]
+          exclude_patterns: ["ffm/**"]
+        grep:
+          any:
+            - "\"[^\"]+\""
+        ---
+        # Localization (Swift Packages)
+        """#
+
+        // Act
+        let (fm, _) = ReviewRule.parseFrontmatter(text)
+        let grep = fm["grep"] as? [String: Any]
+        let patterns = grep?["any"] as? [String]
+
+        // Assert
+        #expect(patterns?.count == 1)
+        #expect(patterns?[0] == "\"[^\"]+\"")
+    }
+
+    @Test("parseFrontmatter parses grep patterns with escaped quotes from localization-ffm-target rule")
+    func parseFrontmatterLocalizationFfmTargetGrep() {
+        // Arrange
+        let text = #"""
+        ---
+        description: Ensures newly added user-facing strings in the FFM target are properly localized.
+        category: api-usage
+        applies_to:
+          file_patterns: ["ffm/**/*.swift", "ffm/**/*.m", "ffm/**/*.mm"]
+        grep:
+          any:
+            - "\"[^\"]+\""
+            - "@\"[^\"]+\""
+        ---
+        # Localization (FFM Target)
+        """#
+
+        // Act
+        let (fm, _) = ReviewRule.parseFrontmatter(text)
+        let grep = fm["grep"] as? [String: Any]
+        let patterns = grep?["any"] as? [String]
+
+        // Assert
+        #expect(patterns?.count == 2)
+        #expect(patterns?[0] == "\"[^\"]+\"")
+        #expect(patterns?[1] == "@\"[^\"]+\"")
+    }
+
+    @Test("grep pattern from localization rule matches quoted strings in diff content")
+    func localizationGrepPatternMatchesDiffContent() {
+        // Arrange
+        let text = #"""
+        ---
+        description: Localization rule
+        category: api-usage
+        grep:
+          any:
+            - "\"[^\"]+\""
+        ---
+        Content
+        """#
+        let (fm, _) = ReviewRule.parseFrontmatter(text)
+        let grepDict = fm["grep"] as? [String: Any]
+        let anyPatterns = grepDict?["any"] as? [String]
+        let grep = GrepPatterns(any: anyPatterns)
+        let diffContent = #"""
+                    Text("Exit")
+                        .font(.system(size: 14, weight: .medium))
+        """#
+
+        // Act
+        let matches = grep.matches(diffContent)
+
+        // Assert
+        #expect(matches)
+    }
+
     // MARK: - fnmatch
 
     @Test("fnmatch matches simple wildcard patterns")

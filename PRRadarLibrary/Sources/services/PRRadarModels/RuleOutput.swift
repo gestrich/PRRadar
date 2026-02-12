@@ -330,6 +330,17 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         return result
     }
     
+    /// Strip exactly one matching quote pair (`"..."` or `'...'`), unlike
+    /// `trimmingCharacters` which greedily removes all leading/trailing quotes.
+    private static func stripQuotePair(_ str: String) -> String {
+        if str.count >= 2,
+           (str.hasPrefix("\"") && str.hasSuffix("\"")) ||
+           (str.hasPrefix("'") && str.hasSuffix("'")) {
+            return String(str.dropFirst().dropLast())
+        }
+        return str
+    }
+
     /// Minimal YAML parser supporting the subset used in rule frontmatter:
     /// top-level keys with string values, arrays, and one level of nesting.
     static func parseSimpleYAML(_ text: String) -> [String: Any] {
@@ -375,19 +386,19 @@ public struct ReviewRule: Codable, Sendable, Equatable {
                 } else if afterColon.hasPrefix("[") && afterColon.hasSuffix("]") {
                     let inner = String(afterColon.dropFirst().dropLast())
                     let items = inner.components(separatedBy: ",").map { item in
-                        let trimmed = item.trimmingCharacters(in: .whitespaces)
-                            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                        let trimmed = Self.stripQuotePair(item.trimmingCharacters(in: .whitespaces))
                         return unescapeYAMLString(trimmed)
                     }.filter { !$0.isEmpty }
                     result[key] = items
                 } else {
-                    let trimmed = afterColon.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    let trimmed = Self.stripQuotePair(afterColon)
                     result[key] = unescapeYAMLString(trimmed)
                 }
             } else if indentLevel > 0 && trimmed.hasPrefix("- ") {
                 // List item
-                let trimmedValue = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                let trimmedValue = Self.stripQuotePair(
+                    String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                )
                 let value = unescapeYAMLString(trimmedValue)
 
                 if let nlk = nestedListKey, currentDict != nil {
@@ -418,8 +429,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
                     if afterColon.hasPrefix("[") && afterColon.hasSuffix("]") {
                         let inner = String(afterColon.dropFirst().dropLast())
                         let items = inner.components(separatedBy: ",").map { item in
-                            let trimmed = item.trimmingCharacters(in: .whitespaces)
-                                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                            let trimmed = Self.stripQuotePair(item.trimmingCharacters(in: .whitespaces))
                             return unescapeYAMLString(trimmed)
                         }.filter { !$0.isEmpty }
                         currentDict?[key] = items
@@ -428,7 +438,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
                         currentDict?[key] = [] as [String]
                         nestedListKey = key
                     } else {
-                        let trimmed = afterColon.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                        let trimmed = Self.stripQuotePair(afterColon)
                         currentDict?[key] = unescapeYAMLString(trimmed)
                     }
                 }

@@ -39,11 +39,8 @@ struct PipelineStatusView: View {
     @State private var showingErrorPhase: NavigationPhase?
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(NavigationPhase.allCases.enumerated()), id: \.element) { index, navPhase in
-                if index > 0 {
-                    arrow
-                }
+        HStack(spacing: 2) {
+            ForEach(NavigationPhase.allCases) { navPhase in
                 phaseNode(navPhase)
             }
         }
@@ -55,26 +52,34 @@ struct PipelineStatusView: View {
     @ViewBuilder
     private func phaseNode(_ navPhase: NavigationPhase) -> some View {
         let state = combinedState(navPhase)
+        let isSelected = selectedNavPhase == navPhase
         Button {
             selectedNavPhase = navPhase
             if case .failed = state {
                 showingErrorPhase = navPhase
             }
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 statusIndicator(for: state)
                 Text(navPhase.displayName)
-                    .font(.caption)
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
                     .lineLimit(1)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
             .background(
-                selectedNavPhase == navPhase
-                    ? Color.accentColor.opacity(0.15)
-                    : Color.clear
+                isSelected
+                    ? Color.accentColor.opacity(0.12)
+                    : Color.primary.opacity(0.04)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(
+                        isSelected ? Color.accentColor.opacity(0.3) : Color.clear,
+                        lineWidth: 1
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .accessibilityIdentifier("phaseButton_\(navPhase.displayName.lowercased())")
         .buttonStyle(.plain)
@@ -92,36 +97,28 @@ struct PipelineStatusView: View {
     }
 
     @ViewBuilder
-    private var arrow: some View {
-        Image(systemName: "chevron.right")
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 2)
-    }
-
-    @ViewBuilder
     private func statusIndicator(for state: PRModel.PhaseState) -> some View {
         switch state {
         case .idle:
             Circle()
                 .fill(.gray.opacity(0.4))
-                .frame(width: 8, height: 8)
+                .frame(width: 9, height: 9)
         case .running:
             ProgressView()
                 .controlSize(.mini)
-                .frame(width: 8, height: 8)
+                .frame(width: 9, height: 9)
         case .refreshing:
             Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.blue)
                 .symbolEffect(.rotate)
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.green)
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.red)
         }
     }

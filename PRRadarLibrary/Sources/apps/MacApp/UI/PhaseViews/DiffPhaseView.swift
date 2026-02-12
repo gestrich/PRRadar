@@ -6,11 +6,9 @@ struct DiffPhaseView: View {
     let fullDiff: GitDiff
     var prModel: PRModel
 
-    @State private var selectedTab = 0
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
 
-    private var effectiveDiff: GitDiff? { prModel.effectiveDiff }
     private var reviewComments: [ReviewComment] { prModel.reconciledComments }
     private var evaluationSummary: AnalysisSummary? { prModel.analysis?.summary }
     private var tasks: [AnalysisTaskOutput] { prModel.preparation?.tasks ?? [] }
@@ -30,26 +28,14 @@ struct DiffPhaseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
-                Text("Full Diff").tag(0)
-                if effectiveDiff != nil {
-                    Text("Effective Diff").tag(1)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            let activeDiff = selectedTab == 0 ? fullDiff : (effectiveDiff ?? fullDiff)
-
-            PhaseSummaryBar(items: summaryItems(for: activeDiff))
+            PhaseSummaryBar(items: summaryItems(for: fullDiff))
                 .padding(8)
 
             HSplitView {
-                fileList(for: activeDiff)
+                fileList(for: fullDiff)
                     .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
 
-                diffContent(for: activeDiff)
+                diffContent(for: fullDiff)
             }
         }
         .onAppear {
@@ -63,6 +49,7 @@ struct DiffPhaseView: View {
 
     private func summaryItems(for diff: GitDiff) -> [PhaseSummaryBar.Item] {
         var items: [PhaseSummaryBar.Item] = [
+            .init(label: "Commit:", value: String(diff.commitHash.prefix(7))),
             .init(label: "Files:", value: "\(diff.changedFiles.count)"),
             .init(label: "Hunks:", value: "\(diff.hunks.count)"),
         ]
@@ -207,13 +194,22 @@ struct DiffPhaseView: View {
         }()
 
         VStack(spacing: 0) {
-            if let file = selectedFile, let taskCount = taskCountsByFile[file], taskCount > 0 {
+            if let file = selectedFile {
+                let indexHash = fileIndexHash(for: file, in: diff)
                 HStack {
-                    Button {
-                        showTasksForFile = file
-                    } label: {
-                        Label("\(taskCount) \(taskCount == 1 ? "Task" : "Tasks")", systemImage: "list.clipboard")
-                            .font(.callout)
+                    if let indexHash {
+                        Text(indexHash)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    if let taskCount = taskCountsByFile[file], taskCount > 0 {
+                        Button {
+                            showTasksForFile = file
+                        } label: {
+                            Label("\(taskCount) \(taskCount == 1 ? "Task" : "Tasks")", systemImage: "list.clipboard")
+                                .font(.callout)
+                        }
                     }
                     Spacer()
                     if canRunSelectiveEvaluation {
@@ -395,6 +391,15 @@ struct DiffPhaseView: View {
     }
 
     // MARK: - Analysis Helpers
+
+    private func fileIndexHash(for file: String, in diff: GitDiff) -> String? {
+        let hunks = diff.getHunks(byFilePath: file)
+        guard let firstHunk = hunks.first,
+              let indexLine = firstHunk.rawHeader.first(where: { $0.hasPrefix("index ") })
+        else { return nil }
+        let trimmed = String(indexLine.dropFirst("index ".count))
+        return String(trimmed.split(separator: " ").first ?? Substring(trimmed))
+    }
 
     private func commentMapping(for diff: GitDiff) -> DiffCommentMapping {
         DiffCommentMapper.map(
