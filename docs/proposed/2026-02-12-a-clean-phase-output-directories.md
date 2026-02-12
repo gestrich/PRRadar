@@ -149,7 +149,7 @@ Update `AnalysisTaskOutput` and `TaskCreatorService`:
 - `PrepareUseCase` passes `rulesDir` through to `TaskCreatorService.createAndWriteTasks()`
 - 384 tests pass, including 3 new tests for `ruleBlobHash` decode, backward compatibility, and factory method
 
-## - [ ] Phase 4: Update prepare/analyze/report use cases
+## - [x] Phase 4: Update prepare/analyze/report use cases
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -161,6 +161,19 @@ Thread `commitHash` through all commit-scoped use cases:
 - `PostCommentsUseCase` — reads report from commit dir, reads PR metadata from `metadata/`
 
 Each use case currently gets `outputDir` + `prNumber` and calls `DataPathsService.phaseDirectory()`. Add `commitHash` parameter.
+
+**Technical notes:**
+- `SyncPRUseCase.resolveCommitHash()` promoted from `private` to `public` so all use cases can resolve the commit hash when not explicitly provided
+- Every use case's `execute()` and `parseOutput()` methods gain an optional `commitHash: String? = nil` parameter; if nil, they resolve it via `SyncPRUseCase.resolveCommitHash()`
+- `AnalysisService.runBatchAnalysis()` parameter changed from `outputDir` + `transcriptDir` to a single `evalsDir` — callers now pass the commit-scoped evaluate directory directly
+- `TaskCreatorService.createAndWriteTasks()` `outputDir` parameter now receives the prepare phase directory instead of the PR output directory; tasks subdirectory construction simplified accordingly
+- `ReportGeneratorService.generateReport()` changed from single `outputDir` parameter to explicit `evalsDir`, `tasksDir`, `focusAreasDir` — callers construct these paths via `DataPathsService`
+- `ReportGeneratorService.saveReport()` parameter renamed from `outputDir` to `reportDir` — callers pass the commit-scoped report directory
+- `FetchReviewCommentsUseCase.execute()` gains `commitHash` parameter, uses `DataPathsService` for evaluate/tasks paths (already reads comments from `.metadata`)
+- `PostCommentsUseCase.execute()` gains `commitHash` parameter, forwarded to `FetchReviewCommentsUseCase`
+- `LoadExistingOutputsUseCase` unchanged — all `parseOutput()` calls already work with default `nil` commitHash (auto-resolved internally)
+- All existing callers compile without changes due to default parameter values
+- 384 tests pass, build succeeds
 
 ## - [ ] Phase 5: Cross-commit caching
 

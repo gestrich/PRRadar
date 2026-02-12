@@ -21,7 +21,7 @@ public struct GenerateReportUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, minScore: String? = nil) -> AsyncThrowingStream<PhaseProgress<ReportPhaseOutput>, Error> {
+    public func execute(prNumber: String, minScore: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<ReportPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .report))
 
@@ -33,25 +33,43 @@ public struct GenerateReportUseCase: Sendable {
                         return
                     }
 
-                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     let scoreThreshold = Int(minScore ?? "5") ?? 5
 
                     continuation.yield(.log(text: "Generating report (min score: \(scoreThreshold))...\n"))
+
+                    let evalsDir = DataPathsService.phaseDirectory(
+                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
+                    )
+                    let tasksDir = DataPathsService.phaseSubdirectory(
+                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .prepare,
+                        subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
+                    )
+                    let focusAreasDir = DataPathsService.phaseSubdirectory(
+                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .prepare,
+                        subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: resolvedCommit
+                    )
 
                     let reportService = ReportGeneratorService()
                     let report = try reportService.generateReport(
                         prNumber: prNum,
                         minScore: scoreThreshold,
-                        outputDir: prOutputDir
+                        evalsDir: evalsDir,
+                        tasksDir: tasksDir,
+                        focusAreasDir: focusAreasDir
                     )
 
-                    let (_, _) = try reportService.saveReport(report: report, outputDir: prOutputDir)
+                    let reportDir = DataPathsService.phaseDirectory(
+                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .report, commitHash: resolvedCommit
+                    )
+                    let (_, _) = try reportService.saveReport(report: report, reportDir: reportDir)
 
                     // Write phase_result.json
                     try PhaseResultWriter.writeSuccess(
                         phase: .report,
                         outputDir: config.absoluteOutputDir,
                         prNumber: prNumber,
+                        commitHash: resolvedCommit,
                         stats: PhaseStats(
                             artifactsProduced: report.violations.count
                         )
@@ -71,13 +89,15 @@ public struct GenerateReportUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> ReportPhaseOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) throws -> ReportPhaseOutput {
+        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+
         let report: ReviewReport = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .report, filename: "summary.json"
+            config: config, prNumber: prNumber, phase: .report, filename: "summary.json", commitHash: resolvedCommit
         )
 
         let markdown = try PhaseOutputParser.readPhaseTextFile(
-            config: config, prNumber: prNumber, phase: .report, filename: "summary.md"
+            config: config, prNumber: prNumber, phase: .report, filename: "summary.md", commitHash: resolvedCommit
         )
 
         return ReportPhaseOutput(report: report, markdownContent: markdown)

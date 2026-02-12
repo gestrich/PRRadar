@@ -11,11 +11,16 @@ public struct FetchReviewCommentsUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, minScore: Int = 5) -> [ReviewComment] {
-        let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+    public func execute(prNumber: String, minScore: Int = 5, commitHash: String? = nil) -> [ReviewComment] {
+        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
-        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
-        let tasksDir = "\(prOutputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareTasksSubdir)"
+        let evalsDir = DataPathsService.phaseDirectory(
+            outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
+        )
+        let tasksDir = DataPathsService.phaseSubdirectory(
+            outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .prepare,
+            subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
+        )
         let pending = ViolationService.loadViolations(
             evaluationsDir: evalsDir,
             tasksDir: tasksDir,

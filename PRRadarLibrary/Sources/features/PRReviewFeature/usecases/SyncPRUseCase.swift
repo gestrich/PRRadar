@@ -83,7 +83,7 @@ public struct SyncPRUseCase: Sendable {
     }
 
     /// Resolve the commit hash from metadata/gh-pr.json, or scan analysis/ for the latest commit directory.
-    private static func resolveCommitHash(config: PRRadarConfig, prNumber: String) -> String? {
+    public static func resolveCommitHash(config: PRRadarConfig, prNumber: String) -> String? {
         // Try reading headRefOid from metadata/gh-pr.json
         let metadataDir = DataPathsService.phaseDirectory(
             outputDir: config.absoluteOutputDir,

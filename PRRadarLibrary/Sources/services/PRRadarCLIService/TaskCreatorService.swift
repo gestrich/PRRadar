@@ -67,7 +67,7 @@ public struct TaskCreatorService: Sendable {
     /// - Parameters:
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate
-    ///   - outputDir: PR-specific output directory (e.g., `<base>/<pr_number>`)
+    ///   - outputDir: The prepare phase directory (e.g., `<base>/<pr_number>/analysis/<commit>/prepare/`)
     ///   - repoPath: Path to the git repository (for blob hash lookups)
     ///   - commit: The commit hash for source file blob lookups
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
@@ -82,7 +82,7 @@ public struct TaskCreatorService: Sendable {
     ) async throws -> [AnalysisTaskOutput] {
         let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath, commit: commit, rulesDir: rulesDir)
 
-        let tasksDir = "\(outputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareTasksSubdir)"
+        let tasksDir = "\(outputDir)/\(DataPathsService.prepareTasksSubdir)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)
 
         // Remove stale task files from previous runs before writing new ones

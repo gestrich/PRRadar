@@ -30,7 +30,8 @@ public struct PostCommentsUseCase: Sendable {
     public func execute(
         prNumber: String,
         minScore: String? = nil,
-        dryRun: Bool = true
+        dryRun: Bool = true,
+        commitHash: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<CommentPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
@@ -46,7 +47,7 @@ public struct PostCommentsUseCase: Sendable {
                     let scoreThreshold = Int(minScore ?? "5") ?? 5
 
                     let fetchUseCase = FetchReviewCommentsUseCase(config: config)
-                    let allComments = fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold)
+                    let allComments = fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold, commitHash: commitHash)
 
                     let newComments = allComments.filter { $0.state == .new }
                     let skippedCount = allComments.filter { $0.state == .redetected }.count

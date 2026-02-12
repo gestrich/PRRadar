@@ -6,15 +6,20 @@ public struct ReportGeneratorService: Sendable {
     public init() {}
 
     /// Generate a complete review report from evaluation results.
+    ///
+    /// - Parameters:
+    ///   - prNumber: PR number
+    ///   - minScore: Minimum violation score to include
+    ///   - evalsDir: Directory containing evaluation result files
+    ///   - tasksDir: Directory containing task files
+    ///   - focusAreasDir: Directory containing focus area files
     public func generateReport(
         prNumber: Int,
         minScore: Int,
-        outputDir: String
+        evalsDir: String,
+        tasksDir: String,
+        focusAreasDir: String
     ) throws -> ReviewReport {
-        let evalsDir = "\(outputDir)/\(PRRadarPhase.analyze.rawValue)"
-        let tasksDir = "\(outputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareTasksSubdir)"
-        let focusAreasDir = "\(outputDir)/\(PRRadarPhase.prepare.rawValue)/\(DataPathsService.prepareFocusAreasSubdir)"
-
         let (violations, totalTasks, totalCost, modelsUsed) = loadViolations(
             evaluationsDir: evalsDir,
             tasksDir: tasksDir,
@@ -44,8 +49,7 @@ public struct ReportGeneratorService: Sendable {
     }
 
     /// Save report to JSON and markdown files.
-    public func saveReport(report: ReviewReport, outputDir: String) throws -> (jsonPath: String, mdPath: String) {
-        let reportDir = "\(outputDir)/\(PRRadarPhase.report.rawValue)"
+    public func saveReport(report: ReviewReport, reportDir: String) throws -> (jsonPath: String, mdPath: String) {
         try FileManager.default.createDirectory(atPath: reportDir, withIntermediateDirectories: true)
 
         let encoder = JSONEncoder()

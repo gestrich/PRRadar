@@ -34,25 +34,31 @@ public struct AnalyzeUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, repoPath: String? = nil) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
+    public func execute(prNumber: String, repoPath: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
             Task {
                 do {
-                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     let effectiveRepoPath = repoPath ?? config.repoPath
 
                     // Load tasks from prepare phase
                     let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
-                        config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
+                        config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
+                    )
+
+                    let evalsDir = DataPathsService.phaseDirectory(
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        phase: .analyze,
+                        commitHash: resolvedCommit
                     )
 
                     // Handle case where no tasks were generated (legitimate scenario)
                     if tasks.isEmpty {
                         continuation.yield(.log(text: "No tasks to evaluate (phase completed successfully with 0 tasks)\n"))
 
-                        let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
                         try DataPathsService.ensureDirectoryExists(at: evalsDir)
 
                         let encoder = JSONEncoder()
@@ -76,6 +82,7 @@ public struct AnalyzeUseCase: Sendable {
                             phase: .analyze,
                             outputDir: config.absoluteOutputDir,
                             prNumber: prNumber,
+                            commitHash: resolvedCommit,
                             stats: PhaseStats(artifactsProduced: 0)
                         )
 
@@ -84,8 +91,6 @@ public struct AnalyzeUseCase: Sendable {
                         continuation.finish()
                         return
                     }
-
-                    let evalsDir = "\(prOutputDir)/\(PRRadarPhase.analyze.rawValue)"
 
                     // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
                     let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
@@ -114,9 +119,8 @@ public struct AnalyzeUseCase: Sendable {
                         let startTime = Date()
                         freshResults = try await analysisService.runBatchAnalysis(
                             tasks: tasksToEvaluate,
-                            outputDir: prOutputDir,
+                            evalsDir: evalsDir,
                             repoPath: effectiveRepoPath,
-                            transcriptDir: evalsDir,
                             onStart: { index, total, task in
                                 let globalIndex = cachedCount + index
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] Evaluating \(task.rule.name)...\n"))
@@ -170,6 +174,7 @@ public struct AnalyzeUseCase: Sendable {
                         phase: .analyze,
                         outputDir: config.absoluteOutputDir,
                         prNumber: prNumber,
+                        commitHash: resolvedCommit,
                         stats: PhaseStats(
                             artifactsProduced: allResults.count,
                             durationMs: durationMs,
@@ -190,25 +195,27 @@ public struct AnalyzeUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> AnalysisOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) throws -> AnalysisOutput {
+        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+
         let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .analyze, filename: "summary.json"
+            config: config, prNumber: prNumber, phase: .analyze, filename: "summary.json", commitHash: resolvedCommit
         )
 
         let evalFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .analyze
+            config: config, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var evaluations: [RuleEvaluationResult] = []
         for file in evalFiles {
             let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .analyze, filename: file
+                config: config, prNumber: prNumber, phase: .analyze, filename: file, commitHash: resolvedCommit
             )
             evaluations.append(evaluation)
         }
 
         let tasks: [AnalysisTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
-            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
         )) ?? []
 
         return AnalysisOutput(evaluations: evaluations, tasks: tasks, summary: summary)

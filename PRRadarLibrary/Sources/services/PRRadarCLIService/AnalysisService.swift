@@ -204,19 +204,17 @@ public struct AnalysisService: Sendable {
         )
     }
 
-    /// Run analysis for all tasks, writing results to the analysis directory.
+    /// Run analysis for all tasks, writing results to the evaluations directory.
     public func runBatchAnalysis(
         tasks: [AnalysisTaskOutput],
-        outputDir: String,
+        evalsDir: String,
         repoPath: String,
-        transcriptDir: String? = nil,
         onStart: ((Int, Int, AnalysisTaskOutput) -> Void)? = nil,
         onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
         onPrompt: ((String) -> Void)? = nil,
         onAIText: ((String) -> Void)? = nil,
         onAIToolUse: ((String) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {
-        let evalsDir = "\(outputDir)/\(PRRadarPhase.analyze.rawValue)"
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
 
         var results: [RuleEvaluationResult] = []
@@ -229,7 +227,7 @@ public struct AnalysisService: Sendable {
             let result = try await analyzeTask(
                 task,
                 repoPath: repoPath,
-                transcriptDir: transcriptDir ?? evalsDir,
+                transcriptDir: evalsDir,
                 onPrompt: onPrompt,
                 onAIText: onAIText,
                 onAIToolUse: onAIToolUse

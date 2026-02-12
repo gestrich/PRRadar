@@ -24,7 +24,7 @@ public struct PrepareUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, rulesDir: String?) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
+    public func execute(prNumber: String, rulesDir: String?, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .prepare))
 
@@ -36,13 +36,12 @@ public struct PrepareUseCase: Sendable {
                         return
                     }
 
-                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
-                    let prepareDir = "\(prOutputDir)/\(PRRadarPhase.prepare.rawValue)"
+                    let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
                     // Generate focus areas
                     continuation.yield(.log(text: "Generating focus areas...\n"))
 
-                    let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
+                    let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
                     guard let fullDiff = diffSnapshot.effectiveDiff ?? diffSnapshot.fullDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
@@ -52,7 +51,13 @@ public struct PrepareUseCase: Sendable {
                     let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient())
                     let focusGenerator = FocusGeneratorService(agentClient: agentClient)
 
-                    let focusDir = "\(prepareDir)/\(DataPathsService.prepareFocusAreasSubdir)"
+                    let focusDir = DataPathsService.phaseSubdirectory(
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        phase: .prepare,
+                        subdirectory: DataPathsService.prepareFocusAreasSubdir,
+                        commitHash: resolvedCommit
+                    )
 
                     let focusResults = try await focusGenerator.generateAllFocusAreas(
                         hunks: fullDiff.hunks,
@@ -102,7 +107,13 @@ public struct PrepareUseCase: Sendable {
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath)
 
-                    let rulesOutputDir = "\(prepareDir)/\(DataPathsService.prepareRulesSubdir)"
+                    let rulesOutputDir = DataPathsService.phaseSubdirectory(
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        phase: .prepare,
+                        subdirectory: DataPathsService.prepareRulesSubdir,
+                        commitHash: resolvedCommit
+                    )
                     try FileManager.default.createDirectory(atPath: rulesOutputDir, withIntermediateDirectories: true)
                     let rulesData = try encoder.encode(allRules)
                     try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/all-rules.json"))
@@ -114,10 +125,16 @@ public struct PrepareUseCase: Sendable {
                     try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNum)/head", repoPath: self.config.repoPath)
 
                     let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps)
+                    let prepareDir = DataPathsService.phaseDirectory(
+                        outputDir: config.absoluteOutputDir,
+                        prNumber: prNumber,
+                        phase: .prepare,
+                        commitHash: resolvedCommit
+                    )
                     let tasks = try await taskCreator.createAndWriteTasks(
                         rules: allRules,
                         focusAreas: allFocusAreas,
-                        outputDir: prOutputDir,
+                        outputDir: prepareDir,
                         repoPath: self.config.repoPath,
                         commit: fullDiff.commitHash,
                         rulesDir: rulesPath
@@ -128,6 +145,7 @@ public struct PrepareUseCase: Sendable {
                         phase: .prepare,
                         outputDir: config.absoluteOutputDir,
                         prNumber: prNumber,
+                        commitHash: resolvedCommit,
                         stats: PhaseStats(
                             artifactsProduced: allFocusAreas.count + allRules.count + tasks.count,
                             costUsd: totalCost
@@ -147,25 +165,27 @@ public struct PrepareUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String) throws -> PrepareOutput {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) throws -> PrepareOutput {
+        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+
         let focusFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: resolvedCommit
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var allFocusAreas: [FocusArea] = []
         for file in focusFiles {
             let typeOutput: FocusAreaTypeOutput = try PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir, filename: file
+                config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareFocusAreasSubdir, filename: file, commitHash: resolvedCommit
             )
             allFocusAreas.append(contentsOf: typeOutput.focusAreas)
         }
 
         let rules: [ReviewRule] = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: "all-rules.json"
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: "all-rules.json", commitHash: resolvedCommit
         )
 
         let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
-            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir
+            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
         )
 
         return PrepareOutput(focusAreas: allFocusAreas, rules: rules, tasks: tasks)
