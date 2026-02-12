@@ -131,7 +131,7 @@ Update `SyncPRUseCase` to pass commit hash through its output.
 - `FetchReviewCommentsUseCase` updated to read `gh-comments.json` from `.metadata` instead of `.diff`
 - 381 tests pass, build succeeds
 
-## - [ ] Phase 3: Add `ruleBlobHash` to task creation
+## - [x] Phase 3: Add `ruleBlobHash` to task creation
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -139,6 +139,15 @@ Update `AnalysisTaskOutput` and `TaskCreatorService`:
 - Add `ruleBlobHash` field to `AnalysisTaskOutput`
 - In `TaskCreatorService`, compute the rule file's blob hash via `GitOperationsService.getBlobHash(commit:filePath:)` when creating each task
 - For rules from external directories (not in the PR repo), compute SHA256 of the file content as fallback
+
+**Technical notes:**
+- `AnalysisTaskOutput.ruleBlobHash` is `String?` (optional) for backward compatibility — existing JSON without `rule_blob_hash` decodes as `nil`
+- `TaskCreatorService.createTasks()` and `createAndWriteTasks()` accept an optional `rulesDir` parameter for rule blob hash resolution
+- Rule blob hash resolution strategy: if the rules directory is a git repo, uses `git rev-parse HEAD:<relativePath>` to get the blob hash; otherwise falls back to SHA256 content hash via CryptoKit
+- `resolveRulesRepoInfo()` checks once per task creation batch whether the rules dir is a git repo and resolves its root path
+- Rule blob hashes are cached per rule file path (same as source file blob hashes) to avoid redundant git/hash calls
+- `PrepareUseCase` passes `rulesDir` through to `TaskCreatorService.createAndWriteTasks()`
+- 384 tests pass, including 3 new tests for `ruleBlobHash` decode, backward compatibility, and factory method
 
 ## - [ ] Phase 4: Update prepare/analyze/report use cases
 

@@ -119,7 +119,8 @@ public struct PrepareUseCase: Sendable {
                         focusAreas: allFocusAreas,
                         outputDir: prOutputDir,
                         repoPath: self.config.repoPath,
-                        commit: fullDiff.commitHash
+                        commit: fullDiff.commitHash,
+                        rulesDir: rulesPath
                     )
 
                     // Write phase_result.json for prepare phase

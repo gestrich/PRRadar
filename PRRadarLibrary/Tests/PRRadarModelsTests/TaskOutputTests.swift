@@ -119,6 +119,69 @@ struct TaskOutputTests {
         #expect(task.gitBlobHash == "fedcba987654321")
     }
 
+    @Test("AnalysisTaskOutput decodes without rule_blob_hash (backward compatible)")
+    func analysisTaskWithoutRuleBlobHash() throws {
+        let json = """
+        {
+            "task_id": "test-task-id",
+            "rule": {
+                "name": "test-rule",
+                "description": "Test",
+                "category": "test",
+                "model": null,
+                "content": "Test content"
+            },
+            "focus_area": {
+                "focus_id": "test-focus",
+                "file_path": "test.py",
+                "start_line": 1,
+                "end_line": 5,
+                "description": "Test area",
+                "hunk_index": 0,
+                "hunk_content": "@@ -1,3 +1,4 @@",
+                "focus_type": "file"
+            },
+            "git_blob_hash": "abc123"
+        }
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        #expect(task.gitBlobHash == "abc123")
+        #expect(task.ruleBlobHash == nil)
+    }
+
+    @Test("AnalysisTaskOutput decodes with rule_blob_hash")
+    func analysisTaskWithRuleBlobHash() throws {
+        let json = """
+        {
+            "task_id": "test-task-id",
+            "rule": {
+                "name": "test-rule",
+                "description": "Test",
+                "category": "test",
+                "model": null,
+                "content": "Test content"
+            },
+            "focus_area": {
+                "focus_id": "test-focus",
+                "file_path": "test.py",
+                "start_line": 1,
+                "end_line": 5,
+                "description": "Test area",
+                "hunk_index": 0,
+                "hunk_content": "@@ -1,3 +1,4 @@",
+                "focus_type": "file"
+            },
+            "git_blob_hash": "abc123",
+            "rule_blob_hash": "def456rule"
+        }
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        #expect(task.gitBlobHash == "abc123")
+        #expect(task.ruleBlobHash == "def456rule")
+    }
+
     @Test("AnalysisTaskOutput round-trips through encode/decode")
     func analysisTaskRoundTrip() throws {
         let json = """
@@ -141,7 +204,8 @@ struct TaskOutputTests {
                 "hunk_content": "@@ -1,3 +1,4 @@",
                 "focus_type": "file"
             },
-            "git_blob_hash": "roundtrip123"
+            "git_blob_hash": "roundtrip123",
+            "rule_blob_hash": "ruleroundtrip456"
         }
         """.data(using: .utf8)!
 
@@ -153,5 +217,37 @@ struct TaskOutputTests {
         #expect(original.rule.name == decoded.rule.name)
         #expect(original.focusArea.focusId == decoded.focusArea.focusId)
         #expect(original.gitBlobHash == decoded.gitBlobHash)
+        #expect(original.ruleBlobHash == decoded.ruleBlobHash)
+    }
+
+    @Test("AnalysisTaskOutput.from() factory includes ruleBlobHash")
+    func analysisTaskFromFactory() throws {
+        let rule = ReviewRule(
+            name: "test-rule",
+            filePath: "/path/to/rule.md",
+            description: "Test",
+            category: "test",
+            content: "Test content"
+        )
+        let focusArea = FocusArea(
+            focusId: "file-test-1-5",
+            filePath: "test.py",
+            startLine: 1,
+            endLine: 5,
+            description: "Test area",
+            hunkIndex: 0,
+            hunkContent: "@@ -1,3 +1,4 @@",
+            focusType: .file
+        )
+
+        let taskWithHash = AnalysisTaskOutput.from(
+            rule: rule, focusArea: focusArea, gitBlobHash: "src123", ruleBlobHash: "rule456"
+        )
+        #expect(taskWithHash.ruleBlobHash == "rule456")
+
+        let taskWithoutHash = AnalysisTaskOutput.from(
+            rule: rule, focusArea: focusArea, gitBlobHash: "src123"
+        )
+        #expect(taskWithoutHash.ruleBlobHash == nil)
     }
 }
