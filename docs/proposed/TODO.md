@@ -58,10 +58,6 @@
   system that shows: (1) how many total comments are on a file, (2) which are
   pending vs submitted, and (3) which were posted by our tool. Orange should
   indicate pending PRRadar comments; green alone is ambiguous.
-- [x] Rename "Bridge" references to "ClaudeAgent"
-  Renamed all Bridge* types, files, and references to ClaudeAgent* across the
-  codebase. Covers models, transcript types, and the Python script naming.
-  Directory: bridge/ → claude-agent/, Script: claude_bridge.py → claude_agent.py.
 
 ## Medium
 
