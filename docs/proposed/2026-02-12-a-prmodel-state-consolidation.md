@@ -86,7 +86,7 @@ The use case is synchronous (all file reads) — returns `PRDetail` directly, no
 - Package paths: actual source is in `PRRadarLibrary/Sources/` (not `pr-radar-mac/Sources/` as originally noted in the spec)
 - Build passes, all 412 tests pass
 
-## - [ ] Phase 2: Add `reloadDetail()` to PRModel and replace scattered loading
+## - [x] Phase 2: Add `reloadDetail()` to PRModel and replace scattered loading
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -197,6 +197,21 @@ func loadDetail() {
 Or remove `detailState` entirely and use `detail != nil` as the guard.
 
 **Verify**: `swift build` succeeds. The blank summary bug is fixed — sync completion calls `reloadDetail()` which loads the summary with the correct commit hash.
+
+### Completion Notes
+
+- `detail: PRDetail?` stored property added; 10 forwarding computed properties replace the old `private(set) var` stored properties
+- `reloadDetail(commitHash:)` and `applyDetail(_:)` consolidate all disk loading and state application
+- `inProgressAnalysis` provides transient override during streaming — `analysis` computed property returns `inProgressAnalysis ?? detail?.analysis`
+- `comments` remains a stored property (transient, set by `runComments`, not persisted to disk)
+- `ReviewSnapshot` struct removed; `DetailState` enum removed; replaced with simple `detailLoaded: Bool` guard
+- `loadAnalysisSummary()` removed — `applyDetail()` now derives `analysisState` from `PRDetail.analysisSummary`
+- Six private loading methods removed: `loadAnalysisSummary()`, `loadCachedDiff()`, `loadCachedNonDiffOutputs()`, `loadPhaseStates()`, `loadSavedTranscripts()`, `refreshAvailableCommits()`
+- Init now calls `reloadDetail()` (replacing `loadAnalysisSummary()`) so summary badge populates immediately
+- `refreshPRData()` simplified to just `refreshDiff(force: true)` — its completion handler calls `reloadDetail()`
+- `mergeAnalysisResult()` now writes to `inProgressAnalysis` instead of `analysis` directly
+- `resetPhase()` calls `reloadDetail()` instead of nil-ing individual properties
+- Build passes, all 412 tests pass
 
 ## - [ ] Phase 3: Tests
 

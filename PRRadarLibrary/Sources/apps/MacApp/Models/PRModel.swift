@@ -4,14 +4,6 @@ import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
-struct ReviewSnapshot {
-    let syncSnapshot: SyncSnapshot?
-    let preparation: PrepareOutput?
-    let analysis: AnalysisOutput?
-    let report: ReportPhaseOutput?
-    let comments: CommentPhaseOutput?
-}
-
 @Observable
 @MainActor
 final class PRModel: Identifiable, Hashable {
@@ -23,40 +15,43 @@ final class PRModel: Identifiable, Hashable {
     nonisolated let id: Int
 
     private(set) var analysisState: AnalysisState = .loading
-    private(set) var detailState: DetailState = .unloaded
+    private(set) var detailLoaded = false
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
-    private(set) var syncSnapshot: SyncSnapshot?
-    private(set) var preparation: PrepareOutput?
-    private(set) var analysis: AnalysisOutput?
-    private(set) var report: ReportPhaseOutput?
+
+    private(set) var detail: PRDetail?
+    private var inProgressAnalysis: AnalysisOutput?
     private(set) var comments: CommentPhaseOutput?
-
-    private(set) var postedComments: GitHubPullRequestComments?
-
-    private(set) var imageURLMap: [String: String] = [:]
-    private(set) var imageBaseDir: String?
 
     private(set) var commentPostingState: CommentPostingState = .idle
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
-    private(set) var savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] = [:]
     private var liveAccumulators: [LiveTranscriptAccumulator] = []
     private(set) var currentLivePhase: PRRadarPhase?
-
-    private(set) var currentCommitHash: String?
-    private(set) var availableCommits: [String] = []
 
     private(set) var operationMode: OperationMode = .idle
     private(set) var selectiveAnalysisInFlight: Set<String> = []
     private var refreshTask: Task<Void, Never>?
+
+    // MARK: - Forwarding Properties
+
+    var syncSnapshot: SyncSnapshot? { detail?.syncSnapshot }
+    var preparation: PrepareOutput? { detail?.preparation }
+    var analysis: AnalysisOutput? { inProgressAnalysis ?? detail?.analysis }
+    var report: ReportPhaseOutput? { detail?.report }
+    var postedComments: GitHubPullRequestComments? { detail?.postedComments }
+    var imageURLMap: [String: String] { detail?.imageURLMap ?? [:] }
+    var imageBaseDir: String? { detail?.imageBaseDir }
+    var savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] { detail?.savedTranscripts ?? [:] }
+    var currentCommitHash: String? { detail?.commitHash }
+    var availableCommits: [String] { detail?.availableCommits ?? [] }
 
     init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
         self.id = metadata.id
         self.metadata = metadata
         self.config = config
         self.repoConfig = repoConfig
-        Task { await loadAnalysisSummary() }
+        Task { reloadDetail() }
     }
 
     // MARK: - Computed Properties
@@ -118,7 +113,6 @@ final class PRModel: Identifiable, Hashable {
         guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
             return false
         }
-        // Has violations but comments phase not completed
         return !isPhaseCompleted(.report) || comments == nil
     }
 
@@ -126,98 +120,45 @@ final class PRModel: Identifiable, Hashable {
         metadata = newMetadata
     }
 
-    // MARK: - Analysis Summary (Lightweight)
+    // MARK: - Detail Loading
 
-    private func loadAnalysisSummary() async {
-        let commit = currentCommitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
-        do {
-            let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
-                config: config,
-                prNumber: prNumber,
-                phase: .analyze,
-                filename: DataPathsService.summaryJSONFilename,
-                commitHash: commit
-            )
-            let postedCommentCount: Int = {
-                guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
-                    config: config,
-                    prNumber: prNumber,
-                    phase: .metadata,
-                    filename: DataPathsService.ghCommentsFilename
-                ) else { return 0 }
-                return comments.reviewComments.count
-            }()
+    private func reloadDetail(commitHash: String? = nil) {
+        let newDetail = LoadPRDetailUseCase(config: config)
+            .execute(prNumber: prNumber, commitHash: commitHash ?? detail?.commitHash)
+        applyDetail(newDetail)
+    }
+
+    private func applyDetail(_ newDetail: PRDetail) {
+        self.detail = newDetail
+
+        for (phase, status) in newDetail.phaseStatuses {
+            if case .running = phaseStates[phase] { continue }
+            if case .refreshing = phaseStates[phase] { continue }
+            if status.isComplete {
+                phaseStates[phase] = .completed(logs: "")
+            } else if !status.exists {
+                phaseStates[phase] = .idle
+            } else {
+                phaseStates[phase] = .failed(error: status.missingItems.first ?? "Incomplete", logs: "")
+            }
+        }
+
+        if let summary = newDetail.analysisSummary {
+            let postedCount = newDetail.postedComments?.reviewComments.count ?? 0
             analysisState = .loaded(
                 violationCount: summary.violationsFound,
                 evaluatedAt: summary.evaluatedAt,
-                postedCommentCount: postedCommentCount
+                postedCommentCount: postedCount
             )
-        } catch {
+        } else if newDetail.syncSnapshot != nil {
             analysisState = .unavailable
         }
     }
 
-    // MARK: - Detail Loading (On-Demand)
-
     func loadDetail() {
-        guard case .unloaded = detailState else { return }
-        detailState = .loading
-
-        if currentCommitHash == nil {
-            currentCommitHash = SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
-        }
-        refreshAvailableCommits()
-
-        loadPhaseStates()
-        loadCachedDiff()
-        do {
-            try loadCachedNonDiffOutputs()
-        } catch {
-            phaseStates[.diff] = .failed(
-                error: "Failed to load cached outputs: \(error.localizedDescription)",
-                logs: ""
-            )
-        }
-        loadSavedTranscripts()
-
-        detailState = .loaded(ReviewSnapshot(
-            syncSnapshot: self.syncSnapshot,
-            preparation: self.preparation,
-            analysis: self.analysis,
-            report: self.report,
-            comments: nil
-        ))
-    }
-
-    func loadCachedNonDiffOutputs() throws {
-        let detail = LoadPRDetailUseCase(config: config).execute(prNumber: prNumber, commitHash: currentCommitHash)
-        self.preparation = detail.preparation
-        self.analysis = detail.analysis
-        self.report = detail.report
-
-        do {
-            self.postedComments = try PhaseOutputParser.parsePhaseOutput(
-                config: config,
-                prNumber: prNumber,
-                phase: .metadata,
-                filename: DataPathsService.ghCommentsFilename
-            )
-        } catch is PhaseOutputError {
-            self.postedComments = nil
-        }
-
-        if let map: [String: String] = try? PhaseOutputParser.parsePhaseOutput(
-            config: config,
-            prNumber: prNumber,
-            phase: .metadata,
-            filename: DataPathsService.imageURLMapFilename
-        ) {
-            self.imageURLMap = map
-            let phaseDir = OutputFileReader.phaseDirectoryPath(
-                config: config, prNumber: prNumber, phase: .metadata
-            )
-            self.imageBaseDir = "\(phaseDir)/images"
-        }
+        guard !detailLoaded else { return }
+        reloadDetail()
+        detailLoaded = true
     }
 
     // MARK: - Refresh PR Data
@@ -226,15 +167,6 @@ final class PRModel: Identifiable, Hashable {
         operationMode = .refreshing
         defer { operationMode = .idle }
         await refreshDiff(force: true)
-        do {
-            try loadCachedNonDiffOutputs()
-        } catch {
-            let logs = runningLogs(for: .diff)
-            phaseStates[.diff] = .failed(
-                error: "Failed to load cached outputs: \(error.localizedDescription)",
-                logs: logs
-            )
-        }
     }
 
     // MARK: - Diff Refresh
@@ -242,14 +174,14 @@ final class PRModel: Identifiable, Hashable {
     func refreshDiff(force: Bool = false) async {
         refreshTask?.cancel()
 
-        // Step 1: Load cached diff from disk for immediate display
-        loadCachedDiff()
+        // Step 1: Check cached diff for immediate display
+        let hasCachedData = syncSnapshot != nil
 
         // Step 2: Determine whether to fetch from GitHub
         let shouldFetch: Bool
         if force {
             shouldFetch = true
-        } else if syncSnapshot == nil {
+        } else if !hasCachedData {
             shouldFetch = true
         } else {
             shouldFetch = await isStale()
@@ -258,7 +190,6 @@ final class PRModel: Identifiable, Hashable {
         guard shouldFetch else { return }
 
         // Step 3: Fetch from GitHub
-        let hasCachedData = syncSnapshot != nil
         let logPrefix = hasCachedData ? "Refreshing" : "Fetching"
         if hasCachedData {
             phaseStates[.diff] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
@@ -284,11 +215,7 @@ final class PRModel: Identifiable, Hashable {
                     case .aiToolUse: break
                     case .analysisResult: break
                     case .completed(let snapshot):
-                        syncSnapshot = snapshot
-                        if let newCommit = snapshot.commitHash {
-                            currentCommitHash = newCommit
-                            refreshAvailableCommits()
-                        }
+                        reloadDetail(commitHash: snapshot.commitHash)
                         let logs = runningLogs(for: .diff)
                         phaseStates[.diff] = .completed(logs: logs)
                     case .failed(let error, let logs):
@@ -297,7 +224,6 @@ final class PRModel: Identifiable, Hashable {
                     }
                 }
             } catch is CancellationError {
-                // Task was cancelled — restore state
                 if syncSnapshot != nil {
                     phaseStates[.diff] = .completed(logs: "")
                 } else {
@@ -319,90 +245,6 @@ final class PRModel: Identifiable, Hashable {
             phaseStates[.diff] = .completed(logs: "")
         } else {
             phaseStates[.diff] = .idle
-        }
-    }
-
-    private func loadSavedTranscripts() {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        // Prepare transcripts live in the focus-areas/ subdirectory
-        let prepareFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .prepare,
-            subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: currentCommitHash
-        )
-        let prepareTranscripts = loadTranscripts(
-            from: prepareFiles, phase: .prepare,
-            subdirectory: DataPathsService.prepareFocusAreasSubdir, decoder: decoder
-        )
-        if !prepareTranscripts.isEmpty {
-            savedTranscripts[.prepare] = prepareTranscripts
-        }
-
-        // Analyze transcripts live in the phase root
-        let analyzeFiles = PhaseOutputParser.listPhaseFiles(
-            config: config, prNumber: prNumber, phase: .analyze, commitHash: currentCommitHash
-        )
-        let analyzeTranscripts = loadTranscripts(
-            from: analyzeFiles, phase: .analyze, subdirectory: nil, decoder: decoder
-        )
-        if !analyzeTranscripts.isEmpty {
-            savedTranscripts[.analyze] = analyzeTranscripts
-        }
-    }
-
-    private func loadTranscripts(
-        from files: [String], phase: PRRadarPhase,
-        subdirectory: String?, decoder: JSONDecoder
-    ) -> [ClaudeAgentTranscript] {
-        let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
-        var transcripts: [ClaudeAgentTranscript] = []
-        for filename in transcriptFiles {
-            let data: Data?
-            if let subdirectory {
-                data = try? PhaseOutputParser.readPhaseFile(
-                    config: config, prNumber: prNumber, phase: phase,
-                    subdirectory: subdirectory, filename: filename, commitHash: currentCommitHash
-                )
-            } else {
-                data = try? PhaseOutputParser.readPhaseFile(
-                    config: config, prNumber: prNumber, phase: phase,
-                    filename: filename, commitHash: currentCommitHash
-                )
-            }
-            if let data, let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data) {
-                transcripts.append(transcript)
-            }
-        }
-        return transcripts
-    }
-
-    private func loadPhaseStates() {
-        let allPhaseStatuses = DataPathsService.allPhaseStatuses(
-            outputDir: config.absoluteOutputDir,
-            prNumber: prNumber,
-            commitHash: currentCommitHash
-        )
-
-        for (phase, status) in allPhaseStatuses {
-            if status.isComplete {
-                phaseStates[phase] = .completed(logs: "")
-            } else if !status.exists {
-                phaseStates[phase] = .idle
-            } else {
-                let errorMsg = status.missingItems.first ?? "Incomplete"
-                phaseStates[phase] = .failed(error: errorMsg, logs: "")
-            }
-        }
-    }
-
-    private func loadCachedDiff() {
-        let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: currentCommitHash)
-        if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
-            self.syncSnapshot = snapshot
-            if case .idle = stateFor(.diff) {
-                phaseStates[.diff] = .completed(logs: "")
-            }
         }
     }
 
@@ -452,37 +294,10 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Commit Switching
 
     func switchToCommit(_ commitHash: String) {
-        currentCommitHash = commitHash
-        syncSnapshot = nil
-        preparation = nil
-        analysis = nil
-        report = nil
+        inProgressAnalysis = nil
         comments = nil
-        postedComments = nil
-        savedTranscripts = [:]
         phaseStates = [:]
-
-        loadPhaseStates()
-        loadCachedDiff()
-        do {
-            try loadCachedNonDiffOutputs()
-        } catch {
-            phaseStates[.diff] = .failed(
-                error: "Failed to load cached outputs: \(error.localizedDescription)",
-                logs: ""
-            )
-        }
-        loadSavedTranscripts()
-        Task { await loadAnalysisSummary() }
-    }
-
-    private func refreshAvailableCommits() {
-        let analysisRoot = "\(config.absoluteOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
-        guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) else {
-            availableCommits = []
-            return
-        }
-        availableCommits = dirs.filter { !$0.hasPrefix(".") }.sorted()
+        reloadDetail(commitHash: commitHash)
     }
 
     // MARK: - Phase Execution
@@ -508,7 +323,6 @@ final class PRModel: Identifiable, Hashable {
             await runPhase(phase)
             if case .failed = stateFor(phase) { break }
         }
-        await loadAnalysisSummary()
         return isPhaseCompleted(.report)
     }
 
@@ -517,14 +331,11 @@ final class PRModel: Identifiable, Hashable {
         switch phase {
         case .metadata:
             break
-        case .diff:
-            syncSnapshot = nil
-        case .prepare:
-            preparation = nil
+        case .diff, .prepare, .report:
+            reloadDetail()
         case .analyze:
-            analysis = nil
-        case .report:
-            report = nil
+            inProgressAnalysis = nil
+            reloadDetail()
         }
     }
 
@@ -706,11 +517,9 @@ final class PRModel: Identifiable, Hashable {
                 case .aiToolUse(let name):
                     appendAIToolUse(name)
                 case .analysisResult: break
-                case .completed(let output):
-                    preparation = output
+                case .completed:
                     currentLivePhase = nil
-                    phaseStates[.prepare] = .completed(logs: "")
-                    loadSavedTranscripts()
+                    reloadDetail()
                 case .failed(let error, let logs):
                     currentLivePhase = nil
                     phaseStates[.prepare] = .failed(error: error, logs: logs)
@@ -746,12 +555,10 @@ final class PRModel: Identifiable, Hashable {
                     appendAIToolUse(name)
                 case .analysisResult(let result):
                     mergeAnalysisResult(result)
-                case .completed(let output):
-                    analysis = output
+                case .completed:
+                    inProgressAnalysis = nil
                     currentLivePhase = nil
-                    let logs = runningLogs(for: .analyze)
-                    phaseStates[.analyze] = .completed(logs: logs)
-                    loadSavedTranscripts()
+                    reloadDetail()
                 case .failed(let error, let logs):
                     currentLivePhase = nil
                     phaseStates[.analyze] = .failed(error: error, logs: logs)
@@ -782,9 +589,10 @@ final class PRModel: Identifiable, Hashable {
                 case .analysisResult(let result):
                     selectiveAnalysisInFlight.remove(result.taskId)
                     mergeAnalysisResult(result)
-                case .completed(let output):
-                    analysis = output
+                case .completed:
+                    inProgressAnalysis = nil
                     selectiveAnalysisInFlight = []
+                    reloadDetail()
                 case .failed:
                     selectiveAnalysisInFlight = []
                 }
@@ -817,7 +625,7 @@ final class PRModel: Identifiable, Hashable {
                 totalDurationMs: result.durationMs,
                 results: [result]
             )
-            analysis = AnalysisOutput(
+            inProgressAnalysis = AnalysisOutput(
                 evaluations: [result],
                 summary: summary
             )
@@ -838,7 +646,7 @@ final class PRModel: Identifiable, Hashable {
             results: evaluations
         )
 
-        analysis = AnalysisOutput(
+        inProgressAnalysis = AnalysisOutput(
             evaluations: evaluations,
             tasks: existing.tasks,
             summary: summary,
@@ -864,9 +672,9 @@ final class PRModel: Identifiable, Hashable {
                 case .aiPrompt: break
                 case .aiToolUse: break
                 case .analysisResult: break
-                case .completed(let output):
-                    report = output
+                case .completed:
                     let logs = runningLogs(for: .report)
+                    reloadDetail()
                     phaseStates[.report] = .completed(logs: logs)
                 case .failed(let error, let logs):
                     phaseStates[.report] = .failed(error: error, logs: logs)
@@ -890,13 +698,6 @@ final class PRModel: Identifiable, Hashable {
         case loading
         case loaded(violationCount: Int, evaluatedAt: String, postedCommentCount: Int)
         case unavailable
-    }
-
-    enum DetailState {
-        case unloaded
-        case loading
-        case loaded(ReviewSnapshot)
-        case failed(String)
     }
 
     enum PhaseState: Sendable {
