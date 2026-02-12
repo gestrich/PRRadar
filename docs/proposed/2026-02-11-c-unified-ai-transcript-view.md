@@ -47,7 +47,7 @@ Remove: `aiOutputText: String` and `aiCurrentPrompt: String`
 
 **Completed notes**: Also updated `runPrepare()` and `runAnalyze()` event handlers (originally Phase 2 scope) since removing `aiOutputText`/`aiCurrentPrompt` required it for compilation. Added `appendAIPrompt`, `appendAIOutput`, and `appendAIToolUse` helper methods. Updated `ReviewDetailView.hasAIOutput` and `aiOutputView` to use `liveTranscripts` instead of removed properties, replacing `AIOutputStreamView` usage with `AITranscriptView`.
 
-## - [ ] Phase 2: Update event handlers in runPrepare() and runAnalyze()
+## - [x] Phase 2: Update event handlers in runPrepare() and runAnalyze()
 
 **Skills to read**: none (straightforward state management changes)
 
@@ -67,6 +67,8 @@ Handle events:
 On completion: clear `currentLivePhase` (so `liveTranscripts` returns empty, letting `savedTranscripts` take over)
 
 **Files**: [PRModel.swift](PRRadarLibrary/Sources/apps/MacApp/Models/PRModel.swift)
+
+**Completed notes**: Already implemented in Phase 1 — removing `aiOutputText`/`aiCurrentPrompt` required updating the event handlers for compilation. All event handling logic (`appendAIPrompt`, `appendAIOutput`, `appendAIToolUse`) and phase lifecycle (reset at start, clear `currentLivePhase` on completion/failure) was included in the Phase 1 commit.
 
 ## - [ ] Phase 3: Add streaming support to AITranscriptView
 
