@@ -68,20 +68,22 @@ Carry file path and rule name from task evaluation through the event pipeline to
 - Updated `runPrepare()` and `runAnalyze()` switch arms to destructure `AIPromptContext`
 - Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
-## - [ ] Phase 3: Redesign AITranscriptView sidebar
+## - [x] Phase 3: Redesign AITranscriptView sidebar
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
 Reorganize the left sidebar to group transcripts by file for the analyze phase.
 
 - **File**: `PRRadarLibrary/Sources/apps/MacApp/UI/PhaseViews/AITranscriptView.swift`
-- Add `tasks: [AnalysisTaskOutput]` parameter for fallback metadata resolution
-- Use `transcript.filePath` and `transcript.ruleName` directly (required fields)
-- Add `FileGroup` struct: `filePath: String`, `transcripts: [ClaudeAgentTranscript]`
-- For **analyze** phase: group transcripts by resolved filePath, render as `Section` per file with shortened filename as header
-- For **prepare** phase: keep flat list (prepare transcripts aren't per-task)
-- Show rule name as row label instead of raw identifier
-- Keep existing detail pane, header, and event rendering unchanged
+- Added private `FileGroup` struct (Identifiable) with `filePath`, `transcripts`, and `displayName` (uses `NSString.lastPathComponent`)
+- Added `fileGroups` computed property that groups transcripts by `filePath` preserving insertion order
+- Added `useFileGrouping` computed property — `true` only for `.analyze` phase
+- Added `rowLabel(for:)` method — shows `ruleName` when file-grouped and non-empty, otherwise falls back to `identifier`
+- Extracted `transcriptRow(_:)` helper to share row rendering between flat and grouped lists
+- `transcriptList` now branches: `groupedTranscriptList` for analyze (Sections per file with doc icon + filename header, tooltip shows full path), `flatTranscriptList` for prepare (unchanged flat list)
+- No `tasks: [AnalysisTaskOutput]` parameter needed — `filePath`/`ruleName` are required fields on `ClaudeAgentTranscript` (set in Phase 1-2), so metadata is always available directly
+- Detail pane, header, and event rendering unchanged
+- Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
 ## - [ ] Phase 4: Wire up ReviewDetailView
 

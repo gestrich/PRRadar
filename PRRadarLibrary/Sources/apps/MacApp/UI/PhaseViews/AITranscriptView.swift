@@ -25,6 +25,45 @@ struct AITranscriptView: View {
         return transcripts.first
     }
 
+    // MARK: - File Grouping
+
+    private struct FileGroup: Identifiable {
+        let filePath: String
+        let transcripts: [ClaudeAgentTranscript]
+        var id: String { filePath }
+
+        var displayName: String {
+            if filePath.isEmpty { return "Unknown File" }
+            return (filePath as NSString).lastPathComponent
+        }
+    }
+
+    private var fileGroups: [FileGroup] {
+        var grouped: [String: [ClaudeAgentTranscript]] = [:]
+        var order: [String] = []
+        for transcript in transcripts {
+            let key = transcript.filePath
+            if grouped[key] == nil {
+                order.append(key)
+            }
+            grouped[key, default: []].append(transcript)
+        }
+        return order.map { FileGroup(filePath: $0, transcripts: grouped[$0]!) }
+    }
+
+    private var useFileGrouping: Bool {
+        selectedPhase == .analyze
+    }
+
+    // MARK: - Row Label
+
+    private func rowLabel(for transcript: ClaudeAgentTranscript) -> String {
+        if useFileGrouping, !transcript.ruleName.isEmpty {
+            return transcript.ruleName
+        }
+        return transcript.identifier
+    }
+
     var body: some View {
         if phases.isEmpty {
             ContentUnavailableView(
@@ -109,31 +148,69 @@ struct AITranscriptView: View {
 
     @ViewBuilder
     private var transcriptList: some View {
+        if useFileGrouping {
+            groupedTranscriptList
+        } else {
+            flatTranscriptList
+        }
+    }
+
+    @ViewBuilder
+    private var flatTranscriptList: some View {
         List(transcripts, id: \.identifier, selection: $selectedTranscriptId) { transcript in
-            VStack(alignment: .leading, spacing: 2) {
-                Text(transcript.identifier)
-                    .font(.system(.body, design: .monospaced))
-                    .lineLimit(1)
-
-                if isStreaming {
-                    Text("\(transcript.events.count) events")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    HStack(spacing: 8) {
-                        Text(displayName(forModelId: transcript.model))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Text(String(format: "$%.4f", transcript.costUsd))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .padding(.vertical, 2)
+            transcriptRow(transcript)
         }
         .listStyle(.sidebar)
+    }
+
+    @ViewBuilder
+    private var groupedTranscriptList: some View {
+        List(selection: $selectedTranscriptId) {
+            ForEach(fileGroups) { group in
+                Section {
+                    ForEach(group.transcripts, id: \.identifier) { transcript in
+                        transcriptRow(transcript)
+                    }
+                } header: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.text")
+                            .font(.caption2)
+                        Text(group.displayName)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.secondary)
+                    .help(group.filePath)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    @ViewBuilder
+    private func transcriptRow(_ transcript: ClaudeAgentTranscript) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(rowLabel(for: transcript))
+                .font(.system(.body, design: .monospaced))
+                .lineLimit(1)
+
+            if isStreaming {
+                Text("\(transcript.events.count) events")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 8) {
+                    Text(displayName(forModelId: transcript.model))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text(String(format: "$%.4f", transcript.costUsd))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     // MARK: - Transcript Detail
