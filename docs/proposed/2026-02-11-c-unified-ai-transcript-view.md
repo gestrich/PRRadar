@@ -70,7 +70,7 @@ On completion: clear `currentLivePhase` (so `liveTranscripts` returns empty, let
 
 **Completed notes**: Already implemented in Phase 1 — removing `aiOutputText`/`aiCurrentPrompt` required updating the event handlers for compilation. All event handling logic (`appendAIPrompt`, `appendAIOutput`, `appendAIToolUse`) and phase lifecycle (reset at start, clear `currentLivePhase` on completion/failure) was included in the Phase 1 commit.
 
-## - [ ] Phase 3: Add streaming support to AITranscriptView
+## - [x] Phase 3: Add streaming support to AITranscriptView
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -82,6 +82,8 @@ When `isStreaming`:
 - Auto-scroll to bottom of the detail pane as text streams in
 
 **Files**: [AITranscriptView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/PhaseViews/AITranscriptView.swift)
+
+**Completed notes**: Added `isStreaming: Bool = false` parameter. When streaming: displays "AI is running..." banner with progress spinner (matching `AIOutputStreamView` style), auto-selects last transcript via `onChange(of: transcripts.count)`, auto-scrolls detail pane via `ScrollViewReader` with `onChange(of: transcript.events.count)`. Sidebar and header show streaming-appropriate metadata (event count instead of model/cost). Updated `ReviewDetailView.aiOutputView` to pass `isStreaming: true` when `isAIPhaseRunning`.
 
 ## - [ ] Phase 4: Simplify ReviewDetailView
 

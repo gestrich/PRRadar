@@ -5,6 +5,7 @@ import SwiftUI
 struct AITranscriptView: View {
 
     let transcriptsByPhase: [PRRadarPhase: [BridgeTranscript]]
+    var isStreaming: Bool = false
 
     @State private var selectedPhase: PRRadarPhase = .prepare
     @State private var selectedTranscriptId: String?
@@ -33,6 +34,10 @@ struct AITranscriptView: View {
             )
         } else {
             VStack(spacing: 0) {
+                if isStreaming {
+                    streamingBanner
+                    Divider()
+                }
                 toolbar
                 Divider()
                 HSplitView {
@@ -48,7 +53,29 @@ struct AITranscriptView: View {
                     selectedTranscriptId = transcriptsByPhase[first]?.first?.identifier
                 }
             }
+            .onChange(of: transcripts.count) {
+                if isStreaming, let last = transcripts.last {
+                    selectedTranscriptId = last.identifier
+                }
+            }
         }
+    }
+
+    // MARK: - Streaming Banner
+
+    @ViewBuilder
+    private var streamingBanner: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.small)
+            Text("AI is running...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     // MARK: - Toolbar
@@ -88,14 +115,20 @@ struct AITranscriptView: View {
                     .font(.system(.body, design: .monospaced))
                     .lineLimit(1)
 
-                HStack(spacing: 8) {
-                    Text(displayName(forModelId: transcript.model))
+                if isStreaming {
+                    Text("\(transcript.events.count) events")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 8) {
+                        Text(displayName(forModelId: transcript.model))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
-                    Text(String(format: "$%.4f", transcript.costUsd))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text(String(format: "$%.4f", transcript.costUsd))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(.vertical, 2)
@@ -125,10 +158,15 @@ struct AITranscriptView: View {
     @ViewBuilder
     private func transcriptHeader(_ transcript: BridgeTranscript) -> some View {
         HStack(spacing: 16) {
-            headerItem("Model", displayName(forModelId: transcript.model))
-            headerItem("Duration", "\(transcript.durationMs)ms")
-            headerItem("Cost", String(format: "$%.4f", transcript.costUsd))
-            headerItem("Started", transcript.startedAt)
+            if isStreaming {
+                headerItem("Events", "\(transcript.events.count)")
+                headerItem("Started", transcript.startedAt)
+            } else {
+                headerItem("Model", displayName(forModelId: transcript.model))
+                headerItem("Duration", "\(transcript.durationMs)ms")
+                headerItem("Cost", String(format: "$%.4f", transcript.costUsd))
+                headerItem("Started", transcript.startedAt)
+            }
             Spacer()
         }
         .padding()
@@ -148,30 +186,43 @@ struct AITranscriptView: View {
 
     @ViewBuilder
     private func transcriptEvents(_ transcript: BridgeTranscript) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                if let prompt = transcript.prompt {
-                    DisclosureGroup {
-                        Text(prompt)
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(nsColor: .textBackgroundColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    } label: {
-                        Label("Prompt", systemImage: "text.bubble")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.blue)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    if let prompt = transcript.prompt {
+                        DisclosureGroup {
+                            Text(prompt)
+                                .font(.system(.body, design: .monospaced))
+                                .textSelection(.enabled)
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(nsColor: .textBackgroundColor))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        } label: {
+                            Label("Prompt", systemImage: "text.bubble")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.blue)
+                        }
+                    }
+
+                    ForEach(Array(transcript.events.enumerated()), id: \.offset) { _, event in
+                        transcriptEventView(event)
+                    }
+
+                    Color.clear
+                        .frame(height: 1)
+                        .id("transcript-bottom")
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onChange(of: transcript.events.count) {
+                if isStreaming {
+                    withAnimation {
+                        proxy.scrollTo("transcript-bottom", anchor: .bottom)
                     }
                 }
-
-                ForEach(Array(transcript.events.enumerated()), id: \.offset) { _, event in
-                    transcriptEventView(event)
-                }
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

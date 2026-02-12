@@ -182,7 +182,7 @@ struct ReviewDetailView: View {
     @ViewBuilder
     private var aiOutputView: some View {
         if prModel.isAIPhaseRunning {
-            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts)
+            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts, isStreaming: true)
         } else if !prModel.savedTranscripts.isEmpty {
             AITranscriptView(transcriptsByPhase: prModel.savedTranscripts)
         } else if !prModel.liveTranscripts.isEmpty {
