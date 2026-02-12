@@ -8,9 +8,10 @@ public enum PhaseOutputParser {
         config: PRRadarConfig,
         prNumber: String,
         phase: PRRadarPhase,
-        filename: String
+        filename: String,
+        commitHash: String? = nil
     ) throws -> T {
-        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, filename: filename)
+        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, filename: filename, commitHash: commitHash)
         let decoder = JSONDecoder()
         return try decoder.decode(T.self, from: data)
     }
@@ -19,9 +20,10 @@ public enum PhaseOutputParser {
     public static func listPhaseFiles(
         config: PRRadarConfig,
         prNumber: String,
-        phase: PRRadarPhase
+        phase: PRRadarPhase,
+        commitHash: String? = nil
     ) -> [String] {
-        OutputFileReader.files(in: config, prNumber: prNumber, phase: phase)
+        OutputFileReader.files(in: config, prNumber: prNumber, phase: phase, commitHash: commitHash)
     }
 
     /// Read raw file data from a phase output directory.
@@ -29,9 +31,10 @@ public enum PhaseOutputParser {
         config: PRRadarConfig,
         prNumber: String,
         phase: PRRadarPhase,
-        filename: String
+        filename: String,
+        commitHash: String? = nil
     ) throws -> Data {
-        let dir = OutputFileReader.phaseDirectoryPath(config: config, prNumber: prNumber, phase: phase)
+        let dir = OutputFileReader.phaseDirectoryPath(config: config, prNumber: prNumber, phase: phase, commitHash: commitHash)
         let path = "\(dir)/\(filename)"
         guard FileManager.default.fileExists(atPath: path) else {
             throw PhaseOutputError.fileNotFound(path)
@@ -47,12 +50,13 @@ public enum PhaseOutputParser {
         config: PRRadarConfig,
         prNumber: String,
         phase: PRRadarPhase,
-        filename: String
+        filename: String,
+        commitHash: String? = nil
     ) throws -> String {
-        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, filename: filename)
+        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, filename: filename, commitHash: commitHash)
         guard let text = String(data: data, encoding: .utf8) else {
             throw PhaseOutputError.unreadableFile(
-                OutputFileReader.phaseDirectoryPath(config: config, prNumber: prNumber, phase: phase) + "/\(filename)"
+                OutputFileReader.phaseDirectoryPath(config: config, prNumber: prNumber, phase: phase, commitHash: commitHash) + "/\(filename)"
             )
         }
         return text
@@ -62,13 +66,14 @@ public enum PhaseOutputParser {
     public static func parseAllPhaseFiles<T: Decodable>(
         config: PRRadarConfig,
         prNumber: String,
-        phase: PRRadarPhase
+        phase: PRRadarPhase,
+        commitHash: String? = nil
     ) throws -> [T] {
-        let dataFiles = listPhaseFiles(config: config, prNumber: prNumber, phase: phase)
+        let dataFiles = listPhaseFiles(config: config, prNumber: prNumber, phase: phase, commitHash: commitHash)
             .filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         return try dataFiles.compactMap { filename in
-            try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, filename: filename) as T
+            try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, filename: filename, commitHash: commitHash) as T
         }
     }
 
@@ -80,9 +85,10 @@ public enum PhaseOutputParser {
         prNumber: String,
         phase: PRRadarPhase,
         subdirectory: String,
-        filename: String
+        filename: String,
+        commitHash: String? = nil
     ) throws -> T {
-        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, filename: filename)
+        let data = try readPhaseFile(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, filename: filename, commitHash: commitHash)
         return try JSONDecoder().decode(T.self, from: data)
     }
 
@@ -91,9 +97,10 @@ public enum PhaseOutputParser {
         config: PRRadarConfig,
         prNumber: String,
         phase: PRRadarPhase,
-        subdirectory: String
+        subdirectory: String,
+        commitHash: String? = nil
     ) -> [String] {
-        OutputFileReader.files(in: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory)
+        OutputFileReader.files(in: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, commitHash: commitHash)
     }
 
     /// Read raw file data from a phase subdirectory.
@@ -102,9 +109,10 @@ public enum PhaseOutputParser {
         prNumber: String,
         phase: PRRadarPhase,
         subdirectory: String,
-        filename: String
+        filename: String,
+        commitHash: String? = nil
     ) throws -> Data {
-        let dir = OutputFileReader.phaseSubdirectoryPath(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory)
+        let dir = OutputFileReader.phaseSubdirectoryPath(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, commitHash: commitHash)
         let path = "\(dir)/\(filename)"
         guard FileManager.default.fileExists(atPath: path) else {
             throw PhaseOutputError.fileNotFound(path)
@@ -120,13 +128,14 @@ public enum PhaseOutputParser {
         config: PRRadarConfig,
         prNumber: String,
         phase: PRRadarPhase,
-        subdirectory: String
+        subdirectory: String,
+        commitHash: String? = nil
     ) throws -> [T] {
-        let dataFiles = listPhaseFiles(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory)
+        let dataFiles = listPhaseFiles(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, commitHash: commitHash)
             .filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         return try dataFiles.compactMap { filename in
-            try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, filename: filename) as T
+            try parsePhaseOutput(config: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, filename: filename, commitHash: commitHash) as T
         }
     }
 }

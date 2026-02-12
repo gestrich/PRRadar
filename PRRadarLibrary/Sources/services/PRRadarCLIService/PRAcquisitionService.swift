@@ -42,12 +42,14 @@ public struct PRAcquisitionService: Sendable {
         public let diff: GitDiff
         public let comments: GitHubPullRequestComments
         public let repository: GitHubRepository
+        public let commitHash: String
     }
 
-    /// Fetch all PR data artifacts and write them to the sync phase output directory.
+    /// Fetch all PR data artifacts and write them to disk.
     ///
-    /// Fetches PR metadata, diff content, comments, and repository info from GitHub,
-    /// parses the diff, and writes all artifacts to disk.
+    /// Splits output into two locations:
+    /// - PR metadata (`gh-pr.json`, `gh-comments.json`, `gh-repo.json`, images) → `metadata/`
+    /// - Diff artifacts → `analysis/<commit>/diff/`
     public func acquire(
         prNumber: Int,
         repoPath: String,
@@ -55,12 +57,8 @@ public struct PRAcquisitionService: Sendable {
         authorCache: AuthorCacheService? = nil
     ) async throws -> AcquisitionResult {
         let prNumberStr = String(prNumber)
-        let phaseDir = DataPathsService.phaseDirectory(
-            outputDir: outputDir,
-            prNumber: prNumberStr,
-            phase: .diff
-        )
-        try DataPathsService.ensureDirectoryExists(at: phaseDir)
+
+        // --- Fetch all data from GitHub ---
 
         let repository: GitHubRepository
         do {
@@ -72,7 +70,6 @@ public struct PRAcquisitionService: Sendable {
         let rawDiff: String
         do {
             rawDiff = try await gitHub.getPRDiff(number: prNumber)
-            try write(rawDiff, to: "\(phaseDir)/diff-raw.diff")
         } catch {
             throw AcquisitionError.fetchDiffFailed(underlying: error)
         }
@@ -101,22 +98,71 @@ public struct PRAcquisitionService: Sendable {
             }
         }
 
-        let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
-        try write(prJSON, to: "\(phaseDir)/gh-pr.json")
-
-        guard let commitHash = pullRequest.headRefOid else {
+        guard let fullCommitHash = pullRequest.headRefOid else {
             throw AcquisitionError.missingHeadCommitSHA
         }
-        let gitDiff = GitDiff.fromDiffContent(rawDiff, commitHash: commitHash)
+        let shortCommitHash = String(fullCommitHash.prefix(7))
+
+        // --- Write PR metadata to metadata/ ---
+
+        let metadataDir = DataPathsService.phaseDirectory(
+            outputDir: outputDir,
+            prNumber: prNumberStr,
+            phase: .metadata
+        )
+        try DataPathsService.ensureDirectoryExists(at: metadataDir)
+
+        let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
+        try write(prJSON, to: "\(metadataDir)/gh-pr.json")
+
+        let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
+        try write(commentsJSON, to: "\(metadataDir)/gh-comments.json")
+
+        let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
+        try write(repoJSON, to: "\(metadataDir)/gh-repo.json")
+
+        let imageURLMap = await downloadImages(
+            prNumber: prNumber,
+            pullRequest: pullRequest,
+            comments: comments,
+            phaseDir: metadataDir
+        )
+        if !imageURLMap.isEmpty {
+            let mapJSON = try JSONEncoder.prettyPrinted.encode(imageURLMap)
+            try write(mapJSON, to: "\(metadataDir)/image-url-map.json")
+        }
+
+        try PhaseResultWriter.writeSuccess(
+            phase: .metadata,
+            outputDir: outputDir,
+            prNumber: prNumberStr,
+            stats: PhaseStats(
+                artifactsProduced: 3,
+                metadata: ["commitHash": shortCommitHash]
+            )
+        )
+
+        // --- Write diff artifacts to analysis/<commit>/diff/ ---
+
+        let diffDir = DataPathsService.phaseDirectory(
+            outputDir: outputDir,
+            prNumber: prNumberStr,
+            phase: .diff,
+            commitHash: shortCommitHash
+        )
+        try DataPathsService.ensureDirectoryExists(at: diffDir)
+
+        try write(rawDiff, to: "\(diffDir)/diff-raw.diff")
+
+        let gitDiff = GitDiff.fromDiffContent(rawDiff, commitHash: fullCommitHash)
         let parsedDiffJSON = try JSONEncoder.prettyPrinted.encode(gitDiff)
-        try write(parsedDiffJSON, to: "\(phaseDir)/diff-parsed.json")
+        try write(parsedDiffJSON, to: "\(diffDir)/diff-parsed.json")
 
         let parsedMD = formatDiffAsMarkdown(gitDiff)
-        try write(parsedMD, to: "\(phaseDir)/diff-parsed.md")
+        try write(parsedMD, to: "\(diffDir)/diff-parsed.md")
 
-        // Effective diff placeholder — writes identity copies until Phase 4 ports the algorithm
-        try write(parsedDiffJSON, to: "\(phaseDir)/effective-diff-parsed.json")
-        try write(parsedMD, to: "\(phaseDir)/effective-diff-parsed.md")
+        try write(parsedDiffJSON, to: "\(diffDir)/effective-diff-parsed.json")
+        try write(parsedMD, to: "\(diffDir)/effective-diff-parsed.md")
 
         let emptyMoveReport = MoveReport(
             movesDetected: 0,
@@ -125,33 +171,15 @@ public struct PRAcquisitionService: Sendable {
             moves: []
         )
         let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
-        try write(movesJSON, to: "\(phaseDir)/effective-diff-moves.json")
+        try write(movesJSON, to: "\(diffDir)/effective-diff-moves.json")
 
-        let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
-        try write(commentsJSON, to: "\(phaseDir)/gh-comments.json")
-
-        let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
-        try write(repoJSON, to: "\(phaseDir)/gh-repo.json")
-
-        // Download images from PR body and comments
-        let imageURLMap = await downloadImages(
-            prNumber: prNumber,
-            pullRequest: pullRequest,
-            comments: comments,
-            phaseDir: phaseDir
-        )
-        if !imageURLMap.isEmpty {
-            let mapJSON = try JSONEncoder.prettyPrinted.encode(imageURLMap)
-            try write(mapJSON, to: "\(phaseDir)/image-url-map.json")
-        }
-
-        // Write phase_result.json to mark successful completion
         try PhaseResultWriter.writeSuccess(
             phase: .diff,
             outputDir: outputDir,
             prNumber: prNumberStr,
+            commitHash: shortCommitHash,
             stats: PhaseStats(
-                artifactsProduced: 9,  // Number of required files
+                artifactsProduced: 6,
                 metadata: ["files": String(gitDiff.uniqueFiles.count), "hunks": String(gitDiff.hunks.count)]
             )
         )
@@ -160,7 +188,8 @@ public struct PRAcquisitionService: Sendable {
             pullRequest: pullRequest,
             diff: gitDiff,
             comments: comments,
-            repository: repository
+            repository: repository,
+            commitHash: shortCommitHash
         )
     }
 

@@ -109,7 +109,7 @@ Update `DataPathsService` to support the new directory structure:
 - `PRDiscoveryService` updated to read `gh-pr.json` from `metadata/` directory
 - 381 tests pass, including new tests for `metadataDirectory`, `analysisDirectory`, commit-scoped paths, and legacy fallback
 
-## - [ ] Phase 2: Split sync phase writes
+## - [x] Phase 2: Split sync phase writes
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -120,6 +120,16 @@ Update `PRAcquisitionService.acquire()`:
 - Return commit hash in `AcquisitionResult` so downstream phases can use it
 
 Update `SyncPRUseCase` to pass commit hash through its output.
+
+**Technical notes:**
+- `PRAcquisitionService.acquire()` now writes in two passes: metadata files to `metadata/` with a `.metadata` phase result, then diff artifacts to `analysis/<commit>/diff/` with a `.diff` phase result
+- `AcquisitionResult` gains a `commitHash: String` field (7-char short hash)
+- `SyncSnapshot` gains an optional `commitHash: String?` field, populated from `AcquisitionResult` during `execute()` or resolved from `metadata/gh-pr.json` during `parseOutput()`
+- `SyncPRUseCase.resolveCommitHash()` reads `headRefOid` from `metadata/gh-pr.json`, falling back to scanning `analysis/` for the latest directory
+- `PhaseResultWriter` accepts optional `commitHash` parameter, forwarded to `DataPathsService.phaseDirectory()`
+- `PhaseOutputParser` and `OutputFileReader` already accepted optional `commitHash` (from Phase 1); all overloads now consistently pass it through
+- `FetchReviewCommentsUseCase` updated to read `gh-comments.json` from `.metadata` instead of `.diff`
+- 381 tests pass, build succeeds
 
 ## - [ ] Phase 3: Add `ruleBlobHash` to task creation
 

@@ -1,3 +1,4 @@
+import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
@@ -10,6 +11,7 @@ public struct SyncSnapshot: Sendable {
     public let commentCount: Int
     public let reviewCount: Int
     public let reviewCommentCount: Int
+    public let commitHash: String?
 
     public init(
         files: [String],
@@ -18,7 +20,8 @@ public struct SyncSnapshot: Sendable {
         moveReport: MoveReport?,
         commentCount: Int = 0,
         reviewCount: Int = 0,
-        reviewCommentCount: Int = 0
+        reviewCommentCount: Int = 0,
+        commitHash: String? = nil
     ) {
         self.files = files
         self.fullDiff = fullDiff
@@ -27,6 +30,7 @@ public struct SyncSnapshot: Sendable {
         self.commentCount = commentCount
         self.reviewCount = reviewCount
         self.reviewCommentCount = reviewCommentCount
+        self.commitHash = commitHash
     }
 }
 
@@ -38,27 +42,32 @@ public struct SyncPRUseCase: Sendable {
         self.config = config
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String) -> SyncSnapshot {
+    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) -> SyncSnapshot {
+        let resolvedCommit = commitHash ?? resolveCommitHash(config: config, prNumber: prNumber)
+
+        // Diff files live under analysis/<commit>/diff/
         let files = OutputFileReader.files(
             in: config,
             prNumber: prNumber,
-            phase: .diff
+            phase: .diff,
+            commitHash: resolvedCommit
         )
 
         let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "diff-parsed.json"
+            config: config, prNumber: prNumber, phase: .diff, filename: "diff-parsed.json", commitHash: resolvedCommit
         )
 
         let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "effective-diff-parsed.json"
+            config: config, prNumber: prNumber, phase: .diff, filename: "effective-diff-parsed.json", commitHash: resolvedCommit
         )
 
         let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "effective-diff-moves.json"
+            config: config, prNumber: prNumber, phase: .diff, filename: "effective-diff-moves.json", commitHash: resolvedCommit
         )
 
+        // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: "gh-comments.json"
+            config: config, prNumber: prNumber, phase: .metadata, filename: "gh-comments.json"
         )
 
         return SyncSnapshot(
@@ -68,8 +77,31 @@ public struct SyncPRUseCase: Sendable {
             moveReport: moveReport,
             commentCount: comments?.comments.count ?? 0,
             reviewCount: comments?.reviews.count ?? 0,
-            reviewCommentCount: comments?.reviewComments.count ?? 0
+            reviewCommentCount: comments?.reviewComments.count ?? 0,
+            commitHash: resolvedCommit
         )
+    }
+
+    /// Resolve the commit hash from metadata/gh-pr.json, or scan analysis/ for the latest commit directory.
+    private static func resolveCommitHash(config: PRRadarConfig, prNumber: String) -> String? {
+        // Try reading headRefOid from metadata/gh-pr.json
+        let metadataDir = DataPathsService.phaseDirectory(
+            outputDir: config.absoluteOutputDir,
+            prNumber: prNumber,
+            phase: .metadata
+        )
+        let ghPRPath = "\(metadataDir)/gh-pr.json"
+        if let data = FileManager.default.contents(atPath: ghPRPath),
+           let pr = try? JSONDecoder().decode(GitHubPullRequest.self, from: data),
+           let fullHash = pr.headRefOid {
+            return String(fullHash.prefix(7))
+        }
+        // Fallback: pick the most recent commit directory under analysis/
+        let analysisRoot = "\(config.absoluteOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
+        if let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) {
+            return dirs.sorted().last
+        }
+        return nil
     }
 
     public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
@@ -113,7 +145,7 @@ public struct SyncPRUseCase: Sendable {
                         continuation.yield(.log(text: "  [\(author)] \(file):\(rc.line ?? 0) — \(rc.body.prefix(80))\n"))
                     }
 
-                    let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
+                    let snapshot = Self.parseOutput(config: config, prNumber: prNumber, commitHash: result.commitHash)
                     continuation.yield(.completed(output: snapshot))
                     continuation.finish()
                 } catch is CancellationError {

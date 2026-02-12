@@ -26,7 +26,7 @@ public struct FetchReviewCommentsUseCase: Sendable {
             guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
-                phase: .diff,
+                phase: .metadata,
                 filename: "gh-comments.json"
             ) else { return [] }
             return comments.reviewComments
