@@ -85,10 +85,12 @@ Reorganize the left sidebar to group transcripts by file for the analyze phase.
 - Detail pane, header, and event rendering unchanged
 - Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
-## - [ ] Phase 4: Wire up ReviewDetailView
+## - [x] Phase 4: Wire up ReviewDetailView
 
 - **File**: `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewDetailView.swift`
-- Pass `prModel.preparation?.tasks ?? []` to `AITranscriptView` in each `aiOutputView` branch (4 call sites, lines 185-191)
+- Original plan was to pass `tasks` to `AITranscriptView`, but Phase 3 made this unnecessary — `filePath`/`ruleName` are embedded directly on `ClaudeAgentTranscript`, so no extra wiring is needed
+- Improved `aiOutputView` logic to handle edge cases: prioritize live transcripts when streaming, fall back to saved transcripts during AI runs, and show a "Waiting for AI output..." progress indicator when AI is running but no transcripts exist yet
+- Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
 ## - [ ] Phase 5: Validation
 
