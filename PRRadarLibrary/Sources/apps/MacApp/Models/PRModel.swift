@@ -44,6 +44,9 @@ final class PRModel: Identifiable, Hashable {
     private var liveAccumulators: [LiveTranscriptAccumulator] = []
     private(set) var currentLivePhase: PRRadarPhase?
 
+    private(set) var currentCommitHash: String?
+    private(set) var availableCommits: [String] = []
+
     private(set) var operationMode: OperationMode = .idle
     private(set) var selectiveAnalysisInFlight: Set<String> = []
     private var refreshTask: Task<Void, Never>?
@@ -126,18 +129,20 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - Analysis Summary (Lightweight)
 
     private func loadAnalysisSummary() async {
+        let commit = currentCommitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
         do {
             let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
                 phase: .analyze,
-                filename: "summary.json"
+                filename: "summary.json",
+                commitHash: commit
             )
             let postedCommentCount: Int = {
                 guard let comments: GitHubPullRequestComments = try? PhaseOutputParser.parsePhaseOutput(
                     config: config,
                     prNumber: prNumber,
-                    phase: .diff,
+                    phase: .metadata,
                     filename: "gh-comments.json"
                 ) else { return 0 }
                 return comments.reviewComments.count
@@ -157,6 +162,11 @@ final class PRModel: Identifiable, Hashable {
     func loadDetail() {
         guard case .unloaded = detailState else { return }
         detailState = .loading
+
+        if currentCommitHash == nil {
+            currentCommitHash = SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        }
+        refreshAvailableCommits()
 
         loadPhaseStates()
         loadCachedDiff()
@@ -180,7 +190,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func loadCachedNonDiffOutputs() throws {
-        let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber)
+        let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber, commitHash: currentCommitHash)
         self.preparation = snapshot.preparation
         self.analysis = snapshot.analysis
         self.report = snapshot.report
@@ -189,7 +199,7 @@ final class PRModel: Identifiable, Hashable {
             self.postedComments = try PhaseOutputParser.parsePhaseOutput(
                 config: config,
                 prNumber: prNumber,
-                phase: .diff,
+                phase: .metadata,
                 filename: "gh-comments.json"
             )
         } catch is PhaseOutputError {
@@ -199,12 +209,12 @@ final class PRModel: Identifiable, Hashable {
         if let map: [String: String] = try? PhaseOutputParser.parsePhaseOutput(
             config: config,
             prNumber: prNumber,
-            phase: .diff,
+            phase: .metadata,
             filename: "image-url-map.json"
         ) {
             self.imageURLMap = map
             let phaseDir = OutputFileReader.phaseDirectoryPath(
-                config: config, prNumber: prNumber, phase: .diff
+                config: config, prNumber: prNumber, phase: .metadata
             )
             self.imageBaseDir = "\(phaseDir)/images"
         }
@@ -275,6 +285,10 @@ final class PRModel: Identifiable, Hashable {
                     case .analysisResult: break
                     case .completed(let snapshot):
                         syncSnapshot = snapshot
+                        if let newCommit = snapshot.commitHash {
+                            currentCommitHash = newCommit
+                            refreshAvailableCommits()
+                        }
                         let logs = runningLogs(for: .diff)
                         phaseStates[.diff] = .completed(logs: logs)
                     case .failed(let error, let logs):
@@ -315,14 +329,14 @@ final class PRModel: Identifiable, Hashable {
 
         for phase in aiPhases {
             let files = PhaseOutputParser.listPhaseFiles(
-                config: config, prNumber: prNumber, phase: phase
+                config: config, prNumber: prNumber, phase: phase, commitHash: currentCommitHash
             )
             let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
 
             var transcripts: [ClaudeAgentTranscript] = []
             for filename in transcriptFiles {
                 if let data = try? PhaseOutputParser.readPhaseFile(
-                    config: config, prNumber: prNumber, phase: phase, filename: filename
+                    config: config, prNumber: prNumber, phase: phase, filename: filename, commitHash: currentCommitHash
                 ),
                    let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data)
                 {
@@ -338,7 +352,8 @@ final class PRModel: Identifiable, Hashable {
     private func loadPhaseStates() {
         let allPhaseStatuses = DataPathsService.allPhaseStatuses(
             outputDir: config.absoluteOutputDir,
-            prNumber: prNumber
+            prNumber: prNumber,
+            commitHash: currentCommitHash
         )
 
         for (phase, status) in allPhaseStatuses {
@@ -354,7 +369,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func loadCachedDiff() {
-        let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
+        let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: currentCommitHash)
         if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
             self.syncSnapshot = snapshot
             if case .idle = stateFor(.diff) {
@@ -404,6 +419,42 @@ final class PRModel: Identifiable, Hashable {
     func isPhaseCompleted(_ phase: PRRadarPhase) -> Bool {
         if case .completed = stateFor(phase) { return true }
         return false
+    }
+
+    // MARK: - Commit Switching
+
+    func switchToCommit(_ commitHash: String) {
+        currentCommitHash = commitHash
+        syncSnapshot = nil
+        preparation = nil
+        analysis = nil
+        report = nil
+        comments = nil
+        postedComments = nil
+        savedTranscripts = [:]
+        phaseStates = [:]
+
+        loadPhaseStates()
+        loadCachedDiff()
+        do {
+            try loadCachedNonDiffOutputs()
+        } catch {
+            phaseStates[.diff] = .failed(
+                error: "Failed to load cached outputs: \(error.localizedDescription)",
+                logs: ""
+            )
+        }
+        loadSavedTranscripts()
+        Task { await loadAnalysisSummary() }
+    }
+
+    private func refreshAvailableCommits() {
+        let analysisRoot = "\(config.absoluteOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
+        guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) else {
+            availableCommits = []
+            return
+        }
+        availableCommits = dirs.filter { !$0.hasPrefix(".") }.sorted()
     }
 
     // MARK: - Phase Execution
@@ -461,7 +512,7 @@ final class PRModel: Identifiable, Hashable {
         let useCase = PostCommentsUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, dryRun: dryRun) {
+            for try await progress in useCase.execute(prNumber: prNumber, dryRun: dryRun, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break
@@ -612,7 +663,7 @@ final class PRModel: Identifiable, Hashable {
         let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
+            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: rulesDir, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break
@@ -651,7 +702,7 @@ final class PRModel: Identifiable, Hashable {
         let useCase = AnalyzeUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber) {
+            for try await progress in useCase.execute(prNumber: prNumber, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break
@@ -689,7 +740,7 @@ final class PRModel: Identifiable, Hashable {
         let useCase = SelectiveAnalyzeUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, filter: filter) {
+            for try await progress in useCase.execute(prNumber: prNumber, filter: filter, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break
@@ -773,7 +824,7 @@ final class PRModel: Identifiable, Hashable {
         let useCase = GenerateReportUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber) {
+            for try await progress in useCase.execute(prNumber: prNumber, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break

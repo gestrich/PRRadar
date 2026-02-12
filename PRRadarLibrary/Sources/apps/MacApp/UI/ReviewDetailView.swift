@@ -228,9 +228,32 @@ struct ReviewDetailView: View {
             compactPhaseButton(phase: .analyze, label: "Analyze", icon: "checkmark.shield")
                 .accessibilityIdentifier("analyzeButton")
             Spacer()
+            commitPicker
         }
         .padding(.horizontal)
         .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private var commitPicker: some View {
+        let commits = prModel.availableCommits
+        if commits.count > 1, let current = prModel.currentCommitHash {
+            Picker("Commit", selection: Binding(
+                get: { current },
+                set: { prModel.switchToCommit($0) }
+            )) {
+                ForEach(commits, id: \.self) { commit in
+                    Text(commit).tag(commit)
+                }
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .accessibilityIdentifier("commitPicker")
+        } else if let current = prModel.currentCommitHash {
+            Text(current)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder

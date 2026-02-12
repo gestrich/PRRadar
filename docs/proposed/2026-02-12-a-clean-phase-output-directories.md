@@ -233,7 +233,7 @@ Update individual CLI commands (`DiffCommand`, `RulesCommand`, `EvaluateCommand`
 - `RunAllCommand`, `RefreshCommand` don't use `CLIOptions` so unaffected; `RefreshPRCommand` uses `CLIOptions` but syncs fresh (commit is determined by sync)
 - 393 tests pass across 45 suites, build succeeds
 
-## - [ ] Phase 8: Update Mac app
+## - [x] Phase 8: Update Mac app
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -241,6 +241,18 @@ Update `PRModel` and related views:
 - `LoadExistingOutputsUseCase` — resolve which commit directory to load (latest by default)
 - `PRModel` — track current commit hash, enable switching between commits
 - Phase views — no structural changes needed (they render the same data, just from a different path)
+
+**Technical notes:**
+- `LoadExistingOutputsUseCase.execute()` gains optional `commitHash: String?` parameter; resolves commit hash once and passes it to all `parseOutput` calls
+- `PRModel` gains `currentCommitHash: String?` and `availableCommits: [String]` properties
+- `currentCommitHash` is resolved on first `loadDetail()` via `SyncPRUseCase.resolveCommitHash()` and updated when sync completes with a new commit
+- `switchToCommit(_ commitHash:)` clears all cached phase data and reloads from the new commit directory
+- `refreshAvailableCommits()` scans `analysis/` for commit directories
+- All use case calls (`PrepareUseCase`, `AnalyzeUseCase`, `GenerateReportUseCase`, `PostCommentsUseCase`, `SelectiveAnalyzeUseCase`) now receive `currentCommitHash`
+- `loadPhaseStates()`, `loadSavedTranscripts()`, `loadCachedDiff()`, `loadCachedNonDiffOutputs()`, `loadAnalysisSummary()` all pass `currentCommitHash` through
+- PR-scoped files (`gh-comments.json`, `image-url-map.json`) read from `.metadata` phase instead of `.diff`
+- `ReviewDetailView` adds a commit picker (Picker with `.menu` style) in the diff toolbar when multiple commits exist; single commit shown as monospaced text label
+- 393 tests pass across 45 suites, build succeeds
 
 ## - [ ] Phase 9: Tests and validation
 

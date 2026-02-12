@@ -24,20 +24,22 @@ public struct LoadExistingOutputsUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String) -> PipelineSnapshot {
+    public func execute(prNumber: String, commitHash: String? = nil) -> PipelineSnapshot {
+        let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+
         let sync: SyncSnapshot? = {
-            let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber)
+            let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
             if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
                 return snapshot
             }
             return nil
         }()
 
-        let preparation = try? PrepareUseCase.parseOutput(config: config, prNumber: prNumber)
+        let preparation = try? PrepareUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
-        let analysis = try? AnalyzeUseCase.parseOutput(config: config, prNumber: prNumber)
+        let analysis = try? AnalyzeUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
-        let report = try? GenerateReportUseCase.parseOutput(config: config, prNumber: prNumber)
+        let report = try? GenerateReportUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
         return PipelineSnapshot(sync: sync, preparation: preparation, analysis: analysis, report: report)
     }
