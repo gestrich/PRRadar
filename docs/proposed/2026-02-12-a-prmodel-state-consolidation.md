@@ -240,7 +240,7 @@ swift build && swift test
 - Test categories: full PR (1), missing/partial phases (2), commit hash resolution (3), transcripts (2), posted comments (1), image map (2), available commits (3), analysis summary (2), phase statuses (1), syncSnapshot nil (1), sorted commits (1)
 - All 431 tests pass (412 existing + 19 new)
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
 End-to-end validation against the test repo:
 
@@ -263,3 +263,12 @@ Confirm no regressions:
 - Selective analysis works
 - Comment posting works
 - Refresh button works
+
+### Completion Notes
+
+- Build succeeds with no errors
+- All 431 tests pass (412 existing + 19 from Phase 3)
+- CLI validation: `sync 1 --config test-repo` syncs PR data successfully (7 files generated)
+- CLI validation: `status 1 --config test-repo` correctly shows phase completion states (metadata ✓, diff ✓, others not started)
+- `status` command no longer segfaults (previously a known issue)
+- MacApp UI validation deferred to manual testing by Bill (requires interactive GUI interaction)
