@@ -101,11 +101,13 @@ Update `hasAIOutput` to check `liveTranscripts` instead of `aiOutputText`.
 
 **Completed notes**: No code changes needed — this was already implemented during Phase 1. When `aiOutputText` and `aiCurrentPrompt` were removed, `ReviewDetailView` was updated with the unified `aiOutputView` logic (four-way branch: streaming live → saved → stale live → unavailable) and `hasAIOutput` was updated to check `liveTranscripts`. Verified build succeeds.
 
-## - [ ] Phase 5: Delete AIOutputStreamView
+## - [x] Phase 5: Delete AIOutputStreamView
 
 **Skills to read**: none
 
 Remove [AIOutputStreamView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/PhaseViews/AIOutputStreamView.swift) — no longer needed.
+
+**Completed notes**: Deleted `AIOutputStreamView.swift`. No remaining code references — only documentation files mention it. Build succeeds.
 
 ## - [ ] Phase 6: Validation
 
