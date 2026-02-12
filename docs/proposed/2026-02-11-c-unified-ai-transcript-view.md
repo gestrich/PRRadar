@@ -85,7 +85,7 @@ When `isStreaming`:
 
 **Completed notes**: Added `isStreaming: Bool = false` parameter. When streaming: displays "AI is running..." banner with progress spinner (matching `AIOutputStreamView` style), auto-selects last transcript via `onChange(of: transcripts.count)`, auto-scrolls detail pane via `ScrollViewReader` with `onChange(of: transcript.events.count)`. Sidebar and header show streaming-appropriate metadata (event count instead of model/cost). Updated `ReviewDetailView.aiOutputView` to pass `isStreaming: true` when `isAIPhaseRunning`.
 
-## - [ ] Phase 4: Simplify ReviewDetailView
+## - [x] Phase 4: Simplify ReviewDetailView
 
 **Skills to read**: none
 
@@ -98,6 +98,8 @@ Replace the three-way branching in `aiOutputView` with unified logic:
 Update `hasAIOutput` to check `liveTranscripts` instead of `aiOutputText`.
 
 **Files**: [ReviewDetailView.swift](PRRadarLibrary/Sources/apps/MacApp/UI/ReviewDetailView.swift)
+
+**Completed notes**: No code changes needed — this was already implemented during Phase 1. When `aiOutputText` and `aiCurrentPrompt` were removed, `ReviewDetailView` was updated with the unified `aiOutputView` logic (four-way branch: streaming live → saved → stale live → unavailable) and `hasAIOutput` was updated to check `liveTranscripts`. Verified build succeeds.
 
 ## - [ ] Phase 5: Delete AIOutputStreamView
 
