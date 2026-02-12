@@ -195,7 +195,7 @@ Update `AnalysisCacheService.partitionTasks()`:
 - Default parameter (`prOutputDir: nil`) preserves backward compatibility for all existing callers
 - 393 tests pass across 45 suites, including 12 new tests for dual blob hash checking, cross-commit cache hits/misses, file copying, and directory discovery
 
-## - [ ] Phase 6: Update `RunPipelineUseCase` orchestration
+## - [x] Phase 6: Update `RunPipelineUseCase` orchestration
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -204,6 +204,15 @@ Update `RunPipelineUseCase.execute()`:
 - Pass commit hash to prepare → analyze → report
 - Phase dependency checking uses commit-scoped paths
 - Output file collection uses new directory structure
+
+**Technical notes:**
+- `RunPipelineUseCase.execute()` now captures `SyncSnapshot` from the sync phase's `.completed(output:)` event instead of a bare `diffCompleted` boolean
+- `commitHash` (type `String?`) extracted from `syncOutput.commitHash` and explicitly threaded to all downstream use cases: `PrepareUseCase`, `AnalyzeUseCase`, `GenerateReportUseCase`, and `PostCommentsUseCase`
+- `OutputFileReader.files()` in the file collection loop now receives `commitHash` so it reads from commit-scoped directories
+- Previously, each use case independently resolved the commit hash via `SyncPRUseCase.resolveCommitHash()` — now the pipeline passes it explicitly, avoiding redundant disk reads and ensuring all phases operate on the same commit
+- `RunAllUseCase` unchanged — it delegates to `RunPipelineUseCase` which handles commit hash internally
+- No API changes to `RunPipelineUseCase.execute()` — all callers (`RunCommand`, `RunAllUseCase`) compile without changes
+- 393 tests pass across 45 suites, build succeeds
 
 ## - [ ] Phase 7: Update CLI commands
 

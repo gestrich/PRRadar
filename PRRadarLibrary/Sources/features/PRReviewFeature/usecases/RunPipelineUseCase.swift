@@ -36,7 +36,7 @@ public struct RunPipelineUseCase: Sendable {
                     // Phase 1: Sync
                     continuation.yield(.log(text: "=== Phase 1: Syncing PR data ===\n"))
                     let diffUseCase = SyncPRUseCase(config: config)
-                    var diffCompleted = false
+                    var syncSnapshot: SyncSnapshot?
                     for try await progress in diffUseCase.execute(prNumber: prNumber) {
                         switch progress {
                         case .running: break
@@ -47,26 +47,27 @@ public struct RunPipelineUseCase: Sendable {
                         case .aiPrompt: break
                         case .aiToolUse: break
                         case .analysisResult: break
-                        case .completed:
-                            diffCompleted = true
+                        case .completed(let output):
+                            syncSnapshot = output
                         case .failed(let error, let logs):
                             continuation.yield(.failed(error: "Diff phase failed: \(error)", logs: logs))
                             continuation.finish()
                             return
                         }
                     }
-                    guard diffCompleted else {
+                    guard let syncOutput = syncSnapshot else {
                         continuation.yield(.failed(error: "Diff phase produced no output", logs: ""))
                         continuation.finish()
                         return
                     }
+                    let commitHash = syncOutput.commitHash
 
                     // Phase 2: Prepare
                     continuation.yield(.running(phase: .prepare))
                     continuation.yield(.log(text: "\n=== Phase 2: Preparing evaluation tasks ===\n"))
                     let rulesUseCase = PrepareUseCase(config: config)
                     var rulesCompleted = false
-                    for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDir: rulesDir) {
+                    for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDir: rulesDir, commitHash: commitHash) {
                         switch progress {
                         case .running(let phase):
                             continuation.yield(.running(phase: phase))
@@ -99,7 +100,7 @@ public struct RunPipelineUseCase: Sendable {
                     continuation.yield(.log(text: "\n=== Phase 3: Analyzing code ===\n"))
                     let evalUseCase = AnalyzeUseCase(config: config)
                     var evalCompleted = false
-                    for try await progress in evalUseCase.execute(prNumber: prNumber, repoPath: repoPath) {
+                    for try await progress in evalUseCase.execute(prNumber: prNumber, repoPath: repoPath, commitHash: commitHash) {
                         switch progress {
                         case .running: break
                         case .progress: break
@@ -132,7 +133,7 @@ public struct RunPipelineUseCase: Sendable {
                     continuation.yield(.log(text: "\n=== Phase 4: Report ===\n"))
                     let reportUseCase = GenerateReportUseCase(config: config)
                     var reportOutput: ReportPhaseOutput?
-                    for try await progress in reportUseCase.execute(prNumber: prNumber, minScore: minScore) {
+                    for try await progress in reportUseCase.execute(prNumber: prNumber, minScore: minScore, commitHash: commitHash) {
                         switch progress {
                         case .running: break
                         case .progress: break
@@ -155,7 +156,7 @@ public struct RunPipelineUseCase: Sendable {
                     if noDryRun {
                         continuation.yield(.log(text: "\n=== Posting comments ===\n"))
                         let commentUseCase = PostCommentsUseCase(config: config)
-                        for try await progress in commentUseCase.execute(prNumber: prNumber, minScore: minScore, dryRun: false) {
+                        for try await progress in commentUseCase.execute(prNumber: prNumber, minScore: minScore, dryRun: false, commitHash: commitHash) {
                             switch progress {
                             case .running: break
                             case .progress: break
@@ -175,7 +176,7 @@ public struct RunPipelineUseCase: Sendable {
                     // Collect output files per phase
                     var filesByPhase: [PRRadarPhase: [String]] = [:]
                     for phase in PRRadarPhase.allCases {
-                        let files = OutputFileReader.files(in: config, prNumber: prNumber, phase: phase)
+                        let files = OutputFileReader.files(in: config, prNumber: prNumber, phase: phase, commitHash: commitHash)
                         if !files.isEmpty {
                             filesByPhase[phase] = files
                         }
