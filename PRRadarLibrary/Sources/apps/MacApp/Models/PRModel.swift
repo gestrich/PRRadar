@@ -190,10 +190,10 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func loadCachedNonDiffOutputs() throws {
-        let snapshot = LoadExistingOutputsUseCase(config: config).execute(prNumber: prNumber, commitHash: currentCommitHash)
-        self.preparation = snapshot.preparation
-        self.analysis = snapshot.analysis
-        self.report = snapshot.report
+        let detail = LoadPRDetailUseCase(config: config).execute(prNumber: prNumber, commitHash: currentCommitHash)
+        self.preparation = detail.preparation
+        self.analysis = detail.analysis
+        self.report = detail.report
 
         do {
             self.postedComments = try PhaseOutputParser.parsePhaseOutput(
