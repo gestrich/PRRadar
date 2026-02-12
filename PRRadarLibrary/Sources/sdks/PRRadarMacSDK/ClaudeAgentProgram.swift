@@ -1,6 +1,6 @@
 import CLISDK
 
 @CLIProgram("python3")
-public struct ClaudeBridge {
+public struct ClaudeAgentProgram {
     @Positional public var scriptPath: String
 }

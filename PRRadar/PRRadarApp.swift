@@ -6,12 +6,12 @@ struct PRRadarApp: App {
     @State private var appModel: AppModel
 
     init() {
-        let bridgePath = URL(fileURLWithPath: #filePath)
+        let agentScriptPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // PRRadar/
             .deletingLastPathComponent() // project root
-            .appendingPathComponent("PRRadarLibrary/bridge/claude_bridge.py")
+            .appendingPathComponent("PRRadarLibrary/claude-agent/claude_agent.py")
             .path
-        _appModel = State(initialValue: AppModel(bridgeScriptPath: bridgePath))
+        _appModel = State(initialValue: AppModel(agentScriptPath: agentScriptPath))
     }
 
     var body: some Scene {

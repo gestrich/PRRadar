@@ -22,21 +22,21 @@ public struct FocusGenerationResult: Sendable {
 
 /// Generates focus areas (reviewable units of code) from diff hunks.
 ///
-/// For method-level focus areas, calls Claude Haiku via the bridge script to
+/// For method-level focus areas, calls Claude Haiku via the Claude Agent script to
 /// identify individual methods/functions in each hunk. For file-level focus areas,
 /// groups all hunks per file without an AI call.
 public struct FocusGeneratorService: Sendable {
     public static let defaultModel = "claude-haiku-4-5-20251001"
 
-    private let bridgeClient: ClaudeBridgeClient
+    private let agentClient: ClaudeAgentClient
     private let model: String
 
-    public init(bridgeClient: ClaudeBridgeClient, model: String = FocusGeneratorService.defaultModel) {
-        self.bridgeClient = bridgeClient
+    public init(agentClient: ClaudeAgentClient, model: String = FocusGeneratorService.defaultModel) {
+        self.agentClient = agentClient
         self.model = model
     }
 
-    /// Generate focus areas for a single hunk via the Claude bridge.
+    /// Generate focus areas for a single hunk via the Claude Agent.
     public func generateFocusAreasForHunk(
         _ hunk: Hunk,
         hunkIndex: Int,
@@ -51,35 +51,35 @@ public struct FocusGeneratorService: Sendable {
             .replacingOccurrences(of: "{hunk_index}", with: String(hunkIndex))
             .replacingOccurrences(of: "{hunk_content}", with: annotatedContent)
 
-        let request = BridgeRequest(
+        let request = ClaudeAgentRequest(
             prompt: prompt,
             model: model,
             outputSchema: Self.focusGenerationSchema
         )
 
         let startedAt = ISO8601DateFormatter().string(from: Date())
-        var transcriptEvents: [BridgeTranscriptEvent] = []
-        var result: BridgeResult?
+        var transcriptEvents: [ClaudeAgentTranscriptEvent] = []
+        var result: ClaudeAgentResult?
 
-        for try await event in bridgeClient.stream(request) {
+        for try await event in agentClient.stream(request) {
             switch event {
             case .text(let content):
                 onAIText?(content)
-                transcriptEvents.append(BridgeTranscriptEvent(type: .text, content: content))
+                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: content))
             case .toolUse(let name):
                 onAIToolUse?(name)
-                transcriptEvents.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
-            case .result(let bridgeResult):
-                result = bridgeResult
-                if let outputData = bridgeResult.outputData,
+                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
+            case .result(let agentResult):
+                result = agentResult
+                if let outputData = agentResult.outputData,
                    let json = String(data: outputData, encoding: .utf8) {
-                    transcriptEvents.append(BridgeTranscriptEvent(type: .result, content: json))
+                    transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .result, content: json))
                 }
             }
         }
 
         if let transcriptDir, let result {
-            let transcript = BridgeTranscript(
+            let transcript = ClaudeAgentTranscript(
                 identifier: "hunk-\(hunkIndex)",
                 model: model,
                 startedAt: startedAt,
@@ -88,11 +88,11 @@ public struct FocusGeneratorService: Sendable {
                 costUsd: result.costUsd,
                 durationMs: result.durationMs
             )
-            try? BridgeTranscriptWriter.write(transcript, to: transcriptDir)
+            try? ClaudeAgentTranscriptWriter.write(transcript, to: transcriptDir)
         }
 
         guard let result else {
-            throw ClaudeBridgeError.noResult
+            throw ClaudeAgentError.noResult
         }
 
         guard let output = result.outputAsDictionary(),

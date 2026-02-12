@@ -2,38 +2,38 @@ import CLISDK
 import Foundation
 import PRRadarConfigService
 
-public enum ClaudeBridgeError: LocalizedError {
-    case bridgeScriptNotFound(String)
+public enum ClaudeAgentError: LocalizedError {
+    case scriptNotFound(String)
     case pythonNotFound
     case invalidInput(String)
-    case bridgeFailed(String)
+    case agentFailed(String)
     case noResult
 
     public var errorDescription: String? {
         switch self {
-        case .bridgeScriptNotFound(let path):
-            return "Bridge script not found at \(path)"
+        case .scriptNotFound(let path):
+            return "Claude Agent script not found at \(path)"
         case .pythonNotFound:
-            return "Python interpreter not found in bridge venv"
+            return "Python interpreter not found in Claude Agent venv"
         case .invalidInput(let detail):
-            return "Invalid bridge input: \(detail)"
-        case .bridgeFailed(let detail):
-            return "Claude bridge failed: \(detail)"
+            return "Invalid Claude Agent input: \(detail)"
+        case .agentFailed(let detail):
+            return "Claude Agent failed: \(detail)"
         case .noResult:
-            return "Bridge returned no result"
+            return "Claude Agent returned no result"
         }
     }
 }
 
-/// A streaming event yielded by the bridge client as output arrives.
-public enum BridgeStreamEvent: Sendable {
+/// A streaming event yielded by the Claude Agent client as output arrives.
+public enum ClaudeAgentStreamEvent: Sendable {
     case text(String)
     case toolUse(name: String)
-    case result(BridgeResult)
+    case result(ClaudeAgentResult)
 }
 
-/// A streaming message parsed from a single JSON-line of bridge output.
-enum BridgeMessage {
+/// A streaming message parsed from a single JSON-line of Claude Agent output.
+enum ClaudeAgentMessage {
     case text(String)
     case toolUse(name: String)
     case result(output: [String: Any]?, costUsd: Double?, durationMs: Int?)
@@ -62,10 +62,10 @@ enum BridgeMessage {
     }
 }
 
-/// Parses each JSON-line from the bridge script into a `BridgeStreamEvent`.
-struct BridgeMessageParser: CLILineParser {
-    func parse(line: String) throws -> BridgeStreamEvent? {
-        guard let message = BridgeMessage(jsonLine: line) else { return nil }
+/// Parses each JSON-line from the Claude Agent script into a `ClaudeAgentStreamEvent`.
+struct ClaudeAgentMessageParser: CLILineParser {
+    func parse(line: String) throws -> ClaudeAgentStreamEvent? {
+        guard let message = ClaudeAgentMessage(jsonLine: line) else { return nil }
         switch message {
         case .text(let content):
             return .text(content)
@@ -76,18 +76,18 @@ struct BridgeMessageParser: CLILineParser {
             if let output {
                 outputData = try? JSONSerialization.data(withJSONObject: output)
             }
-            let bridgeResult = BridgeResult(
+            let agentResult = ClaudeAgentResult(
                 outputData: outputData,
                 costUsd: cost ?? 0.0,
                 durationMs: duration ?? 0
             )
-            return .result(bridgeResult)
+            return .result(agentResult)
         }
     }
 }
 
-/// Request sent to the Claude bridge script via stdin.
-public struct BridgeRequest: Sendable {
+/// Request sent to the Claude Agent script via stdin.
+public struct ClaudeAgentRequest: Sendable {
     public let prompt: String
     public let model: String
     public let tools: [String]?
@@ -128,8 +128,8 @@ public struct BridgeRequest: Sendable {
     }
 }
 
-/// Result of a Claude bridge invocation.
-public struct BridgeResult: Sendable {
+/// Result of a Claude Agent SDK invocation.
+public struct ClaudeAgentResult: Sendable {
     /// The structured output as serialized JSON data (if any).
     public let outputData: Data?
     public let costUsd: Double
@@ -148,11 +148,11 @@ public struct BridgeResult: Sendable {
     }
 }
 
-/// Wraps the Python claude_bridge.py script, piping JSON to stdin and reading JSON-lines from stdout.
+/// Wraps the Python claude_agent.py script, piping JSON to stdin and reading JSON-lines from stdout.
 ///
-/// Uses `CLIClient.streamLines()` with a `BridgeMessageParser` for stdin piping and
+/// Uses `CLIClient.streamLines()` with a `ClaudeAgentMessageParser` for stdin piping and
 /// line-buffered streaming.
-public struct ClaudeBridgeClient: Sendable {
+public struct ClaudeAgentClient: Sendable {
     private let pythonEnvironment: PythonEnvironment
     private let cliClient: CLIClient
 
@@ -161,28 +161,28 @@ public struct ClaudeBridgeClient: Sendable {
         self.cliClient = cliClient
     }
 
-    /// Stream bridge events as they arrive from the Python bridge process.
+    /// Stream events as they arrive from the Claude Agent process.
     ///
-    /// Launches the bridge script, reads stdout line by line, and yields
-    /// `BridgeStreamEvent` values in real time. The final event is always
+    /// Launches the agent script, reads stdout line by line, and yields
+    /// `ClaudeAgentStreamEvent` values in real time. The final event is always
     /// `.result` containing the structured output with cost/duration metadata.
-    public func stream(_ request: BridgeRequest) -> AsyncThrowingStream<BridgeStreamEvent, Error> {
+    public func stream(_ request: ClaudeAgentRequest) -> AsyncThrowingStream<ClaudeAgentStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    guard FileManager.default.fileExists(atPath: pythonEnvironment.bridgeScriptPath) else {
-                        throw ClaudeBridgeError.bridgeScriptNotFound(pythonEnvironment.bridgeScriptPath)
+                    guard FileManager.default.fileExists(atPath: pythonEnvironment.agentScriptPath) else {
+                        throw ClaudeAgentError.scriptNotFound(pythonEnvironment.agentScriptPath)
                     }
 
                     let inputData = try request.toJSON()
 
                     let stream = await cliClient.streamLines(
                         command: pythonEnvironment.pythonCommand,
-                        arguments: [pythonEnvironment.bridgeScriptPath],
+                        arguments: [pythonEnvironment.agentScriptPath],
                         environment: PRRadarEnvironment.build(),
                         printCommand: false,
                         stdin: inputData,
-                        parser: BridgeMessageParser()
+                        parser: ClaudeAgentMessageParser()
                     )
 
                     for try await event in stream {
@@ -191,7 +191,7 @@ public struct ClaudeBridgeClient: Sendable {
 
                     continuation.finish()
                 } catch let error as CLIClientError {
-                    continuation.finish(throwing: ClaudeBridgeError.bridgeFailed("\(error)"))
+                    continuation.finish(throwing: ClaudeAgentError.agentFailed("\(error)"))
                 } catch {
                     continuation.finish(throwing: error)
                 }

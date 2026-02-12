@@ -40,7 +40,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
-    private(set) var savedTranscripts: [PRRadarPhase: [BridgeTranscript]] = [:]
+    private(set) var savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] = [:]
     private var liveAccumulators: [LiveTranscriptAccumulator] = []
     private(set) var currentLivePhase: PRRadarPhase?
 
@@ -106,9 +106,9 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    var liveTranscripts: [PRRadarPhase: [BridgeTranscript]] {
+    var liveTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] {
         guard let phase = currentLivePhase, !liveAccumulators.isEmpty else { return [:] }
-        return [phase: liveAccumulators.map { $0.toBridgeTranscript() }]
+        return [phase: liveAccumulators.map { $0.toClaudeAgentTranscript() }]
     }
 
     var hasPendingComments: Bool {
@@ -319,12 +319,12 @@ final class PRModel: Identifiable, Hashable {
             )
             let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
 
-            var transcripts: [BridgeTranscript] = []
+            var transcripts: [ClaudeAgentTranscript] = []
             for filename in transcriptFiles {
                 if let data = try? PhaseOutputParser.readPhaseFile(
                     config: config, prNumber: prNumber, phase: phase, filename: filename
                 ),
-                   let transcript = try? decoder.decode(BridgeTranscript.self, from: data)
+                   let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data)
                 {
                     transcripts.append(transcript)
                 }
@@ -591,10 +591,10 @@ final class PRModel: Identifiable, Hashable {
         guard !liveAccumulators.isEmpty else { return }
         var last = liveAccumulators[liveAccumulators.count - 1]
         if !last.textChunks.isEmpty {
-            last.events.append(BridgeTranscriptEvent(type: .text, content: last.textChunks))
+            last.events.append(ClaudeAgentTranscriptEvent(type: .text, content: last.textChunks))
             last.textChunks = ""
         }
-        last.events.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
+        last.events.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
         liveAccumulators[liveAccumulators.count - 1] = last
     }
 
@@ -834,16 +834,16 @@ final class PRModel: Identifiable, Hashable {
         let identifier: String
         var prompt: String
         var textChunks: String = ""
-        var events: [BridgeTranscriptEvent] = []
+        var events: [ClaudeAgentTranscriptEvent] = []
         let startedAt: Date
 
-        func toBridgeTranscript() -> BridgeTranscript {
+        func toClaudeAgentTranscript() -> ClaudeAgentTranscript {
             var finalEvents = events
             if !textChunks.isEmpty {
-                finalEvents.append(BridgeTranscriptEvent(type: .text, content: textChunks))
+                finalEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: textChunks))
             }
             let formatter = ISO8601DateFormatter()
-            return BridgeTranscript(
+            return ClaudeAgentTranscript(
                 identifier: identifier,
                 model: "streaming",
                 startedAt: formatter.string(from: startedAt),

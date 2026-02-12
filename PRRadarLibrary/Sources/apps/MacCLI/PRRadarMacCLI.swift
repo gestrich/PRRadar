@@ -67,13 +67,13 @@ enum CLIError: Error, CustomStringConvertible {
     }
 }
 
-func resolveBridgeScriptPath() -> String {
+func resolveAgentScriptPath() -> String {
     URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent() // PRRadarMacCLI.swift → MacCLI/
         .deletingLastPathComponent() // → apps/
         .deletingLastPathComponent() // → Sources/
         .deletingLastPathComponent() // → pr-radar-mac/
-        .appendingPathComponent("bridge/claude_bridge.py")
+        .appendingPathComponent("claude-agent/claude_agent.py")
         .path
 }
 
@@ -111,7 +111,7 @@ func resolveConfig(
     let config = PRRadarConfig(
         repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
         outputDir: resolvedOutputDir ?? "code-reviews",
-        bridgeScriptPath: resolveBridgeScriptPath(),
+        agentScriptPath: resolveAgentScriptPath(),
         githubToken: resolvedToken
     )
 

@@ -58,11 +58,10 @@
   system that shows: (1) how many total comments are on a file, (2) which are
   pending vs submitted, and (3) which were posted by our tool. Orange should
   indicate pending PRRadar comments; green alone is ambiguous.
-- [ ] Rename "Bridge" references to "ClaudeSDK" (or similar)
-  The word "Bridge" in file names, classes, and types is vague. Rename to
-  something that describes what it actually is — e.g. ClaudeSDK, ClaudeAgent,
-  or similar. Covers bridge models, transcript types, and the Python bridge
-  script naming.
+- [x] Rename "Bridge" references to "ClaudeAgent"
+  Renamed all Bridge* types, files, and references to ClaudeAgent* across the
+  codebase. Covers models, transcript types, and the Python script naming.
+  Directory: bridge/ → claude-agent/, Script: claude_bridge.py → claude_agent.py.
 
 ## Medium
 

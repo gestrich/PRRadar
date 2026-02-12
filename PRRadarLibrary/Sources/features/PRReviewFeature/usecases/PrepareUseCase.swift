@@ -49,8 +49,8 @@ public struct PrepareUseCase: Sendable {
                         return
                     }
 
-                    let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
-                    let focusGenerator = FocusGeneratorService(bridgeClient: bridgeClient)
+                    let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient())
+                    let focusGenerator = FocusGeneratorService(agentClient: agentClient)
 
                     let focusDir = "\(prepareDir)/\(DataPathsService.prepareFocusAreasSubdir)"
 

@@ -6,14 +6,14 @@ import PRRadarModels
 @MainActor
 public final class AppModel {
 
-    let bridgeScriptPath: String
+    let agentScriptPath: String
     private let settingsService: SettingsService
     var settings: AppSettings
 
     var allPRsModel: AllPRsModel?
 
-    public init(bridgeScriptPath: String) {
-        self.bridgeScriptPath = bridgeScriptPath
+    public init(agentScriptPath: String) {
+        self.agentScriptPath = agentScriptPath
         self.settingsService = SettingsService()
         self.settings = settingsService.load()
     }
@@ -25,7 +25,7 @@ public final class AppModel {
             let prRadarConfig = PRRadarConfig(
                 repoPath: config.repoPath,
                 outputDir: config.outputDir,
-                bridgeScriptPath: bridgeScriptPath,
+                agentScriptPath: agentScriptPath,
                 githubToken: config.githubToken
             )
             allPRsModel = AllPRsModel(

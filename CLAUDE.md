@@ -25,11 +25,11 @@ The app follows the [swift-app-architecture](https://github.com/gestrich/swift-a
 ```
 pr-radar-mac/
 ├── Package.swift
-├── bridge/                              # Minimal Python bridge for Claude Agent SDK
-│   ├── claude_bridge.py
+├── claude-agent/                        # Minimal Python wrapper for Claude Agent SDK
+│   ├── claude_agent.py
 │   └── requirements.txt
 ├── Sources/
-│   ├── sdks/PRRadarMacSDK/             # CLI command definitions (git, gh, claude bridge)
+│   ├── sdks/PRRadarMacSDK/             # CLI command definitions (git, gh, claude agent)
 │   ├── services/
 │   │   ├── PRRadarModels/              # Domain models (diff, rule, focus area, report, etc.)
 │   │   ├── PRRadarConfigService/       # Config, paths, environment
@@ -47,14 +47,14 @@ pr-radar-mac/
 - [SwiftCLI](https://github.com/gestrich/SwiftCLI) — CLI command definition and execution framework
 - [swift-argument-parser](https://github.com/apple/swift-argument-parser) — CLI argument parsing (PRRadarMacCLI)
 
-### Python Bridge
+### Python Agent Script
 
-The only Python code is a minimal bridge script (`pr-radar-mac/bridge/claude_bridge.py`) that wraps the Claude Agent SDK `query()` call. This is necessary because the Claude Agent SDK is Python-only. The bridge:
+The only Python code is a minimal wrapper script (`pr-radar-mac/claude-agent/claude_agent.py`) that wraps the Claude Agent SDK `query()` call. This is necessary because the Claude Agent SDK is Python-only. The script:
 - Reads a JSON request from stdin
 - Calls `claude_agent_sdk.query()`
 - Streams JSON-lines to stdout
 
-Setup: `pip install -r pr-radar-mac/bridge/requirements.txt`
+Setup: `pip install -r pr-radar-mac/claude-agent/requirements.txt`
 
 ## Building
 
@@ -94,7 +94,7 @@ swift test
 ## Key Technical Details
 
 - Pipeline phases: DIFF → FOCUS_AREAS → RULES → TASKS → EVALUATIONS → REPORT
-- Claude Agent SDK calls go through the Python bridge (`claude_bridge.py`)
+- Claude Agent SDK calls go through the Python wrapper (`claude_agent.py`)
 - Focus generation uses Haiku; rule evaluation uses Sonnet
 - Uses `gh` CLI for GitHub API calls, `git` CLI for git operations (both via SwiftCLI)
 - Requires `ANTHROPIC_API_KEY` (via env var or `.env` file)

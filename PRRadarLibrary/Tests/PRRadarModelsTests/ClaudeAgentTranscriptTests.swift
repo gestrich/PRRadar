@@ -2,12 +2,12 @@ import Foundation
 import Testing
 @testable import PRRadarModels
 
-@Suite("BridgeTranscript Model Encoding/Decoding")
-struct BridgeTranscriptTests {
+@Suite("ClaudeAgentTranscript Model Encoding/Decoding")
+struct ClaudeAgentTranscriptTests {
 
-    // MARK: - BridgeTranscriptEvent
+    // MARK: - ClaudeAgentTranscriptEvent
 
-    @Test("BridgeTranscriptEvent decodes text event from JSON")
+    @Test("ClaudeAgentTranscriptEvent decodes text event from JSON")
     func textEventDecode() throws {
         let json = """
         {
@@ -20,13 +20,13 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let event = try decoder.decode(BridgeTranscriptEvent.self, from: json)
+        let event = try decoder.decode(ClaudeAgentTranscriptEvent.self, from: json)
         #expect(event.type == .text)
         #expect(event.content == "Analyzing the code changes...")
         #expect(event.toolName == nil)
     }
 
-    @Test("BridgeTranscriptEvent decodes toolUse event from JSON")
+    @Test("ClaudeAgentTranscriptEvent decodes toolUse event from JSON")
     func toolUseEventDecode() throws {
         let json = """
         {
@@ -39,13 +39,13 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let event = try decoder.decode(BridgeTranscriptEvent.self, from: json)
+        let event = try decoder.decode(ClaudeAgentTranscriptEvent.self, from: json)
         #expect(event.type == .toolUse)
         #expect(event.toolName == "Read")
         #expect(event.content == nil)
     }
 
-    @Test("BridgeTranscriptEvent decodes result event from JSON")
+    @Test("ClaudeAgentTranscriptEvent decodes result event from JSON")
     func resultEventDecode() throws {
         let json = """
         {
@@ -58,14 +58,14 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let event = try decoder.decode(BridgeTranscriptEvent.self, from: json)
+        let event = try decoder.decode(ClaudeAgentTranscriptEvent.self, from: json)
         #expect(event.type == .result)
         #expect(event.content == "{\"score\": 5}")
     }
 
-    @Test("BridgeTranscriptEvent round-trips through encode/decode")
+    @Test("ClaudeAgentTranscriptEvent round-trips through encode/decode")
     func eventRoundTrip() throws {
-        let original = BridgeTranscriptEvent(
+        let original = ClaudeAgentTranscriptEvent(
             type: .text,
             content: "Hello world",
             toolName: nil,
@@ -78,16 +78,16 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BridgeTranscriptEvent.self, from: data)
+        let decoded = try decoder.decode(ClaudeAgentTranscriptEvent.self, from: data)
 
         #expect(decoded.type == original.type)
         #expect(decoded.content == original.content)
         #expect(decoded.toolName == original.toolName)
     }
 
-    @Test("BridgeTranscriptEvent encodes tool_name as snake_case")
+    @Test("ClaudeAgentTranscriptEvent encodes tool_name as snake_case")
     func eventSnakeCaseEncoding() throws {
-        let event = BridgeTranscriptEvent(
+        let event = ClaudeAgentTranscriptEvent(
             type: .toolUse,
             toolName: "Bash",
             timestamp: Date(timeIntervalSince1970: 0)
@@ -102,7 +102,7 @@ struct BridgeTranscriptTests {
         #expect(!jsonString.contains("\"toolName\""))
     }
 
-    @Test("BridgeTranscriptEvent with missing optional fields decodes")
+    @Test("ClaudeAgentTranscriptEvent with missing optional fields decodes")
     func eventMissingOptionals() throws {
         let json = """
         {
@@ -113,15 +113,15 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let event = try decoder.decode(BridgeTranscriptEvent.self, from: json)
+        let event = try decoder.decode(ClaudeAgentTranscriptEvent.self, from: json)
         #expect(event.type == .text)
         #expect(event.content == nil)
         #expect(event.toolName == nil)
     }
 
-    // MARK: - BridgeTranscript
+    // MARK: - ClaudeAgentTranscript
 
-    @Test("BridgeTranscript decodes full transcript from JSON")
+    @Test("ClaudeAgentTranscript decodes full transcript from JSON")
     func transcriptDecode() throws {
         let json = """
         {
@@ -152,7 +152,7 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let transcript = try decoder.decode(BridgeTranscript.self, from: json)
+        let transcript = try decoder.decode(ClaudeAgentTranscript.self, from: json)
         #expect(transcript.identifier == "task-1")
         #expect(transcript.model == "claude-sonnet-4-20250514")
         #expect(transcript.startedAt == "2025-06-01T10:00:00Z")
@@ -164,9 +164,9 @@ struct BridgeTranscriptTests {
         #expect(transcript.durationMs == 3000)
     }
 
-    @Test("BridgeTranscript encodes with snake_case keys")
+    @Test("ClaudeAgentTranscript encodes with snake_case keys")
     func transcriptSnakeCaseEncoding() throws {
-        let transcript = BridgeTranscript(
+        let transcript = ClaudeAgentTranscript(
             identifier: "hunk-0",
             model: "claude-haiku-4-5-20251001",
             startedAt: "2025-06-01T00:00:00Z",
@@ -188,15 +188,15 @@ struct BridgeTranscriptTests {
         #expect(!jsonString.contains("\"durationMs\""))
     }
 
-    @Test("BridgeTranscript round-trips through encode/decode")
+    @Test("ClaudeAgentTranscript round-trips through encode/decode")
     func transcriptRoundTrip() throws {
         let events = [
-            BridgeTranscriptEvent(type: .text, content: "Reasoning about the code", timestamp: Date(timeIntervalSince1970: 1717200001)),
-            BridgeTranscriptEvent(type: .toolUse, toolName: "Grep", timestamp: Date(timeIntervalSince1970: 1717200002)),
-            BridgeTranscriptEvent(type: .result, content: "{}", timestamp: Date(timeIntervalSince1970: 1717200003)),
+            ClaudeAgentTranscriptEvent(type: .text, content: "Reasoning about the code", timestamp: Date(timeIntervalSince1970: 1717200001)),
+            ClaudeAgentTranscriptEvent(type: .toolUse, toolName: "Grep", timestamp: Date(timeIntervalSince1970: 1717200002)),
+            ClaudeAgentTranscriptEvent(type: .result, content: "{}", timestamp: Date(timeIntervalSince1970: 1717200003)),
         ]
 
-        let original = BridgeTranscript(
+        let original = ClaudeAgentTranscript(
             identifier: "hunk-3",
             model: "claude-haiku-4-5-20251001",
             startedAt: "2025-06-01T10:00:00Z",
@@ -211,7 +211,7 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BridgeTranscript.self, from: data)
+        let decoded = try decoder.decode(ClaudeAgentTranscript.self, from: data)
 
         #expect(decoded.identifier == original.identifier)
         #expect(decoded.model == original.model)
@@ -221,7 +221,7 @@ struct BridgeTranscriptTests {
         #expect(decoded.durationMs == original.durationMs)
     }
 
-    @Test("BridgeTranscript with empty events array")
+    @Test("ClaudeAgentTranscript with empty events array")
     func transcriptEmptyEvents() throws {
         let json = """
         {
@@ -236,7 +236,7 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let transcript = try decoder.decode(BridgeTranscript.self, from: json)
+        let transcript = try decoder.decode(ClaudeAgentTranscript.self, from: json)
         #expect(transcript.events.isEmpty)
         #expect(transcript.costUsd == 0.0)
         #expect(transcript.durationMs == 0)
@@ -244,7 +244,7 @@ struct BridgeTranscriptTests {
 
     // MARK: - Prompt Field
 
-    @Test("BridgeTranscript decodes JSON without prompt field (backwards compat)")
+    @Test("ClaudeAgentTranscript decodes JSON without prompt field (backwards compat)")
     func transcriptDecodesWithoutPrompt() throws {
         let json = """
         {
@@ -259,20 +259,20 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let transcript = try decoder.decode(BridgeTranscript.self, from: json)
+        let transcript = try decoder.decode(ClaudeAgentTranscript.self, from: json)
         #expect(transcript.prompt == nil)
         #expect(transcript.identifier == "old-task")
     }
 
-    @Test("BridgeTranscript round-trips with prompt")
+    @Test("ClaudeAgentTranscript round-trips with prompt")
     func transcriptRoundTripWithPrompt() throws {
-        let original = BridgeTranscript(
+        let original = ClaudeAgentTranscript(
             identifier: "prompt-test",
             model: "claude-sonnet-4-20250514",
             startedAt: "2025-06-01T10:00:00Z",
             prompt: "You are a code reviewer evaluating rule X.",
             events: [
-                BridgeTranscriptEvent(type: .text, content: "Analyzing...", timestamp: Date(timeIntervalSince1970: 1717200001)),
+                ClaudeAgentTranscriptEvent(type: .text, content: "Analyzing...", timestamp: Date(timeIntervalSince1970: 1717200001)),
             ],
             costUsd: 0.005,
             durationMs: 2000
@@ -284,14 +284,14 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BridgeTranscript.self, from: data)
+        let decoded = try decoder.decode(ClaudeAgentTranscript.self, from: data)
 
         #expect(decoded.prompt == "You are a code reviewer evaluating rule X.")
         #expect(decoded.identifier == original.identifier)
         #expect(decoded.events.count == 1)
     }
 
-    @Test("BridgeTranscript decodes JSON with prompt field")
+    @Test("ClaudeAgentTranscript decodes JSON with prompt field")
     func transcriptDecodesWithPrompt() throws {
         let json = """
         {
@@ -307,7 +307,7 @@ struct BridgeTranscriptTests {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let transcript = try decoder.decode(BridgeTranscript.self, from: json)
+        let transcript = try decoder.decode(ClaudeAgentTranscript.self, from: json)
         #expect(transcript.prompt == "Evaluate this code for violations.")
     }
 
@@ -315,8 +315,8 @@ struct BridgeTranscriptTests {
 
     @Test("EventType raw values match expected strings")
     func eventTypeRawValues() {
-        #expect(BridgeTranscriptEvent.EventType.text.rawValue == "text")
-        #expect(BridgeTranscriptEvent.EventType.toolUse.rawValue == "toolUse")
-        #expect(BridgeTranscriptEvent.EventType.result.rawValue == "result")
+        #expect(ClaudeAgentTranscriptEvent.EventType.text.rawValue == "text")
+        #expect(ClaudeAgentTranscriptEvent.EventType.toolUse.rawValue == "toolUse")
+        #expect(ClaudeAgentTranscriptEvent.EventType.result.rawValue == "result")
     }
 }

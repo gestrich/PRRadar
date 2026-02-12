@@ -2,15 +2,15 @@ import Foundation
 import Testing
 @testable import PRRadarCLIService
 
-@Suite("BridgeMessage JSON-Line Parsing")
-struct BridgeMessageTests {
+@Suite("ClaudeAgentMessage JSON-Line Parsing")
+struct ClaudeAgentMessageTests {
 
     // MARK: - Text Messages
 
     @Test("Parses text message with content")
     func textMessage() {
         let json = #"{"type": "text", "content": "Analyzing the changes..."}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .text(let content) = message {
             #expect(content == "Analyzing the changes...")
@@ -22,7 +22,7 @@ struct BridgeMessageTests {
     @Test("Parses text message with empty content")
     func textMessageEmpty() {
         let json = #"{"type": "text", "content": ""}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .text(let content) = message {
             #expect(content == "")
@@ -34,7 +34,7 @@ struct BridgeMessageTests {
     @Test("Parses text message with missing content as empty string")
     func textMessageMissingContent() {
         let json = #"{"type": "text"}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .text(let content) = message {
             #expect(content == "")
@@ -48,7 +48,7 @@ struct BridgeMessageTests {
     @Test("Parses tool_use message with name")
     func toolUseMessage() {
         let json = #"{"type": "tool_use", "name": "Read"}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .toolUse(let name) = message {
             #expect(name == "Read")
@@ -60,7 +60,7 @@ struct BridgeMessageTests {
     @Test("Parses tool_use message with missing name as empty string")
     func toolUseMessageMissingName() {
         let json = #"{"type": "tool_use"}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .toolUse(let name) = message {
             #expect(name == "")
@@ -74,7 +74,7 @@ struct BridgeMessageTests {
     @Test("Parses result message with output, cost, and duration")
     func resultMessage() {
         let json = #"{"type": "result", "output": {"score": 5, "comment": "OK"}, "cost_usd": 0.003, "duration_ms": 1500}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .result(let output, let cost, let duration) = message {
             #expect(output != nil)
@@ -90,7 +90,7 @@ struct BridgeMessageTests {
     @Test("Parses result message with null output")
     func resultMessageNullOutput() {
         let json = #"{"type": "result", "output": null, "cost_usd": 0.001, "duration_ms": 200}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .result(let output, let cost, let duration) = message {
             #expect(output == nil)
@@ -104,7 +104,7 @@ struct BridgeMessageTests {
     @Test("Parses result message with missing cost and duration")
     func resultMessageMissingMetadata() {
         let json = #"{"type": "result", "output": {}}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
 
         if case .result(_, let cost, let duration) = message {
             #expect(cost == nil)
@@ -119,34 +119,34 @@ struct BridgeMessageTests {
     @Test("Returns nil for unknown message type")
     func unknownType() {
         let json = #"{"type": "unknown_type", "content": "hi"}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
         #expect(message == nil)
     }
 
     @Test("Returns nil for invalid JSON")
     func invalidJSON() {
-        let message = BridgeMessage(jsonLine: "not json at all")
+        let message = ClaudeAgentMessage(jsonLine: "not json at all")
         #expect(message == nil)
     }
 
     @Test("Returns nil for JSON without type field")
     func missingType() {
         let json = #"{"content": "hello"}"#
-        let message = BridgeMessage(jsonLine: json)
+        let message = ClaudeAgentMessage(jsonLine: json)
         #expect(message == nil)
     }
 
     @Test("Returns nil for empty string")
     func emptyString() {
-        let message = BridgeMessage(jsonLine: "")
+        let message = ClaudeAgentMessage(jsonLine: "")
         #expect(message == nil)
     }
 
-    // MARK: - BridgeRequest
+    // MARK: - ClaudeAgentRequest
 
-    @Test("BridgeRequest serializes to JSON with required fields")
-    func bridgeRequestToJSON() throws {
-        let request = BridgeRequest(
+    @Test("ClaudeAgentRequest serializes to JSON with required fields")
+    func agentRequestToJSON() throws {
+        let request = ClaudeAgentRequest(
             prompt: "Analyze this code",
             model: "claude-sonnet-4-20250514"
         )
@@ -160,9 +160,9 @@ struct BridgeMessageTests {
         #expect(dict["cwd"] == nil)
     }
 
-    @Test("BridgeRequest serializes optional fields when provided")
-    func bridgeRequestWithOptionals() throws {
-        let request = BridgeRequest(
+    @Test("ClaudeAgentRequest serializes optional fields when provided")
+    func agentRequestWithOptionals() throws {
+        let request = ClaudeAgentRequest(
             prompt: "Test",
             model: "claude-haiku-4-5-20251001",
             tools: ["Read", "Bash"],
@@ -176,14 +176,14 @@ struct BridgeMessageTests {
         #expect(dict["cwd"] as? String == "/tmp/test")
     }
 
-    @Test("BridgeRequest serializes output_schema when provided")
-    func bridgeRequestWithSchema() throws {
+    @Test("ClaudeAgentRequest serializes output_schema when provided")
+    func agentRequestWithSchema() throws {
         let schema: [String: Any] = [
             "type": "object",
             "properties": ["score": ["type": "number"]],
         ]
 
-        let request = BridgeRequest(
+        let request = ClaudeAgentRequest(
             prompt: "Evaluate",
             outputSchema: schema
         )
@@ -196,30 +196,30 @@ struct BridgeMessageTests {
         #expect(outputSchema?["type"] as? String == "object")
     }
 
-    // MARK: - BridgeResult
+    // MARK: - ClaudeAgentResult
 
-    @Test("BridgeResult outputAsDictionary parses JSON data")
-    func bridgeResultParsesOutput() {
+    @Test("ClaudeAgentResult outputAsDictionary parses JSON data")
+    func agentResultParsesOutput() {
         let jsonDict: [String: Any] = ["score": 7, "comment": "Issue found"]
         let data = try! JSONSerialization.data(withJSONObject: jsonDict)
 
-        let result = BridgeResult(outputData: data, costUsd: 0.01, durationMs: 3000)
+        let result = ClaudeAgentResult(outputData: data, costUsd: 0.01, durationMs: 3000)
         let parsed = result.outputAsDictionary()
 
         #expect(parsed?["score"] as? Int == 7)
         #expect(parsed?["comment"] as? String == "Issue found")
     }
 
-    @Test("BridgeResult outputAsDictionary returns nil when outputData is nil")
-    func bridgeResultNilOutput() {
-        let result = BridgeResult(outputData: nil, costUsd: 0.0, durationMs: 0)
+    @Test("ClaudeAgentResult outputAsDictionary returns nil when outputData is nil")
+    func agentResultNilOutput() {
+        let result = ClaudeAgentResult(outputData: nil, costUsd: 0.0, durationMs: 0)
         #expect(result.outputAsDictionary() == nil)
     }
 
-    @Test("BridgeResult outputAsDictionary returns nil for invalid JSON")
-    func bridgeResultInvalidJSON() {
+    @Test("ClaudeAgentResult outputAsDictionary returns nil for invalid JSON")
+    func agentResultInvalidJSON() {
         let data = "not json".data(using: .utf8)!
-        let result = BridgeResult(outputData: data, costUsd: 0.0, durationMs: 0)
+        let result = ClaudeAgentResult(outputData: data, costUsd: 0.0, durationMs: 0)
         #expect(result.outputAsDictionary() == nil)
     }
 }

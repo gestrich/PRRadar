@@ -108,8 +108,8 @@ public struct AnalyzeUseCase: Sendable {
                     var totalCost = 0.0
 
                     if !tasksToEvaluate.isEmpty {
-                        let bridgeClient = ClaudeBridgeClient(pythonEnvironment: PythonEnvironment(bridgeScriptPath: config.bridgeScriptPath), cliClient: CLIClient())
-                        let analysisService = AnalysisService(bridgeClient: bridgeClient)
+                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient())
+                        let analysisService = AnalysisService(agentClient: agentClient)
 
                         let startTime = Date()
                         freshResults = try await analysisService.runBatchAnalysis(

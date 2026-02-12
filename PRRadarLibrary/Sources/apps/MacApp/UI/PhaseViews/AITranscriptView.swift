@@ -4,7 +4,7 @@ import SwiftUI
 
 struct AITranscriptView: View {
 
-    let transcriptsByPhase: [PRRadarPhase: [BridgeTranscript]]
+    let transcriptsByPhase: [PRRadarPhase: [ClaudeAgentTranscript]]
     var isStreaming: Bool = false
 
     @State private var selectedPhase: PRRadarPhase = .prepare
@@ -14,11 +14,11 @@ struct AITranscriptView: View {
         [.prepare, .analyze].filter { transcriptsByPhase[$0] != nil }
     }
 
-    private var transcripts: [BridgeTranscript] {
+    private var transcripts: [ClaudeAgentTranscript] {
         transcriptsByPhase[selectedPhase] ?? []
     }
 
-    private var selectedTranscript: BridgeTranscript? {
+    private var selectedTranscript: ClaudeAgentTranscript? {
         if let id = selectedTranscriptId {
             return transcripts.first { $0.identifier == id }
         }
@@ -156,7 +156,7 @@ struct AITranscriptView: View {
     }
 
     @ViewBuilder
-    private func transcriptHeader(_ transcript: BridgeTranscript) -> some View {
+    private func transcriptHeader(_ transcript: ClaudeAgentTranscript) -> some View {
         HStack(spacing: 16) {
             if isStreaming {
                 headerItem("Events", "\(transcript.events.count)")
@@ -185,7 +185,7 @@ struct AITranscriptView: View {
     }
 
     @ViewBuilder
-    private func transcriptEvents(_ transcript: BridgeTranscript) -> some View {
+    private func transcriptEvents(_ transcript: ClaudeAgentTranscript) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -227,7 +227,7 @@ struct AITranscriptView: View {
     }
 
     @ViewBuilder
-    private func transcriptEventView(_ event: BridgeTranscriptEvent) -> some View {
+    private func transcriptEventView(_ event: ClaudeAgentTranscriptEvent) -> some View {
         switch event.type {
         case .text:
             if let content = event.content {

@@ -3,7 +3,7 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct AnalysisService: Sendable {
-    private let bridgeClient: ClaudeBridgeClient
+    private let agentClient: ClaudeAgentClient
 
     private static let defaultModel = "claude-sonnet-4-20250514"
 
@@ -96,11 +96,11 @@ public struct AnalysisService: Sendable {
         "required": ["violates_rule", "score", "comment"],
     ]
 
-    public init(bridgeClient: ClaudeBridgeClient) {
-        self.bridgeClient = bridgeClient
+    public init(agentClient: ClaudeAgentClient) {
+        self.agentClient = agentClient
     }
 
-    /// Analyze a single task using Claude via the bridge.
+    /// Analyze a single task using Claude via the Claude Agent.
     public func analyzeTask(
         _ task: AnalysisTaskOutput,
         repoPath: String,
@@ -125,7 +125,7 @@ public struct AnalysisService: Sendable {
 
         onPrompt?(prompt)
 
-        let request = BridgeRequest(
+        let request = ClaudeAgentRequest(
             prompt: prompt,
             model: model,
             tools: ["Read", "Grep", "Glob"],
@@ -134,45 +134,45 @@ public struct AnalysisService: Sendable {
         )
 
         let startedAt = ISO8601DateFormatter().string(from: Date())
-        var transcriptEvents: [BridgeTranscriptEvent] = []
-        var bridgeResult: BridgeResult?
+        var transcriptEvents: [ClaudeAgentTranscriptEvent] = []
+        var agentResult: ClaudeAgentResult?
 
-        for try await event in bridgeClient.stream(request) {
+        for try await event in agentClient.stream(request) {
             switch event {
             case .text(let content):
                 onAIText?(content)
-                transcriptEvents.append(BridgeTranscriptEvent(type: .text, content: content))
+                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: content))
             case .toolUse(let name):
                 onAIToolUse?(name)
-                transcriptEvents.append(BridgeTranscriptEvent(type: .toolUse, toolName: name))
+                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
             case .result(let result):
-                bridgeResult = result
+                agentResult = result
                 if let outputData = result.outputData,
                    let json = String(data: outputData, encoding: .utf8) {
-                    transcriptEvents.append(BridgeTranscriptEvent(type: .result, content: json))
+                    transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .result, content: json))
                 }
             }
         }
 
-        if let transcriptDir, let bridgeResult {
-            let transcript = BridgeTranscript(
+        if let transcriptDir, let agentResult {
+            let transcript = ClaudeAgentTranscript(
                 identifier: task.taskId,
                 model: model,
                 startedAt: startedAt,
                 prompt: prompt,
                 events: transcriptEvents,
-                costUsd: bridgeResult.costUsd,
-                durationMs: bridgeResult.durationMs
+                costUsd: agentResult.costUsd,
+                durationMs: agentResult.durationMs
             )
-            try? BridgeTranscriptWriter.write(transcript, to: transcriptDir)
+            try? ClaudeAgentTranscriptWriter.write(transcript, to: transcriptDir)
         }
 
-        guard let bridgeResult else {
-            throw ClaudeBridgeError.noResult
+        guard let agentResult else {
+            throw ClaudeAgentError.noResult
         }
 
         let evaluation: RuleEvaluation
-        if let dict = bridgeResult.outputAsDictionary() {
+        if let dict = agentResult.outputAsDictionary() {
             let filePath = dict["file_path"] as? String ?? task.focusArea.filePath
             let lineNumber = dict["line_number"] as? Int ?? task.focusArea.startLine
             evaluation = RuleEvaluation(
@@ -199,8 +199,8 @@ public struct AnalysisService: Sendable {
             filePath: task.focusArea.filePath,
             evaluation: evaluation,
             modelUsed: model,
-            durationMs: bridgeResult.durationMs,
-            costUsd: bridgeResult.costUsd
+            durationMs: agentResult.durationMs,
+            costUsd: agentResult.costUsd
         )
     }
 

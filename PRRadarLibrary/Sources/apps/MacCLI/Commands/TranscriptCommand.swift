@@ -41,7 +41,7 @@ struct TranscriptCommand: AsyncParsableCommand {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
-        var allTranscripts: [(phase: PRRadarPhase, transcript: BridgeTranscript)] = []
+        var allTranscripts: [(phase: PRRadarPhase, transcript: ClaudeAgentTranscript)] = []
 
         for p in phasesToCheck {
             let files = PhaseOutputParser.listPhaseFiles(
@@ -53,7 +53,7 @@ struct TranscriptCommand: AsyncParsableCommand {
                 guard let data = try? PhaseOutputParser.readPhaseFile(
                     config: config, prNumber: options.prNumber, phase: p, filename: filename
                 ),
-                      let transcript = try? decoder.decode(BridgeTranscript.self, from: data)
+                      let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data)
                 else { continue }
 
                 allTranscripts.append((phase: p, transcript: transcript))
@@ -98,7 +98,7 @@ struct TranscriptCommand: AsyncParsableCommand {
         }
     }
 
-    private func printTranscript(_ transcript: BridgeTranscript, phase: PRRadarPhase) {
+    private func printTranscript(_ transcript: ClaudeAgentTranscript, phase: PRRadarPhase) {
         if options.json || jsonOutput {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -107,7 +107,7 @@ struct TranscriptCommand: AsyncParsableCommand {
                 print(String(data: data, encoding: .utf8)!)
             }
         } else {
-            print(BridgeTranscriptWriter.renderMarkdown(transcript))
+            print(ClaudeAgentTranscriptWriter.renderMarkdown(transcript))
         }
     }
 }

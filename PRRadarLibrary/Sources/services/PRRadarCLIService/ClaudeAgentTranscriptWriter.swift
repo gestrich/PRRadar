@@ -1,13 +1,13 @@
 import Foundation
 import PRRadarModels
 
-/// Writes bridge transcripts to disk as both JSON and Markdown.
-public enum BridgeTranscriptWriter {
+/// Writes Claude Agent transcripts to disk as both JSON and Markdown.
+public enum ClaudeAgentTranscriptWriter {
 
     /// Save a transcript as both `.json` and `.md` files in the given directory.
     ///
     /// Files are named `ai-transcript-{identifier}.json` and `ai-transcript-{identifier}.md`.
-    public static func write(_ transcript: BridgeTranscript, to directory: String) throws {
+    public static func write(_ transcript: ClaudeAgentTranscript, to directory: String) throws {
         try FileManager.default.createDirectory(
             atPath: directory,
             withIntermediateDirectories: true
@@ -28,7 +28,7 @@ public enum BridgeTranscriptWriter {
     }
 
     /// Render a transcript as human-readable Markdown.
-    public static func renderMarkdown(_ transcript: BridgeTranscript) -> String {
+    public static func renderMarkdown(_ transcript: ClaudeAgentTranscript) -> String {
         var lines: [String] = []
 
         lines.append("# AI Transcript: \(transcript.identifier)")

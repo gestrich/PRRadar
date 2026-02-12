@@ -1,7 +1,7 @@
 import Foundation
 
-/// A single streaming event from a Claude bridge invocation.
-public struct BridgeTranscriptEvent: Codable, Sendable {
+/// A single streaming event from a Claude Agent SDK invocation.
+public struct ClaudeAgentTranscriptEvent: Codable, Sendable {
     public let type: EventType
     public let content: String?
     public let toolName: String?
@@ -33,13 +33,13 @@ public struct BridgeTranscriptEvent: Codable, Sendable {
     }
 }
 
-/// Complete transcript of a single Claude bridge invocation.
-public struct BridgeTranscript: Codable, Sendable {
+/// Complete transcript of a single Claude Agent SDK invocation.
+public struct ClaudeAgentTranscript: Codable, Sendable {
     public let identifier: String
     public let model: String
     public let startedAt: String
     public let prompt: String?
-    public let events: [BridgeTranscriptEvent]
+    public let events: [ClaudeAgentTranscriptEvent]
     public let costUsd: Double
     public let durationMs: Int
 
@@ -48,7 +48,7 @@ public struct BridgeTranscript: Codable, Sendable {
         model: String,
         startedAt: String,
         prompt: String? = nil,
-        events: [BridgeTranscriptEvent],
+        events: [ClaudeAgentTranscriptEvent],
         costUsd: Double,
         durationMs: Int
     ) {

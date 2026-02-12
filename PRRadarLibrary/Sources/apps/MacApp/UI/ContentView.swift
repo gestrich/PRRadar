@@ -444,5 +444,5 @@ public struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environment(AppModel(bridgeScriptPath: "/tmp/bridge.py"))
+        .environment(AppModel(agentScriptPath: "/tmp/claude_agent.py"))
 }

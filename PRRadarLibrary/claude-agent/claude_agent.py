@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal Claude Agent SDK bridge for Swift.
+"""Minimal Claude Agent SDK wrapper for Swift.
 
 Accepts a JSON request on stdin and streams JSON-lines to stdout.
 This is the only Python code required at runtime — everything else is Swift.
