@@ -213,7 +213,7 @@ Or remove `detailState` entirely and use `detail != nil` as the guard.
 - `resetPhase()` calls `reloadDetail()` instead of nil-ing individual properties
 - Build passes, all 412 tests pass
 
-## - [ ] Phase 3: Tests
+## - [x] Phase 3: Tests
 
 **Skills to read**: `/swift-testing`
 
@@ -231,6 +231,14 @@ Run full test suite:
 ```bash
 swift build && swift test
 ```
+
+### Completion Notes
+
+- Created `LoadPRDetailUseCaseTests.swift` with 19 tests covering all spec requirements
+- Added `PRReviewFeature` to `PRRadarModelsTests` test target dependencies in `Package.swift` (use case lives in the feature layer)
+- Tests use temp directories with real filesystem fixtures — no mocks needed since the use case is entirely file-driven
+- Test categories: full PR (1), missing/partial phases (2), commit hash resolution (3), transcripts (2), posted comments (1), image map (2), available commits (3), analysis summary (2), phase statuses (1), syncSnapshot nil (1), sorted commits (1)
+- All 431 tests pass (412 existing + 19 new)
 
 ## - [ ] Phase 4: Validation
 
