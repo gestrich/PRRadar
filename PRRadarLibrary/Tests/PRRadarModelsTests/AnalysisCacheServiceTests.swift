@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import PRRadarCLIService
+@testable import PRRadarConfigService
 @testable import PRRadarModels
 
 @Suite("AnalysisCacheService")
@@ -20,7 +21,7 @@ struct AnalysisCacheServiceTests {
         return path
     }
 
-    private func makeTask(id: String, blobHash: String) -> AnalysisTaskOutput {
+    private func makeTask(id: String, blobHash: String, ruleBlobHash: String? = nil) -> AnalysisTaskOutput {
         AnalysisTaskOutput(
             taskId: id,
             rule: TaskRule(
@@ -38,7 +39,8 @@ struct AnalysisCacheServiceTests {
                 hunkIndex: 0,
                 hunkContent: "@@ content"
             ),
-            gitBlobHash: blobHash
+            gitBlobHash: blobHash,
+            ruleBlobHash: ruleBlobHash
         )
     }
 
@@ -286,5 +288,191 @@ struct AnalysisCacheServiceTests {
         #expect(toEvaluate.isEmpty)
         #expect(cached[0].taskId == "t1")
         #expect(cached[1].taskId == "t2")
+    }
+
+    // MARK: - Dual blob hash: ruleBlobHash mismatch
+
+    @Test("Task re-evaluated when ruleBlobHash differs")
+    func cacheMissRuleBlobHashChanged() throws {
+        // Arrange
+        let dir = try makeTempDir()
+        let oldTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "old-rule-hash")
+        let newTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "new-rule-hash")
+        try writeAnalysisResult(makeResult(taskId: "t1"), to: dir)
+        try writeTaskSnapshot(oldTask, to: dir)
+
+        // Act
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [newTask], evalsDir: dir)
+
+        // Assert
+        #expect(cached.isEmpty)
+        #expect(toEvaluate.count == 1)
+    }
+
+    @Test("Task cached when both gitBlobHash and ruleBlobHash match")
+    func cacheHitDualBlobHash() throws {
+        // Arrange
+        let dir = try makeTempDir()
+        let task = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "rule-hash")
+        try writeAnalysisResult(makeResult(taskId: "t1", violates: true), to: dir)
+        try writeTaskSnapshot(task, to: dir)
+
+        // Act
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [task], evalsDir: dir)
+
+        // Assert
+        #expect(cached.count == 1)
+        #expect(cached[0].taskId == "t1")
+        #expect(toEvaluate.isEmpty)
+    }
+
+    @Test("Task re-evaluated when prior has nil ruleBlobHash but current has a value")
+    func cacheMissRuleBlobHashNilVsNonNil() throws {
+        // Arrange
+        let dir = try makeTempDir()
+        let oldTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: nil)
+        let newTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "new-rule-hash")
+        try writeAnalysisResult(makeResult(taskId: "t1"), to: dir)
+        try writeTaskSnapshot(oldTask, to: dir)
+
+        // Act
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(tasks: [newTask], evalsDir: dir)
+
+        // Assert
+        #expect(cached.isEmpty)
+        #expect(toEvaluate.count == 1)
+    }
+
+    // MARK: - Cross-commit caching
+
+    @Test("Cross-commit cache hit copies files into new commit directory")
+    func crossCommitCacheHit() throws {
+        // Arrange: simulate <prOutput>/analysis/<commit>/evaluate/ structure
+        let prOutputDir = try makeTempDir()
+        let oldEvalsDir = "\(prOutputDir)/analysis/abc1234/evaluate"
+        let newEvalsDir = "\(prOutputDir)/analysis/def5678/evaluate"
+        try FileManager.default.createDirectory(atPath: oldEvalsDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: newEvalsDir, withIntermediateDirectories: true)
+
+        let task = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "rule-hash")
+        try writeAnalysisResult(makeResult(taskId: "t1", violates: true), to: oldEvalsDir)
+        try writeTaskSnapshot(task, to: oldEvalsDir)
+
+        // Act
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(
+            tasks: [task], evalsDir: newEvalsDir, prOutputDir: prOutputDir
+        )
+
+        // Assert
+        #expect(cached.count == 1)
+        #expect(cached[0].taskId == "t1")
+        #expect(toEvaluate.isEmpty)
+
+        // Verify files were copied into new commit directory
+        #expect(FileManager.default.fileExists(atPath: "\(newEvalsDir)/data-t1.json"))
+        #expect(FileManager.default.fileExists(atPath: "\(newEvalsDir)/task-t1.json"))
+    }
+
+    @Test("Cross-commit cache miss when blob hash differs across commits")
+    func crossCommitCacheMiss() throws {
+        // Arrange
+        let prOutputDir = try makeTempDir()
+        let oldEvalsDir = "\(prOutputDir)/analysis/abc1234/evaluate"
+        let newEvalsDir = "\(prOutputDir)/analysis/def5678/evaluate"
+        try FileManager.default.createDirectory(atPath: oldEvalsDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: newEvalsDir, withIntermediateDirectories: true)
+
+        let oldTask = makeTask(id: "t1", blobHash: "old-hash", ruleBlobHash: "rule-hash")
+        let newTask = makeTask(id: "t1", blobHash: "new-hash", ruleBlobHash: "rule-hash")
+        try writeAnalysisResult(makeResult(taskId: "t1"), to: oldEvalsDir)
+        try writeTaskSnapshot(oldTask, to: oldEvalsDir)
+
+        // Act
+        let (cached, toEvaluate) = AnalysisCacheService.partitionTasks(
+            tasks: [newTask], evalsDir: newEvalsDir, prOutputDir: prOutputDir
+        )
+
+        // Assert
+        #expect(cached.isEmpty)
+        #expect(toEvaluate.count == 1)
+        #expect(!FileManager.default.fileExists(atPath: "\(newEvalsDir)/data-t1.json"))
+    }
+
+    @Test("Same-commit cache preferred over cross-commit cache")
+    func sameCommitCachePreferredOverCrossCommit() throws {
+        // Arrange
+        let prOutputDir = try makeTempDir()
+        let oldEvalsDir = "\(prOutputDir)/analysis/abc1234/evaluate"
+        let newEvalsDir = "\(prOutputDir)/analysis/def5678/evaluate"
+        try FileManager.default.createDirectory(atPath: oldEvalsDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: newEvalsDir, withIntermediateDirectories: true)
+
+        let task = makeTask(id: "t1", blobHash: "aaa")
+
+        // Write to both old and new directories
+        try writeAnalysisResult(makeResult(taskId: "t1", violates: false), to: oldEvalsDir)
+        try writeTaskSnapshot(task, to: oldEvalsDir)
+        try writeAnalysisResult(makeResult(taskId: "t1", violates: true), to: newEvalsDir)
+        try writeTaskSnapshot(task, to: newEvalsDir)
+
+        // Act
+        let (cached, _) = AnalysisCacheService.partitionTasks(
+            tasks: [task], evalsDir: newEvalsDir, prOutputDir: prOutputDir
+        )
+
+        // Assert: same-commit result (violates: true) should be returned, not cross-commit (violates: false)
+        #expect(cached.count == 1)
+        #expect(cached[0].evaluation.violatesRule == true)
+    }
+
+    // MARK: - findPriorEvalsDirs
+
+    @Test("findPriorEvalsDirs excludes current commit directory")
+    func findPriorEvalsDirsExcludesCurrent() throws {
+        // Arrange
+        let prOutputDir = try makeTempDir()
+        let currentEvalsDir = "\(prOutputDir)/analysis/abc1234/evaluate"
+        let otherEvalsDir = "\(prOutputDir)/analysis/def5678/evaluate"
+        try FileManager.default.createDirectory(atPath: currentEvalsDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: otherEvalsDir, withIntermediateDirectories: true)
+
+        // Act
+        let dirs = AnalysisCacheService.findPriorEvalsDirs(
+            prOutputDir: prOutputDir, currentEvalsDir: currentEvalsDir
+        )
+
+        // Assert
+        #expect(dirs.count == 1)
+        #expect(dirs[0] == otherEvalsDir)
+    }
+
+    @Test("findPriorEvalsDirs returns empty when no prior commits exist")
+    func findPriorEvalsDirsEmpty() throws {
+        // Arrange
+        let prOutputDir = try makeTempDir()
+        let currentEvalsDir = "\(prOutputDir)/analysis/abc1234/evaluate"
+        try FileManager.default.createDirectory(atPath: currentEvalsDir, withIntermediateDirectories: true)
+
+        // Act
+        let dirs = AnalysisCacheService.findPriorEvalsDirs(
+            prOutputDir: prOutputDir, currentEvalsDir: currentEvalsDir
+        )
+
+        // Assert
+        #expect(dirs.isEmpty)
+    }
+
+    @Test("findPriorEvalsDirs returns empty when analysis directory does not exist")
+    func findPriorEvalsDirsNoAnalysisDir() throws {
+        // Arrange
+        let prOutputDir = try makeTempDir()
+
+        // Act
+        let dirs = AnalysisCacheService.findPriorEvalsDirs(
+            prOutputDir: prOutputDir, currentEvalsDir: "\(prOutputDir)/analysis/abc1234/evaluate"
+        )
+
+        // Assert
+        #expect(dirs.isEmpty)
     }
 }

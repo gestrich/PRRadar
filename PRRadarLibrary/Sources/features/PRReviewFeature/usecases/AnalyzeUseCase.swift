@@ -93,8 +93,9 @@ public struct AnalyzeUseCase: Sendable {
                     }
 
                     // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
                     let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
-                        tasks: tasks, evalsDir: evalsDir
+                        tasks: tasks, evalsDir: evalsDir, prOutputDir: prOutputDir
                     )
 
                     let cachedCount = cachedResults.count

@@ -53,8 +53,9 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     )
 
                     // Partition filtered tasks into cached and fresh
+                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
                     let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
-                        tasks: filteredTasks, evalsDir: evalsDir
+                        tasks: filteredTasks, evalsDir: evalsDir, prOutputDir: prOutputDir
                     )
 
                     let cachedCount = cachedResults.count

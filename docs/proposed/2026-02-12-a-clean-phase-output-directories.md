@@ -175,7 +175,7 @@ Each use case currently gets `outputDir` + `prNumber` and calls `DataPathsServic
 - All existing callers compile without changes due to default parameter values
 - 384 tests pass, build succeeds
 
-## - [ ] Phase 5: Cross-commit caching
+## - [x] Phase 5: Cross-commit caching
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -184,6 +184,16 @@ Update `AnalysisCacheService.partitionTasks()`:
 - On a fresh commit: scan `analysis/*/evaluate/` to find the most recent prior commit dir with results
 - Compare **both** `gitBlobHash` and `ruleBlobHash` — a changed source file OR a changed rule invalidates the cache
 - Copy reused `data-<taskId>.json` into the new commit's evaluate dir (so each commit dir is self-contained)
+
+**Technical notes:**
+- `partitionTasks()` gains an optional `prOutputDir: String?` parameter; when provided, enables cross-commit cache scanning
+- Cache lookup is two-tier: same-commit first (existing `evalsDir`), then cross-commit (`analysis/*/evaluate/` sorted by modification date, most recent first)
+- `blobHashesMatch()` compares both `gitBlobHash` and `ruleBlobHash` — `nil == nil` is treated as a match for backward compatibility
+- `findPriorEvalsDirs()` discovers prior commit evaluate directories, excludes the current commit's directory
+- `lookupCrossCommitResult()` copies both `data-<taskId>.json` and `task-<taskId>.json` into the target evaluate directory so each commit dir is self-contained
+- `AnalyzeUseCase` and `SelectiveAnalyzeUseCase` pass `prOutputDir` to `partitionTasks()` for cross-commit caching
+- Default parameter (`prOutputDir: nil`) preserves backward compatibility for all existing callers
+- 393 tests pass across 45 suites, including 12 new tests for dual blob hash checking, cross-commit cache hits/misses, file copying, and directory discovery
 
 ## - [ ] Phase 6: Update `RunPipelineUseCase` orchestration
 

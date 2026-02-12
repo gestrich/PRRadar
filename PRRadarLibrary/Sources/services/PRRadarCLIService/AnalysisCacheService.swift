@@ -8,36 +8,138 @@ public enum AnalysisCacheService {
 
     /// Partition tasks into cached (reusable) results and tasks needing fresh evaluation.
     ///
-    /// For each task, checks if a prior evaluation result and task snapshot exist in the
-    /// evaluations directory. If both exist and the git blob hash matches, the prior result
-    /// is reused instead of re-evaluating.
+    /// First checks the current commit's evaluate directory for same-commit cache hits.
+    /// Then, if `prOutputDir` is provided, scans prior commit directories under
+    /// `analysis/*/evaluate/` for cross-commit cache hits (matching both blob hashes).
+    /// Cached results from prior commits are copied into the current evaluate directory
+    /// so each commit directory is self-contained.
     public static func partitionTasks(
         tasks: [AnalysisTaskOutput],
-        evalsDir: String
+        evalsDir: String,
+        prOutputDir: String? = nil
     ) -> (cached: [RuleEvaluationResult], toEvaluate: [AnalysisTaskOutput]) {
         let decoder = JSONDecoder()
         var cached: [RuleEvaluationResult] = []
         var toEvaluate: [AnalysisTaskOutput] = []
 
-        for task in tasks {
-            let evalPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
-            let taskPath = "\(evalsDir)/\(taskFilePrefix)\(task.taskId).json"
+        let priorEvalsDirs = prOutputDir.map { findPriorEvalsDirs(prOutputDir: $0, currentEvalsDir: evalsDir) } ?? []
 
-            guard
-                let evalData = FileManager.default.contents(atPath: evalPath),
-                let taskData = FileManager.default.contents(atPath: taskPath),
-                let priorResult = try? decoder.decode(RuleEvaluationResult.self, from: evalData),
-                let priorTask = try? decoder.decode(AnalysisTaskOutput.self, from: taskData),
-                priorTask.gitBlobHash == task.gitBlobHash
-            else {
-                toEvaluate.append(task)
+        for task in tasks {
+            // Try same-commit cache first
+            if let result = lookupCachedResult(task: task, evalsDir: evalsDir, decoder: decoder) {
+                cached.append(result)
                 continue
             }
 
-            cached.append(priorResult)
+            // Try cross-commit cache from prior commit directories
+            if let result = lookupCrossCommitResult(task: task, priorEvalsDirs: priorEvalsDirs, targetEvalsDir: evalsDir, decoder: decoder) {
+                cached.append(result)
+                continue
+            }
+
+            toEvaluate.append(task)
         }
 
         return (cached, toEvaluate)
+    }
+
+    // MARK: - Cache Lookup
+
+    /// Check a single evaluate directory for a cached result matching both blob hashes.
+    private static func lookupCachedResult(
+        task: AnalysisTaskOutput,
+        evalsDir: String,
+        decoder: JSONDecoder
+    ) -> RuleEvaluationResult? {
+        let evalPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
+        let taskPath = "\(evalsDir)/\(taskFilePrefix)\(task.taskId).json"
+
+        guard
+            let evalData = FileManager.default.contents(atPath: evalPath),
+            let taskData = FileManager.default.contents(atPath: taskPath),
+            let priorResult = try? decoder.decode(RuleEvaluationResult.self, from: evalData),
+            let priorTask = try? decoder.decode(AnalysisTaskOutput.self, from: taskData),
+            blobHashesMatch(prior: priorTask, current: task)
+        else {
+            return nil
+        }
+
+        return priorResult
+    }
+
+    /// Scan prior commit evaluate directories for a matching cached result.
+    /// When found, copies the result and task snapshot into the target evaluate directory.
+    private static func lookupCrossCommitResult(
+        task: AnalysisTaskOutput,
+        priorEvalsDirs: [String],
+        targetEvalsDir: String,
+        decoder: JSONDecoder
+    ) -> RuleEvaluationResult? {
+        for priorDir in priorEvalsDirs {
+            guard let result = lookupCachedResult(task: task, evalsDir: priorDir, decoder: decoder) else {
+                continue
+            }
+
+            // Copy cached files into current commit's evaluate directory
+            let evalFilename = "\(DataPathsService.dataFilePrefix)\(task.taskId).json"
+            let taskFilename = "\(taskFilePrefix)\(task.taskId).json"
+            copyFile(from: "\(priorDir)/\(evalFilename)", to: "\(targetEvalsDir)/\(evalFilename)")
+            copyFile(from: "\(priorDir)/\(taskFilename)", to: "\(targetEvalsDir)/\(taskFilename)")
+
+            return result
+        }
+        return nil
+    }
+
+    /// Compare both gitBlobHash and ruleBlobHash between a prior task snapshot and the current task.
+    /// A nil ruleBlobHash on both sides is treated as a match (backward compatibility).
+    private static func blobHashesMatch(prior: AnalysisTaskOutput, current: AnalysisTaskOutput) -> Bool {
+        guard prior.gitBlobHash == current.gitBlobHash else { return false }
+        guard prior.ruleBlobHash == current.ruleBlobHash else { return false }
+        return true
+    }
+
+    // MARK: - Cross-Commit Directory Discovery
+
+    /// Find evaluate directories from prior commits under `<prOutputDir>/analysis/*/evaluate/`.
+    /// Excludes the current commit's evaluate directory. Returns directories sorted by
+    /// modification date (most recent first) for optimal cache hit performance.
+    static func findPriorEvalsDirs(
+        prOutputDir: String,
+        currentEvalsDir: String
+    ) -> [String] {
+        let analysisDir = "\(prOutputDir)/\(DataPathsService.analysisDirectoryName)"
+        guard let commitDirs = try? FileManager.default.contentsOfDirectory(atPath: analysisDir) else {
+            return []
+        }
+
+        let fm = FileManager.default
+        var dirsWithDates: [(path: String, date: Date)] = []
+
+        for commitDir in commitDirs {
+            let evalsPath = "\(analysisDir)/\(commitDir)/\(PRRadarPhase.analyze.rawValue)"
+            guard evalsPath != currentEvalsDir else { continue }
+
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: evalsPath, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            let modDate = (try? fm.attributesOfItem(atPath: evalsPath)[.modificationDate] as? Date) ?? .distantPast
+            dirsWithDates.append((evalsPath, modDate))
+        }
+
+        return dirsWithDates
+            .sorted { $0.date > $1.date }
+            .map(\.path)
+    }
+
+    // MARK: - File Helpers
+
+    private static func copyFile(from sourcePath: String, to destPath: String) {
+        let fm = FileManager.default
+        let destDir = (destPath as NSString).deletingLastPathComponent
+        try? fm.createDirectory(atPath: destDir, withIntermediateDirectories: true)
+        try? fm.removeItem(atPath: destPath)
+        try? fm.copyItem(atPath: sourcePath, toPath: destPath)
     }
 
     // MARK: - Progress Messages
