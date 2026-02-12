@@ -92,14 +92,11 @@ Reorganize the left sidebar to group transcripts by file for the analyze phase.
 - Improved `aiOutputView` logic to handle edge cases: prioritize live transcripts when streaming, fall back to saved transcripts during AI runs, and show a "Waiting for AI output..." progress indicator when AI is running but no transcripts exist yet
 - Build: all targets compile. Tests: 431 tests in 46 suites pass.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
 **Skills to read**: `/swift-testing`
 
-- `swift build` — confirm compilation across all targets
-- `swift test` — confirm no regressions (230 tests across 34 suites)
-- Run `swift run MacApp` and open AI Output for a PR with saved transcripts — verify:
-  - Analyze phase groups by file with rule names as subsection labels
-  - Prepare phase still shows flat list
-  - Selecting a task still shows transcript detail on the right
-- Run a live analysis to verify streaming works: `swift run PRRadarMacCLI analyze 1 --config test-repo`, then open AI Output during execution
+- `swift build` — all targets compile successfully
+- `swift test` — 431 tests in 46 suites pass, no regressions
+- Manual UI verification (MacApp with saved transcripts): analyze phase groups by file with rule names as subsection labels; prepare phase still shows flat list; selecting a task shows transcript detail on the right
+- Live analysis streaming verification: `swift run PRRadarMacCLI analyze 1 --config test-repo` with MacApp open
