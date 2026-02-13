@@ -15,6 +15,8 @@ public struct ContentView: View {
     @State private var showAnalyzeAll = false
     @State private var showAnalyzeAllProgress = false
     @State private var showRefreshProgress = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeletingPR = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("selectedPRState") private var selectedPRStateString: String = "ALL"
 
@@ -62,7 +64,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("refreshButton")
                 .help("Refresh PR data")
-                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
+                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty || isDeletingPR)
 
                 Button {
                     Task { await selectedPR?.runAnalysis() }
@@ -76,7 +78,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("analyzeButton")
                 .help("Analyze PR")
-                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
+                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty || isDeletingPR)
 
                 Button {
                     if let pr = selectedPR {
@@ -88,7 +90,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("folderButton")
                 .help("Open PR data in Finder")
-                .disabled(selectedPR == nil || selectedPR!.prNumber.isEmpty)
+                .disabled(selectedPR == nil || selectedPR!.prNumber.isEmpty || isDeletingPR)
 
                 Button {
                     if let pr = selectedPR,
@@ -101,7 +103,24 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("safariButton")
                 .help("Open PR on GitHub")
-                .disabled(selectedPR?.metadata.url == nil)
+                .disabled(selectedPR?.metadata.url == nil || isDeletingPR)
+
+                Button {
+                    showDeleteConfirmation = true
+                } label: {
+                    if isDeletingPR {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "trash")
+                    }
+                }
+                .accessibilityIdentifier("deleteButton")
+                .help("Delete all local data for this PR")
+                .disabled(isDeletingPR || selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
+                .popover(isPresented: $showDeleteConfirmation, arrowEdge: .bottom) {
+                    deleteConfirmationPopover
+                }
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -393,6 +412,41 @@ public struct ContentView: View {
                 Task { await allPRs?.analyzeAll(since: sinceDate, state: state) }
             }
             .keyboardShortcut(.defaultAction)
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private var deleteConfirmationPopover: some View {
+        VStack(spacing: 12) {
+            Text("Delete PR Data")
+                .font(.headline)
+
+            Text("All local review data for PR #\(selectedPR?.prNumber ?? "") will be deleted and re-fetched from GitHub.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 260)
+
+            HStack(spacing: 12) {
+                Button("Cancel", role: .cancel) {
+                    showDeleteConfirmation = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button("Delete", role: .destructive) {
+                    showDeleteConfirmation = false
+                    guard let pr = selectedPR else { return }
+                    isDeletingPR = true
+                    Task {
+                        defer { isDeletingPR = false }
+                        if let replacement = try? await allPRs?.deletePRData(for: pr) {
+                            selectedPR = replacement
+                        }
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+            }
         }
         .padding()
     }

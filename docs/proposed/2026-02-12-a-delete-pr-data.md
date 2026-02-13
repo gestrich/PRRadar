@@ -62,7 +62,7 @@ The new PRModel's init automatically triggers `Task { reloadDetail() }`, loading
 
 **Completed**: Added `deletePRData(for:)` as a `@discardableResult` async throwing method. Takes a `PRModel`, delegates to `DeletePRDataUseCase`, creates a replacement `PRModel`, swaps it into the array, and returns it.
 
-## - [ ] Phase 3: Add trash button and confirmation popover to `ContentView`
+## - [x] Phase 3: Add trash button and confirmation popover to `ContentView`
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -84,6 +84,8 @@ The new PRModel's init automatically triggers `Task { reloadDetail() }`, loading
 - On delete: dismiss popover, set `isDeletingPR = true`, call `allPRs?.deletePRData(for:)`, update `selectedPR` to the returned replacement, set `isDeletingPR = false`
 
 **Disable other buttons during deletion**: Add `isDeletingPR` to the disabled conditions on refresh, analyze, folder, and safari toolbar buttons.
+
+**Completed**: Added trash button as the last item in the primary action toolbar group. Popover uses `deleteConfirmationPopover` computed property with Cancel/Delete buttons. Delete action uses `try? await` to silently handle errors (matching the pattern where the UI shows the spinner and resets gracefully). All four existing toolbar buttons (refresh, analyze, folder, safari) now include `isDeletingPR` in their disabled conditions.
 
 ## - [ ] Phase 4: Validation
 
