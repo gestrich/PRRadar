@@ -87,10 +87,12 @@ The new PRModel's init automatically triggers `Task { reloadDetail() }`, loading
 
 **Completed**: Added trash button as the last item in the primary action toolbar group. Popover uses `deleteConfirmationPopover` computed property with Cancel/Delete buttons. Delete action uses `try? await` to silently handle errors (matching the pattern where the UI shows the spinner and resets gracefully). All four existing toolbar buttons (refresh, analyze, folder, safari) now include `isDeletingPR` in their disabled conditions.
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
 **Skills to read**: `/swift-testing`
 
 1. `cd PRRadarLibrary && swift build` — confirms compilation across all targets
 2. `swift test` — confirms no regressions in existing 431 tests
 3. Manual verification: select a PR in MacApp, click trash, confirm deletion, verify spinner appears, data re-fetches, and detail view refreshes with clean state
+
+**Completed**: Build succeeded (all targets compile). All 431 tests in 46 suites passed with no regressions. Manual verification deferred to Bill.
