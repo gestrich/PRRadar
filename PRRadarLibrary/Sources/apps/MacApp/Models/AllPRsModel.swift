@@ -152,6 +152,24 @@ final class AllPRsModel {
         refreshAllState = .idle
     }
 
+    // MARK: - Delete PR Data
+
+    @discardableResult
+    func deletePRData(for prModel: PRModel) async throws -> PRModel {
+        let metadata = try await DeletePRDataUseCase(config: config)
+            .execute(prNumber: prModel.prNumber)
+        let replacement = PRModel(metadata: metadata, config: config, repoConfig: repoConfig)
+
+        if var models = currentPRModels {
+            if let index = models.firstIndex(where: { $0.id == prModel.id }) {
+                models[index] = replacement
+            }
+            state = .ready(models)
+        }
+
+        return replacement
+    }
+
     // MARK: - Analyze All
 
     func analyzeAll(since: Date, state prState: PRState? = nil) async {

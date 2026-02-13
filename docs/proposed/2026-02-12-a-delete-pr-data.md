@@ -45,7 +45,7 @@ Error handling:
 
 Dependencies: `PRRadarConfigService` (already a dependency of `PRReviewFeature`), `SyncPRUseCase`, `PRDiscoveryService`, `PRRadarModels`.
 
-## - [ ] Phase 2: Add `deletePRData(for:)` to `AllPRsModel`
+## - [x] Phase 2: Add `deletePRData(for:)` to `AllPRsModel`
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -59,6 +59,8 @@ Add a new method:
 - Returns the replacement PRModel so the caller can update `selectedPR`
 
 The new PRModel's init automatically triggers `Task { reloadDetail() }`, loading detail from the freshly-written disk data. No manual property reset needed.
+
+**Completed**: Added `deletePRData(for:)` as a `@discardableResult` async throwing method. Takes a `PRModel`, delegates to `DeletePRDataUseCase`, creates a replacement `PRModel`, swaps it into the array, and returns it.
 
 ## - [ ] Phase 3: Add trash button and confirmation popover to `ContentView`
 
