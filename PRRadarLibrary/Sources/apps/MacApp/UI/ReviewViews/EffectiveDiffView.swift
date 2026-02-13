@@ -6,6 +6,7 @@ struct EffectiveDiffView: View {
     let fullDiff: GitDiff
     let effectiveDiff: GitDiff
     let moveReport: MoveReport?
+    var prModel: PRModel
 
     @State private var selectedTab = 1  // Default to effective diff
     @State private var selectedFile: String?
@@ -155,6 +156,10 @@ struct EffectiveDiffView: View {
             return activeDiff
         }()
 
-        RichDiffContentView(diff: displayDiff)
+        AnnotatedDiffContentView(
+            diff: displayDiff,
+            commentMapping: .empty,
+            prModel: prModel
+        )
     }
 }

@@ -13,10 +13,6 @@ struct DiffPhaseView: View {
     private var evaluationSummary: AnalysisSummary? { prModel.analysis?.summary }
     private var tasks: [AnalysisTaskOutput] { prModel.preparation?.tasks ?? [] }
 
-    private var hasEvaluationData: Bool {
-        evaluationSummary != nil
-    }
-
     private var taskCountsByFile: [String: Int] {
         Dictionary(grouping: tasks, by: \.focusArea.filePath)
             .mapValues(\.count)
@@ -76,11 +72,7 @@ struct DiffPhaseView: View {
 
     @ViewBuilder
     private func fileList(for diff: GitDiff) -> some View {
-        if hasEvaluationData {
-            annotatedFileList(for: diff)
-        } else {
-            plainFileList(for: diff)
-        }
+        annotatedFileList(for: diff)
     }
 
     @ViewBuilder
@@ -96,36 +88,6 @@ struct DiffPhaseView: View {
                     .help(renameFrom)
             }
         }
-    }
-
-    @ViewBuilder
-    private func plainFileList(for diff: GitDiff) -> some View {
-        let postedCounts: [String: Int] = {
-            let mapping = commentMapping(for: diff)
-            return postedCommentCountsByFile(mapping: mapping)
-        }()
-
-        List(selection: $selectedFile) {
-            Section("Changed Files") {
-                ForEach(diff.changedFiles, id: \.self) { file in
-                    let postedCount = postedCounts[file] ?? 0
-                    let taskCount = taskCountsByFile[file] ?? 0
-                    HStack {
-                        fileNameLabel(for: file, renameFrom: renameFrom(for: file, in: diff))
-                        Spacer()
-                        fileInFlightIndicator(for: file)
-                        taskBadge(count: max(taskCount, 1))
-                            .opacity(taskCount > 0 ? 1 : 0)
-                        postedCommentBadge(count: max(postedCount, 1))
-                            .opacity(postedCount > 0 ? 1 : 0)
-                    }
-                    .tag(file)
-                    .accessibilityIdentifier("fileRow_\(file)")
-                    .contextMenu { fileContextMenu(for: file) }
-                }
-            }
-        }
-        .listStyle(.sidebar)
     }
 
     @ViewBuilder
@@ -226,15 +188,11 @@ struct DiffPhaseView: View {
                 Divider()
             }
 
-            if hasEvaluationData {
-                AnnotatedDiffContentView(
-                    diff: filtered,
-                    commentMapping: commentMapping(for: diff),
-                    prModel: prModel
-                )
-            } else {
-                RichDiffContentView(diff: filtered)
-            }
+            AnnotatedDiffContentView(
+                diff: filtered,
+                commentMapping: commentMapping(for: diff),
+                prModel: prModel
+            )
         }
         .sheet(isPresented: Binding(
             get: { showTasksForFile != nil },

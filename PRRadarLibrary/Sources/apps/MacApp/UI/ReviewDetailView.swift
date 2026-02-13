@@ -143,7 +143,8 @@ struct ReviewDetailView: View {
                     EffectiveDiffView(
                         fullDiff: fullDiff,
                         effectiveDiff: effectiveDiff,
-                        moveReport: prModel.syncSnapshot?.moveReport
+                        moveReport: prModel.syncSnapshot?.moveReport,
+                        prModel: prModel
                     )
                     .frame(minWidth: 900, minHeight: 600)
                 }

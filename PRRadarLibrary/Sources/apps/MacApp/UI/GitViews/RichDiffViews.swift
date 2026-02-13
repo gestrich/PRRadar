@@ -124,33 +124,6 @@ struct DiffLineRowView: View {
     }
 }
 
-struct HunkContentView: View {
-    let hunk: Hunk
-    let searchQuery: String
-
-    init(hunk: Hunk, searchQuery: String = "") {
-        self.hunk = hunk
-        self.searchQuery = searchQuery
-    }
-
-    var body: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(diffLineData) { line in
-                DiffLineRowView(
-                    lineContent: line.content,
-                    oldLineNumber: line.oldLine,
-                    newLineNumber: line.newLine,
-                    searchQuery: searchQuery
-                )
-            }
-        }
-    }
-
-    private var diffLineData: [DiffLineData] {
-        HunkLineParser.parse(hunk: hunk)
-    }
-}
-
 struct HunkHeaderView<TrailingContent: View>: View {
     let hunk: Hunk
     let trailingContent: TrailingContent
@@ -184,52 +157,6 @@ struct HunkHeaderView<TrailingContent: View>: View {
 
             Divider()
         }
-    }
-}
-
-struct RichDiffContentView: View {
-    let diff: GitDiff
-    let searchQuery: String
-
-    init(diff: GitDiff, searchQuery: String = "") {
-        self.diff = diff
-        self.searchQuery = searchQuery
-    }
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(diff.changedFiles, id: \.self) { filePath in
-                    let hunks = diff.getHunks(byFilePath: filePath)
-                    let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
-
-                    if let oldPath {
-                        RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
-                    } else {
-                        Text(filePath)
-                            .font(.system(.body, design: .monospaced))
-                            .fontWeight(.bold)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(nsColor: .windowBackgroundColor))
-                    }
-
-                    if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
-                        PureRenameContentView()
-                    }
-
-                    ForEach(hunks) { hunk in
-                        if !hunk.diffLines.isEmpty {
-                            HunkHeaderView(hunk: hunk)
-                            HunkContentView(hunk: hunk, searchQuery: searchQuery)
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .background(Color(nsColor: .textBackgroundColor))
     }
 }
 
