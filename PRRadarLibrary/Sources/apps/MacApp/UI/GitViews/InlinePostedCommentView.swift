@@ -7,6 +7,8 @@ struct InlinePostedCommentView: View {
     var isRedetected: Bool = false
     var imageURLMap: [String: String]? = nil
     var imageBaseDir: String? = nil
+    var lineBackground: Color = .clear
+    var gutterBackground: Color = Color.gray.opacity(0.1)
 
     var body: some View {
         HStack(spacing: 0) {
@@ -45,11 +47,22 @@ struct InlinePostedCommentView: View {
             }
             .padding(12)
         }
-        .background(.clear)
+        .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.green.opacity(0.2), lineWidth: 1)
         )
+        .frame(maxWidth: 720, alignment: .leading)
+        .padding(.leading, DiffLayout.gutterWidth)
+        .padding(.trailing, 16)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack(alignment: .leading) {
+                lineBackground
+                gutterBackground.frame(width: DiffLayout.gutterWidth)
+            }
+        }
     }
 }

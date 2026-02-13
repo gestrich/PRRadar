@@ -9,6 +9,11 @@ struct DiffLineData: Identifiable {
     let content: String
     let oldLine: Int?
     let newLine: Int?
+    let lineType: DisplayDiffLineType
+}
+
+enum DiffLayout {
+    static let gutterWidth: CGFloat = 96
 }
 
 // MARK: - Views
@@ -17,31 +22,24 @@ struct DiffLineRowView: View {
     let lineContent: String
     let oldLineNumber: Int?
     let newLineNumber: Int?
+    let lineType: DisplayDiffLineType
     let searchQuery: String
 
     init(
         lineContent: String,
         oldLineNumber: Int?,
         newLineNumber: Int?,
+        lineType: DisplayDiffLineType,
         searchQuery: String = ""
     ) {
         self.lineContent = lineContent
         self.oldLineNumber = oldLineNumber
         self.newLineNumber = newLineNumber
+        self.lineType = lineType
         self.searchQuery = searchQuery
     }
 
     @State private var isHovering = false
-
-    private var lineType: DisplayDiffLineType {
-        if lineContent.hasPrefix("+") {
-            return .addition
-        } else if lineContent.hasPrefix("-") {
-            return .deletion
-        } else {
-            return .context
-        }
-    }
 
     private var matchesSearch: Bool {
         guard !searchQuery.isEmpty else { return false }
@@ -65,7 +63,8 @@ struct DiffLineRowView: View {
                     .frame(width: 40, alignment: .trailing)
             }
             .padding(.horizontal, 4)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+            .frame(maxHeight: .infinity)
+            .background(gutterBackground)
 
             HStack(spacing: 0) {
                 if matchesSearch {
@@ -86,8 +85,8 @@ struct DiffLineRowView: View {
                         .padding(.vertical, 2)
                 }
             }
-            .background(backgroundColor)
         }
+        .background(backgroundColor)
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
@@ -100,6 +99,17 @@ struct DiffLineRowView: View {
             return Color.white
         case .context:
             return Color.primary
+        }
+    }
+
+    private var gutterBackground: Color {
+        switch lineType {
+        case .addition:
+            return Color.green.opacity(0.25)
+        case .deletion:
+            return Color.red.opacity(0.25)
+        case .context:
+            return Color.gray.opacity(0.1)
         }
     }
 
@@ -221,16 +231,19 @@ struct AnnotatedHunkContentView: View {
                     lineContent: line.content,
                     oldLineNumber: line.oldLine,
                     newLineNumber: line.newLine,
+                    lineType: line.lineType,
                     searchQuery: searchQuery
                 )
 
                 if let newLine = line.newLine,
                    let comments = commentsAtLine[newLine] {
+                    let lineBg = lineBackground(for: line.lineType)
+                    let gutterBg = gutterBackground(for: line.lineType)
                     ForEach(comments) { rc in
                         switch rc.state {
                         case .new:
                             if let pending = rc.pending {
-                                InlineCommentView(comment: pending, prModel: prModel)
+                                InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg)
                             }
                         case .redetected:
                             if let posted = rc.posted {
@@ -238,7 +251,9 @@ struct AnnotatedHunkContentView: View {
                                     comment: posted,
                                     isRedetected: true,
                                     imageURLMap: imageURLMap,
-                                    imageBaseDir: imageBaseDir
+                                    imageBaseDir: imageBaseDir,
+                                    lineBackground: lineBg,
+                                    gutterBackground: gutterBg
                                 )
                             }
                         case .postedOnly:
@@ -246,7 +261,9 @@ struct AnnotatedHunkContentView: View {
                                 InlinePostedCommentView(
                                     comment: posted,
                                     imageURLMap: imageURLMap,
-                                    imageBaseDir: imageBaseDir
+                                    imageBaseDir: imageBaseDir,
+                                    lineBackground: lineBg,
+                                    gutterBackground: gutterBg
                                 )
                             }
                         }
@@ -258,6 +275,22 @@ struct AnnotatedHunkContentView: View {
 
     private var diffLineData: [DiffLineData] {
         HunkLineParser.parse(hunk: hunk)
+    }
+
+    private func lineBackground(for lineType: DisplayDiffLineType) -> Color {
+        switch lineType {
+        case .addition: Color.green.opacity(0.15)
+        case .deletion: Color.red.opacity(0.15)
+        case .context: .clear
+        }
+    }
+
+    private func gutterBackground(for lineType: DisplayDiffLineType) -> Color {
+        switch lineType {
+        case .addition: Color.green.opacity(0.25)
+        case .deletion: Color.red.opacity(0.25)
+        case .context: Color.gray.opacity(0.1)
+        }
     }
 }
 
@@ -476,26 +509,32 @@ enum HunkLineParser {
             let oldNum: Int?
             let newNum: Int?
 
+            let type: DisplayDiffLineType
+
             if lineContent.hasPrefix("+") {
                 oldNum = nil
                 newNum = newLine
                 newLine += 1
+                type = .addition
             } else if lineContent.hasPrefix("-") {
                 oldNum = oldLine
                 newNum = nil
                 oldLine += 1
+                type = .deletion
             } else {
                 oldNum = oldLine
                 newNum = newLine
                 oldLine += 1
                 newLine += 1
+                type = .context
             }
 
             lines.append(DiffLineData(
                 id: "\(hunk.id)_\(lineIndex)",
                 content: lineContent,
                 oldLine: oldNum,
-                newLine: newNum
+                newLine: newNum,
+                lineType: type
             ))
         }
 
