@@ -24,4 +24,8 @@ public struct PRRadarConfig: Sendable {
         }
         return "\(repoPath)/\(expanded)"
     }
+
+    public func prDataDirectory(for prNumber: Int) -> String {
+        "\(absoluteOutputDir)/\(prNumber)"
+    }
 }

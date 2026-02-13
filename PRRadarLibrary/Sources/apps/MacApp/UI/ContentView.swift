@@ -64,7 +64,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("refreshButton")
                 .help("Refresh PR data")
-                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty || isDeletingPR)
+                .disabled(isPRActionDisabled)
 
                 Button {
                     Task { await selectedPR?.runAnalysis() }
@@ -78,7 +78,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("analyzeButton")
                 .help("Analyze PR")
-                .disabled(selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty || isDeletingPR)
+                .disabled(isPRActionDisabled)
 
                 Button {
                     if let pr = selectedPR {
@@ -117,7 +117,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("deleteButton")
                 .help("Delete all local data for this PR")
-                .disabled(isDeletingPR || selectedPR == nil || selectedPR!.isAnyPhaseRunning || selectedPR!.prNumber.isEmpty)
+                .disabled(isPRActionDisabled)
                 .popover(isPresented: $showDeleteConfirmation, arrowEdge: .bottom) {
                     deleteConfirmationPopover
                 }
@@ -440,9 +440,7 @@ public struct ContentView: View {
                     isDeletingPR = true
                     Task {
                         defer { isDeletingPR = false }
-                        if let replacement = try? await allPRs?.deletePRData(for: pr) {
-                            selectedPR = replacement
-                        }
+                        try? await allPRs?.deletePRData(for: pr)
                     }
                 }
                 .keyboardShortcut(.defaultAction)
@@ -487,6 +485,11 @@ public struct ContentView: View {
 
     private var filteredPRModels: [PRModel] {
         allPRs?.filteredPRModels(since: sinceDate, state: selectedPRStateFilter) ?? []
+    }
+
+    private var isPRActionDisabled: Bool {
+        guard let pr = selectedPR else { return true }
+        return pr.isAnyPhaseRunning || pr.prNumber.isEmpty || isDeletingPR
     }
 
     private var isRefreshing: Bool {

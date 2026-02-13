@@ -64,6 +64,10 @@ public enum PRDiscoveryService {
         return prs.sorted { $0.number > $1.number }
     }
 
+    public static func discoverPR(number: Int, outputDir: String) -> PRMetadata? {
+        discoverPRs(outputDir: outputDir).first(where: { $0.number == number })
+    }
+
     public static func repoSlug(fromRepoPath repoPath: String) -> String? {
         let gitConfigPath = "\(repoPath)/.git/config"
         guard let content = try? String(contentsOfFile: gitConfigPath, encoding: .utf8) else { return nil }

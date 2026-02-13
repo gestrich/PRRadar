@@ -120,6 +120,26 @@ final class PRModel: Identifiable, Hashable {
         metadata = newMetadata
     }
 
+    func resetAfterDataDeletion(metadata newMetadata: PRMetadata) {
+        metadata = newMetadata
+        detail = nil
+        inProgressAnalysis = nil
+        comments = nil
+        analysisState = .loading
+        detailLoaded = false
+        phaseStates = [:]
+        commentPostingState = .idle
+        submittingCommentIds = []
+        submittedCommentIds = []
+        liveAccumulators = []
+        currentLivePhase = nil
+        operationMode = .idle
+        selectiveAnalysisInFlight = []
+        refreshTask?.cancel()
+        refreshTask = nil
+        reloadDetail()
+    }
+
     // MARK: - Detail Loading
 
     private func reloadDetail(commitHash: String? = nil) {
