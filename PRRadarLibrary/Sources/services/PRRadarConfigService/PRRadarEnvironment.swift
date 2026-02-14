@@ -3,6 +3,8 @@ import Foundation
 public enum PRRadarEnvironment {
     static let githubTokenKey = "GITHUB_TOKEN"
     static let anthropicAPIKeyKey = "ANTHROPIC_API_KEY"
+    /// Repos with no `credentialAccount` use this as the Keychain lookup key.
+    /// Lets single-credential users skip account configuration entirely.
     static let defaultCredentialAccount = "default"
 
     public static func build(credentialAccount: String? = nil) -> [String: String] {
