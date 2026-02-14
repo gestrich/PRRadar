@@ -1,0 +1,313 @@
+# Credential Resolution Cleanup & Split by Provider
+
+Addresses all remaining TODOs from commit `f159721` (Phase 3: Keychain integration). Rewrites `CredentialResolver` with a clean layered architecture, fixes layer violations in the App layer, and separates GitHub/Anthropic credential resolution.
+
+Preliminary work already completed: string constant extraction (`githubTokenKey`, `anthropicAPIKeyKey`, `defaultCredentialAccount`) and documentation of the "default" account convention.
+
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `swift-app-architecture:swift-architecture` | Layer responsibilities and dependency rules |
+| `swift-app-architecture:swift-swiftui` | SwiftUI Model-View patterns for SettingsView changes |
+| `swift-testing` | Test style guide |
+
+## Background
+
+After Phase 3 (Keychain integration), credential resolution is tangled:
+
+1. `CredentialResolver.init` defaults to calling `PRRadarEnvironment.build()` to get its environment
+2. `PRRadarEnvironment.build()` calls `loadKeychainSecrets()`, which injects Keychain values into the env dict
+3. By the time `CredentialResolver.resolveGitHubToken()` runs, the token is already in the environment — the Keychain fallback inside `CredentialResolver` is dead code
+
+Additionally, `credentialAccount` is a single string used for both GitHub and Anthropic Keychain lookups. GitHub tokens are per-repo/per-identity, but Anthropic API keys are global — coupling them forces users to duplicate their Anthropic key under every account name.
+
+There are also two layer violations: `PRModel.isStale()` directly calls `GitHubServiceFactory` instead of going through a use case, and `PostSingleCommentUseCase` takes loose parameters instead of a config.
+
+### Desired architecture
+
+Two top-level methods — `getGitHubToken()` and `getAnthropicKey()` — that each do the full resolution chain (process env → .env → Keychain). Each method **knows** the domain-specific details (env var key, keychain type, which account to use) but **delegates** actual lookups to generic lower-level services that know nothing about GitHub or Anthropic:
+
+```
+getGitHubToken()                         getAnthropicKey()
+  │ knows: envKey="GITHUB_TOKEN"           │ knows: envKey="ANTHROPIC_API_KEY"
+  │ knows: keychainType="github-token"     │ knows: keychainType="anthropic-api-key"
+  │ knows: account=githubAccount           │ knows: account=always "default"
+  │                                        │
+  ├─→ processEnvironment[envKey]           ├─→ processEnvironment[envKey]
+  ├─→ dotEnv[envKey]                       ├─→ dotEnv[envKey]
+  └─→ keychain.load(account, type)         └─→ keychain.load("default", type)
+        ↑                                        ↑
+        generic: no GitHub/Anthropic knowledge
+```
+
+The lower-level services:
+- **Process environment** — `[String: String]` from `ProcessInfo.processInfo.environment`
+- **DotEnv** — `[String: String]` loaded from `.env` file (extracted from `PRRadarEnvironment`)
+- **Keychain** — generic `loadCredential(account:type:)` on `SettingsService`
+
+### Files involved
+
+- `PRRadarConfigService/SettingsService.swift` — add generic `loadCredential(account:type:)`
+- `PRRadarConfigService/CredentialResolver.swift` — rewrite with layered architecture
+- `PRRadarConfigService/PRRadarEnvironment.swift` — extract `loadDotEnv`, delegate credential loading
+- `PRRadarConfigService/RepoConfiguration.swift` — rename `credentialAccount` → `githubAccount`
+- `PRRadarConfigService/PRRadarConfig.swift` — rename `credentialAccount` → `githubAccount`
+- `PRRadarCLIService/GitHubServiceFactory.swift` — update to use new resolver
+- `PRRadarCLIService/ClaudeAgentClient.swift` — rename, remove TODO
+- `PRReviewFeature/usecases/PostSingleCommentUseCase.swift` — refactor to accept config
+- `MacApp/Models/PRModel.swift` — extract `CheckPRStalenessUseCase`
+- `MacCLI/Commands/ConfigCommand.swift` — rename CLI flag
+- `MacApp/UI/SettingsView.swift` — rename label
+- Feature layer use cases — update `credentialAccount` references
+
+## - [ ] Phase 1: Remove the `ClaudeAgentClient` TODO
+
+The TODO at `ClaudeAgentClient.swift:158-163` says credentials should be resolved upstream. The current design is the right tradeoff — `ClaudeAgentClient` passes `credentialAccount` to `PRRadarEnvironment.build()`, which assembles the full subprocess environment (PATH, HOME, .env, Keychain). Moving that responsibility upstream would leak environment-building concerns into callers.
+
+Remove the TODO comment. No code change.
+
+## - [ ] Phase 2: Add generic `loadCredential` to `SettingsService`
+
+`SettingsService` currently has domain-specific methods (`loadGitHubToken`, `loadAnthropicKey`) that hard-code the keychain type strings. Add a generic public method so callers can specify both account and type. The domain-specific methods become convenience wrappers.
+
+```swift
+// New generic method
+public func loadCredential(account: String, type: String) throws -> String {
+    try keychain.string(forKey: credentialKey(account: account, type: type))
+}
+
+// Existing methods delegate to it
+public func loadGitHubToken(account: String) throws -> String {
+    try loadCredential(account: account, type: Self.gitHubTokenType)
+}
+
+public func loadAnthropicKey(account: String) throws -> String {
+    try loadCredential(account: account, type: Self.anthropicKeyType)
+}
+```
+
+Keep the domain-specific methods — they're used by credential management CLI commands (`config credentials add/remove/list`). The generic method is for `CredentialResolver`.
+
+## - [ ] Phase 3: Extract `loadDotEnv` as a reusable function
+
+Currently, `PRRadarEnvironment.loadDotEnv(into:)` mutates a dict in-place and is private. Extract it into a standalone static method that returns a `[String: String]` so `CredentialResolver` can check `.env` values independently of `PRRadarEnvironment.build()`.
+
+```swift
+// PRRadarEnvironment.swift
+public static func loadDotEnv() -> [String: String] {
+    var values: [String: String] = [:]
+    // ... same directory-walking logic, but populates `values` instead of mutating env ...
+    return values
+}
+```
+
+Update `build()` to call this new method and merge the result into env. The old `private static func loadDotEnv(into:)` is replaced.
+
+## - [ ] Phase 4: Fix layer violations
+
+Two layer violations in the App layer need fixing.
+
+### 4a: Refactor `PostSingleCommentUseCase` to accept config
+
+`PostSingleCommentUseCase.execute()` takes `repoPath` and `credentialAccount` as loose parameters instead of receiving a `RepositoryConfiguration` like every other use case.
+
+Before:
+```swift
+public struct PostSingleCommentUseCase: Sendable {
+    public init() {}
+
+    public func execute(
+        comment: PRComment, commitSHA: String, prNumber: String,
+        repoPath: String, credentialAccount: String? = nil
+    ) async throws -> Bool {
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath, credentialAccount: credentialAccount)
+        // ...
+    }
+}
+```
+
+After:
+```swift
+public struct PostSingleCommentUseCase: Sendable {
+    let config: RepositoryConfiguration
+    public init(config: RepositoryConfiguration) { self.config = config }
+
+    public func execute(comment: PRComment, commitSHA: String, prNumber: String) async throws -> Bool {
+        let (gitHub, _) = try await GitHubServiceFactory.create(
+            repoPath: config.repoPath,
+            credentialAccount: config.credentialAccount
+        )
+        // ...
+    }
+}
+```
+
+Update the caller in `PRModel` to pass `config`.
+
+### 4b: Extract `CheckPRStalenessUseCase`
+
+`PRModel.isStale()` directly creates a `GitHubServiceFactory` and calls `gitHub.getPRUpdatedAt()`. Per the architecture, App-layer models should work through Feature-layer use cases.
+
+Create a new use case:
+```swift
+public struct CheckPRStalenessUseCase: Sendable {
+    let config: RepositoryConfiguration
+    public init(config: RepositoryConfiguration) { self.config = config }
+
+    public func execute(prNumber: Int, lastUpdatedAt: String) async throws -> Bool {
+        let (gitHub, _) = try await GitHubServiceFactory.create(
+            repoPath: config.repoPath,
+            credentialAccount: config.credentialAccount
+        )
+        let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNumber)
+        return lastUpdatedAt != currentUpdatedAt
+    }
+}
+```
+
+Then `PRModel.isStale()` becomes:
+```swift
+private func isStale() async -> Bool {
+    guard let storedUpdatedAt = metadata.updatedAt else { return true }
+    let useCase = CheckPRStalenessUseCase(config: config)
+    return (try? await useCase.execute(prNumber: metadata.number, lastUpdatedAt: storedUpdatedAt)) ?? true
+}
+```
+
+Remove the TODOs at `PRModel.swift:273-281` and `PostSingleCommentUseCase.swift:8-10`.
+
+## - [ ] Phase 5: Rewrite `CredentialResolver` with layered architecture
+
+Replace the current `CredentialResolver` with one that takes explicit lookup sources as dependencies and has `getGitHubToken()` / `getAnthropicKey()` methods that orchestrate the full resolution chain.
+
+```swift
+public struct CredentialResolver: Sendable {
+    private let processEnvironment: [String: String]
+    private let dotEnv: [String: String]
+    private let settingsService: SettingsService
+    private let credentialAccount: String?
+
+    public init(
+        settingsService: SettingsService,
+        credentialAccount: String? = nil,
+        processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
+        dotEnv: [String: String]? = nil
+    ) {
+        self.settingsService = settingsService
+        self.credentialAccount = credentialAccount
+        self.processEnvironment = processEnvironment
+        self.dotEnv = dotEnv ?? PRRadarEnvironment.loadDotEnv()
+    }
+
+    public func getGitHubToken() -> String? {
+        let envKey = PRRadarEnvironment.githubTokenKey
+        let keychainType = "github-token"
+        let account = (credentialAccount?.isEmpty ?? true)
+            ? PRRadarEnvironment.defaultCredentialAccount
+            : credentialAccount!
+
+        if let v = processEnvironment[envKey] { return v }
+        if let v = dotEnv[envKey] { return v }
+        return try? settingsService.loadCredential(account: account, type: keychainType)
+    }
+
+    public func getAnthropicKey() -> String? {
+        let envKey = PRRadarEnvironment.anthropicAPIKeyKey
+        let keychainType = "anthropic-api-key"
+
+        if let v = processEnvironment[envKey] { return v }
+        if let v = dotEnv[envKey] { return v }
+        return try? settingsService.loadCredential(
+            account: PRRadarEnvironment.defaultCredentialAccount,
+            type: keychainType
+        )
+    }
+}
+```
+
+Key properties:
+- No circular dependency — never calls `PRRadarEnvironment.build()`
+- Each method knows the domain specifics (env var key, keychain type, account rules)
+- All lookups delegate to generic services (dict lookup, `loadCredential`)
+- Anthropic always uses `"default"` account; GitHub uses the configured account
+- Explicit, ordered resolution: process env → .env → keychain
+
+Update `GitHubServiceFactory` to use `getGitHubToken()` (was `resolveGitHubToken()`).
+
+## - [ ] Phase 6: Update `PRRadarEnvironment.build()` to use `CredentialResolver`
+
+Replace the manual `loadKeychainSecrets` logic with a call to `CredentialResolver`. Since `build()` produces a subprocess environment, it passes its partially-built env as the `processEnvironment` (so credentials from .env and keychain get injected into the subprocess dict).
+
+```swift
+public static func build(credentialAccount: String? = nil) -> [String: String] {
+    var env = ProcessInfo.processInfo.environment
+    // ... HOME, PATH setup ...
+
+    let dotEnv = loadDotEnv()
+    for (key, value) in dotEnv where env[key] == nil {
+        env[key] = value
+    }
+
+    let resolver = CredentialResolver(
+        settingsService: SettingsService(),
+        credentialAccount: credentialAccount,
+        processEnvironment: env,
+        dotEnv: [:]  // already merged into env
+    )
+    if env[githubTokenKey] == nil, let token = resolver.getGitHubToken() {
+        env[githubTokenKey] = token
+    }
+    if env[anthropicAPIKeyKey] == nil, let key = resolver.getAnthropicKey() {
+        env[anthropicAPIKeyKey] = key
+    }
+
+    return env
+}
+```
+
+Remove `loadKeychainSecrets` — its logic now lives in `CredentialResolver`.
+
+## - [ ] Phase 7: Rename `credentialAccount` to `githubAccount`
+
+Rename the field across the codebase to clarify its purpose. This is a pure rename with no behavior change.
+
+- `RepositoryConfigurationJSON.credentialAccount` → `githubAccount`
+- `RepositoryConfiguration.credentialAccount` → `githubAccount`
+- `CredentialResolver.credentialAccount` → `githubAccount`
+- `ClaudeAgentClient.credentialAccount` → `githubAccount`
+- `GitHubServiceFactory.create(credentialAccount:)` → `create(githubAccount:)`
+- `PRRadarEnvironment.build(credentialAccount:)` → `build(githubAccount:)`
+- All callers that pass `credentialAccount:` → `githubAccount:`
+- `ConfigCommand.AddCommand.credentialAccount` → `githubAccount`
+
+Keep JSON backwards compatibility: add a `CodingKeys` enum to `RepositoryConfigurationJSON` that maps `githubAccount` to the `"credentialAccount"` JSON key, so existing settings files still load. (Or just rename the JSON key and accept the one-time migration — Bill's call.)
+
+## - [ ] Phase 8: Update UI and CLI labels
+
+- `SettingsView`: Rename "Credential Account" label to "GitHub Account". Update help text to explain this only affects GitHub token lookup.
+- `ConfigCommand.AddCommand`: Rename `--credential-account` to `--github-account`. Keep `--credential-account` as a hidden alias for backwards compatibility (or not — Bill's call).
+- `presentableDescription`: Change `"credentials:"` to `"github account:"`.
+
+## - [ ] Phase 9: Add tests
+
+**Skills to read**: `swift-testing`
+
+Add tests to verify the layered resolution behavior:
+
+1. `getGitHubToken` checks process env first, then .env, then keychain
+2. `getAnthropicKey` checks process env first, then .env, then keychain
+3. `getGitHubToken` uses the configured account for keychain lookup
+4. `getAnthropicKey` always uses `"default"` account regardless of configured account
+5. A user with GitHub token under "work" and Anthropic key under "default" can resolve both
+6. Earlier sources take precedence (process env > .env > keychain)
+
+Each source is an explicit dependency, so tests inject controlled values — no mocking needed.
+
+## - [ ] Phase 10: Validation
+
+**Skills to read**: `swift-testing`
+
+- `swift build` — no compile errors
+- `swift test` — all tests pass (existing + new)
+- Manual spot check: `swift run PRRadarMacCLI diff 1 --config test-repo` to verify credential resolution still works end-to-end
