@@ -87,7 +87,7 @@ Key behaviors:
 
 **Completed**: CRUD methods catch errors from use cases and reload settings from disk as a fallback to keep the model in sync. The `onTermination` handler on `AsyncStream.Continuation` dispatches back to `@MainActor` to safely clean up the continuations dictionary.
 
-## - [ ] Phase 3: AppModel Integration
+## - [x] Phase 3: AppModel Integration
 
 **Skills to read**: `swift-app-architecture:swift-swiftui` (model-composition.md — parent/child, child-to-parent propagation)
 
@@ -104,6 +104,8 @@ Changes to `Sources/apps/MacApp/Models/AppModel.swift`:
 Changes to `PRRadar/PRRadarApp.swift`:
 - Construct `SettingsService` → use cases → `SettingsModel` → `AppModel`
 - Inject `settingsModel` into environment alongside `appModel` so views can access it directly
+
+**Completed**: AppModel now owns `let settingsModel: SettingsModel` as a child model and delegates all settings state/CRUD through it. Thin forwarding properties (`settings`, `addConfiguration`, etc.) remain on AppModel temporarily so existing views compile — Phase 4 will remove these when views switch to `@Environment(SettingsModel.self)`. A `convenience init()` was added to `SettingsModel` to construct the full use-case dependency chain from a default `SettingsService`, keeping `PRRadarApp.swift` simple (it only imports `MacApp`). The ContentView `#Preview` was also updated to use the new `AppModel(agentScriptPath:settingsModel:)` initializer.
 
 ## - [ ] Phase 4: View Updates
 

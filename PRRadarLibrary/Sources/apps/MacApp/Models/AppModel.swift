@@ -7,15 +7,20 @@ import PRRadarModels
 public final class AppModel {
 
     let agentScriptPath: String
-    private let settingsService: SettingsService
-    var settings: AppSettings
+    let settingsModel: SettingsModel
 
     var allPRsModel: AllPRsModel?
 
-    public init(agentScriptPath: String) {
+    public init(agentScriptPath: String, settingsModel: SettingsModel) {
         self.agentScriptPath = agentScriptPath
-        self.settingsService = SettingsService()
-        self.settings = settingsService.load()
+        self.settingsModel = settingsModel
+
+        Task { [weak self] in
+            guard self != nil else { return }
+            for await _ in settingsModel.observeChanges() {
+                // React to settings changes if needed (e.g., active config was removed)
+            }
+        }
     }
 
     // MARK: - Config Selection
@@ -37,31 +42,25 @@ public final class AppModel {
         }
     }
 
-    // MARK: - Configuration Management
+    // MARK: - Settings Forwarding (removed in Phase 4 when views use SettingsModel directly)
+
+    var settings: AppSettings {
+        settingsModel.settings
+    }
 
     func addConfiguration(_ config: RepoConfiguration) {
-        settingsService.addConfiguration(config, to: &settings)
-        persistSettings()
+        settingsModel.addConfiguration(config)
     }
 
     func removeConfiguration(id: UUID) {
-        settingsService.removeConfiguration(id: id, from: &settings)
-        persistSettings()
+        settingsModel.removeConfiguration(id: id)
     }
 
     func updateConfiguration(_ config: RepoConfiguration) {
-        if let idx = settings.configurations.firstIndex(where: { $0.id == config.id }) {
-            settings.configurations[idx] = config
-            persistSettings()
-        }
+        settingsModel.updateConfiguration(config)
     }
 
     func setDefault(id: UUID) {
-        settingsService.setDefault(id: id, in: &settings)
-        persistSettings()
-    }
-
-    private func persistSettings() {
-        try? settingsService.save(settings)
+        settingsModel.setDefault(id: id)
     }
 }

@@ -28,6 +28,16 @@ public final class SettingsModel {
         self.settings = loadSettingsUseCase.execute()
     }
 
+    public convenience init() {
+        let service = SettingsService()
+        self.init(
+            loadSettingsUseCase: LoadSettingsUseCase(settingsService: service),
+            saveConfigurationUseCase: SaveConfigurationUseCase(settingsService: service),
+            removeConfigurationUseCase: RemoveConfigurationUseCase(settingsService: service),
+            setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase(settingsService: service)
+        )
+    }
+
     // MARK: - CRUD
 
     func addConfiguration(_ config: RepoConfiguration) {

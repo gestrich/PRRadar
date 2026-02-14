@@ -500,6 +500,8 @@ public struct ContentView: View {
 }
 
 #Preview {
+    let settingsModel = SettingsModel()
     ContentView()
-        .environment(AppModel(agentScriptPath: "/tmp/claude_agent.py"))
+        .environment(AppModel(agentScriptPath: "/tmp/claude_agent.py", settingsModel: settingsModel))
+        .environment(settingsModel)
 }
