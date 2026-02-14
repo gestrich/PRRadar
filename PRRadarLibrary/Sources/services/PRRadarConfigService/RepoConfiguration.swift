@@ -9,6 +9,18 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
     public var isDefault: Bool
     public var githubToken: String?
 
+    public var presentableDescription: String {
+        let header = isDefault ? "\(name) (default)" : name
+        var lines = [header, "  repo:   \(repoPath)"]
+        if !outputDir.isEmpty {
+            lines.append("  output: \(outputDir)")
+        }
+        if !rulesDir.isEmpty {
+            lines.append("  rules:  \(rulesDir)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     public init(
         id: UUID = UUID(),
         name: String,

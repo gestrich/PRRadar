@@ -41,16 +41,7 @@ struct ConfigCommand: AsyncParsableCommand {
             } else {
                 print("Saved configurations:\n")
                 for config in settings.configurations {
-                    let defaultMarker = config.isDefault ? " (default)" : ""
-                    print("  \(config.name)\(defaultMarker)")
-                    print("    repo:   \(config.repoPath)")
-                    if !config.outputDir.isEmpty {
-                        print("    output: \(config.outputDir)")
-                    }
-                    if !config.rulesDir.isEmpty {
-                        print("    rules:  \(config.rulesDir)")
-                    }
-                    print("")
+                    print("  \(config.presentableDescription)\n")
                 }
             }
         }
@@ -99,10 +90,9 @@ struct ConfigCommand: AsyncParsableCommand {
 
             let updated = try saveUseCase.execute(config: config, settings: settings, isNew: true)
 
-            // TODO: The printout line here should be on configuration model
-            let isDefault = updated.configurations.first(where: { $0.name == name })?.isDefault ?? false
-            let defaultNote = isDefault ? " (default)" : ""
-            print("Configuration '\(name)' added\(defaultNote).")
+            let saved = updated.configurations.first(where: { $0.name == name })!
+            print("Added configuration:")
+            print("  \(saved.presentableDescription)")
         }
     }
 
