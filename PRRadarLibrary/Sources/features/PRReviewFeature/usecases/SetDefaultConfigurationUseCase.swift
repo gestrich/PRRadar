@@ -9,10 +9,10 @@ public struct SetDefaultConfigurationUseCase: Sendable {
         self.settingsService = settingsService
     }
 
-    public func execute(id: UUID, settings: AppSettings) throws -> AppSettings {
-        var updated = settings
-        settingsService.setDefault(id: id, in: &updated)
-        try settingsService.save(updated)
-        return updated
+    public func execute(id: UUID) throws -> AppSettings {
+        var settings = settingsService.load()
+        settingsService.setDefault(id: id, in: &settings)
+        try settingsService.save(settings)
+        return settings
     }
 }

@@ -55,11 +55,11 @@ public final class SettingsModel {
     }
 
     func removeConfiguration(id: UUID) throws {
-        settings = try removeConfigurationUseCase.execute(id: id, settings: settings)
+        settings = try removeConfigurationUseCase.execute(id: id)
     }
 
     func setDefault(id: UUID) throws {
-        settings = try setDefaultConfigurationUseCase.execute(id: id, settings: settings)
+        settings = try setDefaultConfigurationUseCase.execute(id: id)
     }
 
     // MARK: - Child-to-Parent Propagation

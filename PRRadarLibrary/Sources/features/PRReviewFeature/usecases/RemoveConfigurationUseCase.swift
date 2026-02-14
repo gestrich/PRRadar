@@ -9,10 +9,10 @@ public struct RemoveConfigurationUseCase: Sendable {
         self.settingsService = settingsService
     }
 
-    public func execute(id: UUID, settings: AppSettings) throws -> AppSettings {
-        var updated = settings
-        settingsService.removeConfiguration(id: id, from: &updated)
-        try settingsService.save(updated)
-        return updated
+    public func execute(id: UUID) throws -> AppSettings {
+        var settings = settingsService.load()
+        settingsService.removeConfiguration(id: id, from: &settings)
+        try settingsService.save(settings)
+        return settings
     }
 }

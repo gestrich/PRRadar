@@ -20,7 +20,7 @@ struct RemoveConfigurationUseCaseTests {
         let config = RepoConfiguration(name: "to-remove", repoPath: "/tmp/repo")
         let settings = try saveUseCase.execute(config: config)
 
-        let result = try removeUseCase.execute(id: config.id, settings: settings)
+        let result = try removeUseCase.execute(id: config.id)
 
         #expect(result.configurations.isEmpty)
     }
@@ -36,7 +36,7 @@ struct RemoveConfigurationUseCaseTests {
         let settings = try saveUseCase.execute(config: second)
 
         #expect(settings.configurations[0].isDefault == true)
-        let result = try removeUseCase.execute(id: first.id, settings: settings)
+        let result = try removeUseCase.execute(id: first.id)
 
         #expect(result.configurations.count == 1)
         #expect(result.configurations[0].name == "second")
@@ -51,7 +51,7 @@ struct RemoveConfigurationUseCaseTests {
         let config = RepoConfiguration(name: "temp", repoPath: "/tmp/repo")
         let settings = try saveUseCase.execute(config: config)
 
-        _ = try removeUseCase.execute(id: config.id, settings: settings)
+        _ = try removeUseCase.execute(id: config.id)
 
         let loaded = service.load()
         #expect(loaded.configurations.isEmpty)

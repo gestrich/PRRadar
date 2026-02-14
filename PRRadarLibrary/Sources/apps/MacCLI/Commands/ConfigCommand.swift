@@ -111,7 +111,7 @@ struct ConfigCommand: AsyncParsableCommand {
                 throw ValidationError("Configuration '\(name)' not found.")
             }
 
-            _ = try removeUseCase.execute(id: config.id, settings: settings)
+            _ = try removeUseCase.execute(id: config.id)
             print("Configuration '\(name)' removed.")
         }
     }
@@ -127,7 +127,6 @@ struct ConfigCommand: AsyncParsableCommand {
 
         func run() async throws {
             let settingsService = SettingsService()
-            // TODO: The SetDefaultConfigurationUseCase could internally call the LoadSettingsUseCase to get the current settings
             let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
             let setDefaultUseCase = SetDefaultConfigurationUseCase(settingsService: settingsService)
 
@@ -137,7 +136,7 @@ struct ConfigCommand: AsyncParsableCommand {
                 throw ValidationError("Configuration '\(name)' not found.")
             }
 
-            _ = try setDefaultUseCase.execute(id: config.id, settings: settings)
+            _ = try setDefaultUseCase.execute(id: config.id)
             print("Configuration '\(name)' set as default.")
         }
     }

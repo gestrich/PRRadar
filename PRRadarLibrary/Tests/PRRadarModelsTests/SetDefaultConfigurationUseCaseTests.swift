@@ -20,9 +20,9 @@ struct SetDefaultConfigurationUseCaseTests {
         let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
         _ = try saveUseCase.execute(config: first)
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
-        let settings = try saveUseCase.execute(config: second)
+        _ = try saveUseCase.execute(config: second)
 
-        let result = try setDefaultUseCase.execute(id: second.id, settings: settings)
+        let result = try setDefaultUseCase.execute(id: second.id)
 
         #expect(result.configurations[0].isDefault == false)
         #expect(result.configurations[1].isDefault == true)
@@ -38,8 +38,8 @@ struct SetDefaultConfigurationUseCaseTests {
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
         _ = try saveUseCase.execute(config: second)
 
-        var settings = try setDefaultUseCase.execute(id: second.id, settings: service.load())
-        let result = try setDefaultUseCase.execute(id: first.id, settings: settings)
+        _ = try setDefaultUseCase.execute(id: second.id)
+        let result = try setDefaultUseCase.execute(id: first.id)
 
         #expect(result.configurations[0].isDefault == true)
         #expect(result.configurations[1].isDefault == false)
@@ -55,7 +55,7 @@ struct SetDefaultConfigurationUseCaseTests {
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
         _ = try saveUseCase.execute(config: second)
 
-        _ = try setDefaultUseCase.execute(id: second.id, settings: service.load())
+        _ = try setDefaultUseCase.execute(id: second.id)
 
         let loaded = service.load()
         #expect(loaded.configurations[0].isDefault == false)
