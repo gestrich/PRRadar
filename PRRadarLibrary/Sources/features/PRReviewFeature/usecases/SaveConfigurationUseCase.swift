@@ -9,29 +9,14 @@ public struct SaveConfigurationUseCase: Sendable {
         self.settingsService = settingsService
     }
 
-    // TODO: Remove isNew param — use case should determine add vs update based on whether config ID exists in settings
-    public func execute(config: RepoConfiguration, settings: AppSettings, isNew: Bool) throws -> AppSettings {
-        var updated = settings
-        if isNew {
-            settingsService.addConfiguration(config, to: &updated)
+    public func execute(config: RepoConfiguration) throws -> AppSettings {
+        var settings = settingsService.load()
+        if let index = settings.configurations.firstIndex(where: { $0.id == config.id }) {
+            settings.configurations[index] = config
         } else {
-            guard let index = updated.configurations.firstIndex(where: { $0.id == config.id }) else {
-                throw SaveConfigurationError.configurationNotFound(config.id)
-            }
-            updated.configurations[index] = config
+            settingsService.addConfiguration(config, to: &settings)
         }
-        try settingsService.save(updated)
-        return updated
-    }
-}
-
-public enum SaveConfigurationError: LocalizedError {
-    case configurationNotFound(UUID)
-
-    public var errorDescription: String? {
-        switch self {
-        case .configurationNotFound(let id):
-            "Configuration not found: \(id)"
-        }
+        try settingsService.save(settings)
+        return settings
     }
 }

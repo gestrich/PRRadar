@@ -12,7 +12,7 @@ struct SaveConfigurationUseCaseTests {
         return SettingsService(settingsURL: fileURL)
     }
 
-    // MARK: - Add (isNew: true)
+    // MARK: - Add
 
     @Test("Adding first configuration marks it as default")
     func addFirstConfigBecomesDefault() throws {
@@ -20,7 +20,7 @@ struct SaveConfigurationUseCaseTests {
         let useCase = SaveConfigurationUseCase(settingsService: service)
         let config = RepoConfiguration(name: "first", repoPath: "/tmp/repo")
 
-        let result = try useCase.execute(config: config, settings: AppSettings(), isNew: true)
+        let result = try useCase.execute(config: config)
 
         #expect(result.configurations.count == 1)
         #expect(result.configurations[0].isDefault == true)
@@ -32,10 +32,10 @@ struct SaveConfigurationUseCaseTests {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
         let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
-        let settings = try useCase.execute(config: first, settings: AppSettings(), isNew: true)
+        _ = try useCase.execute(config: first)
 
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
-        let result = try useCase.execute(config: second, settings: settings, isNew: true)
+        let result = try useCase.execute(config: second)
 
         #expect(result.configurations.count == 2)
         #expect(result.configurations[0].isDefault == true)
@@ -48,14 +48,14 @@ struct SaveConfigurationUseCaseTests {
         let useCase = SaveConfigurationUseCase(settingsService: service)
         let config = RepoConfiguration(name: "persisted", repoPath: "/tmp/repo")
 
-        _ = try useCase.execute(config: config, settings: AppSettings(), isNew: true)
+        _ = try useCase.execute(config: config)
 
         let loaded = service.load()
         #expect(loaded.configurations.count == 1)
         #expect(loaded.configurations[0].name == "persisted")
     }
 
-    // MARK: - Update (isNew: false)
+    // MARK: - Update
 
     @Test("Updating existing configuration replaces it in place")
     func updateExistingConfig() throws {
@@ -63,25 +63,26 @@ struct SaveConfigurationUseCaseTests {
         let useCase = SaveConfigurationUseCase(settingsService: service)
         let configId = UUID()
         let original = RepoConfiguration(id: configId, name: "original", repoPath: "/tmp/repo")
-        let settings = try useCase.execute(config: original, settings: AppSettings(), isNew: true)
+        _ = try useCase.execute(config: original)
 
         var modified = original
         modified.name = "updated"
-        let result = try useCase.execute(config: modified, settings: settings, isNew: false)
+        let result = try useCase.execute(config: modified)
 
         #expect(result.configurations.count == 1)
         #expect(result.configurations[0].name == "updated")
         #expect(result.configurations[0].id == configId)
     }
 
-    @Test("Updating non-existent configuration throws configurationNotFound")
-    func updateNonExistentThrows() throws {
+    @Test("Saving config with unknown ID adds it")
+    func saveUnknownIdAdds() throws {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
-        let config = RepoConfiguration(name: "ghost", repoPath: "/tmp/repo")
+        let config = RepoConfiguration(name: "new", repoPath: "/tmp/repo")
 
-        #expect(throws: SaveConfigurationError.self) {
-            try useCase.execute(config: config, settings: AppSettings(), isNew: false)
-        }
+        let result = try useCase.execute(config: config)
+
+        #expect(result.configurations.count == 1)
+        #expect(result.configurations[0].name == "new")
     }
 }

@@ -47,11 +47,11 @@ public final class SettingsModel {
     // MARK: - CRUD
 
     func addConfiguration(_ config: RepoConfiguration) throws {
-        settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: true)
+        settings = try saveConfigurationUseCase.execute(config: config)
     }
 
     func updateConfiguration(_ config: RepoConfiguration) throws {
-        settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: false)
+        settings = try saveConfigurationUseCase.execute(config: config)
     }
 
     func removeConfiguration(id: UUID) throws {

@@ -18,9 +18,9 @@ struct SetDefaultConfigurationUseCaseTests {
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let setDefaultUseCase = SetDefaultConfigurationUseCase(settingsService: service)
         let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
-        var settings = try saveUseCase.execute(config: first, settings: AppSettings(), isNew: true)
+        _ = try saveUseCase.execute(config: first)
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
-        settings = try saveUseCase.execute(config: second, settings: settings, isNew: true)
+        let settings = try saveUseCase.execute(config: second)
 
         let result = try setDefaultUseCase.execute(id: second.id, settings: settings)
 
@@ -34,11 +34,11 @@ struct SetDefaultConfigurationUseCaseTests {
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let setDefaultUseCase = SetDefaultConfigurationUseCase(settingsService: service)
         let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
-        var settings = try saveUseCase.execute(config: first, settings: AppSettings(), isNew: true)
+        _ = try saveUseCase.execute(config: first)
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
-        settings = try saveUseCase.execute(config: second, settings: settings, isNew: true)
+        _ = try saveUseCase.execute(config: second)
 
-        settings = try setDefaultUseCase.execute(id: second.id, settings: settings)
+        var settings = try setDefaultUseCase.execute(id: second.id, settings: service.load())
         let result = try setDefaultUseCase.execute(id: first.id, settings: settings)
 
         #expect(result.configurations[0].isDefault == true)
@@ -51,11 +51,11 @@ struct SetDefaultConfigurationUseCaseTests {
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let setDefaultUseCase = SetDefaultConfigurationUseCase(settingsService: service)
         let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
-        var settings = try saveUseCase.execute(config: first, settings: AppSettings(), isNew: true)
+        _ = try saveUseCase.execute(config: first)
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
-        settings = try saveUseCase.execute(config: second, settings: settings, isNew: true)
+        _ = try saveUseCase.execute(config: second)
 
-        _ = try setDefaultUseCase.execute(id: second.id, settings: settings)
+        _ = try setDefaultUseCase.execute(id: second.id, settings: service.load())
 
         let loaded = service.load()
         #expect(loaded.configurations[0].isDefault == false)

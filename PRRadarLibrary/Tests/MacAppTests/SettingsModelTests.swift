@@ -82,16 +82,17 @@ struct SettingsModelTests {
         #expect(model.settings.configurations[1].isDefault == true)
     }
 
-    // MARK: - Error Handling
+    // MARK: - Upsert Behavior
 
-    @Test("Throws when updating a nonexistent configuration")
-    func updateNonexistentThrows() {
+    @Test("Updating nonexistent configuration adds it")
+    func updateNonexistentAdds() throws {
         let model = makeModel()
         let config = RepoConfiguration(name: "ghost", repoPath: "/tmp/repo")
 
-        #expect(throws: SaveConfigurationError.self) {
-            try model.updateConfiguration(config)
-        }
+        try model.updateConfiguration(config)
+
+        #expect(model.settings.configurations.count == 1)
+        #expect(model.settings.configurations[0].name == "ghost")
     }
 
     @Test("Successful add does not throw")

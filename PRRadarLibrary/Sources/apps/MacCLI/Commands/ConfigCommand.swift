@@ -72,12 +72,7 @@ struct ConfigCommand: AsyncParsableCommand {
         var setDefault: Bool = false
 
         func run() async throws {
-            let settingsService = SettingsService()
-            // TODO: The SaveConfigurationUseCase could internally call the LoadSettingsUseCase
-            let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
-            let saveUseCase = SaveConfigurationUseCase(settingsService: settingsService)
-
-            let settings = loadUseCase.execute()
+            let saveUseCase = SaveConfigurationUseCase(settingsService: SettingsService())
 
             let config = RepoConfiguration(
                 name: name,
@@ -88,7 +83,7 @@ struct ConfigCommand: AsyncParsableCommand {
                 githubToken: githubToken
             )
 
-            let updated = try saveUseCase.execute(config: config, settings: settings, isNew: true)
+            let updated = try saveUseCase.execute(config: config)
 
             let saved = updated.configurations.first(where: { $0.name == name })!
             print("Added configuration:")
