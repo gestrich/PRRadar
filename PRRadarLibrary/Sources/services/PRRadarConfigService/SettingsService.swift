@@ -2,8 +2,8 @@ import Foundation
 import KeychainSDK
 
 public final class SettingsService: Sendable {
-    private static let gitHubTokenType = "github-token"
-    private static let anthropicKeyType = "anthropic-api-key"
+    public static let gitHubTokenType = "github-token"
+    public static let anthropicKeyType = "anthropic-api-key"
 
     private let settingsURL: URL
     private let keychain: KeychainStoring
@@ -77,8 +77,12 @@ public final class SettingsService: Sendable {
         try keychain.setString(token, forKey: credentialKey(account: account, type: Self.gitHubTokenType))
     }
 
+    public func loadCredential(account: String, type: String) throws -> String {
+        try keychain.string(forKey: credentialKey(account: account, type: type))
+    }
+
     public func loadGitHubToken(account: String) throws -> String {
-        try keychain.string(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+        try loadCredential(account: account, type: Self.gitHubTokenType)
     }
 
     public func removeGitHubToken(account: String) throws {
@@ -90,7 +94,7 @@ public final class SettingsService: Sendable {
     }
 
     public func loadAnthropicKey(account: String) throws -> String {
-        try keychain.string(forKey: credentialKey(account: account, type: Self.anthropicKeyType))
+        try loadCredential(account: account, type: Self.anthropicKeyType)
     }
 
     public func removeAnthropicKey(account: String) throws {

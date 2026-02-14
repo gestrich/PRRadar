@@ -73,7 +73,9 @@ The TODO at `ClaudeAgentClient.swift:158-163` says credentials should be resolve
 - Replace `credentialAccount: String?` with `environment: ClaudeAgentEnvironment` on `ClaudeAgentClient`.
 - Update callers (`PrepareUseCase`, `AnalyzeUseCase`, `SelectiveAnalyzeUseCase`) to use `ClaudeAgentEnvironment.build(credentialAccount:)`.
 
-## - [ ] Phase 2: Add generic `loadCredential` to `SettingsService`
+## - [x] Phase 2: Add generic `loadCredential` to `SettingsService`
+
+**Principles applied**: Generic method for reuse by CredentialResolver; domain-specific methods delegate to it
 
 `SettingsService` currently has domain-specific methods (`loadGitHubToken`, `loadAnthropicKey`) that hard-code the keychain type strings. Add a generic public method so callers can specify both account and type. The domain-specific methods become convenience wrappers.
 
