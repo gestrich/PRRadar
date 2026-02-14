@@ -105,9 +105,9 @@ struct DiffLineRowView: View {
     private var gutterBackground: Color {
         switch lineType {
         case .addition:
-            return Color.green.opacity(0.25)
+            return Color.green.opacity(0.15)
         case .deletion:
-            return Color.red.opacity(0.25)
+            return Color.red.opacity(0.15)
         case .context:
             return Color.gray.opacity(0.1)
         }
@@ -116,9 +116,9 @@ struct DiffLineRowView: View {
     private var backgroundColor: Color {
         switch lineType {
         case .addition:
-            return Color.green.opacity(0.15)
+            return Color.green.opacity(0.08)
         case .deletion:
-            return Color.red.opacity(0.15)
+            return Color.red.opacity(0.08)
         case .context:
             return Color.clear
         }
@@ -279,16 +279,16 @@ struct AnnotatedHunkContentView: View {
 
     private func lineBackground(for lineType: DisplayDiffLineType) -> Color {
         switch lineType {
-        case .addition: Color.green.opacity(0.15)
-        case .deletion: Color.red.opacity(0.15)
+        case .addition: Color.green.opacity(0.08)
+        case .deletion: Color.red.opacity(0.08)
         case .context: .clear
         }
     }
 
     private func gutterBackground(for lineType: DisplayDiffLineType) -> Color {
         switch lineType {
-        case .addition: Color.green.opacity(0.25)
-        case .deletion: Color.red.opacity(0.25)
+        case .addition: Color.green.opacity(0.15)
+        case .deletion: Color.red.opacity(0.15)
         case .context: Color.gray.opacity(0.1)
         }
     }
