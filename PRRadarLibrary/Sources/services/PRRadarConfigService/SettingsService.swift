@@ -1,26 +1,26 @@
 import Foundation
 
 public final class SettingsService: Sendable {
-    private let fileURL: URL // TODO: Rename to configURL or something more specific
+    private let settingsURL: URL
 
     public init() {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first!.appendingPathComponent("PRRadar")
-        self.fileURL = appSupport.appendingPathComponent("settings.json")
+        self.settingsURL = appSupport.appendingPathComponent("settings.json")
     }
 
-    public init(fileURL: URL) {
-        self.fileURL = fileURL
+    public init(settingsURL: URL) {
+        self.settingsURL = settingsURL
     }
 
     public func load() -> AppSettings {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+        guard FileManager.default.fileExists(atPath: settingsURL.path) else {
             return AppSettings()
         }
         do {
-            let data = try Data(contentsOf: fileURL)
+            let data = try Data(contentsOf: settingsURL)
             return try JSONDecoder().decode(AppSettings.self, from: data)
         } catch {
             return AppSettings()
@@ -28,7 +28,7 @@ public final class SettingsService: Sendable {
     }
 
     public func save(_ settings: AppSettings) throws {
-        let directory = fileURL.deletingLastPathComponent()
+        let directory = settingsURL.deletingLastPathComponent()
         if !FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.createDirectory(
                 at: directory,
@@ -38,7 +38,7 @@ public final class SettingsService: Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(settings)
-        try data.write(to: fileURL)
+        try data.write(to: settingsURL)
     }
 
     public func addConfiguration(_ config: RepoConfiguration, to settings: inout AppSettings) {

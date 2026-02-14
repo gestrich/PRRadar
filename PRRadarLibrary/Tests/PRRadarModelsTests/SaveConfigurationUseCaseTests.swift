@@ -9,7 +9,7 @@ struct SaveConfigurationUseCaseTests {
     private func makeTempService() -> SettingsService {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let fileURL = dir.appendingPathComponent("settings.json")
-        return SettingsService(fileURL: fileURL)
+        return SettingsService(settingsURL: fileURL)
     }
 
     // MARK: - Add (isNew: true)

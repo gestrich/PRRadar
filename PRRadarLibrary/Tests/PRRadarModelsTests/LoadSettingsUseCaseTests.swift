@@ -9,7 +9,7 @@ struct LoadSettingsUseCaseTests {
     private func makeTempService() -> (SettingsService, URL) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let fileURL = dir.appendingPathComponent("settings.json")
-        return (SettingsService(fileURL: fileURL), fileURL)
+        return (SettingsService(settingsURL: fileURL), fileURL)
     }
 
     @Test("Returns empty settings when no file exists")

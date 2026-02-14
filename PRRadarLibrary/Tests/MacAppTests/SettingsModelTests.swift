@@ -12,7 +12,7 @@ struct SettingsModelTests {
     private func makeModel() -> SettingsModel {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let fileURL = dir.appendingPathComponent("settings.json")
-        let service = SettingsService(fileURL: fileURL)
+        let service = SettingsService(settingsURL: fileURL)
         return SettingsModel(
             loadSettingsUseCase: LoadSettingsUseCase(settingsService: service),
             saveConfigurationUseCase: SaveConfigurationUseCase(settingsService: service),

@@ -9,7 +9,7 @@ struct SetDefaultConfigurationUseCaseTests {
     private func makeTempService() -> SettingsService {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let fileURL = dir.appendingPathComponent("settings.json")
-        return SettingsService(fileURL: fileURL)
+        return SettingsService(settingsURL: fileURL)
     }
 
     @Test("Sets the specified configuration as default")
