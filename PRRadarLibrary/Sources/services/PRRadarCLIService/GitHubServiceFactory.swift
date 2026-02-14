@@ -10,7 +10,7 @@ public enum GitHubServiceError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingToken:
-            return "No GitHub token found. Provide one via --github-token, GITHUB_TOKEN env var, or per-repo configuration."
+            return "No GitHub token found. Set GITHUB_TOKEN env var or store credentials in the Keychain via 'config credentials add'."
         case .cannotParseRemoteURL(let url):
             return "Cannot parse owner/repo from git remote URL: \(url)"
         }

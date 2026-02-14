@@ -4,13 +4,11 @@ public struct PRRadarConfig: Sendable {
     public let repoPath: String
     public let outputDir: String
     public let agentScriptPath: String
-    public let githubToken: String?
 
-    public init(repoPath: String, outputDir: String, agentScriptPath: String, githubToken: String? = nil) {
+    public init(repoPath: String, outputDir: String, agentScriptPath: String) {
         self.repoPath = repoPath
         self.outputDir = outputDir
         self.agentScriptPath = agentScriptPath
-        self.githubToken = githubToken
     }
 
     public var resolvedOutputDir: String {

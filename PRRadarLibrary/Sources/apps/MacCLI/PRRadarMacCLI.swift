@@ -39,9 +39,6 @@ struct CLIOptions: ParsableArguments {
     @Option(name: .long, help: "Output directory for phase results")
     var outputDir: String?
 
-    @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
-    var githubToken: String?
-
     @Option(name: .long, help: "Commit hash to target (defaults to latest)")
     var commit: String?
 
@@ -84,19 +81,17 @@ func resolveAgentScriptPath() -> String {
 func resolveConfig(
     configName: String?,
     repoPath: String?,
-    outputDir: String?,
-    githubToken: String? = nil
+    outputDir: String?
 ) throws -> ResolvedConfig {
     var resolvedRepoPath = repoPath
     var resolvedOutputDir = outputDir
     var rulesDir: String? = nil
-    var configToken: String? = nil
 
     let settings = LoadSettingsUseCase(settingsService: SettingsService()).execute()
-    
+
     // If no config name specified, use the default config if one exists
     let targetConfigName = configName ?? settings.configurations.first(where: { $0.isDefault })?.name
-    
+
     if let targetConfigName {
         guard let namedConfig = settings.configurations.first(where: { $0.name == targetConfigName }) else {
             throw CLIError.configNotFound(targetConfigName)
@@ -104,19 +99,12 @@ func resolveConfig(
         resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
         resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
         rulesDir = namedConfig.rulesDir.isEmpty ? nil : namedConfig.rulesDir
-        configToken = namedConfig.githubToken
     }
-
-    // Token priority: CLI flag > env var > per-repo config
-    let resolvedToken = githubToken
-        ?? ProcessInfo.processInfo.environment["GITHUB_TOKEN"]
-        ?? configToken
 
     let config = PRRadarConfig(
         repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
         outputDir: resolvedOutputDir ?? "code-reviews",
-        agentScriptPath: resolveAgentScriptPath(),
-        githubToken: resolvedToken
+        agentScriptPath: resolveAgentScriptPath()
     )
 
     return ResolvedConfig(config: config, rulesDir: rulesDir)
@@ -126,8 +114,7 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
     try resolveConfig(
         configName: options.config,
         repoPath: options.repoPath,
-        outputDir: options.outputDir,
-        githubToken: options.githubToken
+        outputDir: options.outputDir
     )
 }
 

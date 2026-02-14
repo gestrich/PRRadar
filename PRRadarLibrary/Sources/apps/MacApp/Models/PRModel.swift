@@ -273,8 +273,7 @@ final class PRModel: Identifiable, Hashable {
 
         do {
             let (gitHub, _) = try await GitHubServiceFactory.create(
-                repoPath: config.repoPath,
-                tokenOverride: config.githubToken
+                repoPath: config.repoPath
             )
             let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: metadata.number)
             return storedUpdatedAt != currentUpdatedAt
@@ -417,8 +416,7 @@ final class PRModel: Identifiable, Hashable {
                 comment: comment,
                 commitSHA: commitSHA,
                 prNumber: prNumber,
-                repoPath: repoConfig.repoPath,
-                githubToken: config.githubToken
+                repoPath: repoConfig.repoPath
             )
 
             submittingCommentIds.remove(comment.id)

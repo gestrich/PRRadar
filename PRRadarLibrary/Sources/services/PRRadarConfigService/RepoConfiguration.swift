@@ -7,7 +7,7 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
     public var outputDir: String
     public var rulesDir: String
     public var isDefault: Bool
-    public var githubToken: String?
+    public var credentialAccount: String?
 
     public var presentableDescription: String {
         let header = isDefault ? "\(name) (default)" : name
@@ -17,6 +17,9 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
         }
         if !rulesDir.isEmpty {
             lines.append("  rules:  \(rulesDir)")
+        }
+        if let credentialAccount {
+            lines.append("  credentials: \(credentialAccount)")
         }
         return lines.joined(separator: "\n")
     }
@@ -28,7 +31,7 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
         outputDir: String = "",
         rulesDir: String = "",
         isDefault: Bool = false,
-        githubToken: String? = nil
+        credentialAccount: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -36,7 +39,7 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
         self.outputDir = outputDir
         self.rulesDir = rulesDir
         self.isDefault = isDefault
-        self.githubToken = githubToken
+        self.credentialAccount = credentialAccount
     }
 }
 

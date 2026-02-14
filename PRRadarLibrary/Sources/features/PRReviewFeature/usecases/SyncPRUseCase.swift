@@ -112,7 +112,7 @@ public struct SyncPRUseCase: Sendable {
                 do {
                     try Task.checkCancellation()
 
-                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
+                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
                     let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
                     let authorCache = AuthorCacheService()
 

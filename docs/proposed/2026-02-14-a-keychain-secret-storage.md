@@ -112,7 +112,10 @@ Add Valet as a Swift package dependency and create a `KeychainService` in the Se
 - A `nil` or empty account name uses `"default"` as the account name
 - Write unit tests for the service
 
-## - [ ] Phase 2: Add Credential Account to RepoConfiguration
+## - [x] Phase 2: Add Credential Account to RepoConfiguration
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Removed `githubToken` from both `RepoConfiguration` (persisted) and `PRRadarConfig` (runtime); replaced with `credentialAccount: String?` on `RepoConfiguration`; token resolution now deferred to `GitHubServiceFactory` (env var only until Phase 3 adds Keychain lookup)
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

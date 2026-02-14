@@ -30,7 +30,7 @@ public struct RunAllUseCase: Sendable {
 
             Task {
                 do {
-                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
 
                     let limitNum = Int(limit ?? "10000") ?? 10000
                     let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")

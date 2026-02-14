@@ -30,8 +30,7 @@ public final class AppModel {
             let prRadarConfig = PRRadarConfig(
                 repoPath: config.repoPath,
                 outputDir: config.outputDir,
-                agentScriptPath: agentScriptPath,
-                githubToken: config.githubToken
+                agentScriptPath: agentScriptPath
             )
             allPRsModel = AllPRsModel(
                 config: prRadarConfig,

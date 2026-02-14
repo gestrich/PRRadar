@@ -40,9 +40,6 @@ struct RunAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "PR state filter (open, draft, closed, merged, all). Default: all")
     var state: String?
 
-    @Option(name: .long, help: "GitHub personal access token (overrides GITHUB_TOKEN env var and config)")
-    var githubToken: String?
-
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
 
@@ -55,8 +52,7 @@ struct RunAllCommand: AsyncParsableCommand {
         let resolved = try resolveConfig(
             configName: config,
             repoPath: repoPath,
-            outputDir: outputDir,
-            githubToken: githubToken
+            outputDir: outputDir
         )
         let prRadarConfig = resolved.config
         let effectiveRulesDir = rulesDir ?? resolved.rulesDir

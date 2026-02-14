@@ -164,7 +164,7 @@ private struct ConfigurationRow: View {
 
 private struct ConfigurationEditSheet: View {
     @State var config: RepoConfiguration
-    @State private var tokenText: String = ""
+    @State private var credentialAccountText: String = ""
     let isNew: Bool
     let onSave: (RepoConfiguration) -> Void
     let onCancel: () -> Void
@@ -185,11 +185,11 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Output Dir", text: $config.outputDir, placeholder: "~/Desktop/code-reviews")
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
-            LabeledContent("GitHub Token") {
-                SecureField("ghp_...", text: $tokenText)
+            LabeledContent("Credential Account") {
+                TextField("e.g. work, personal", text: $credentialAccountText)
                     .textFieldStyle(.roundedBorder)
             }
-            Text("Optional. Falls back to GITHUB_TOKEN environment variable.")
+            Text("Optional. References a Keychain-stored credential account. Falls back to GITHUB_TOKEN environment variable.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -201,7 +201,7 @@ private struct ConfigurationEditSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    config.githubToken = tokenText.isEmpty ? nil : tokenText
+                    config.credentialAccount = credentialAccountText.isEmpty ? nil : credentialAccountText
                     onSave(config)
                     dismiss()
                 }
@@ -212,7 +212,7 @@ private struct ConfigurationEditSheet: View {
         .padding()
         .frame(width: 500)
         .onAppear {
-            tokenText = config.githubToken ?? ""
+            credentialAccountText = config.credentialAccount ?? ""
         }
     }
 

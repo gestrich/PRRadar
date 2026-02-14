@@ -22,7 +22,7 @@ public struct FetchPRListUseCase: Sendable {
 
             Task {
                 do {
-                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, tokenOverride: config.githubToken)
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath)
 
                     continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))
 
