@@ -18,9 +18,9 @@ public struct PrepareOutput: Sendable {
 
 public struct PrepareUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 
@@ -165,7 +165,7 @@ public struct PrepareUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) throws -> PrepareOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) throws -> PrepareOutput {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let focusFiles = PhaseOutputParser.listPhaseFiles(

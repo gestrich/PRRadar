@@ -21,18 +21,15 @@ struct PrepareCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
         let useCase = PrepareUseCase(config: config)
-        let effectiveRulesDir = rulesDir ?? resolved.rulesDir
-
         if !options.json {
             print("Preparing evaluation tasks for PR #\(options.prNumber)...")
         }
 
         var result: PrepareOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: effectiveRulesDir, commitHash: options.commit) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: rulesDir ?? config.rulesDir, commitHash: options.commit) {
             switch progress {
             case .running(let phase):
                 if !options.json {

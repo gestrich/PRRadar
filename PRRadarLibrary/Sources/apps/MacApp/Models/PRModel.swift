@@ -9,8 +9,7 @@ import PRReviewFeature
 final class PRModel: Identifiable, Hashable {
 
     private(set) var metadata: PRMetadata
-    let config: PRRadarConfig
-    let repoConfig: RepoConfiguration
+    let config: RepositoryConfiguration
 
     nonisolated let id: Int
 
@@ -46,11 +45,10 @@ final class PRModel: Identifiable, Hashable {
     var currentCommitHash: String? { detail?.commitHash }
     var availableCommits: [String] { detail?.availableCommits ?? [] }
 
-    init(metadata: PRMetadata, config: PRRadarConfig, repoConfig: RepoConfiguration) {
+    init(metadata: PRMetadata, config: RepositoryConfiguration) {
         self.id = metadata.id
         self.metadata = metadata
         self.config = config
-        self.repoConfig = repoConfig
         Task { reloadDetail() }
     }
 
@@ -426,8 +424,8 @@ final class PRModel: Identifiable, Hashable {
                 comment: comment,
                 commitSHA: commitSHA,
                 prNumber: prNumber,
-                repoPath: repoConfig.repoPath,
-                credentialAccount: repoConfig.credentialAccount
+                repoPath: config.repoPath,
+                credentialAccount: config.credentialAccount
             )
 
             submittingCommentIds.remove(comment.id)
@@ -442,7 +440,7 @@ final class PRModel: Identifiable, Hashable {
     // MARK: - File Access
 
     func readFileFromRepo(_ relativePath: String) -> String? {
-        let fullPath = "\(repoConfig.repoPath)/\(relativePath)"
+        let fullPath = "\(config.repoPath)/\(relativePath)"
         return try? String(contentsOfFile: fullPath, encoding: .utf8)
     }
 
@@ -535,10 +533,9 @@ final class PRModel: Identifiable, Hashable {
         currentLivePhase = .prepare
 
         let useCase = PrepareUseCase(config: config)
-        let rulesDir = repoConfig.rulesDir.isEmpty ? nil : repoConfig.rulesDir
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: rulesDir, commitHash: currentCommitHash) {
+            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: config.rulesDir, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break

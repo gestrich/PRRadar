@@ -14,8 +14,7 @@ struct StatusCommand: AsyncParsableCommand {
     @OptionGroup var options: CLIOptions
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
 
         let commitHash = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
 

@@ -5,9 +5,9 @@ import PRRadarModels
 
 public struct FetchReviewCommentsUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 

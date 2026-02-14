@@ -36,13 +36,13 @@ public struct SyncSnapshot: Sendable {
 
 public struct SyncPRUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) -> SyncSnapshot {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) -> SyncSnapshot {
         let resolvedCommit = commitHash ?? resolveCommitHash(config: config, prNumber: prNumber)
 
         // Diff files live under analysis/<commit>/diff/
@@ -83,7 +83,7 @@ public struct SyncPRUseCase: Sendable {
     }
 
     /// Resolve the commit hash from metadata/gh-pr.json, or scan analysis/ for the latest commit directory.
-    public static func resolveCommitHash(config: PRRadarConfig, prNumber: String) -> String? {
+    public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: String) -> String? {
         // Try reading headRefOid from metadata/gh-pr.json
         let metadataDir = DataPathsService.phaseDirectory(
             outputDir: config.absoluteOutputDir,

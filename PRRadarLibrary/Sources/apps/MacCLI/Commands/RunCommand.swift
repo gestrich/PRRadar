@@ -28,11 +28,8 @@ struct RunCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
         let useCase = RunPipelineUseCase(config: config)
-        let effectiveRulesDir = rulesDir ?? resolved.rulesDir
-
         if !options.json {
             print("Running full pipeline for PR #\(options.prNumber)...")
         }
@@ -41,7 +38,7 @@ struct RunCommand: AsyncParsableCommand {
 
         for try await progress in useCase.execute(
             prNumber: options.prNumber,
-            rulesDir: effectiveRulesDir,
+            rulesDir: rulesDir ?? config.rulesDir,
             repoPath: options.repoPath,
             noDryRun: noDryRun,
             minScore: minScore

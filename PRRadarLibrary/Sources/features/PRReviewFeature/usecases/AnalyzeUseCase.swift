@@ -28,9 +28,9 @@ public struct AnalysisOutput: Sendable {
 
 public struct AnalyzeUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 
@@ -196,7 +196,7 @@ public struct AnalyzeUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) throws -> AnalysisOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) throws -> AnalysisOutput {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(

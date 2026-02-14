@@ -20,7 +20,7 @@ struct PhaseInputView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            configInfo(prModel.repoConfig)
+            configInfo(prModel.config)
 
             stateView(for: phase)
 
@@ -118,7 +118,7 @@ struct PhaseInputView: View {
     }
 
     @ViewBuilder
-    private func configInfo(_ config: RepoConfiguration) -> some View {
+    private func configInfo(_ config: RepositoryConfiguration) -> some View {
         HStack(spacing: 16) {
             HStack(spacing: 4) {
                 Text("Repo:")

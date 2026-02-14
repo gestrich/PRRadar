@@ -12,8 +12,7 @@ struct RefreshPRCommand: AsyncParsableCommand {
     @OptionGroup var options: CLIOptions
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
         let useCase = SyncPRUseCase(config: config)
 
         print("Refreshing PR #\(options.prNumber)...")

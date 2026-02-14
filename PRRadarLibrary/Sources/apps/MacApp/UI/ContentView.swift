@@ -6,7 +6,7 @@ public struct ContentView: View {
 
     @Environment(AppModel.self) private var appModel
     @Environment(SettingsModel.self) private var settingsModel
-    @State private var selectedConfig: RepoConfiguration?
+    @State private var selectedConfig: RepositoryConfigurationJSON?
     @State private var selectedPR: PRModel?
     @AppStorage("selectedConfigID") private var savedConfigID: String = ""
     @AppStorage("selectedPRNumber") private var savedPRNumber: Int = 0
@@ -468,7 +468,7 @@ public struct ContentView: View {
         showNewReview = false
         Task {
             let fallback = PRMetadata.fallback(number: number)
-            let newPR = PRModel(metadata: fallback, config: model.config, repoConfig: model.repoConfig)
+            let newPR = PRModel(metadata: fallback, config: model.config)
             selectedPR = newPR
             await newPR.refreshDiff(force: true)
             await model.load()

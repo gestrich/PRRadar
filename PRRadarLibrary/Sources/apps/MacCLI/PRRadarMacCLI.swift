@@ -46,11 +46,6 @@ struct CLIOptions: ParsableArguments {
     var json: Bool = false
 }
 
-struct ResolvedConfig {
-    let config: PRRadarConfig
-    let rulesDir: String?
-}
-
 enum CLIError: Error, CustomStringConvertible {
     case missingRepoPath
     case phaseFailed(String)
@@ -82,38 +77,25 @@ func resolveConfig(
     configName: String?,
     repoPath: String?,
     outputDir: String?
-) throws -> ResolvedConfig {
-    var resolvedRepoPath = repoPath
-    var resolvedOutputDir = outputDir
-    var rulesDir: String? = nil
-    var credentialAccount: String? = nil
-
+) throws -> RepositoryConfiguration {
     let settings = LoadSettingsUseCase(settingsService: SettingsService()).execute()
-
-    // If no config name specified, use the default config if one exists
     let targetConfigName = configName ?? settings.configurations.first(where: { $0.isDefault })?.name
 
-    if let targetConfigName {
-        guard let namedConfig = settings.configurations.first(where: { $0.name == targetConfigName }) else {
-            throw CLIError.configNotFound(targetConfigName)
-        }
-        resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
-        resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
-        rulesDir = namedConfig.rulesDir.isEmpty ? nil : namedConfig.rulesDir
-        credentialAccount = namedConfig.credentialAccount
+    guard let targetConfigName else {
+        throw CLIError.configNotFound("No configuration specified and no default configuration found. Use 'config add' to create one.")
     }
-
-    let config = PRRadarConfig(
-        repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
-        outputDir: resolvedOutputDir ?? "code-reviews",
+    guard let namedConfig = settings.configurations.first(where: { $0.name == targetConfigName }) else {
+        throw CLIError.configNotFound(targetConfigName)
+    }
+    return RepositoryConfiguration(
+        from: namedConfig,
         agentScriptPath: resolveAgentScriptPath(),
-        credentialAccount: credentialAccount
+        repoPathOverride: repoPath,
+        outputDirOverride: outputDir
     )
-
-    return ResolvedConfig(config: config, rulesDir: rulesDir)
 }
 
-func resolveConfigFromOptions(_ options: CLIOptions) throws -> ResolvedConfig {
+func resolveConfigFromOptions(_ options: CLIOptions) throws -> RepositoryConfiguration {
     try resolveConfig(
         configName: options.config,
         repoPath: options.repoPath,

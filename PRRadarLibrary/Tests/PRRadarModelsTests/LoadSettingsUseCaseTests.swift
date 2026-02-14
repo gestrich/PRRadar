@@ -25,7 +25,7 @@ struct LoadSettingsUseCaseTests {
     @Test("Returns persisted settings from disk")
     func loadsPersistedSettings() throws {
         let (service, _) = makeTempService()
-        let config = RepoConfiguration(name: "test", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "test", repoPath: "/tmp/repo")
         var settings = AppSettings()
         service.addConfiguration(config, to: &settings)
         try service.save(settings)

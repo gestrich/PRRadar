@@ -48,7 +48,7 @@ public final class SettingsService: Sendable {
         try data.write(to: settingsURL)
     }
 
-    public func addConfiguration(_ config: RepoConfiguration, to settings: inout AppSettings) {
+    public func addConfiguration(_ config: RepositoryConfigurationJSON, to settings: inout AppSettings) {
         var config = config
         if settings.configurations.isEmpty {
             config.isDefault = true

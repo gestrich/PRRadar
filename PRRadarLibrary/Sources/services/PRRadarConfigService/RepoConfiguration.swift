@@ -1,6 +1,6 @@
 import Foundation
 
-public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
+public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hashable {
     public let id: UUID
     public var name: String
     public var repoPath: String
@@ -44,13 +44,13 @@ public struct RepoConfiguration: Codable, Sendable, Identifiable, Hashable {
 }
 
 public struct AppSettings: Codable, Sendable {
-    public var configurations: [RepoConfiguration]
+    public var configurations: [RepositoryConfigurationJSON]
 
-    public init(configurations: [RepoConfiguration] = []) {
+    public init(configurations: [RepositoryConfigurationJSON] = []) {
         self.configurations = configurations
     }
 
-    public var defaultConfiguration: RepoConfiguration? {
+    public var defaultConfiguration: RepositoryConfigurationJSON? {
         configurations.first(where: { $0.isDefault }) ?? configurations.first
     }
 }

@@ -9,7 +9,7 @@ public struct SaveConfigurationUseCase: Sendable {
         self.settingsService = settingsService
     }
 
-    public func execute(config: RepoConfiguration) throws -> AppSettings {
+    public func execute(config: RepositoryConfigurationJSON) throws -> AppSettings {
         var settings = settingsService.load()
         if let index = settings.configurations.firstIndex(where: { $0.id == config.id }) {
             settings.configurations[index] = config

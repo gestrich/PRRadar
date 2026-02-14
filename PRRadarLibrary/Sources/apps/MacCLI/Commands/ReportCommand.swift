@@ -15,8 +15,7 @@ struct ReportCommand: AsyncParsableCommand {
     var minScore: String?
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
         let useCase = GenerateReportUseCase(config: config)
 
         if !options.json {

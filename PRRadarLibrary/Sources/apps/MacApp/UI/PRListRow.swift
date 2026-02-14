@@ -161,8 +161,7 @@ struct PRListRow: View {
                 headRefName: "feature/three-pane-nav",
                 createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-2 * 86400))
             ),
-            config: .init(repoPath: "", outputDir: "", agentScriptPath: ""),
-            repoConfig: .init(name: "Test", repoPath: "")
+            config: .init(name: "Preview", repoPath: "", outputDir: "", rulesDir: "", agentScriptPath: "")
         )
     )
     .frame(width: 260)

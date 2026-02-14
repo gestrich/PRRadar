@@ -5,7 +5,7 @@ struct SettingsView: View {
     let model: AllPRsModel
     @Environment(SettingsModel.self) private var settingsModel
     @Environment(\.dismiss) private var dismiss
-    @State private var editingConfig: RepoConfiguration?
+    @State private var editingConfig: RepositoryConfigurationJSON?
     @State private var isAddingNew = false
     @State private var currentError: Error?
 
@@ -18,7 +18,7 @@ struct SettingsView: View {
                 Spacer()
                 Button {
                     isAddingNew = true
-                    editingConfig = RepoConfiguration(name: "", repoPath: "")
+                    editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -38,7 +38,7 @@ struct SettingsView: View {
                     ForEach(settingsModel.settings.configurations) { config in
                         ConfigurationRow(
                             config: config,
-                            isSelected: config.id == model.repoConfig.id,
+                            isSelected: config.id == model.config.id,
                             onEdit: { editingConfig = config },
                             onSetDefault: {
                                 do {
@@ -105,7 +105,7 @@ struct SettingsView: View {
 }
 
 private struct ConfigurationRow: View {
-    let config: RepoConfiguration
+    let config: RepositoryConfigurationJSON
     let isSelected: Bool
     let onEdit: () -> Void
     let onSetDefault: () -> Void
@@ -163,10 +163,10 @@ private struct ConfigurationRow: View {
 }
 
 private struct ConfigurationEditSheet: View {
-    @State var config: RepoConfiguration
+    @State var config: RepositoryConfigurationJSON
     @State private var credentialAccountText: String = ""
     let isNew: Bool
-    let onSave: (RepoConfiguration) -> Void
+    let onSave: (RepositoryConfigurationJSON) -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) private var dismiss
 

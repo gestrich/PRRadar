@@ -28,8 +28,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
 
         let filter = AnalysisFilter(
             filePath: file,

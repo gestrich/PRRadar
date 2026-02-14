@@ -15,9 +15,9 @@ public struct ReportPhaseOutput: Sendable {
 
 public struct GenerateReportUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 
@@ -89,7 +89,7 @@ public struct GenerateReportUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: PRRadarConfig, prNumber: String, commitHash: String? = nil) throws -> ReportPhaseOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) throws -> ReportPhaseOutput {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let report: ReviewReport = try PhaseOutputParser.parsePhaseOutput(

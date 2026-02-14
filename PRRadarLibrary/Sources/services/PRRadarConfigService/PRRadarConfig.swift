@@ -1,18 +1,40 @@
 import Foundation
 
-// TODO: The name of the this config files is confusing
-// I think more accurately this is a RepostioryConfiguration
-public struct PRRadarConfig: Sendable {
+public struct RepositoryConfiguration: Sendable {
+    public let id: UUID
+    public let name: String
     public let repoPath: String
     public let outputDir: String
+    public let rulesDir: String
     public let agentScriptPath: String
     public let credentialAccount: String?
 
-    public init(repoPath: String, outputDir: String, agentScriptPath: String, credentialAccount: String? = nil) {
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        repoPath: String,
+        outputDir: String,
+        rulesDir: String,
+        agentScriptPath: String,
+        credentialAccount: String? = nil
+    ) {
+        self.id = id
+        self.name = name
         self.repoPath = repoPath
         self.outputDir = outputDir
+        self.rulesDir = rulesDir
         self.agentScriptPath = agentScriptPath
         self.credentialAccount = credentialAccount
+    }
+
+    public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil) {
+        self.id = json.id
+        self.name = json.name
+        self.repoPath = repoPathOverride ?? json.repoPath
+        self.outputDir = outputDirOverride ?? json.outputDir
+        self.rulesDir = json.rulesDir
+        self.agentScriptPath = agentScriptPath
+        self.credentialAccount = json.credentialAccount
     }
 
     public var resolvedOutputDir: String {

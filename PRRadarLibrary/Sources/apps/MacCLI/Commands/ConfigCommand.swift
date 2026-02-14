@@ -73,7 +73,7 @@ struct ConfigCommand: AsyncParsableCommand {
         func run() async throws {
             let saveUseCase = SaveConfigurationUseCase(settingsService: SettingsService())
 
-            let config = RepoConfiguration(
+            let config = RepositoryConfigurationJSON(
                 name: name,
                 repoPath: repoPath,
                 outputDir: outputDir,

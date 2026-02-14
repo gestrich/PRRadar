@@ -49,19 +49,16 @@ struct RunAllCommand: AsyncParsableCommand {
     func run() async throws {
         let stateFilter: PRState? = try parseStateFilter(state)
 
-        let resolved = try resolveConfig(
+        let prRadarConfig = try resolveConfig(
             configName: config,
             repoPath: repoPath,
             outputDir: outputDir
         )
-        let prRadarConfig = resolved.config
-        let effectiveRulesDir = rulesDir ?? resolved.rulesDir
-
         let useCase = RunAllUseCase(config: prRadarConfig)
 
         for try await progress in useCase.execute(
             since: since,
-            rulesDir: effectiveRulesDir,
+            rulesDir: rulesDir ?? prRadarConfig.rulesDir,
             minScore: minScore,
             repo: repo,
             comment: comment,

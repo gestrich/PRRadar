@@ -17,7 +17,7 @@ struct RemoveConfigurationUseCaseTests {
         let service = makeTempService()
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let removeUseCase = RemoveConfigurationUseCase(settingsService: service)
-        let config = RepoConfiguration(name: "to-remove", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "to-remove", repoPath: "/tmp/repo")
         _ = try saveUseCase.execute(config: config)
 
         let result = try removeUseCase.execute(id: config.id)
@@ -30,9 +30,9 @@ struct RemoveConfigurationUseCaseTests {
         let service = makeTempService()
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let removeUseCase = RemoveConfigurationUseCase(settingsService: service)
-        let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
+        let first = RepositoryConfigurationJSON(name: "first", repoPath: "/tmp/repo1")
         _ = try saveUseCase.execute(config: first)
-        let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
+        let second = RepositoryConfigurationJSON(name: "second", repoPath: "/tmp/repo2")
         let settings = try saveUseCase.execute(config: second)
 
         #expect(settings.configurations[0].isDefault == true)
@@ -48,7 +48,7 @@ struct RemoveConfigurationUseCaseTests {
         let service = makeTempService()
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let removeUseCase = RemoveConfigurationUseCase(settingsService: service)
-        let config = RepoConfiguration(name: "temp", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "temp", repoPath: "/tmp/repo")
         _ = try saveUseCase.execute(config: config)
 
         _ = try removeUseCase.execute(id: config.id)

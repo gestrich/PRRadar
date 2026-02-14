@@ -60,12 +60,10 @@ final class AllPRsModel {
     private(set) var analyzeAllState: AnalyzeAllState = .idle
     var showOnlyWithPendingComments: Bool = false
 
-    let config: PRRadarConfig
-    let repoConfig: RepoConfiguration
+    let config: RepositoryConfiguration
 
-    init(config: PRRadarConfig, repoConfig: RepoConfiguration) {
+    init(config: RepositoryConfiguration) {
         self.config = config
-        self.repoConfig = repoConfig
         Task {
             await load()
             await refresh()
@@ -76,9 +74,9 @@ final class AllPRsModel {
 
     func load() async {
         state = .loading
-        let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
-        let metadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
-        let prModels = metadata.map { PRModel(metadata: $0, config: config, repoConfig: repoConfig) }
+        let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
+        let metadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
+        let prModels = metadata.map { PRModel(metadata: $0, config: config) }
         state = .ready(prModels)
     }
 
@@ -89,7 +87,7 @@ final class AllPRsModel {
         self.state = .refreshing(prior ?? [])
         refreshAllState = .running(logs: "Fetching PR list from GitHub...\n", current: 0, total: 0)
 
-        let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
+        let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
         var updatedMetadata: [PRMetadata]?
@@ -105,7 +103,7 @@ final class AllPRsModel {
                 case .aiToolUse: break
                 case .analysisResult: break
                 case .completed:
-                    updatedMetadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
+                    updatedMetadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
                 case .failed(let error, _):
                     self.state = .failed(error, prior: prior)
                     refreshAllState = .completed(logs: refreshAllLogs + "Failed: \(error)\n")
@@ -129,7 +127,7 @@ final class AllPRsModel {
                 existing.updateMetadata(meta)
                 return existing
             }
-            return PRModel(metadata: meta, config: config, repoConfig: repoConfig)
+            return PRModel(metadata: meta, config: config)
         }
         self.state = .ready(mergedModels)
 
@@ -243,9 +241,9 @@ final class AllPRsModel {
     }
 
     private func reloadFromDisk() async {
-        let slug = PRDiscoveryService.repoSlug(fromRepoPath: repoConfig.repoPath)
-        let metadata = PRDiscoveryService.discoverPRs(outputDir: repoConfig.outputDir, repoSlug: slug)
-        let prModels = metadata.map { PRModel(metadata: $0, config: config, repoConfig: repoConfig) }
+        let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
+        let metadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
+        let prModels = metadata.map { PRModel(metadata: $0, config: config) }
         state = .ready(prModels)
     }
 

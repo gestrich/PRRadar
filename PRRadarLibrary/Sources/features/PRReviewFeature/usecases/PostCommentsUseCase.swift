@@ -21,9 +21,9 @@ public struct CommentPhaseOutput: Sendable {
 
 public struct PostCommentsUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 

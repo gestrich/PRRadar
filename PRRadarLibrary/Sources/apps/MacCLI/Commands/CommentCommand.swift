@@ -18,8 +18,7 @@ struct CommentCommand: AsyncParsableCommand {
     var dryRun: Bool = false
 
     func run() async throws {
-        let resolved = try resolveConfigFromOptions(options)
-        let config = resolved.config
+        let config = try resolveConfigFromOptions(options)
         let useCase = PostCommentsUseCase(config: config)
 
         if dryRun {

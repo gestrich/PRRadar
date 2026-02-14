@@ -18,7 +18,7 @@ struct SaveConfigurationUseCaseTests {
     func addFirstConfigBecomesDefault() throws {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
-        let config = RepoConfiguration(name: "first", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "first", repoPath: "/tmp/repo")
 
         let result = try useCase.execute(config: config)
 
@@ -31,10 +31,10 @@ struct SaveConfigurationUseCaseTests {
     func addSecondConfigKeepsDefault() throws {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
-        let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
+        let first = RepositoryConfigurationJSON(name: "first", repoPath: "/tmp/repo1")
         _ = try useCase.execute(config: first)
 
-        let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
+        let second = RepositoryConfigurationJSON(name: "second", repoPath: "/tmp/repo2")
         let result = try useCase.execute(config: second)
 
         #expect(result.configurations.count == 2)
@@ -46,7 +46,7 @@ struct SaveConfigurationUseCaseTests {
     func addPersistsToDisk() throws {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
-        let config = RepoConfiguration(name: "persisted", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "persisted", repoPath: "/tmp/repo")
 
         _ = try useCase.execute(config: config)
 
@@ -62,7 +62,7 @@ struct SaveConfigurationUseCaseTests {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
         let configId = UUID()
-        let original = RepoConfiguration(id: configId, name: "original", repoPath: "/tmp/repo")
+        let original = RepositoryConfigurationJSON(id: configId, name: "original", repoPath: "/tmp/repo")
         _ = try useCase.execute(config: original)
 
         var modified = original
@@ -78,7 +78,7 @@ struct SaveConfigurationUseCaseTests {
     func saveUnknownIdAdds() throws {
         let service = makeTempService()
         let useCase = SaveConfigurationUseCase(settingsService: service)
-        let config = RepoConfiguration(name: "new", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "new", repoPath: "/tmp/repo")
 
         let result = try useCase.execute(config: config)
 

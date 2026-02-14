@@ -6,9 +6,9 @@ import PRRadarModels
 
 public struct SelectiveAnalyzeUseCase: Sendable {
 
-    private let config: PRRadarConfig
+    private let config: RepositoryConfiguration
 
-    public init(config: PRRadarConfig) {
+    public init(config: RepositoryConfiguration) {
         self.config = config
     }
 
@@ -126,7 +126,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
     /// This merges selective results with any prior full-run results,
     /// giving the UI a complete picture of all evaluations.
     private static func buildMergedOutput(
-        config: PRRadarConfig,
+        config: RepositoryConfiguration,
         prNumber: String,
         allTasks: [AnalysisTaskOutput],
         cachedCount: Int,
