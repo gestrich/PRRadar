@@ -24,7 +24,10 @@ public enum PRRadarEnvironment {
         ]
         env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
 
-        loadDotEnv(into: &env)
+        let dotEnv = loadDotEnv()
+        for (key, value) in dotEnv where env[key] == nil {
+            env[key] = value
+        }
         loadKeychainSecrets(into: &env, credentialAccount: credentialAccount)
 
         return env
@@ -45,7 +48,8 @@ public enum PRRadarEnvironment {
         }
     }
 
-    private static func loadDotEnv(into env: inout [String: String]) {
+    public static func loadDotEnv() -> [String: String] {
+        var values: [String: String] = [:]
         var searchDir = FileManager.default.currentDirectoryPath
         while true {
             let envPath = (searchDir as NSString).appendingPathComponent(".env")
@@ -58,14 +62,14 @@ public enum PRRadarEnvironment {
                     guard parts.count == 2 else { continue }
                     let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
                     let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
-                    if env[key] == nil {
-                        env[key] = value
+                    if values[key] == nil {
+                        values[key] = value
                     }
                 }
-                return
+                return values
             }
             let parent = (searchDir as NSString).deletingLastPathComponent
-            if parent == searchDir { return }
+            if parent == searchDir { return values }
             searchDir = parent
         }
     }

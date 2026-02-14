@@ -97,7 +97,9 @@ public func loadAnthropicKey(account: String) throws -> String {
 
 Keep the domain-specific methods — they're used by credential management CLI commands (`config credentials add/remove/list`). The generic method is for `CredentialResolver`.
 
-## - [ ] Phase 3: Extract `loadDotEnv` as a reusable function
+## - [x] Phase 3: Extract `loadDotEnv` as a reusable function
+
+**Principles applied**: Pure function returns values instead of mutating inout; public for reuse by CredentialResolver
 
 Currently, `PRRadarEnvironment.loadDotEnv(into:)` mutates a dict in-place and is private. Extract it into a standalone static method that returns a `[String: String]` so `CredentialResolver` can check `.env` values independently of `PRRadarEnvironment.build()`.
 
