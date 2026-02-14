@@ -145,7 +145,7 @@ Note: CLI commands construct use cases directly (no SettingsModel needed — per
 
 **Completed**: `ListCommand` now uses `LoadSettingsUseCase` instead of raw `SettingsService().load()`. Three new subcommands added — `AddCommand` (name, --repo-path, --output-dir, --rules-dir, --github-token, --set-default), `RemoveCommand` (name), `SetDefaultCommand` (name) — all using the corresponding use cases from Phase 1. `resolveConfig()` in `PRRadarMacCLI.swift` also updated to use `LoadSettingsUseCase`. The subcommands array on `ConfigCommand` was updated inline (no changes needed to `PRRadarMacCLI.swift` subcommands since `ConfigCommand` was already registered). All 431 tests pass.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
 **Skills to read**: `swift-testing`
 
@@ -165,3 +165,5 @@ Verify correctness at every level.
 - `swift test` — all existing tests still pass
 - Run CLI: `swift run PRRadarMacCLI config list --config test-repo` — still works
 - Build and launch MacApp: verify settings gear button opens SettingsView, add/edit/delete configs work, config sidebar updates reactively
+
+**Completed**: Added `init(fileURL:)` to `SettingsService` for test isolation (each test uses a unique temp directory). Added `MacApp` as a test target dependency in Package.swift so `SettingsModel` is testable. Five new test suites (19 tests total): `LoadSettingsUseCaseTests` (2 tests), `SaveConfigurationUseCaseTests` (5 tests), `RemoveConfigurationUseCaseTests` (3 tests), `SetDefaultConfigurationUseCaseTests` (3 tests), `SettingsModelTests` (6 tests including async `observeChanges` verification). All 450 tests pass across 51 suites (up from 431 tests in 46 suites).

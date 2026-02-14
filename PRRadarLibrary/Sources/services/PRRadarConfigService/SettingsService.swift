@@ -11,6 +11,10 @@ public final class SettingsService: Sendable {
         self.fileURL = appSupport.appendingPathComponent("settings.json")
     }
 
+    public init(fileURL: URL) {
+        self.fileURL = fileURL
+    }
+
     public func load() -> AppSettings {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return AppSettings()
