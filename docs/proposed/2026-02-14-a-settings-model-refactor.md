@@ -70,7 +70,7 @@ Pattern notes:
 
 **Completed**: No Package.swift changes needed — `PRReviewFeature` already depends on `PRRadarConfigService`. `SaveConfigurationUseCase` includes a `SaveConfigurationError` for the case where an update targets a non-existent config ID.
 
-## - [ ] Phase 2: SettingsModel
+## - [x] Phase 2: SettingsModel
 
 **Skills to read**: `swift-app-architecture:swift-swiftui` (model-composition.md, model-state.md)
 
@@ -84,6 +84,8 @@ Key behaviors:
 - Self-initializes: calls `LoadSettingsUseCase` on `init` to populate settings
 - Exposes CRUD methods: `addConfiguration(_:)`, `updateConfiguration(_:)`, `removeConfiguration(id:)`, `setDefault(id:)` — each calls the appropriate use case and assigns the returned `AppSettings` to `settings`
 - Implements **child-to-parent propagation** via `observeChanges() -> AsyncStream<AppSettings>` factory method (per model-composition.md pattern). Uses a `continuations` dictionary so multiple subscribers each get their own stream.
+
+**Completed**: CRUD methods catch errors from use cases and reload settings from disk as a fallback to keep the model in sync. The `onTermination` handler on `AsyncStream.Continuation` dispatches back to `@MainActor` to safely clean up the continuations dictionary.
 
 ## - [ ] Phase 3: AppModel Integration
 
