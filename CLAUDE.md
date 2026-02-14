@@ -109,6 +109,7 @@ Proactively use these skills when writing or modifying Swift code in this projec
 - `/swift-testing` — Test style guide. Use when writing or modifying tests.
 - `/xcode-sim-automation:interactive-xcuitest` — Interactively control the PRRadar MacApp through XCUITest. Use for dynamic UI exploration, navigation flows, taking screenshots, or testing UI interactions.
 - `/xcode-sim-automation:creating-automated-screenshots` — Create automated screenshot tests for PRRadar MacApp views. Use when capturing UI images, testing view rendering, or generating visual documentation.
+- `/pr-radar-todo` — Add an item to the project TODO list (`docs/proposed/TODO.md`) with t-shirt size categorization.
 
 ## Plugin Mode
 
