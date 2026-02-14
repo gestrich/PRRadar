@@ -43,6 +43,12 @@
 - [ ] Auto-fetch PR list on launch
   When the main view opens, automatically fetch the latest PRs for the list
   so the user always sees up-to-date data without a manual refresh.
+- [ ] Make SettingsService own persistence instead of requiring separate save calls
+  SettingsService is anemic — clients must call a separate save after every
+  mutation (add config, remove config, set default). Instead, each operation
+  should persist internally so callers don't need to manage save timing. This
+  also lets AppSettings drop `inout` usage and mutable vars since the service
+  owns the read-modify-write cycle.
 - [ ] Reorganize PRRadarCLIService into meaningful service modules
   The services in PRRadarCLIService apply to both the Mac app and CLI, not
   just the CLI. Break them out of the "CLIService" folder into more
@@ -110,6 +116,11 @@
   non-general comments are ending up in the general section — could be a
   classification issue in the evaluation pipeline or a filtering/grouping bug in
   the UI layer.
+- [ ] Add principles from GoldenPath to swift-app-architecture
+  Review the principles in `/Users/bill/Developer/personal/GoldenPath` and
+  incorporate relevant ones into `/Users/bill/Developer/personal/swift-app-architecture/`.
+  This ensures the architecture reference repo reflects the broader coding
+  principles and conventions captured in GoldenPath.
 - [ ] Audit PullRequests app for reusable ideas
   Audit `/Users/bill/Developer/work/swift/PullRequests` for features and patterns
   worth adopting in PRRadar. Likely candidates: better UI patterns (possible

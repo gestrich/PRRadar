@@ -1,9 +1,8 @@
-// TODO: Put these in alpha order
 import Foundation
-import Testing
+@testable import MacApp
 @testable import PRRadarConfigService
 @testable import PRReviewFeature
-@testable import MacApp
+import Testing
 
 @Suite("SettingsModel")
 @MainActor
