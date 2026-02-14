@@ -114,7 +114,7 @@ public struct AnalyzeUseCase: Sendable {
                     var totalCost = 0.0
 
                     if !tasksToEvaluate.isEmpty {
-                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient())
+                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), credentialAccount: config.credentialAccount)
                         let analysisService = AnalysisService(agentClient: agentClient)
 
                         let startTime = Date()

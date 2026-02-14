@@ -48,7 +48,7 @@ public struct PrepareUseCase: Sendable {
                         return
                     }
 
-                    let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient())
+                    let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), credentialAccount: config.credentialAccount)
                     let focusGenerator = FocusGeneratorService(agentClient: agentClient)
 
                     let focusDir = DataPathsService.phaseSubdirectory(

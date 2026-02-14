@@ -26,11 +26,13 @@ public final class AppModel {
     // MARK: - Config Selection
 
     func selectConfig(_ config: RepoConfiguration?) {
+        // TODO: More confusion on the relationship between RepoConfiguration and PRRadarConfig. It seems like we should just have one config type that is used everywhere.
         if let config {
             let prRadarConfig = PRRadarConfig(
                 repoPath: config.repoPath,
                 outputDir: config.outputDir,
-                agentScriptPath: agentScriptPath
+                agentScriptPath: agentScriptPath,
+                credentialAccount: config.credentialAccount
             )
             allPRsModel = AllPRsModel(
                 config: prRadarConfig,

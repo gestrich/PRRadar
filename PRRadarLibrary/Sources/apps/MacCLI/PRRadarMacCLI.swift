@@ -86,6 +86,7 @@ func resolveConfig(
     var resolvedRepoPath = repoPath
     var resolvedOutputDir = outputDir
     var rulesDir: String? = nil
+    var credentialAccount: String? = nil
 
     let settings = LoadSettingsUseCase(settingsService: SettingsService()).execute()
 
@@ -99,12 +100,14 @@ func resolveConfig(
         resolvedRepoPath = resolvedRepoPath ?? namedConfig.repoPath
         resolvedOutputDir = resolvedOutputDir ?? (namedConfig.outputDir.isEmpty ? nil : namedConfig.outputDir)
         rulesDir = namedConfig.rulesDir.isEmpty ? nil : namedConfig.rulesDir
+        credentialAccount = namedConfig.credentialAccount
     }
 
     let config = PRRadarConfig(
         repoPath: resolvedRepoPath ?? FileManager.default.currentDirectoryPath,
         outputDir: resolvedOutputDir ?? "code-reviews",
-        agentScriptPath: resolveAgentScriptPath()
+        agentScriptPath: resolveAgentScriptPath(),
+        credentialAccount: credentialAccount
     )
 
     return ResolvedConfig(config: config, rulesDir: rulesDir)

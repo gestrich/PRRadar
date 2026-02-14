@@ -155,10 +155,18 @@ public struct ClaudeAgentResult: Sendable {
 public struct ClaudeAgentClient: Sendable {
     private let pythonEnvironment: PythonEnvironment
     private let cliClient: CLIClient
+    // TODO: It seems the credentials should have 
+    // been resolved upstream before getting here.
+    // This property has no context if you are using an 
+    // env variale for instance. I'd prefer for services
+    // to just receive their actual credentials are arguments
+    // and not know about the various loading mechanisms
+    private let credentialAccount: String?
 
-    public init(pythonEnvironment: PythonEnvironment, cliClient: CLIClient) {
+    public init(pythonEnvironment: PythonEnvironment, cliClient: CLIClient, credentialAccount: String? = nil) {
         self.pythonEnvironment = pythonEnvironment
         self.cliClient = cliClient
+        self.credentialAccount = credentialAccount
     }
 
     /// Stream events as they arrive from the Claude Agent process.
@@ -179,7 +187,7 @@ public struct ClaudeAgentClient: Sendable {
                     let stream = await cliClient.streamLines(
                         command: pythonEnvironment.pythonCommand,
                         arguments: [pythonEnvironment.agentScriptPath],
-                        environment: PRRadarEnvironment.build(),
+                        environment: PRRadarEnvironment.build(credentialAccount: credentialAccount),
                         printCommand: false,
                         stdin: inputData,
                         parser: ClaudeAgentMessageParser()

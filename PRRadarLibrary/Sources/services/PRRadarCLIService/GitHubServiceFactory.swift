@@ -10,7 +10,7 @@ public enum GitHubServiceError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingToken:
-            return "No GitHub token found. Set GITHUB_TOKEN env var or store credentials in the Keychain via 'config credentials add'."
+            return "No GitHub token found. Set GITHUB_TOKEN env var, add to .env file, or store credentials in the Keychain via 'config credentials add'."
         case .cannotParseRemoteURL(let url):
             return "Cannot parse owner/repo from git remote URL: \(url)"
         }
@@ -18,9 +18,9 @@ public enum GitHubServiceError: Error, LocalizedError {
 }
 
 public struct GitHubServiceFactory: Sendable {
-    public static func create(repoPath: String, tokenOverride: String? = nil) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
-        let env = PRRadarEnvironment.build()
-        guard let token = tokenOverride ?? env["GITHUB_TOKEN"] else {
+    public static func create(repoPath: String, credentialAccount: String? = nil) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
+        let resolver = CredentialResolver(settingsService: SettingsService(), credentialAccount: credentialAccount)
+        guard let token = resolver.resolveGitHubToken() else {
             throw GitHubServiceError.missingToken
         }
 

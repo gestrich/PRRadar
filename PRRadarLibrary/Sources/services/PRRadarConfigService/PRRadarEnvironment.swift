@@ -1,7 +1,7 @@
 import Foundation
 
 public enum PRRadarEnvironment {
-    public static func build() -> [String: String] {
+    public static func build(credentialAccount: String? = nil) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         if env["HOME"] == nil {
             env["HOME"] = NSHomeDirectory()
@@ -19,8 +19,29 @@ public enum PRRadarEnvironment {
         env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
 
         loadDotEnv(into: &env)
+        loadKeychainSecrets(into: &env, credentialAccount: credentialAccount)
 
         return env
+    }
+
+    // TODO: This needs research - It almost seems like 
+    // the account is assocaited with both anthropic and github credentials, but the logic around it is not clear.
+    // (the same account). This is not really the architecure we want.
+    // There is not link between anthropic and Github. They are separate credentials that just happen to be loaded together here. The account is just a key to load the credentials.
+    // TODO: These ANTHROPIC_API_KEY should be static let
+    private static func loadKeychainSecrets(into env: inout [String: String], credentialAccount: String?) {
+        let account = (credentialAccount?.isEmpty ?? true) ? "default" : credentialAccount!
+        let service = SettingsService()
+        if env["ANTHROPIC_API_KEY"] == nil {
+            if let key = try? service.loadAnthropicKey(account: account) {
+                env["ANTHROPIC_API_KEY"] = key
+            }
+        }
+        if env["GITHUB_TOKEN"] == nil {
+            if let token = try? service.loadGitHubToken(account: account) {
+                env["GITHUB_TOKEN"] = token
+            }
+        }
     }
 
     private static func loadDotEnv(into env: inout [String: String]) {

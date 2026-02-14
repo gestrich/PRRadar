@@ -71,7 +71,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     }
 
                     if !tasksToEvaluate.isEmpty {
-                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient())
+                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), credentialAccount: config.credentialAccount)
                         let analysisService = AnalysisService(agentClient: agentClient)
 
                         // runBatchAnalysis writes data-{taskId}.json per task immediately

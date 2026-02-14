@@ -130,7 +130,10 @@ Update `RepoConfiguration` to reference a credential account name instead of sto
 - Remove the `--github-token` CLI flag from `CLIOptions` and `RunAllCommand`
 - Update all call sites that pass `config.githubToken` through the system
 
-## - [ ] Phase 3: Integrate Keychain into Token Resolution
+## - [x] Phase 3: Integrate Keychain into Token Resolution
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: `CredentialResolver` placed in Services layer (PRRadarConfigService) for token resolution; `credentialAccount` threaded through `PRRadarConfig` so use cases and factory methods resolve credentials via the config they already hold; `PRRadarEnvironment.build()` injects Keychain secrets into subprocess environment for the Python agent
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

@@ -5,13 +5,17 @@ public struct PostSingleCommentUseCase: Sendable {
 
     public init() {}
 
+    // TODO: Like our other use cases, this should be 
+    // passed the config which woudl elimiante the
+    // extra params here. See other use cases for background
     public func execute(
         comment: PRComment,
         commitSHA: String,
         prNumber: String,
-        repoPath: String
+        repoPath: String,
+        credentialAccount: String? = nil
     ) async throws -> Bool {
-        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath)
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath, credentialAccount: credentialAccount)
         let commentService = CommentService(githubService: gitHub)
 
         guard let prNum = Int(prNumber) else { return false }

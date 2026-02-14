@@ -272,8 +272,18 @@ final class PRModel: Identifiable, Hashable {
         guard let storedUpdatedAt = metadata.updatedAt else { return true }
 
         do {
+            // TODO: This is sketchy that we are creating
+            // the service here and passing all the
+            // credential things. Its seems PRModel
+            // should be using a use case for this
+            // and not know about the GithubService at all.
+            // In this case we are checking if the PR is stale
+            // It seems that whatever model we have for PRs
+            // should have some kind of stale indicator that
+            // gets updated as part of a refresh or sync use case
             let (gitHub, _) = try await GitHubServiceFactory.create(
-                repoPath: config.repoPath
+                repoPath: config.repoPath,
+                credentialAccount: config.credentialAccount
             )
             let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: metadata.number)
             return storedUpdatedAt != currentUpdatedAt
@@ -416,7 +426,8 @@ final class PRModel: Identifiable, Hashable {
                 comment: comment,
                 commitSHA: commitSHA,
                 prNumber: prNumber,
-                repoPath: repoConfig.repoPath
+                repoPath: repoConfig.repoPath,
+                credentialAccount: repoConfig.credentialAccount
             )
 
             submittingCommentIds.remove(comment.id)
