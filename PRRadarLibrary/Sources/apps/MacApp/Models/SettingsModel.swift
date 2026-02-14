@@ -12,7 +12,7 @@ public final class SettingsModel {
     private let setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase
 
     private var continuations: [UUID: AsyncStream<AppSettings>.Continuation] = [:]
-    
+
     private(set) var settings: AppSettings {
         didSet {
             for continuation in continuations.values {
@@ -46,36 +46,20 @@ public final class SettingsModel {
 
     // MARK: - CRUD
 
-    func addConfiguration(_ config: RepoConfiguration) {
-        do {
-            settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: true)
-        } catch {
-            settings = loadSettingsUseCase.execute()
-        }
+    func addConfiguration(_ config: RepoConfiguration) throws {
+        settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: true)
     }
 
-    func updateConfiguration(_ config: RepoConfiguration) {
-        do {
-            settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: false)
-        } catch {
-            settings = loadSettingsUseCase.execute()
-        }
+    func updateConfiguration(_ config: RepoConfiguration) throws {
+        settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: false)
     }
 
-    func removeConfiguration(id: UUID) {
-        do {
-            settings = try removeConfigurationUseCase.execute(id: id, settings: settings)
-        } catch {
-            settings = loadSettingsUseCase.execute()
-        }
+    func removeConfiguration(id: UUID) throws {
+        settings = try removeConfigurationUseCase.execute(id: id, settings: settings)
     }
 
-    func setDefault(id: UUID) {
-        do {
-            settings = try setDefaultConfigurationUseCase.execute(id: id, settings: settings)
-        } catch {
-            settings = loadSettingsUseCase.execute()
-        }
+    func setDefault(id: UUID) throws {
+        settings = try setDefaultConfigurationUseCase.execute(id: id, settings: settings)
     }
 
     // MARK: - Child-to-Parent Propagation

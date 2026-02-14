@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editingConfig: RepoConfiguration?
     @State private var isAddingNew = false
+    @State private var currentError: Error?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,10 +41,18 @@ struct SettingsView: View {
                             isSelected: config.id == model.repoConfig.id,
                             onEdit: { editingConfig = config },
                             onSetDefault: {
-                                settingsModel.setDefault(id: config.id)
+                                do {
+                                    try settingsModel.setDefault(id: config.id)
+                                } catch {
+                                    currentError = error
+                                }
                             },
                             onDelete: {
-                                settingsModel.removeConfiguration(id: config.id)
+                                do {
+                                    try settingsModel.removeConfiguration(id: config.id)
+                                } catch {
+                                    currentError = error
+                                }
                             }
                         )
                     }
@@ -61,21 +70,37 @@ struct SettingsView: View {
             .padding()
         }
         .frame(width: 550, height: 400)
+        .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
+            Button("OK") { currentError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
+        }
         .sheet(item: $editingConfig) { config in
             ConfigurationEditSheet(
                 config: config,
                 isNew: isAddingNew
             ) { updatedConfig in
-                if isAddingNew {
-                    settingsModel.addConfiguration(updatedConfig)
-                } else {
-                    settingsModel.updateConfiguration(updatedConfig)
+                do {
+                    if isAddingNew {
+                        try settingsModel.addConfiguration(updatedConfig)
+                    } else {
+                        try settingsModel.updateConfiguration(updatedConfig)
+                    }
+                } catch {
+                    currentError = error
                 }
                 isAddingNew = false
             } onCancel: {
                 isAddingNew = false
             }
         }
+    }
+
+    private var isErrorPresented: Binding<Bool> {
+        Binding(
+            get: { currentError != nil },
+            set: { if !$0 { currentError = nil } }
+        )
     }
 }
 

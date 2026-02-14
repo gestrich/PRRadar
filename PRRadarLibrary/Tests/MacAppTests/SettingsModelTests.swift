@@ -31,65 +31,87 @@ struct SettingsModelTests {
     // MARK: - CRUD
 
     @Test("addConfiguration adds and updates settings property")
-    func addConfiguration() {
+    func addConfiguration() throws {
         let model = makeModel()
         let config = RepoConfiguration(name: "test", repoPath: "/tmp/repo")
 
-        model.addConfiguration(config)
+        try model.addConfiguration(config)
 
         #expect(model.settings.configurations.count == 1)
         #expect(model.settings.configurations[0].name == "test")
     }
 
     @Test("updateConfiguration modifies existing configuration")
-    func updateConfiguration() {
+    func updateConfiguration() throws {
         let model = makeModel()
         let configId = UUID()
         let config = RepoConfiguration(id: configId, name: "original", repoPath: "/tmp/repo")
-        model.addConfiguration(config)
+        try model.addConfiguration(config)
 
         var modified = config
         modified.name = "updated"
-        model.updateConfiguration(modified)
+        try model.updateConfiguration(modified)
 
         #expect(model.settings.configurations.count == 1)
         #expect(model.settings.configurations[0].name == "updated")
     }
 
     @Test("removeConfiguration removes by ID")
-    func removeConfiguration() {
+    func removeConfiguration() throws {
         let model = makeModel()
         let config = RepoConfiguration(name: "doomed", repoPath: "/tmp/repo")
-        model.addConfiguration(config)
+        try model.addConfiguration(config)
 
-        model.removeConfiguration(id: config.id)
+        try model.removeConfiguration(id: config.id)
 
         #expect(model.settings.configurations.isEmpty)
     }
 
     @Test("setDefault changes the default configuration")
-    func setDefault() {
+    func setDefault() throws {
         let model = makeModel()
         let first = RepoConfiguration(name: "first", repoPath: "/tmp/repo1")
         let second = RepoConfiguration(name: "second", repoPath: "/tmp/repo2")
-        model.addConfiguration(first)
-        model.addConfiguration(second)
+        try model.addConfiguration(first)
+        try model.addConfiguration(second)
 
-        model.setDefault(id: second.id)
+        try model.setDefault(id: second.id)
 
         #expect(model.settings.configurations[0].isDefault == false)
         #expect(model.settings.configurations[1].isDefault == true)
     }
 
+    // MARK: - Error Handling
+
+    @Test("Throws when updating a nonexistent configuration")
+    func updateNonexistentThrows() {
+        let model = makeModel()
+        let config = RepoConfiguration(name: "ghost", repoPath: "/tmp/repo")
+
+        #expect(throws: SaveConfigurationError.self) {
+            try model.updateConfiguration(config)
+        }
+    }
+
+    @Test("Successful add does not throw")
+    func addDoesNotThrow() throws {
+        let model = makeModel()
+        let config = RepoConfiguration(name: "valid", repoPath: "/tmp/repo")
+
+        try model.addConfiguration(config)
+
+        #expect(model.settings.configurations.count == 1)
+    }
+
     // MARK: - observeChanges
 
     @Test("observeChanges yields settings on mutation")
-    func observeChangesYields() async {
+    func observeChangesYields() async throws {
         let model = makeModel()
         let stream = model.observeChanges()
         let config = RepoConfiguration(name: "observed", repoPath: "/tmp/repo")
 
-        model.addConfiguration(config)
+        try model.addConfiguration(config)
 
         var iterator = stream.makeAsyncIterator()
         let received = await iterator.next()
