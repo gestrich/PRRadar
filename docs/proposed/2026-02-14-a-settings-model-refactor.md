@@ -107,7 +107,7 @@ Changes to `PRRadar/PRRadarApp.swift`:
 
 **Completed**: AppModel now owns `let settingsModel: SettingsModel` as a child model and delegates all settings state/CRUD through it. Thin forwarding properties (`settings`, `addConfiguration`, etc.) remain on AppModel temporarily so existing views compile — Phase 4 will remove these when views switch to `@Environment(SettingsModel.self)`. A `convenience init()` was added to `SettingsModel` to construct the full use-case dependency chain from a default `SettingsService`, keeping `PRRadarApp.swift` simple (it only imports `MacApp`). The ContentView `#Preview` was also updated to use the new `AppModel(agentScriptPath:settingsModel:)` initializer.
 
-## - [ ] Phase 4: View Updates
+## - [x] Phase 4: View Updates
 
 **Skills to read**: `swift-app-architecture:swift-swiftui` (dependency-injection.md, view-state.md)
 
@@ -124,6 +124,8 @@ Changes to `Sources/apps/MacApp/UI/ContentView.swift`:
 - The `.task` that restores selection reads from `settingsModel.settings`
 - Settings sheet passes `settingsModel` (or SettingsView reads it from environment)
 - `selectConfig()` stays on AppModel since it creates `AllPRsModel` — that's an app-layer concern
+
+**Completed**: SettingsView now reads `SettingsModel` from the environment instead of accepting `AppModel` as a parameter — all CRUD calls and settings reads go through `settingsModel` directly. ContentView adds `@Environment(SettingsModel.self)` for config sidebar and selection restoration, while keeping `selectConfig()` on AppModel. The thin forwarding properties (`settings`, `addConfiguration`, `removeConfiguration`, `updateConfiguration`, `setDefault`) were removed from AppModel. The environment injection was already in place from Phase 3 (`PRRadarApp.swift` injects both `appModel` and `settingsModel`).
 
 ## - [ ] Phase 5: CLI Updates
 

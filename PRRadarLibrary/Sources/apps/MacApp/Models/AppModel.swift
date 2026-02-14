@@ -42,25 +42,4 @@ public final class AppModel {
         }
     }
 
-    // MARK: - Settings Forwarding (removed in Phase 4 when views use SettingsModel directly)
-
-    var settings: AppSettings {
-        settingsModel.settings
-    }
-
-    func addConfiguration(_ config: RepoConfiguration) {
-        settingsModel.addConfiguration(config)
-    }
-
-    func removeConfiguration(id: UUID) {
-        settingsModel.removeConfiguration(id: id)
-    }
-
-    func updateConfiguration(_ config: RepoConfiguration) {
-        settingsModel.updateConfiguration(config)
-    }
-
-    func setDefault(id: UUID) {
-        settingsModel.setDefault(id: id)
-    }
 }

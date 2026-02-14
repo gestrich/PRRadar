@@ -5,6 +5,7 @@ import SwiftUI
 public struct ContentView: View {
 
     @Environment(AppModel.self) private var appModel
+    @Environment(SettingsModel.self) private var settingsModel
     @State private var selectedConfig: RepoConfiguration?
     @State private var selectedPR: PRModel?
     @AppStorage("selectedConfigID") private var savedConfigID: String = ""
@@ -125,7 +126,7 @@ public struct ContentView: View {
         }
         .sheet(isPresented: $showSettings) {
             if let model = allPRs {
-                SettingsView(model: model, appModel: appModel)
+                SettingsView(model: model)
             }
         }
         .sheet(isPresented: $showAnalyzeAllProgress) {
@@ -146,9 +147,9 @@ public struct ContentView: View {
             }
         }
         .task {
-            if let config = appModel.settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
+            if let config = settingsModel.settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
                 selectedConfig = config
-            } else if let config = appModel.settings.defaultConfiguration {
+            } else if let config = settingsModel.settings.defaultConfiguration {
                 selectedConfig = config
             }
         }
@@ -186,7 +187,7 @@ public struct ContentView: View {
     // MARK: - Column 1: Config Sidebar
 
     private var configSidebar: some View {
-        List(appModel.settings.configurations, selection: $selectedConfig) { config in
+        List(settingsModel.settings.configurations, selection: $selectedConfig) { config in
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(config.name)

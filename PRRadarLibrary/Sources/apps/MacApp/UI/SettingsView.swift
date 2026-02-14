@@ -3,7 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     let model: AllPRsModel
-    let appModel: AppModel
+    @Environment(SettingsModel.self) private var settingsModel
     @Environment(\.dismiss) private var dismiss
     @State private var editingConfig: RepoConfiguration?
     @State private var isAddingNew = false
@@ -25,7 +25,7 @@ struct SettingsView: View {
             }
             .padding()
 
-            if appModel.settings.configurations.isEmpty {
+            if settingsModel.settings.configurations.isEmpty {
                 ContentUnavailableView(
                     "No Configurations",
                     systemImage: "folder.badge.questionmark",
@@ -34,16 +34,16 @@ struct SettingsView: View {
                 .frame(maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(appModel.settings.configurations) { config in
+                    ForEach(settingsModel.settings.configurations) { config in
                         ConfigurationRow(
                             config: config,
                             isSelected: config.id == model.repoConfig.id,
                             onEdit: { editingConfig = config },
                             onSetDefault: {
-                                appModel.setDefault(id: config.id)
+                                settingsModel.setDefault(id: config.id)
                             },
                             onDelete: {
-                                appModel.removeConfiguration(id: config.id)
+                                settingsModel.removeConfiguration(id: config.id)
                             }
                         )
                     }
@@ -67,9 +67,9 @@ struct SettingsView: View {
                 isNew: isAddingNew
             ) { updatedConfig in
                 if isAddingNew {
-                    appModel.addConfiguration(updatedConfig)
+                    settingsModel.addConfiguration(updatedConfig)
                 } else {
-                    appModel.updateConfiguration(updatedConfig)
+                    settingsModel.updateConfiguration(updatedConfig)
                 }
                 isAddingNew = false
             } onCancel: {
