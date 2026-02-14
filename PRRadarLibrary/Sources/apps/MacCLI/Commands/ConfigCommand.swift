@@ -7,6 +7,7 @@ struct ConfigCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "config",
         abstract: "Manage saved configurations",
+        // TODO: Put these in alpha order
         subcommands: [ListCommand.self, AddCommand.self, RemoveCommand.self, SetDefaultCommand.self],
         defaultSubcommand: ListCommand.self
     )
@@ -81,6 +82,7 @@ struct ConfigCommand: AsyncParsableCommand {
 
         func run() async throws {
             let settingsService = SettingsService()
+            // TODO: The SaveConfigurationUseCase could internally call the LoadSettingsUseCase
             let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
             let saveUseCase = SaveConfigurationUseCase(settingsService: settingsService)
 
@@ -97,6 +99,7 @@ struct ConfigCommand: AsyncParsableCommand {
 
             let updated = try saveUseCase.execute(config: config, settings: settings, isNew: true)
 
+            // TODO: The printout line here should be on configuration model
             let isDefault = updated.configurations.first(where: { $0.name == name })?.isDefault ?? false
             let defaultNote = isDefault ? " (default)" : ""
             print("Configuration '\(name)' added\(defaultNote).")
@@ -139,6 +142,7 @@ struct ConfigCommand: AsyncParsableCommand {
 
         func run() async throws {
             let settingsService = SettingsService()
+            // TODO: The SetDefaultConfigurationUseCase could internally call the LoadSettingsUseCase to get the current settings
             let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
             let setDefaultUseCase = SetDefaultConfigurationUseCase(settingsService: settingsService)
 

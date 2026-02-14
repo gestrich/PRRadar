@@ -9,6 +9,7 @@ public struct SaveConfigurationUseCase: Sendable {
         self.settingsService = settingsService
     }
 
+    // TODO: Remove isNew param — use case should determine add vs update based on whether config ID exists in settings
     public func execute(config: RepoConfiguration, settings: AppSettings, isNew: Bool) throws -> AppSettings {
         var updated = settings
         if isNew {

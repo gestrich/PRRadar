@@ -1,7 +1,7 @@
 import Foundation
 
 public final class SettingsService: Sendable {
-    private let fileURL: URL
+    private let fileURL: URL // TODO: Rename to configURL or something more specific
 
     public init() {
         let appSupport = FileManager.default.urls(
