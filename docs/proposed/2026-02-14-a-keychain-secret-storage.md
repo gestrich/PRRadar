@@ -122,11 +122,10 @@ Update `RepoConfiguration` to reference a credential account name instead of sto
 - Add `credentialAccount: String?` property to `RepoConfiguration`
 - Remove `githubToken: String?` property from `RepoConfiguration`
 - Remove `githubToken` from `PRRadarConfig`
-- Handle `Codable` backwards compatibility — old JSON files with `githubToken` should still decode without error (the field is already `String?`)
-- Add a migration path: on first load, if a config has a `githubToken` but no `credentialAccount`, migrate the token to Keychain under a default account named after the config, set `credentialAccount` to that name, and save
+- No backwards compatibility needed — old JSON files with `githubToken` can be deleted and recreated
 - Update `presentableDescription` to show the credential account name (if set)
 - Remove the `--github-token` CLI flag from `CLIOptions` and `RunAllCommand`
-- Update all ~15 call sites that pass `config.githubToken` through the system
+- Update all call sites that pass `config.githubToken` through the system
 
 ## - [ ] Phase 3: Integrate Keychain into Token Resolution
 
