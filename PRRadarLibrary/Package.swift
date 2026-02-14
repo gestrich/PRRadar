@@ -110,12 +110,21 @@ let package = Package(
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRReviewFeature"),
-                .target(name: "MacApp"),
             ],
             path: "Tests/PRRadarModelsTests",
             resources: [
                 .copy("EffectiveDiffFixtures"),
             ]
+        ),
+
+        .testTarget(
+            name: "MacAppTests",
+            dependencies: [
+                .target(name: "MacApp"),
+                .target(name: "PRRadarConfigService"),
+                .target(name: "PRReviewFeature"),
+            ],
+            path: "Tests/MacAppTests"
         ),
     ]
 )
