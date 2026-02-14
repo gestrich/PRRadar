@@ -12,9 +12,7 @@ public struct CredentialResolver: Sendable {
     }
 
     public func resolveGitHubToken() -> String? {
-        // TODO: We are also doing enviroment things with these same stirngs in 
-        // PRRadarEnvironment. This seems sketchy
-        if let envToken = environment["GITHUB_TOKEN"] {
+        if let envToken = environment[PRRadarEnvironment.githubTokenKey] {
             return envToken
         }
         return loadFromKeychain { account in
@@ -23,7 +21,7 @@ public struct CredentialResolver: Sendable {
     }
 
     public func resolveAnthropicKey() -> String? {
-        if let envKey = environment["ANTHROPIC_API_KEY"] {
+        if let envKey = environment[PRRadarEnvironment.anthropicAPIKeyKey] {
             return envKey
         }
         return loadFromKeychain { account in
@@ -32,10 +30,7 @@ public struct CredentialResolver: Sendable {
     }
 
     private func loadFromKeychain(loader: (String) throws -> String) -> String? {
-        // TODO:
-        // Need to resaearch if an empty credentialAccount is normla
-        // fallbacks like "default" are uncealr why they exists and what happens
-        let account = (credentialAccount?.isEmpty ?? true) ? "default" : credentialAccount!
+        let account = (credentialAccount?.isEmpty ?? true) ? PRRadarEnvironment.defaultCredentialAccount : credentialAccount!
         return try? loader(account)
     }
 }
