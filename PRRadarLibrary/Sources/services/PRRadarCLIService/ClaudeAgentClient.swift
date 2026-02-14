@@ -8,6 +8,7 @@ public enum ClaudeAgentError: LocalizedError {
     case invalidInput(String)
     case agentFailed(String)
     case noResult
+    case missingAPIKey
 
     public var errorDescription: String? {
         switch self {
@@ -21,7 +22,36 @@ public enum ClaudeAgentError: LocalizedError {
             return "Claude Agent failed: \(detail)"
         case .noResult:
             return "Claude Agent returned no result"
+        case .missingAPIKey:
+            return "ANTHROPIC_API_KEY not found in environment, .env, or Keychain"
         }
+    }
+}
+
+/// The resolved environment needed to run the Claude Agent subprocess.
+///
+/// Enforces that the Anthropic API key is present at construction time —
+/// callers must resolve credentials before creating this value.
+public struct ClaudeAgentEnvironment: Sendable {
+    public let anthropicAPIKey: String
+    let subprocessEnvironment: [String: String]
+
+    public init(anthropicAPIKey: String, baseEnvironment: [String: String] = ProcessInfo.processInfo.environment) {
+        self.anthropicAPIKey = anthropicAPIKey
+        var env = baseEnvironment
+        env[PRRadarEnvironment.anthropicAPIKeyKey] = anthropicAPIKey
+        self.subprocessEnvironment = env
+    }
+
+    public init(resolvedEnvironment env: [String: String]) throws {
+        guard let apiKey = env[PRRadarEnvironment.anthropicAPIKeyKey] else {
+            throw ClaudeAgentError.missingAPIKey
+        }
+        self.init(anthropicAPIKey: apiKey, baseEnvironment: env)
+    }
+
+    public static func build(credentialAccount: String? = nil) throws -> ClaudeAgentEnvironment {
+        try ClaudeAgentEnvironment(resolvedEnvironment: PRRadarEnvironment.build(credentialAccount: credentialAccount))
     }
 }
 
@@ -155,18 +185,12 @@ public struct ClaudeAgentResult: Sendable {
 public struct ClaudeAgentClient: Sendable {
     private let pythonEnvironment: PythonEnvironment
     private let cliClient: CLIClient
-    // TODO: It seems the credentials should have 
-    // been resolved upstream before getting here.
-    // This property has no context if you are using an 
-    // env variale for instance. I'd prefer for services
-    // to just receive their actual credentials are arguments
-    // and not know about the various loading mechanisms
-    private let credentialAccount: String?
+    private let environment: ClaudeAgentEnvironment
 
-    public init(pythonEnvironment: PythonEnvironment, cliClient: CLIClient, credentialAccount: String? = nil) {
+    public init(pythonEnvironment: PythonEnvironment, cliClient: CLIClient, environment: ClaudeAgentEnvironment) {
         self.pythonEnvironment = pythonEnvironment
         self.cliClient = cliClient
-        self.credentialAccount = credentialAccount
+        self.environment = environment
     }
 
     /// Stream events as they arrive from the Claude Agent process.
@@ -187,7 +211,7 @@ public struct ClaudeAgentClient: Sendable {
                     let stream = await cliClient.streamLines(
                         command: pythonEnvironment.pythonCommand,
                         arguments: [pythonEnvironment.agentScriptPath],
-                        environment: PRRadarEnvironment.build(credentialAccount: credentialAccount),
+                        environment: environment.subprocessEnvironment,
                         printCommand: false,
                         stdin: inputData,
                         parser: ClaudeAgentMessageParser()

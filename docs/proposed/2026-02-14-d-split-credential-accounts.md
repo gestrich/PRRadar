@@ -61,11 +61,17 @@ The lower-level services:
 - `MacApp/UI/SettingsView.swift` — rename label
 - Feature layer use cases — update `credentialAccount` references
 
-## - [ ] Phase 1: Remove the `ClaudeAgentClient` TODO
+## - [x] Phase 1: Resolve credentials upstream of `ClaudeAgentClient`
 
-The TODO at `ClaudeAgentClient.swift:158-163` says credentials should be resolved upstream. The current design is the right tradeoff — `ClaudeAgentClient` passes `credentialAccount` to `PRRadarEnvironment.build()`, which assembles the full subprocess environment (PATH, HOME, .env, Keychain). Moving that responsibility upstream would leak environment-building concerns into callers.
+**Principles applied**: Services receive resolved credentials, not resolution mechanisms; non-optional types enforce required dependencies at compile time
 
-Remove the TODO comment. No code change.
+The TODO at `ClaudeAgentClient.swift:158-163` says credentials should be resolved upstream. Fix the design: `ClaudeAgentClient` should not know about credential resolution, and it should not be possible to create one without valid credentials.
+
+- Create `ClaudeAgentEnvironment` struct with a non-optional `anthropicAPIKey: String` and an internal `subprocessEnvironment: [String: String]`. Includes `init(resolvedEnvironment:)` that throws `missingAPIKey` if the key isn't present, and `static func build(credentialAccount:)` that wraps `PRRadarEnvironment.build()`.
+- Add `ClaudeAgentError.missingAPIKey` for early failure when the key isn't found.
+- Make `PRRadarEnvironment.anthropicAPIKeyKey` and `githubTokenKey` public so they can be referenced by constant.
+- Replace `credentialAccount: String?` with `environment: ClaudeAgentEnvironment` on `ClaudeAgentClient`.
+- Update callers (`PrepareUseCase`, `AnalyzeUseCase`, `SelectiveAnalyzeUseCase`) to use `ClaudeAgentEnvironment.build(credentialAccount:)`.
 
 ## - [ ] Phase 2: Add generic `loadCredential` to `SettingsService`
 
