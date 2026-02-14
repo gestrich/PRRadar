@@ -153,37 +153,85 @@ public struct PostSingleCommentUseCase: Sendable {
 
 Update the caller in `PRModel` to pass `config`.
 
-## - [ ] Phase 4b: Extract `CheckPRStalenessUseCase`
+## - [x] Phase 4b: Move staleness check into `SyncPRUseCase`
 
-`PRModel.isStale()` directly creates a `GitHubServiceFactory` and calls `gitHub.getPRUpdatedAt()`. Per the architecture, App-layer models should work through Feature-layer use cases.
+**Principles applied**: Staleness decision belongs in the use case that owns syncing, not in the App-layer model; reused `PhaseOutputParser` pattern from `LoadPRDetailUseCase` for reading cached metadata
 
-Create a new use case:
+`PRModel.isStale()` directly creates a `GitHubServiceFactory` and calls `gitHub.getPRUpdatedAt()`. Per the architecture, App-layer models should not know about service-layer factories. Rather than creating a thin `CheckPRStalenessUseCase`, fold the staleness check into `SyncPRUseCase` where the sync decision naturally lives.
+
+### Changes to `SyncPRUseCase`
+
+Add a `force` parameter to `execute()`. When `force: false`, read the cached `gh-pr.json` to get the stored `updatedAt`, compare it against GitHub's current value, and skip the full acquisition if unchanged:
+
 ```swift
-public struct CheckPRStalenessUseCase: Sendable {
-    let config: RepositoryConfiguration
-    public init(config: RepositoryConfiguration) { self.config = config }
+public func execute(prNumber: String, force: Bool = false) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
+    AsyncThrowingStream { continuation in
+        continuation.yield(.running(phase: .diff))
+        Task {
+            do {
+                let (gitHub, gitOps) = try await GitHubServiceFactory.create(
+                    repoPath: config.repoPath,
+                    credentialAccount: config.credentialAccount
+                )
 
-    public func execute(prNumber: Int, lastUpdatedAt: String) async throws -> Bool {
-        let (gitHub, _) = try await GitHubServiceFactory.create(
-            repoPath: config.repoPath,
-            credentialAccount: config.credentialAccount
-        )
-        let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNumber)
-        return lastUpdatedAt != currentUpdatedAt
+                guard let prNum = Int(prNumber) else { ... }
+
+                // Staleness check: if not forced, compare cached updatedAt with GitHub
+                if !force {
+                    let cachedUpdatedAt = Self.readCachedUpdatedAt(config: config, prNumber: prNumber)
+                    if let cachedUpdatedAt {
+                        let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNum)
+                        if cachedUpdatedAt == currentUpdatedAt {
+                            let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
+                            continuation.yield(.completed(output: snapshot))
+                            continuation.finish()
+                            return
+                        }
+                    }
+                }
+
+                // Stale or forced — do the full acquisition
+                // ... existing fetch logic ...
+            }
+        }
     }
 }
-```
 
-Then `PRModel.isStale()` becomes:
-```swift
-private func isStale() async -> Bool {
-    guard let storedUpdatedAt = metadata.updatedAt else { return true }
-    let useCase = CheckPRStalenessUseCase(config: config)
-    return (try? await useCase.execute(prNumber: metadata.number, lastUpdatedAt: storedUpdatedAt)) ?? true
+/// Read updatedAt from the cached gh-pr.json metadata file.
+private static func readCachedUpdatedAt(config: RepositoryConfiguration, prNumber: String) -> String? {
+    let metadataDir = DataPathsService.phaseDirectory(
+        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .metadata
+    )
+    let ghPRPath = "\(metadataDir)/gh-pr.json"
+    guard let data = FileManager.default.contents(atPath: ghPRPath),
+          let pr = try? JSONDecoder().decode(GitHubPullRequest.self, from: data) else {
+        return nil
+    }
+    return pr.updatedAt
 }
 ```
 
-Remove the TODO at `PRModel.swift:273-281`.
+### Changes to `PRModel`
+
+- Remove `isStale()` entirely (including the TODO comment)
+- Simplify `refreshDiff(force:)` to always call `SyncPRUseCase.execute(prNumber:force:)` — the use case decides whether to fetch
+- The `hasCachedData` / `shouldFetch` logic collapses: if there's no cache, the use case won't find a `gh-pr.json` and will proceed with the full fetch; if there is cache and it's fresh, the use case returns immediately
+
+```swift
+func refreshDiff(force: Bool = false) async {
+    refreshTask?.cancel()
+
+    let hasCachedData = syncSnapshot != nil
+    if hasCachedData {
+        phaseStates[.diff] = .refreshing(logs: "Checking PR #\(prNumber)...\n")
+    } else {
+        phaseStates[.diff] = .running(logs: "Fetching diff for PR #\(prNumber)...\n")
+    }
+
+    let useCase = SyncPRUseCase(config: config)
+    // ... call useCase.execute(prNumber: prNumber, force: force) ...
+}
+```
 
 ## - [ ] Phase 5: Rewrite `CredentialResolver` with layered architecture
 

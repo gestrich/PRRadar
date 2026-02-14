@@ -192,34 +192,18 @@ final class PRModel: Identifiable, Hashable {
     func refreshDiff(force: Bool = false) async {
         refreshTask?.cancel()
 
-        // Step 1: Check cached diff for immediate display
         let hasCachedData = syncSnapshot != nil
-
-        // Step 2: Determine whether to fetch from GitHub
-        let shouldFetch: Bool
-        if force {
-            shouldFetch = true
-        } else if !hasCachedData {
-            shouldFetch = true
-        } else {
-            shouldFetch = await isStale()
-        }
-
-        guard shouldFetch else { return }
-
-        // Step 3: Fetch from GitHub
-        let logPrefix = hasCachedData ? "Refreshing" : "Fetching"
         if hasCachedData {
-            phaseStates[.diff] = .refreshing(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+            phaseStates[.diff] = .refreshing(logs: "Checking PR #\(prNumber)...\n")
         } else {
-            phaseStates[.diff] = .running(logs: "\(logPrefix) diff for PR #\(prNumber)...\n")
+            phaseStates[.diff] = .running(logs: "Fetching diff for PR #\(prNumber)...\n")
         }
 
         let useCase = SyncPRUseCase(config: config)
 
         let task = Task {
             do {
-                for try await progress in useCase.execute(prNumber: prNumber) {
+                for try await progress in useCase.execute(prNumber: prNumber, force: force) {
                     try Task.checkCancellation()
                     switch progress {
                     case .running:
@@ -263,30 +247,6 @@ final class PRModel: Identifiable, Hashable {
             phaseStates[.diff] = .completed(logs: "")
         } else {
             phaseStates[.diff] = .idle
-        }
-    }
-
-    private func isStale() async -> Bool {
-        guard let storedUpdatedAt = metadata.updatedAt else { return true }
-
-        do {
-            // TODO: This is sketchy that we are creating
-            // the service here and passing all the
-            // credential things. Its seems PRModel
-            // should be using a use case for this
-            // and not know about the GithubService at all.
-            // In this case we are checking if the PR is stale
-            // It seems that whatever model we have for PRs
-            // should have some kind of stale indicator that
-            // gets updated as part of a refresh or sync use case
-            let (gitHub, _) = try await GitHubServiceFactory.create(
-                repoPath: config.repoPath,
-                credentialAccount: config.credentialAccount
-            )
-            let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: metadata.number)
-            return storedUpdatedAt != currentUpdatedAt
-        } catch {
-            return true
         }
     }
 

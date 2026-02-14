@@ -104,7 +104,7 @@ public struct SyncPRUseCase: Sendable {
         return nil
     }
 
-    public func execute(prNumber: String) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
+    public func execute(prNumber: String, force: Bool = false) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
 
@@ -113,8 +113,6 @@ public struct SyncPRUseCase: Sendable {
                     try Task.checkCancellation()
 
                     let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, credentialAccount: config.credentialAccount)
-                    let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
-                    let authorCache = AuthorCacheService()
 
                     guard let prNum = Int(prNumber) else {
                         continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
@@ -123,6 +121,24 @@ public struct SyncPRUseCase: Sendable {
                     }
 
                     try Task.checkCancellation()
+
+                    if !force {
+                        let cachedPR: GitHubPullRequest? = try? PhaseOutputParser.parsePhaseOutput(
+                            config: config, prNumber: prNumber, phase: .metadata, filename: DataPathsService.ghPRFilename
+                        )
+                        if let cachedUpdatedAt = cachedPR?.updatedAt {
+                            let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNum)
+                            if cachedUpdatedAt == currentUpdatedAt {
+                                let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
+                                continuation.yield(.completed(output: snapshot))
+                                continuation.finish()
+                                return
+                            }
+                        }
+                    }
+
+                    let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
+                    let authorCache = AuthorCacheService()
 
                     continuation.yield(.log(text: "Fetching PR #\(prNumber) from GitHub...\n"))
 
