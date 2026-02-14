@@ -18,7 +18,7 @@ struct RemoveConfigurationUseCaseTests {
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let removeUseCase = RemoveConfigurationUseCase(settingsService: service)
         let config = RepoConfiguration(name: "to-remove", repoPath: "/tmp/repo")
-        let settings = try saveUseCase.execute(config: config)
+        _ = try saveUseCase.execute(config: config)
 
         let result = try removeUseCase.execute(id: config.id)
 
@@ -49,7 +49,7 @@ struct RemoveConfigurationUseCaseTests {
         let saveUseCase = SaveConfigurationUseCase(settingsService: service)
         let removeUseCase = RemoveConfigurationUseCase(settingsService: service)
         let config = RepoConfiguration(name: "temp", repoPath: "/tmp/repo")
-        let settings = try saveUseCase.execute(config: config)
+        _ = try saveUseCase.execute(config: config)
 
         _ = try removeUseCase.execute(id: config.id)
 
