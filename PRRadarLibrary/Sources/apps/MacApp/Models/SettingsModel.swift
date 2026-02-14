@@ -6,14 +6,20 @@ import PRReviewFeature
 @MainActor
 public final class SettingsModel {
 
-    private(set) var settings: AppSettings
-
     private let loadSettingsUseCase: LoadSettingsUseCase
     private let saveConfigurationUseCase: SaveConfigurationUseCase
     private let removeConfigurationUseCase: RemoveConfigurationUseCase
     private let setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase
 
     private var continuations: [UUID: AsyncStream<AppSettings>.Continuation] = [:]
+    
+    private(set) var settings: AppSettings {
+        didSet {
+            for continuation in continuations.values {
+                continuation.yield(settings)
+            }
+        }
+    }
 
     public init(
         loadSettingsUseCase: LoadSettingsUseCase,
@@ -43,7 +49,6 @@ public final class SettingsModel {
     func addConfiguration(_ config: RepoConfiguration) {
         do {
             settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: true)
-            notifyObservers()
         } catch {
             settings = loadSettingsUseCase.execute()
         }
@@ -52,7 +57,6 @@ public final class SettingsModel {
     func updateConfiguration(_ config: RepoConfiguration) {
         do {
             settings = try saveConfigurationUseCase.execute(config: config, settings: settings, isNew: false)
-            notifyObservers()
         } catch {
             settings = loadSettingsUseCase.execute()
         }
@@ -61,7 +65,6 @@ public final class SettingsModel {
     func removeConfiguration(id: UUID) {
         do {
             settings = try removeConfigurationUseCase.execute(id: id, settings: settings)
-            notifyObservers()
         } catch {
             settings = loadSettingsUseCase.execute()
         }
@@ -70,7 +73,6 @@ public final class SettingsModel {
     func setDefault(id: UUID) {
         do {
             settings = try setDefaultConfigurationUseCase.execute(id: id, settings: settings)
-            notifyObservers()
         } catch {
             settings = loadSettingsUseCase.execute()
         }
@@ -90,9 +92,4 @@ public final class SettingsModel {
         return stream
     }
 
-    private func notifyObservers() {
-        for continuation in continuations.values {
-            continuation.yield(settings)
-        }
-    }
 }
