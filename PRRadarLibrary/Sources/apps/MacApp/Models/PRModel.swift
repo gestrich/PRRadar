@@ -417,15 +417,13 @@ final class PRModel: Identifiable, Hashable {
 
         submittingCommentIds.insert(comment.id)
 
-        let useCase = PostSingleCommentUseCase()
+        let useCase = PostSingleCommentUseCase(config: config)
 
         do {
             let success = try await useCase.execute(
                 comment: comment,
                 commitSHA: commitSHA,
-                prNumber: prNumber,
-                repoPath: config.repoPath,
-                credentialAccount: config.credentialAccount
+                prNumber: prNumber
             )
 
             submittingCommentIds.remove(comment.id)

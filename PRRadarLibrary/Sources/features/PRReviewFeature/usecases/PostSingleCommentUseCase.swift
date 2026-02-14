@@ -1,21 +1,21 @@
 import PRRadarCLIService
+import PRRadarConfigService
 import PRRadarModels
 
 public struct PostSingleCommentUseCase: Sendable {
 
-    public init() {}
+    private let config: RepositoryConfiguration
 
-    // TODO: Like our other use cases, this should be 
-    // passed the config which woudl elimiante the
-    // extra params here. See other use cases for background
+    public init(config: RepositoryConfiguration) {
+        self.config = config
+    }
+
     public func execute(
         comment: PRComment,
         commitSHA: String,
-        prNumber: String,
-        repoPath: String,
-        credentialAccount: String? = nil
+        prNumber: String
     ) async throws -> Bool {
-        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: repoPath, credentialAccount: credentialAccount)
+        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, credentialAccount: config.credentialAccount)
         let commentService = CommentService(githubService: gitHub)
 
         guard let prNum = Int(prNumber) else { return false }

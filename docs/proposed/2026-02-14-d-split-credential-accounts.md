@@ -114,11 +114,9 @@ public static func loadDotEnv() -> [String: String] {
 
 Update `build()` to call this new method and merge the result into env. The old `private static func loadDotEnv(into:)` is replaced.
 
-## - [ ] Phase 4: Fix layer violations
+## - [x] Phase 4a: Refactor `PostSingleCommentUseCase` to accept config
 
-Two layer violations in the App layer need fixing.
-
-### 4a: Refactor `PostSingleCommentUseCase` to accept config
+**Principles applied**: Use cases receive config at init, not as loose parameters; consistent with all other use cases in the Features layer
 
 `PostSingleCommentUseCase.execute()` takes `repoPath` and `credentialAccount` as loose parameters instead of receiving a `RepositoryConfiguration` like every other use case.
 
@@ -155,7 +153,7 @@ public struct PostSingleCommentUseCase: Sendable {
 
 Update the caller in `PRModel` to pass `config`.
 
-### 4b: Extract `CheckPRStalenessUseCase`
+## - [ ] Phase 4b: Extract `CheckPRStalenessUseCase`
 
 `PRModel.isStale()` directly creates a `GitHubServiceFactory` and calls `gitHub.getPRUpdatedAt()`. Per the architecture, App-layer models should work through Feature-layer use cases.
 
@@ -185,7 +183,7 @@ private func isStale() async -> Bool {
 }
 ```
 
-Remove the TODOs at `PRModel.swift:273-281` and `PostSingleCommentUseCase.swift:8-10`.
+Remove the TODO at `PRModel.swift:273-281`.
 
 ## - [ ] Phase 5: Rewrite `CredentialResolver` with layered architecture
 
