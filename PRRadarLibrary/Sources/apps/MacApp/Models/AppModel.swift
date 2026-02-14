@@ -14,12 +14,12 @@ public final class AppModel {
     public init(agentScriptPath: String, settingsModel: SettingsModel) {
         self.agentScriptPath = agentScriptPath
         self.settingsModel = settingsModel
+        Task { await observeSettingsModel() }
+    }
 
-        Task { [weak self] in
-            guard self != nil else { return }
-            for await _ in settingsModel.observeChanges() {
-                // React to settings changes if needed (e.g., active config was removed)
-            }
+    private func observeSettingsModel() async {
+        for await _ in settingsModel.observeChanges() {
+            // React to settings changes if needed (e.g., active config was removed)
         }
     }
 
