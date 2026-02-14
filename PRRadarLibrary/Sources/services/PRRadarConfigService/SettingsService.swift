@@ -1,7 +1,12 @@
 import Foundation
+import KeychainSDK
 
 public final class SettingsService: Sendable {
+    private static let gitHubTokenType = "github-token"
+    private static let anthropicKeyType = "anthropic-api-key"
+
     private let settingsURL: URL
+    private let keychain: KeychainStoring
 
     public init() {
         let appSupport = FileManager.default.urls(
@@ -9,10 +14,12 @@ public final class SettingsService: Sendable {
             in: .userDomainMask
         ).first!.appendingPathComponent("PRRadar")
         self.settingsURL = appSupport.appendingPathComponent("settings.json")
+        self.keychain = ValetKeychainStore(identifier: "com.gestrich.PRRadar")
     }
 
-    public init(settingsURL: URL) {
+    public init(settingsURL: URL, keychain: KeychainStoring? = nil) {
         self.settingsURL = settingsURL
+        self.keychain = keychain ?? ValetKeychainStore(identifier: "com.gestrich.PRRadar")
     }
 
     public func load() -> AppSettings {
@@ -62,5 +69,49 @@ public final class SettingsService: Sendable {
         for i in settings.configurations.indices {
             settings.configurations[i].isDefault = (settings.configurations[i].id == id)
         }
+    }
+
+    // MARK: - Credentials (Keychain)
+
+    public func saveGitHubToken(_ token: String, account: String) throws {
+        try keychain.setString(token, forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+    }
+
+    public func loadGitHubToken(account: String) throws -> String {
+        try keychain.string(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+    }
+
+    public func removeGitHubToken(account: String) throws {
+        try keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+    }
+
+    public func saveAnthropicKey(_ apiKey: String, account: String) throws {
+        try keychain.setString(apiKey, forKey: credentialKey(account: account, type: Self.anthropicKeyType))
+    }
+
+    public func loadAnthropicKey(account: String) throws -> String {
+        try keychain.string(forKey: credentialKey(account: account, type: Self.anthropicKeyType))
+    }
+
+    public func removeAnthropicKey(account: String) throws {
+        try keychain.removeObject(forKey: credentialKey(account: account, type: Self.anthropicKeyType))
+    }
+
+    public func removeCredentials(account: String) throws {
+        try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+        try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.anthropicKeyType))
+    }
+
+    public func listCredentialAccounts() throws -> [String] {
+        let keys = try keychain.allKeys()
+        let accounts = Set(keys.compactMap { key -> String? in
+            guard let slashIndex = key.firstIndex(of: "/") else { return nil }
+            return String(key[key.startIndex..<slashIndex])
+        })
+        return accounts.sorted()
+    }
+
+    private func credentialKey(account: String, type: String) -> String {
+        "\(account)/\(type)"
     }
 }

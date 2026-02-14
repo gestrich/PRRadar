@@ -23,6 +23,7 @@ let package = Package(
         .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
         .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.4.1"),
         .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main"),
+        .package(url: "https://github.com/square/Valet.git", from: "5.0.0"),
     ],
     targets: [
         // SDK Layer
@@ -33,6 +34,14 @@ let package = Package(
                 .product(name: "OctoKit", package: "octokit.swift"),
             ],
             path: "Sources/sdks/PRRadarMacSDK"
+        ),
+
+        .target(
+            name: "KeychainSDK",
+            dependencies: [
+                .product(name: "Valet", package: "Valet"),
+            ],
+            path: "Sources/sdks/KeychainSDK"
         ),
 
         // Services Layer — Domain Models (Foundation-only, no other target deps)
@@ -46,6 +55,7 @@ let package = Package(
             name: "PRRadarConfigService",
             dependencies: [
                 .target(name: "PRRadarModels"),
+                .target(name: "KeychainSDK"),
             ],
             path: "Sources/services/PRRadarConfigService"
         ),
@@ -110,6 +120,7 @@ let package = Package(
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarCLIService"),
                 .target(name: "PRReviewFeature"),
+                .target(name: "KeychainSDK"),
             ],
             path: "Tests/PRRadarModelsTests",
             resources: [
