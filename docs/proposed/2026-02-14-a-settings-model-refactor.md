@@ -127,7 +127,7 @@ Changes to `Sources/apps/MacApp/UI/ContentView.swift`:
 
 **Completed**: SettingsView now reads `SettingsModel` from the environment instead of accepting `AppModel` as a parameter — all CRUD calls and settings reads go through `settingsModel` directly. ContentView adds `@Environment(SettingsModel.self)` for config sidebar and selection restoration, while keeping `selectConfig()` on AppModel. The thin forwarding properties (`settings`, `addConfiguration`, `removeConfiguration`, `updateConfiguration`, `setDefault`) were removed from AppModel. The environment injection was already in place from Phase 3 (`PRRadarApp.swift` injects both `appModel` and `settingsModel`).
 
-## - [ ] Phase 5: CLI Updates
+## - [x] Phase 5: CLI Updates
 
 **Skills to read**: `swift-app-architecture:swift-architecture` (CLI data flow pattern)
 
@@ -142,6 +142,8 @@ Changes to `Sources/apps/MacCLI/PRRadarMacCLI.swift`:
 - Add `ConfigCommand` subcommands to the `subcommands` array if needed
 
 Note: CLI commands construct use cases directly (no SettingsModel needed — per architecture, CLI uses use cases directly since there's no observable state).
+
+**Completed**: `ListCommand` now uses `LoadSettingsUseCase` instead of raw `SettingsService().load()`. Three new subcommands added — `AddCommand` (name, --repo-path, --output-dir, --rules-dir, --github-token, --set-default), `RemoveCommand` (name), `SetDefaultCommand` (name) — all using the corresponding use cases from Phase 1. `resolveConfig()` in `PRRadarMacCLI.swift` also updated to use `LoadSettingsUseCase`. The subcommands array on `ConfigCommand` was updated inline (no changes needed to `PRRadarMacCLI.swift` subcommands since `ConfigCommand` was already registered). All 431 tests pass.
 
 ## - [ ] Phase 6: Validation
 

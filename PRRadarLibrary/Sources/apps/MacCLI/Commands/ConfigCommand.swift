@@ -1,12 +1,13 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
+import PRReviewFeature
 
 struct ConfigCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "config",
         abstract: "Manage saved configurations",
-        subcommands: [ListCommand.self],
+        subcommands: [ListCommand.self, AddCommand.self, RemoveCommand.self, SetDefaultCommand.self],
         defaultSubcommand: ListCommand.self
     )
 
@@ -20,14 +21,15 @@ struct ConfigCommand: AsyncParsableCommand {
         var json: Bool = false
 
         func run() async throws {
-            let settings = SettingsService().load()
+            let useCase = LoadSettingsUseCase(settingsService: SettingsService())
+            let settings = useCase.execute()
 
             if settings.configurations.isEmpty {
                 if json {
                     print("[]")
                 } else {
                     print("No configurations saved.")
-                    print("Use the PRRadar Mac app to create configurations.")
+                    print("Use the PRRadar Mac app or 'config add' to create configurations.")
                 }
                 return
             }
@@ -50,6 +52,104 @@ struct ConfigCommand: AsyncParsableCommand {
                     print("")
                 }
             }
+        }
+    }
+
+    struct AddCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "add",
+            abstract: "Add a new configuration"
+        )
+
+        @Argument(help: "Configuration name")
+        var name: String
+
+        @Option(name: .long, help: "Path to the repository")
+        var repoPath: String
+
+        @Option(name: .long, help: "Output directory for phase results")
+        var outputDir: String = ""
+
+        @Option(name: .long, help: "Rules directory")
+        var rulesDir: String = ""
+
+        @Option(name: .long, help: "GitHub personal access token for this repo")
+        var githubToken: String?
+
+        @Flag(name: .long, help: "Set as default configuration")
+        var setDefault: Bool = false
+
+        func run() async throws {
+            let settingsService = SettingsService()
+            let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
+            let saveUseCase = SaveConfigurationUseCase(settingsService: settingsService)
+
+            let settings = loadUseCase.execute()
+
+            let config = RepoConfiguration(
+                name: name,
+                repoPath: repoPath,
+                outputDir: outputDir,
+                rulesDir: rulesDir,
+                isDefault: setDefault,
+                githubToken: githubToken
+            )
+
+            let updated = try saveUseCase.execute(config: config, settings: settings, isNew: true)
+
+            let isDefault = updated.configurations.first(where: { $0.name == name })?.isDefault ?? false
+            let defaultNote = isDefault ? " (default)" : ""
+            print("Configuration '\(name)' added\(defaultNote).")
+        }
+    }
+
+    struct RemoveCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "remove",
+            abstract: "Remove a configuration"
+        )
+
+        @Argument(help: "Configuration name to remove")
+        var name: String
+
+        func run() async throws {
+            let settingsService = SettingsService()
+            let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
+            let removeUseCase = RemoveConfigurationUseCase(settingsService: settingsService)
+
+            let settings = loadUseCase.execute()
+
+            guard let config = settings.configurations.first(where: { $0.name == name }) else {
+                throw ValidationError("Configuration '\(name)' not found.")
+            }
+
+            _ = try removeUseCase.execute(id: config.id, settings: settings)
+            print("Configuration '\(name)' removed.")
+        }
+    }
+
+    struct SetDefaultCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "set-default",
+            abstract: "Set a configuration as the default"
+        )
+
+        @Argument(help: "Configuration name to set as default")
+        var name: String
+
+        func run() async throws {
+            let settingsService = SettingsService()
+            let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
+            let setDefaultUseCase = SetDefaultConfigurationUseCase(settingsService: settingsService)
+
+            let settings = loadUseCase.execute()
+
+            guard let config = settings.configurations.first(where: { $0.name == name }) else {
+                throw ValidationError("Configuration '\(name)' not found.")
+            }
+
+            _ = try setDefaultUseCase.execute(id: config.id, settings: settings)
+            print("Configuration '\(name)' set as default.")
         }
     }
 }

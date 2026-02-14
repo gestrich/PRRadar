@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import PRRadarConfigService
 import PRRadarModels
+import PRReviewFeature
 
 @main
 struct PRRadarMacCLI: AsyncParsableCommand {
@@ -91,7 +92,7 @@ func resolveConfig(
     var rulesDir: String? = nil
     var configToken: String? = nil
 
-    let settings = SettingsService().load()
+    let settings = LoadSettingsUseCase(settingsService: SettingsService()).execute()
     
     // If no config name specified, use the default config if one exists
     let targetConfigName = configName ?? settings.configurations.first(where: { $0.isDefault })?.name
