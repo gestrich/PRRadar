@@ -1,6 +1,5 @@
 import CLISDK
 import Foundation
-import PRRadarMacSDK
 
 public enum GitOperationsError: LocalizedError {
     case dirtyWorkingDirectory(String)

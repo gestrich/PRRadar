@@ -1,4 +1,5 @@
 import Foundation
+import GitSDK
 import PRRadarModels
 
 public enum RuleLoaderError: LocalizedError {

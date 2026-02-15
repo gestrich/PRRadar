@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import PRRadarCLIService
+@testable import ClaudeSDK
 
 @Suite("ClaudeAgentMessage JSON-Line Parsing")
 struct ClaudeAgentMessageTests {

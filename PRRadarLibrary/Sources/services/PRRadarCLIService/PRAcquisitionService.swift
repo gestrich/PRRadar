@@ -1,4 +1,6 @@
 import Foundation
+import GitHubSDK
+import GitSDK
 import PRRadarConfigService
 import PRRadarModels
 

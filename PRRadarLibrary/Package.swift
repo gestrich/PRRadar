@@ -27,12 +27,28 @@ let package = Package(
     targets: [
         // SDK Layer
         .target(
-            name: "PRRadarMacSDK",
+            name: "ClaudeSDK",
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                .target(name: "EnvironmentSDK"),
+            ],
+            path: "Sources/sdks/ClaudeSDK"
+        ),
+
+        .target(
+            name: "GitSDK",
+            dependencies: [
+                .product(name: "CLISDK", package: "SwiftCLI"),
+            ],
+            path: "Sources/sdks/GitSDK"
+        ),
+
+        .target(
+            name: "GitHubSDK",
+            dependencies: [
                 .product(name: "OctoKit", package: "octokit.swift"),
             ],
-            path: "Sources/sdks/PRRadarMacSDK"
+            path: "Sources/sdks/GitHubSDK"
         ),
 
         .target(
@@ -66,7 +82,9 @@ let package = Package(
         .target(
             name: "PRRadarCLIService",
             dependencies: [
-                .target(name: "PRRadarMacSDK"),
+                .target(name: "ClaudeSDK"),
+                .target(name: "GitSDK"),
+                .target(name: "GitHubSDK"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
                 .target(name: "EnvironmentSDK"),
@@ -119,6 +137,7 @@ let package = Package(
         .testTarget(
             name: "PRRadarModelsTests",
             dependencies: [
+                .target(name: "ClaudeSDK"),
                 .target(name: "PRRadarModels"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarCLIService"),

@@ -1,7 +1,8 @@
 import CLISDK
 import Foundation
+import GitHubSDK
+import GitSDK
 import PRRadarConfigService
-import PRRadarMacSDK
 
 public enum GitHubServiceError: Error, LocalizedError {
     case missingToken

@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import GitSDK
 import PRRadarConfigService
 import PRRadarModels
 

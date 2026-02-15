@@ -1,4 +1,5 @@
 import CLISDK
+import ClaudeSDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService

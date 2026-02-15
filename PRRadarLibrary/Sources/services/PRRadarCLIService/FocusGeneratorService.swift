@@ -1,4 +1,5 @@
 import Foundation
+import ClaudeSDK
 import PRRadarModels
 
 // MARK: - Result Model
