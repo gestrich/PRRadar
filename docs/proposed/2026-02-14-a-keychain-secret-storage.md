@@ -167,7 +167,10 @@ The repo config editor already has a `githubAccount` text field (added in earlie
 - List existing credential accounts (from `SettingsService.listCredentialAccounts()`) so users can pick from known accounts or create new ones
 - Show masked token status (e.g., "GitHub token: stored" / "not set") for each account — do NOT display raw tokens
 
-## - [ ] Phase 5: Add CLI Commands for Credential Management
+## - [x] Phase 5: Add CLI Commands for Credential Management
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Thin command layer — each subcommand orchestrates via SettingsService/use cases; CredentialsCommand nested under ConfigCommand following existing subcommand pattern; validation at command boundary (account existence checks, empty token guards)
 
 **Skills to read**: `swift-app-architecture:swift-architecture`, `python-architecture:cli-architecture`
 
@@ -188,7 +191,10 @@ Add a `credentials` subcommand group under `config` for managing credential acco
 - Commands should confirm success/failure to stdout
 - Accept tokens via stdin (for piping) to avoid tokens appearing in shell history: `echo "ghp_xxx" | swift run PRRadarMacCLI config credentials add work --github-token-stdin`
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: All automated checks pass — `swift build` (no warnings), `swift test` (481 tests in 53 suites), `swift build -c release` (success)
 
 **Skills to read**: `swift-testing`
 

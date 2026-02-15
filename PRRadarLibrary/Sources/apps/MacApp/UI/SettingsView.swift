@@ -1,7 +1,7 @@
 import PRRadarConfigService
 import SwiftUI
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @Environment(SettingsModel.self) private var settingsModel
     @Environment(\.dismiss) private var dismiss
     let selectedConfiguration: RepositoryConfiguration?
@@ -10,7 +10,11 @@ struct SettingsView: View {
     @State private var currentError: Error?
     @State private var showCredentials = false
 
-    var body: some View {
+    public init(selectedConfiguration: RepositoryConfiguration? = nil) {
+        self.selectedConfiguration = selectedConfiguration
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("Repo Configurations")

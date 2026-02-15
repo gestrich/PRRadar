@@ -24,5 +24,10 @@ struct PRRadarApp: App {
                 .environment(settingsModel)
         }
         .defaultSize(width: 1200, height: 750)
+
+        Settings {
+            SettingsView(selectedConfiguration: nil)
+                .environment(settingsModel)
+        }
     }
 }
