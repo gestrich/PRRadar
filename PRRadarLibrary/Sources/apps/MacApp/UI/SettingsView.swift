@@ -185,11 +185,11 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Output Dir", text: $config.outputDir, placeholder: "~/Desktop/code-reviews")
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
-            LabeledContent("Credential Account") {
+            LabeledContent("GitHub Account") {
                 TextField("e.g. work, personal", text: $githubAccountText)
                     .textFieldStyle(.roundedBorder)
             }
-            Text("Optional. References a Keychain-stored credential account. Falls back to GITHUB_TOKEN environment variable.")
+            Text("Optional. Selects which Keychain-stored GitHub token to use. Falls back to GITHUB_TOKEN environment variable.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

@@ -317,7 +317,9 @@ Rename the field across the codebase to clarify its purpose. This is a pure rena
 
 Keep JSON backwards compatibility: add a `CodingKeys` enum to `RepositoryConfigurationJSON` that maps `githubAccount` to the `"credentialAccount"` JSON key, so existing settings files still load. (Or just rename the JSON key and accept the one-time migration — Bill's call.)
 
-## - [ ] Phase 8: Update UI and CLI labels
+## - [x] Phase 8: Update UI and CLI labels
+
+**Principles applied**: Labels now reflect the actual purpose (GitHub-specific account selection); help text clarifies the token lookup scope
 
 - `SettingsView`: Rename "Credential Account" label to "GitHub Account". Update help text to explain this only affects GitHub token lookup.
 - `ConfigCommand.AddCommand`: Rename `--credential-account` to `--github-account`. Keep `--credential-account` as a hidden alias for backwards compatibility (or not — Bill's call).

@@ -19,7 +19,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
             lines.append("  rules:  \(rulesDir)")
         }
         if let githubAccount {
-            lines.append("  credentials: \(githubAccount)")
+            lines.append("  github account: \(githubAccount)")
         }
         return lines.joined(separator: "\n")
     }
