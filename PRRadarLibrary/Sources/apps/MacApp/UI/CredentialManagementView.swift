@@ -195,7 +195,7 @@ private struct AccountDetailView: View {
             }
 
             Section {
-                Button("Edit Credentials...") {
+                Button("Edit") {
                     onEdit()
                 }
             }
