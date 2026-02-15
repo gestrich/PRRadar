@@ -14,37 +14,25 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            TabView {
-                Tab("Repositories", systemImage: "folder") {
-                    RepositoriesTabContent(
-                        settingsModel: settingsModel,
-                        selectedConfiguration: selectedConfiguration,
-                        editingConfig: $editingConfig,
-                        isAddingNew: $isAddingNew,
-                        currentError: $currentError
-                    )
-                }
-                .accessibilityIdentifier("repositoriesTab")
-
-                Tab("Credentials", systemImage: "key") {
-                    CredentialManagementView()
-                }
-                .accessibilityIdentifier("credentialsTab")
+        TabView {
+            Tab("Repositories", systemImage: "folder") {
+                RepositoriesTabContent(
+                    settingsModel: settingsModel,
+                    selectedConfiguration: selectedConfiguration,
+                    editingConfig: $editingConfig,
+                    isAddingNew: $isAddingNew,
+                    currentError: $currentError
+                )
             }
-            .tabViewStyle(.tabBarOnly)
+            .accessibilityIdentifier("repositoriesTab")
 
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Done") { dismiss() }
-                    .accessibilityIdentifier("settingsDoneButton")
-                    .keyboardShortcut(.defaultAction)
+            Tab("Credentials", systemImage: "key") {
+                CredentialManagementView()
             }
-            .padding()
+            .accessibilityIdentifier("credentialsTab")
         }
-        .frame(width: 650, height: 450)
+        .tabViewStyle(.tabBarOnly)
+        .frame(width: 700, height: 500)
         .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
             Button("OK") { currentError = nil }
         } message: { error in
@@ -88,111 +76,178 @@ private struct RepositoriesTabContent: View {
     @Binding var editingConfig: RepositoryConfigurationJSON?
     @Binding var isAddingNew: Bool
     @Binding var currentError: Error?
+    @State private var selectedConfigId: UUID?
 
     var body: some View {
-        VStack(spacing: 0) {
-            if settingsModel.settings.configurations.isEmpty {
-                ContentUnavailableView(
-                    "No Configurations",
-                    systemImage: "folder.badge.questionmark",
-                    description: Text("Add a repo configuration to get started.")
-                )
-                .frame(maxHeight: .infinity)
-            } else {
-                List {
-                    ForEach(settingsModel.settings.configurations) { config in
-                        ConfigurationRow(
-                            config: config,
-                            isSelected: config.id == selectedConfiguration?.id,
-                            onEdit: { editingConfig = config },
-                            onSetDefault: {
-                                do {
-                                    try settingsModel.setDefault(id: config.id)
-                                } catch {
-                                    currentError = error
-                                }
-                            },
-                            onDelete: {
-                                do {
-                                    try settingsModel.removeConfiguration(id: config.id)
-                                } catch {
-                                    currentError = error
+        HSplitView {
+            // Left pane - configuration list
+            VStack(spacing: 0) {
+                if settingsModel.settings.configurations.isEmpty {
+                    ContentUnavailableView(
+                        "No Configurations",
+                        systemImage: "folder.badge.questionmark",
+                        description: Text("Click + to add a repo configuration.")
+                    )
+                } else {
+                    List(selection: $selectedConfigId) {
+                        ForEach(settingsModel.settings.configurations) { config in
+                            HStack {
+                                Text(config.name)
+                                if config.isDefault {
+                                    Image(systemName: "star.fill")
+                                        .foregroundStyle(.yellow)
+                                        .font(.caption)
                                 }
                             }
-                        )
-                    }
-                }
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            isAddingNew = true
-                            editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
-                        } label: {
-                            Image(systemName: "plus")
+                            .tag(config.id)
                         }
-                        .accessibilityIdentifier("addConfigButton")
+                    }
+                    .onChange(of: selectedConfigId) { _, newValue in
+                        if newValue == nil, let firstConfig = settingsModel.settings.configurations.first {
+                            selectedConfigId = firstConfig.id
+                        }
                     }
                 }
+
+                Divider()
+
+                HStack(spacing: 8) {
+                    Button {
+                        isAddingNew = true
+                        editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityIdentifier("addConfigButton")
+                    .buttonStyle(.borderless)
+
+                    Button {
+                        if let configId = selectedConfigId {
+                            do {
+                                try settingsModel.removeConfiguration(id: configId)
+                                selectedConfigId = nil
+                            } catch {
+                                currentError = error
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .accessibilityIdentifier("deleteConfigButton")
+                    .buttonStyle(.borderless)
+                    .disabled(selectedConfigId == nil)
+
+                    Spacer()
+                }
+                .padding(8)
+            }
+            .frame(minWidth: 180, idealWidth: 200, maxWidth: 250)
+
+            // Right pane - configuration details
+            Group {
+                if let selectedConfigId,
+                   let config = settingsModel.settings.configurations.first(where: { $0.id == selectedConfigId }) {
+                    ConfigurationDetailView(
+                        config: config,
+                        onEdit: { editingConfig = config },
+                        onSetDefault: {
+                            do {
+                                try settingsModel.setDefault(id: config.id)
+                            } catch {
+                                currentError = error
+                            }
+                        }
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "Select a Configuration",
+                        systemImage: "folder",
+                        description: Text("Choose a repo configuration from the list.")
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            if selectedConfigId == nil, let firstConfig = settingsModel.settings.configurations.first {
+                selectedConfigId = firstConfig.id
             }
         }
     }
 }
 
-private struct ConfigurationRow: View {
+// MARK: - Configuration Detail View
+
+private struct ConfigurationDetailView: View {
     let config: RepositoryConfigurationJSON
-    let isSelected: Bool
     let onEdit: () -> Void
     let onSetDefault: () -> Void
-    let onDelete: () -> Void
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(config.name)
-                        .font(.headline)
-                    if config.isDefault {
-                        Text("Default")
-                            .font(.caption2)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.blue.opacity(0.15))
-                            .foregroundStyle(.blue)
-                            .clipShape(Capsule())
+        Form {
+            Section {
+                LabeledContent("Name") {
+                    HStack {
+                        Text(config.name)
+                            .foregroundStyle(.secondary)
+                        if config.isDefault {
+                            Image(systemName: "star.fill")
+                                .foregroundStyle(.yellow)
+                                .font(.caption)
+                        }
                     }
                 }
-                Text(config.repoPath)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
 
-            Spacer()
-
-            Button(action: onEdit) {
-                Image(systemName: "pencil")
-            }
-            .accessibilityIdentifier("editConfig_\(config.name)")
-            .buttonStyle(.borderless)
-
-            if !config.isDefault {
-                Button(action: onSetDefault) {
-                    Image(systemName: "star")
+                LabeledContent("Repo Path") {
+                    Text(config.repoPath)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-                .accessibilityIdentifier("setDefaultConfig_\(config.name)")
-                .buttonStyle(.borderless)
-                .help("Set as default")
+
+                if !config.outputDir.isEmpty {
+                    LabeledContent("Output Dir") {
+                        Text(config.outputDir)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                if !config.rulesDir.isEmpty {
+                    LabeledContent("Rules Dir") {
+                        Text(config.rulesDir)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                if let account = config.githubAccount {
+                    LabeledContent("Credential Account") {
+                        Text(account)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
-            Button(action: onDelete) {
-                Image(systemName: "trash")
+            Section {
+                Button("Edit Configuration...") {
+                    onEdit()
+                }
+                .accessibilityIdentifier("editConfig_\(config.name)")
+
+                if !config.isDefault {
+                    Button("Set as Default") {
+                        onSetDefault()
+                    }
+                    .accessibilityIdentifier("setDefaultConfig_\(config.name)")
+                }
             }
-            .accessibilityIdentifier("deleteConfig_\(config.name)")
-            .buttonStyle(.borderless)
-            .foregroundStyle(.red)
         }
-        .accessibilityIdentifier("configRow_\(config.name)")
-        .padding(.vertical, 4)
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
