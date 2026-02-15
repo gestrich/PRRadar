@@ -16,7 +16,11 @@ struct SettingsModelTests {
             loadSettingsUseCase: LoadSettingsUseCase(settingsService: service),
             saveConfigurationUseCase: SaveConfigurationUseCase(settingsService: service),
             removeConfigurationUseCase: RemoveConfigurationUseCase(settingsService: service),
-            setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase(settingsService: service)
+            setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase(settingsService: service),
+            listCredentialAccountsUseCase: ListCredentialAccountsUseCase(settingsService: service),
+            saveCredentialsUseCase: SaveCredentialsUseCase(settingsService: service),
+            removeCredentialsUseCase: RemoveCredentialsUseCase(settingsService: service),
+            loadCredentialStatusUseCase: LoadCredentialStatusUseCase(settingsService: service)
         )
     }
 

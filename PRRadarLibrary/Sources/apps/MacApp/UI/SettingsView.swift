@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var editingConfig: RepositoryConfigurationJSON?
     @State private var isAddingNew = false
     @State private var currentError: Error?
+    @State private var showCredentials = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,6 +63,10 @@ struct SettingsView: View {
             Divider()
 
             HStack {
+                Button("Manage Credentials...") {
+                    showCredentials = true
+                }
+                .accessibilityIdentifier("manageCredentialsButton")
                 Spacer()
                 Button("Done") { dismiss() }
                     .accessibilityIdentifier("settingsDoneButton")
@@ -70,6 +75,12 @@ struct SettingsView: View {
             .padding()
         }
         .frame(width: 550, height: 400)
+        .onAppear {
+            settingsModel.refreshCredentialAccounts()
+        }
+        .sheet(isPresented: $showCredentials) {
+            CredentialManagementView()
+        }
         .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
             Button("OK") { currentError = nil }
         } message: { error in
@@ -78,7 +89,8 @@ struct SettingsView: View {
         .sheet(item: $editingConfig) { config in
             ConfigurationEditSheet(
                 config: config,
-                isNew: isAddingNew
+                isNew: isAddingNew,
+                knownAccounts: settingsModel.credentialAccounts.map(\.account)
             ) { updatedConfig in
                 do {
                     if isAddingNew {
@@ -166,6 +178,7 @@ private struct ConfigurationEditSheet: View {
     @State var config: RepositoryConfigurationJSON
     @State private var githubAccountText: String = ""
     let isNew: Bool
+    let knownAccounts: [String]
     let onSave: (RepositoryConfigurationJSON) -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -185,11 +198,26 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Output Dir", text: $config.outputDir, placeholder: "~/Desktop/code-reviews")
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
-            LabeledContent("GitHub Account") {
-                TextField("e.g. work, personal", text: $githubAccountText)
-                    .textFieldStyle(.roundedBorder)
+            LabeledContent("Credential Account") {
+                HStack {
+                    TextField("e.g. work, personal", text: $githubAccountText)
+                        .textFieldStyle(.roundedBorder)
+                    if !knownAccounts.isEmpty {
+                        Menu {
+                            Button("None") { githubAccountText = "" }
+                            Divider()
+                            ForEach(knownAccounts, id: \.self) { account in
+                                Button(account) { githubAccountText = account }
+                            }
+                        } label: {
+                            Image(systemName: "chevron.down.circle")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                    }
+                }
             }
-            Text("Optional. Selects which Keychain-stored GitHub token to use. Falls back to GITHUB_TOKEN environment variable.")
+            Text("Optional. Selects which Keychain credential account to use. Falls back to environment variables.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

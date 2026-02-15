@@ -149,7 +149,10 @@ Create a centralized token resolution path that both CLI and MacApp use.
 - Update the error message in `GitHubServiceError.missingToken` to mention Keychain as a source
 - Update all use cases that call `GitHubServiceFactory.create()` to pass the credential account
 
-## - [ ] Phase 4: Add Credential Management UI to MacApp
+## - [x] Phase 4: Add Credential Management UI to MacApp
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: MV pattern with @Observable SettingsModel owning credential state; credential use cases in Features layer following existing SaveConfigurationUseCase pattern; SecureField for token entry; masked status display (stored/not set) without revealing raw tokens
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
