@@ -258,7 +258,7 @@ private struct ConfigurationDetailView: View {
             }
 
             Section {
-                Button("Edit Configuration...") {
+                Button("Edit") {
                     onEdit()
                 }
                 .accessibilityIdentifier("editConfig_\(config.name)")
@@ -301,23 +301,13 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
             LabeledContent("Credential Account") {
-                HStack {
-                    TextField("e.g. work, personal", text: $githubAccountText)
-                        .textFieldStyle(.roundedBorder)
-                    if !knownAccounts.isEmpty {
-                        Menu {
-                            Button("None") { githubAccountText = "" }
-                            Divider()
-                            ForEach(knownAccounts, id: \.self) { account in
-                                Button(account) { githubAccountText = account }
-                            }
-                        } label: {
-                            Image(systemName: "chevron.down.circle")
-                        }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
+                Picker("", selection: $githubAccountText) {
+                    Text("None").tag("")
+                    ForEach(knownAccounts, id: \.self) { account in
+                        Text(account).tag(account)
                     }
                 }
+                .labelsHidden()
             }
             Text("Optional. Selects which Keychain credential account to use. Falls back to environment variables.")
                 .font(.caption)
