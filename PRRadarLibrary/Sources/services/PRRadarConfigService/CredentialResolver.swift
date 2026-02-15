@@ -1,6 +1,13 @@
+import EnvironmentSDK
 import Foundation
 
 public struct CredentialResolver: Sendable {
+    public static let githubTokenKey = "GITHUB_TOKEN"
+    public static let anthropicAPIKeyKey = "ANTHROPIC_API_KEY"
+    /// Repos with no `credentialAccount` use this as the Keychain lookup key.
+    /// Lets single-credential users skip account configuration entirely.
+    public static let defaultCredentialAccount = "default"
+
     private let processEnvironment: [String: String]
     private let dotEnv: [String: String]
     private let settingsService: SettingsService
@@ -15,14 +22,14 @@ public struct CredentialResolver: Sendable {
         self.settingsService = settingsService
         self.credentialAccount = credentialAccount
         self.processEnvironment = processEnvironment
-        self.dotEnv = dotEnv ?? PRRadarEnvironment.loadDotEnv()
+        self.dotEnv = dotEnv ?? DotEnvironmentLoader.loadDotEnv()
     }
 
     public func getGitHubToken() -> String? {
-        let envKey = PRRadarEnvironment.githubTokenKey
+        let envKey = Self.githubTokenKey
         let keychainType = SettingsService.gitHubTokenType
         let account = (credentialAccount?.isEmpty ?? true)
-            ? PRRadarEnvironment.defaultCredentialAccount
+            ? Self.defaultCredentialAccount
             : credentialAccount!
 
         if let v = processEnvironment[envKey] { return v }
@@ -31,13 +38,13 @@ public struct CredentialResolver: Sendable {
     }
 
     public func getAnthropicKey() -> String? {
-        let envKey = PRRadarEnvironment.anthropicAPIKeyKey
+        let envKey = Self.anthropicAPIKeyKey
         let keychainType = SettingsService.anthropicKeyType
 
         if let v = processEnvironment[envKey] { return v }
         if let v = dotEnv[envKey] { return v }
         return try? settingsService.loadCredential(
-            account: PRRadarEnvironment.defaultCredentialAccount,
+            account: Self.defaultCredentialAccount,
             type: keychainType
         )
     }

@@ -293,38 +293,14 @@ Key properties:
 
 Update `GitHubServiceFactory` to use `getGitHubToken()` (was `resolveGitHubToken()`).
 
-## - [ ] Phase 6: Update `PRRadarEnvironment.build()` to use `CredentialResolver`
+## - [x] Phase 6: Update `PRRadarEnvironment.build()` to use `CredentialResolver`
 
-Replace the manual `loadKeychainSecrets` logic with a call to `CredentialResolver`. Since `build()` produces a subprocess environment, it passes its partially-built env as the `processEnvironment` (so credentials from .env and keychain get injected into the subprocess dict).
+**Principles applied**: Subprocess env construction belongs in `ClaudeAgentEnvironment` (its only consumer); credential constants belong on `CredentialResolver` (the credential authority); pure `.env` loading extracted to `EnvironmentSDK` (SDK layer, Foundation-only)
 
-```swift
-public static func build(credentialAccount: String? = nil) -> [String: String] {
-    var env = ProcessInfo.processInfo.environment
-    // ... HOME, PATH setup ...
-
-    let dotEnv = loadDotEnv()
-    for (key, value) in dotEnv where env[key] == nil {
-        env[key] = value
-    }
-
-    let resolver = CredentialResolver(
-        settingsService: SettingsService(),
-        credentialAccount: credentialAccount,
-        processEnvironment: env,
-        dotEnv: [:]  // already merged into env
-    )
-    if env[githubTokenKey] == nil, let token = resolver.getGitHubToken() {
-        env[githubTokenKey] = token
-    }
-    if env[anthropicAPIKeyKey] == nil, let key = resolver.getAnthropicKey() {
-        env[anthropicAPIKeyKey] = key
-    }
-
-    return env
-}
-```
-
-Remove `loadKeychainSecrets` — its logic now lives in `CredentialResolver`.
+Removed `PRRadarEnvironment` entirely:
+- `build()` and `loadKeychainSecrets` merged into `ClaudeAgentEnvironment.build()` using `CredentialResolver`
+- `githubTokenKey`, `anthropicAPIKeyKey`, `defaultCredentialAccount` moved to `CredentialResolver`
+- `loadDotEnv()` moved to new `EnvironmentSDK` target as `DotEnvironmentLoader`
 
 ## - [ ] Phase 7: Rename `credentialAccount` to `githubAccount`
 

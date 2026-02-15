@@ -1,32 +1,7 @@
 import CLISDK
+import EnvironmentSDK
 import Foundation
 import PRRadarConfigService
-
-public enum ClaudeAgentError: LocalizedError {
-    case scriptNotFound(String)
-    case pythonNotFound
-    case invalidInput(String)
-    case agentFailed(String)
-    case noResult
-    case missingAPIKey
-
-    public var errorDescription: String? {
-        switch self {
-        case .scriptNotFound(let path):
-            return "Claude Agent script not found at \(path)"
-        case .pythonNotFound:
-            return "Python interpreter not found in Claude Agent venv"
-        case .invalidInput(let detail):
-            return "Invalid Claude Agent input: \(detail)"
-        case .agentFailed(let detail):
-            return "Claude Agent failed: \(detail)"
-        case .noResult:
-            return "Claude Agent returned no result"
-        case .missingAPIKey:
-            return "ANTHROPIC_API_KEY not found in environment, .env, or Keychain"
-        }
-    }
-}
 
 /// The resolved environment needed to run the Claude Agent subprocess.
 ///
@@ -36,22 +11,50 @@ public struct ClaudeAgentEnvironment: Sendable {
     public let anthropicAPIKey: String
     let subprocessEnvironment: [String: String]
 
-    public init(anthropicAPIKey: String, baseEnvironment: [String: String] = ProcessInfo.processInfo.environment) {
-        self.anthropicAPIKey = anthropicAPIKey
-        var env = baseEnvironment
-        env[PRRadarEnvironment.anthropicAPIKeyKey] = anthropicAPIKey
-        self.subprocessEnvironment = env
-    }
+    public static func build(credentialAccount: String? = nil) throws -> ClaudeAgentEnvironment {
+        var env = ProcessInfo.processInfo.environment
+        if env["HOME"] == nil {
+            env["HOME"] = NSHomeDirectory()
+        }
+        let currentPath = env["PATH"] ?? ""
+        let extraPaths = [
+            "/opt/homebrew/bin",
+            "/opt/homebrew/sbin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+        ]
+        env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
 
-    public init(resolvedEnvironment env: [String: String]) throws {
-        guard let apiKey = env[PRRadarEnvironment.anthropicAPIKeyKey] else {
+        let dotEnv = DotEnvironmentLoader.loadDotEnv()
+        for (key, value) in dotEnv where env[key] == nil {
+            env[key] = value
+        }
+
+        let resolver = CredentialResolver(
+            settingsService: SettingsService(),
+            credentialAccount: credentialAccount,
+            processEnvironment: env,
+            dotEnv: [:]
+        )
+        if env[CredentialResolver.githubTokenKey] == nil, let token = resolver.getGitHubToken() {
+            env[CredentialResolver.githubTokenKey] = token
+        }
+        if env[CredentialResolver.anthropicAPIKeyKey] == nil, let key = resolver.getAnthropicKey() {
+            env[CredentialResolver.anthropicAPIKeyKey] = key
+        }
+
+        guard let apiKey = env[CredentialResolver.anthropicAPIKeyKey] else {
             throw ClaudeAgentError.missingAPIKey
         }
-        self.init(anthropicAPIKey: apiKey, baseEnvironment: env)
+        return ClaudeAgentEnvironment(anthropicAPIKey: apiKey, subprocessEnvironment: env)
     }
 
-    public static func build(credentialAccount: String? = nil) throws -> ClaudeAgentEnvironment {
-        try ClaudeAgentEnvironment(resolvedEnvironment: PRRadarEnvironment.build(credentialAccount: credentialAccount))
+    init(anthropicAPIKey: String, subprocessEnvironment: [String: String]) {
+        self.anthropicAPIKey = anthropicAPIKey
+        self.subprocessEnvironment = subprocessEnvironment
     }
 }
 
@@ -228,6 +231,32 @@ public struct ClaudeAgentClient: Sendable {
                     continuation.finish(throwing: error)
                 }
             }
+        }
+    }
+}
+
+public enum ClaudeAgentError: LocalizedError {
+    case scriptNotFound(String)
+    case pythonNotFound
+    case invalidInput(String)
+    case agentFailed(String)
+    case noResult
+    case missingAPIKey
+
+    public var errorDescription: String? {
+        switch self {
+        case .scriptNotFound(let path):
+            return "Claude Agent script not found at \(path)"
+        case .pythonNotFound:
+            return "Python interpreter not found in Claude Agent venv"
+        case .invalidInput(let detail):
+            return "Invalid Claude Agent input: \(detail)"
+        case .agentFailed(let detail):
+            return "Claude Agent failed: \(detail)"
+        case .noResult:
+            return "Claude Agent returned no result"
+        case .missingAPIKey:
+            return "ANTHROPIC_API_KEY not found in environment, .env, or Keychain"
         }
     }
 }

@@ -44,6 +44,11 @@ let package = Package(
             path: "Sources/sdks/KeychainSDK"
         ),
 
+        .target(
+            name: "EnvironmentSDK",
+            path: "Sources/sdks/EnvironmentSDK"
+        ),
+
         // Services Layer — Domain Models (Foundation-only, no other target deps)
         .target(
             name: "PRRadarModels",
@@ -56,6 +61,7 @@ let package = Package(
             dependencies: [
                 .target(name: "PRRadarModels"),
                 .target(name: "KeychainSDK"),
+                .target(name: "EnvironmentSDK"),
             ],
             path: "Sources/services/PRRadarConfigService"
         ),
@@ -67,6 +73,7 @@ let package = Package(
                 .target(name: "PRRadarMacSDK"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarModels"),
+                .target(name: "EnvironmentSDK"),
                 .product(name: "CLISDK", package: "SwiftCLI"),
                 .product(name: "OctoKit", package: "octokit.swift"),
             ],
