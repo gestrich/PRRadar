@@ -1,12 +1,6 @@
 import Foundation
 import PRRadarConfigService
 
-public struct CredentialStatus: Sendable {
-    public let account: String
-    public let hasGitHubToken: Bool
-    public let hasAnthropicKey: Bool
-}
-
 public struct LoadCredentialStatusUseCase: Sendable {
 
     private let settingsService: SettingsService

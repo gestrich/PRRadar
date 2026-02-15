@@ -64,9 +64,6 @@ struct CredentialManagementView: View {
             .padding()
         }
         .frame(width: 500, height: 350)
-        .onAppear {
-            settingsModel.refreshCredentialAccounts()
-        }
         .alert("Credential Error", isPresented: isErrorPresented, presenting: currentError) { _ in
             Button("OK") { currentError = nil }
         } message: { error in

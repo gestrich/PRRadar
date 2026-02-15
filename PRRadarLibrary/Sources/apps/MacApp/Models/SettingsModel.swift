@@ -46,6 +46,10 @@ public final class SettingsModel {
         self.removeCredentialsUseCase = removeCredentialsUseCase
         self.loadCredentialStatusUseCase = loadCredentialStatusUseCase
         self.settings = loadSettingsUseCase.execute()
+        self.credentialAccounts = Self.loadCredentialAccounts(
+            listUseCase: listCredentialAccountsUseCase,
+            statusUseCase: loadCredentialStatusUseCase
+        )
     }
 
     public convenience init() {
@@ -62,7 +66,7 @@ public final class SettingsModel {
         )
     }
 
-    // MARK: - CRUD
+    // MARK: - Configurations
 
     func addConfiguration(_ config: RepositoryConfigurationJSON) throws {
         settings = try saveConfigurationUseCase.execute(config: config)
@@ -82,22 +86,14 @@ public final class SettingsModel {
 
     // MARK: - Credentials
 
-    func refreshCredentialAccounts() {
-        guard let accounts = try? listCredentialAccountsUseCase.execute() else {
-            credentialAccounts = []
-            return
-        }
-        credentialAccounts = accounts.map { loadCredentialStatusUseCase.execute(account: $0) }
-    }
-
     func saveCredentials(account: String, githubToken: String?, anthropicKey: String?) throws {
-        try saveCredentialsUseCase.execute(account: account, githubToken: githubToken, anthropicKey: anthropicKey)
-        refreshCredentialAccounts()
+        credentialAccounts = try saveCredentialsUseCase.execute(
+            account: account, githubToken: githubToken, anthropicKey: anthropicKey
+        )
     }
 
     func removeCredentials(account: String) throws {
-        try removeCredentialsUseCase.execute(account: account)
-        refreshCredentialAccounts()
+        credentialAccounts = try removeCredentialsUseCase.execute(account: account)
     }
 
     func credentialStatus(for account: String) -> CredentialStatus {
@@ -116,6 +112,16 @@ public final class SettingsModel {
             }
         }
         return stream
+    }
+
+    // MARK: - Private
+
+    private static func loadCredentialAccounts(
+        listUseCase: ListCredentialAccountsUseCase,
+        statusUseCase: LoadCredentialStatusUseCase
+    ) -> [CredentialStatus] {
+        guard let accounts = try? listUseCase.execute() else { return [] }
+        return accounts.map { statusUseCase.execute(account: $0) }
     }
 
 }

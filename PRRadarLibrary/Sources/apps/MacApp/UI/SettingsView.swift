@@ -75,9 +75,6 @@ struct SettingsView: View {
             .padding()
         }
         .frame(width: 550, height: 400)
-        .onAppear {
-            settingsModel.refreshCredentialAccounts()
-        }
         .sheet(isPresented: $showCredentials) {
             CredentialManagementView()
         }
