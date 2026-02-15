@@ -112,7 +112,7 @@ private struct RepositoriesTabContent: View {
 
                 Divider()
 
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Button {
                         isAddingNew = true
                         editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
@@ -120,7 +120,8 @@ private struct RepositoriesTabContent: View {
                         Image(systemName: "plus")
                     }
                     .accessibilityIdentifier("addConfigButton")
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
 
                     Button {
                         if let configId = selectedConfigId {
@@ -130,12 +131,13 @@ private struct RepositoriesTabContent: View {
                         Image(systemName: "minus")
                     }
                     .accessibilityIdentifier("deleteConfigButton")
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .disabled(selectedConfigId == nil)
 
                     Spacer()
                 }
-                .padding(8)
+                .padding(6)
             }
             .frame(minWidth: 180, idealWidth: 200, maxWidth: 250)
 
