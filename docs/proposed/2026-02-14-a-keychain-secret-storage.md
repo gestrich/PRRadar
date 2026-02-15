@@ -149,36 +149,35 @@ Create a centralized token resolution path that both CLI and MacApp use.
 - Update the error message in `GitHubServiceError.missingToken` to mention Keychain as a source
 - Update all use cases that call `GitHubServiceFactory.create()` to pass the credential account
 
-## - [ ] Phase 4: Integrate Keychain into MacApp GUI
+## - [ ] Phase 4: Add Credential Management UI to MacApp
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
-Update the MacApp settings UI to manage credential accounts.
+The repo config editor already has a `githubAccount` text field (added in earlier phases). What's missing is a way to manage the actual tokens stored in the Keychain from the GUI.
 
 **Tasks:**
-- Replace the GitHub token `SecureField` in `SettingsView.swift` with a credential account picker/text field
-- Add a "Manage Credentials" section or sheet where users can:
+- Add a "Manage Credentials" section or sheet (accessible from SettingsView) where users can:
   - Create a new credential account (name + GitHub token + Anthropic key)
-  - Edit an existing credential account's tokens
+  - Edit an existing credential account's tokens (using `SecureField` for token entry)
   - Delete a credential account
-- Tokens are saved to Keychain via `KeychainService`, only the account name is saved in the repo config
-- In `AppModel` / `PRModel`, update token resolution to use `CredentialResolver` with the config's credential account
-- Show which credential account each repo config uses in the settings list
+- Tokens are saved to Keychain via `SettingsService` credential methods, only the account name is saved in the repo config
+- List existing credential accounts (from `SettingsService.listCredentialAccounts()`) so users can pick from known accounts or create new ones
+- Show masked token status (e.g., "GitHub token: stored" / "not set") for each account — do NOT display raw tokens
 
 ## - [ ] Phase 5: Add CLI Commands for Credential Management
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-Add subcommands under `config` for managing credential accounts from the terminal.
+Add a `credentials` subcommand group under `config` for managing credential accounts from the terminal. Note: `config add` already accepts `--github-account <name>`, and `GitHubServiceFactory`'s error message already references `config credentials add`.
 
 **Tasks:**
-- `config credentials add <account>` — prompts for (or reads from stdin) GitHub token and Anthropic key, saves to Keychain
-- `config credentials list` — lists all credential accounts stored in Keychain
-- `config credentials remove <account>` — removes a credential account from Keychain
-- `config credentials show <account>` — shows masked tokens (e.g., `ghp_...abc`) for verification
+- Add `CredentialsCommand` as a new subcommand of `ConfigCommand` with these subcommands:
+  - `config credentials add <account>` — prompts for (or reads from stdin) GitHub token and Anthropic key, saves to Keychain via `SettingsService`
+  - `config credentials list` — lists all credential accounts from `SettingsService.listCredentialAccounts()`
+  - `config credentials remove <account>` — removes a credential account via `SettingsService.removeCredentials(account:)`
+  - `config credentials show <account>` — shows masked tokens (e.g., `ghp_...abc`) for verification
 - Commands should confirm success/failure to stdout
 - Accept tokens via stdin (for piping) to avoid tokens appearing in shell history: `echo "ghp_xxx" | swift run PRRadarMacCLI config credentials add work --github-token-stdin`
-- Update `config add` to accept `--credential-account <name>` instead of `--github-token`
 
 ## - [ ] Phase 6: Validation
 
@@ -192,10 +191,9 @@ Add subcommands under `config` for managing credential accounts from the termina
 **Manual verification:**
 - `swift run PRRadarMacCLI config credentials add work` — saves tokens to Keychain
 - `swift run PRRadarMacCLI config credentials list` — shows stored accounts
-- `swift run PRRadarMacCLI config add my-repo --repo-path /path --credential-account work` — creates config referencing account
-- `swift run PRRadarMacCLI diff 1 --config my-repo` — resolves token from Keychain via credential account
+- `swift run PRRadarMacCLI config add my-repo --repo-path /path --github-account work` — creates config referencing account
+- `swift run PRRadarMacCLI diff 1 --config my-repo` — resolves token from Keychain via github account
 - Verify env var override still works: `GITHUB_TOKEN=xxx swift run PRRadarMacCLI diff 1 --config my-repo`
 - Verify `.env` file still works
-- Open MacApp, confirm settings UI manages credential accounts and repos reference them
-- Verify old `settings.json` with `githubToken` field migrates to Keychain on load
-- Verify `settings.json` no longer contains raw tokens after migration
+- Open MacApp, confirm credential management UI can add/view/remove credential accounts
+- Confirm repo config editor shows `githubAccount` field and links to stored credentials
