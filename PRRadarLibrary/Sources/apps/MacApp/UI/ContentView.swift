@@ -125,9 +125,7 @@ public struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            if let model = allPRs {
-                SettingsView(model: model)
-            }
+            SettingsView(selectedConfiguration: allPRs?.config)
         }
         .sheet(isPresented: $showAnalyzeAllProgress) {
             if let model = allPRs {

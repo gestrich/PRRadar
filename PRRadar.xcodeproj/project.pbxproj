@@ -24,6 +24,7 @@
 /* Begin PBXFileReference section */
 		A97704862F3A774A0000674F /* PRRadarMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PRRadarMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A99968AE2F3C226500FB9B91 /* PRRadarMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PRRadarMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A9F39AF22F41576B0091998A /* PRRadarMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PRRadarMac.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -62,6 +63,7 @@
 		A977047D2F3A774A0000674F = {
 			isa = PBXGroup;
 			children = (
+				A9F39AF22F41576B0091998A /* PRRadarMac.entitlements */,
 				A97704882F3A774A0000674F /* PRRadar */,
 				A99968AF2F3C226500FB9B91 /* PRRadarMacUITests */,
 				A97704872F3A774A0000674F /* Products */,
@@ -338,6 +340,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PRRadarMac.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -369,6 +372,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PRRadarMac.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;

@@ -2,9 +2,9 @@ import PRRadarConfigService
 import SwiftUI
 
 struct SettingsView: View {
-    let model: AllPRsModel
     @Environment(SettingsModel.self) private var settingsModel
     @Environment(\.dismiss) private var dismiss
+    let selectedConfiguration: RepositoryConfiguration?
     @State private var editingConfig: RepositoryConfigurationJSON?
     @State private var isAddingNew = false
     @State private var currentError: Error?
@@ -39,7 +39,7 @@ struct SettingsView: View {
                     ForEach(settingsModel.settings.configurations) { config in
                         ConfigurationRow(
                             config: config,
-                            isSelected: config.id == model.config.id,
+                            isSelected: config.id == selectedConfiguration?.id,
                             onEdit: { editingConfig = config },
                             onSetDefault: {
                                 do {
