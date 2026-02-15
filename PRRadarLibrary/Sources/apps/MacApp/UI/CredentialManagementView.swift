@@ -4,66 +4,97 @@ import SwiftUI
 struct CredentialManagementView: View {
     @Environment(SettingsModel.self) private var settingsModel
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedAccount: String?
     @State private var editingAccount: EditableCredential?
     @State private var isAddingNew = false
     @State private var currentError: Error?
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Credential Accounts")
-                    .font(.title2)
-                    .bold()
-                Spacer()
-                Button {
-                    isAddingNew = true
-                    editingAccount = EditableCredential(accountName: "", githubToken: "", anthropicKey: "")
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityIdentifier("addCredentialButton")
-            }
-            .padding()
-
-            if settingsModel.credentialAccounts.isEmpty {
-                ContentUnavailableView(
-                    "No Credential Accounts",
-                    systemImage: "key",
-                    description: Text("Add a credential account to store API tokens in the Keychain.")
-                )
-                .frame(maxHeight: .infinity)
-            } else {
-                List {
-                    ForEach(settingsModel.credentialAccounts, id: \.account) { status in
-                        CredentialAccountRow(
-                            status: status,
-                            onEdit: {
-                                isAddingNew = false
-                                editingAccount = EditableCredential(accountName: status.account, githubToken: "", anthropicKey: "")
-                            },
-                            onDelete: {
-                                do {
-                                    try settingsModel.removeCredentials(account: status.account)
-                                } catch {
-                                    currentError = error
-                                }
-                            }
-                        )
+        HSplitView {
+            // Left pane - account list
+            VStack(spacing: 0) {
+                if settingsModel.credentialAccounts.isEmpty {
+                    ContentUnavailableView(
+                        "No Accounts",
+                        systemImage: "key",
+                        description: Text("Click + to add a credential account.")
+                    )
+                } else {
+                    List(selection: $selectedAccount) {
+                        ForEach(settingsModel.credentialAccounts, id: \.account) { status in
+                            Text(status.account)
+                                .tag(status.account)
+                        }
+                    }
+                    .onChange(of: selectedAccount) { _, newValue in
+                        // Prevent deselection - always keep something selected
+                        if newValue == nil, let firstAccount = settingsModel.credentialAccounts.first {
+                            selectedAccount = firstAccount.account
+                        }
                     }
                 }
-            }
 
-            Divider()
+                Divider()
 
-            HStack {
-                Spacer()
-                Button("Done") { dismiss() }
-                    .accessibilityIdentifier("credentialsDoneButton")
-                    .keyboardShortcut(.defaultAction)
+                HStack(spacing: 8) {
+                    Button {
+                        isAddingNew = true
+                        editingAccount = EditableCredential(accountName: "", githubToken: "", anthropicKey: "")
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityIdentifier("addCredentialButton")
+                    .buttonStyle(.borderless)
+
+                    Button {
+                        if let account = selectedAccount {
+                            do {
+                                try settingsModel.removeCredentials(account: account)
+                                selectedAccount = nil
+                            } catch {
+                                currentError = error
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .accessibilityIdentifier("deleteCredentialButton")
+                    .buttonStyle(.borderless)
+                    .disabled(selectedAccount == nil)
+
+                    Spacer()
+                }
+                .padding(8)
             }
-            .padding()
+            .frame(minWidth: 180, idealWidth: 200, maxWidth: 250)
+
+            // Right pane - account details
+            Group {
+                if let selectedAccount,
+                   let status = settingsModel.credentialAccounts.first(where: { $0.account == selectedAccount }) {
+                    AccountDetailView(
+                        status: status,
+                        onEdit: {
+                            isAddingNew = false
+                            editingAccount = EditableCredential(accountName: status.account, githubToken: "", anthropicKey: "")
+                        }
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "Select an Account",
+                        systemImage: "key",
+                        description: Text("Choose a credential account from the list.")
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 500, height: 350)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            if selectedAccount == nil, let firstAccount = settingsModel.credentialAccounts.first {
+                selectedAccount = firstAccount.account
+            }
+        }
         .alert("Credential Error", isPresented: isErrorPresented, presenting: currentError) { _ in
             Button("OK") { currentError = nil }
         } message: { error in
@@ -107,51 +138,47 @@ struct EditableCredential: Identifiable {
     var anthropicKey: String
 }
 
-// MARK: - Row View
+// MARK: - Account Detail View
 
-private struct CredentialAccountRow: View {
+private struct AccountDetailView: View {
     let status: CredentialStatus
     let onEdit: () -> Void
-    let onDelete: () -> Void
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(status.account)
-                    .font(.headline)
-                HStack(spacing: 12) {
-                    tokenIndicator(label: "GitHub token", isStored: status.hasGitHubToken)
-                    tokenIndicator(label: "Anthropic key", isStored: status.hasAnthropicKey)
+        Form {
+            Section {
+                LabeledContent("Account") {
+                    Text(status.account)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.caption)
+
+                LabeledContent("GitHub Token") {
+                    HStack {
+                        Image(systemName: status.hasGitHubToken ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(status.hasGitHubToken ? .green : .red)
+                        Text(status.hasGitHubToken ? "Stored" : "Not Set")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                LabeledContent("Anthropic Key") {
+                    HStack {
+                        Image(systemName: status.hasAnthropicKey ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(status.hasAnthropicKey ? .green : .red)
+                        Text(status.hasAnthropicKey ? "Stored" : "Not Set")
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
-            Spacer()
-
-            Button(action: onEdit) {
-                Image(systemName: "pencil")
+            Section {
+                Button("Edit Credentials...") {
+                    onEdit()
+                }
             }
-            .accessibilityIdentifier("editCredential_\(status.account)")
-            .buttonStyle(.borderless)
-
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-            }
-            .accessibilityIdentifier("deleteCredential_\(status.account)")
-            .buttonStyle(.borderless)
-            .foregroundStyle(.red)
         }
-        .accessibilityIdentifier("credentialRow_\(status.account)")
-        .padding(.vertical, 4)
-    }
-
-    private func tokenIndicator(label: String, isStored: Bool) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: isStored ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isStored ? .green : .secondary)
-            Text(label + ": " + (isStored ? "stored" : "not set"))
-                .foregroundStyle(isStored ? .primary : .secondary)
-        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

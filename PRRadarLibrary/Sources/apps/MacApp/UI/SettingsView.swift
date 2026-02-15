@@ -28,11 +28,11 @@ public struct SettingsView: View {
                 .accessibilityIdentifier("repositoriesTab")
 
                 Tab("Credentials", systemImage: "key") {
-                    CredentialManagementView(showDoneButton: false)
+                    CredentialManagementView()
                 }
                 .accessibilityIdentifier("credentialsTab")
             }
-            .tabViewStyle(.sidebarAdaptable)
+            .tabViewStyle(.tabBarOnly)
 
             Divider()
 
@@ -91,21 +91,6 @@ private struct RepositoriesTabContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Repo Configurations")
-                    .font(.title2)
-                    .bold()
-                Spacer()
-                Button {
-                    isAddingNew = true
-                    editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityIdentifier("addConfigButton")
-            }
-            .padding()
-
             if settingsModel.settings.configurations.isEmpty {
                 ContentUnavailableView(
                     "No Configurations",
@@ -135,6 +120,17 @@ private struct RepositoriesTabContent: View {
                                 }
                             }
                         )
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            isAddingNew = true
+                            editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityIdentifier("addConfigButton")
                     }
                 }
             }
