@@ -86,7 +86,7 @@ struct CredentialManagementView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
+        .onAppear {
             if selectedAccount == nil, let firstAccount = settingsModel.credentialAccounts.first {
                 selectedAccount = firstAccount.account
             }

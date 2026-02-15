@@ -165,7 +165,7 @@ private struct RepositoriesTabContent: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
+        .onAppear {
             if selectedConfigId == nil, let firstConfig = settingsModel.settings.configurations.first {
                 selectedConfigId = firstConfig.id
             }
