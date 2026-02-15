@@ -77,6 +77,7 @@ private struct RepositoriesTabContent: View {
     @Binding var isAddingNew: Bool
     @Binding var currentError: Error?
     @State private var selectedConfigId: UUID?
+    @State private var configIdToDelete: UUID?
 
     var body: some View {
         HSplitView {
@@ -123,12 +124,7 @@ private struct RepositoriesTabContent: View {
 
                     Button {
                         if let configId = selectedConfigId {
-                            do {
-                                try settingsModel.removeConfiguration(id: configId)
-                                selectedConfigId = nil
-                            } catch {
-                                currentError = error
-                            }
+                            configIdToDelete = configId
                         }
                     } label: {
                         Image(systemName: "minus")
@@ -173,6 +169,31 @@ private struct RepositoriesTabContent: View {
             if selectedConfigId == nil, let firstConfig = settingsModel.settings.configurations.first {
                 selectedConfigId = firstConfig.id
             }
+        }
+        .confirmationDialog(
+            "Delete Configuration",
+            isPresented: Binding(
+                get: { configIdToDelete != nil },
+                set: { if !$0 { configIdToDelete = nil } }
+            ),
+            presenting: configIdToDelete.flatMap { id in
+                settingsModel.settings.configurations.first(where: { $0.id == id })
+            }
+        ) { config in
+            Button("Delete", role: .destructive) {
+                do {
+                    try settingsModel.removeConfiguration(id: config.id)
+                    selectedConfigId = nil
+                } catch {
+                    currentError = error
+                }
+                configIdToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                configIdToDelete = nil
+            }
+        } message: { config in
+            Text("Are you sure you want to delete the configuration '\(config.name)'?")
         }
     }
 }

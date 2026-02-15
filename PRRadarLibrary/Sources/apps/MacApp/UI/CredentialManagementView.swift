@@ -8,6 +8,7 @@ struct CredentialManagementView: View {
     @State private var editingAccount: EditableCredential?
     @State private var isAddingNew = false
     @State private var currentError: Error?
+    @State private var accountToDelete: String?
 
     var body: some View {
         HSplitView {
@@ -48,12 +49,7 @@ struct CredentialManagementView: View {
 
                     Button {
                         if let account = selectedAccount {
-                            do {
-                                try settingsModel.removeCredentials(account: account)
-                                selectedAccount = nil
-                            } catch {
-                                currentError = error
-                            }
+                            accountToDelete = account
                         }
                     } label: {
                         Image(systemName: "minus")
@@ -118,6 +114,29 @@ struct CredentialManagementView: View {
             } onCancel: {
                 isAddingNew = false
             }
+        }
+        .confirmationDialog(
+            "Delete Credential Account",
+            isPresented: Binding(
+                get: { accountToDelete != nil },
+                set: { if !$0 { accountToDelete = nil } }
+            ),
+            presenting: accountToDelete
+        ) { account in
+            Button("Delete", role: .destructive) {
+                do {
+                    try settingsModel.removeCredentials(account: account)
+                    selectedAccount = nil
+                } catch {
+                    currentError = error
+                }
+                accountToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                accountToDelete = nil
+            }
+        } message: { account in
+            Text("Are you sure you want to delete the credential account '\(account)'? This will remove all stored tokens from the Keychain.")
         }
     }
 
