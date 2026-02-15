@@ -325,9 +325,10 @@ Keep JSON backwards compatibility: add a `CodingKeys` enum to `RepositoryConfigu
 - `ConfigCommand.AddCommand`: Rename `--credential-account` to `--github-account`. Keep `--credential-account` as a hidden alias for backwards compatibility (or not — Bill's call).
 - `presentableDescription`: Change `"credentials:"` to `"github account:"`.
 
-## - [ ] Phase 9: Add tests
+## - [x] Phase 9: Add tests
 
-**Skills to read**: `swift-testing`
+**Skills used**: `swift-testing`
+**Principles applied**: Arrange-Act-Assert pattern; all dependencies injected directly (no mocking needed); tests verify resolution order and account selection behavior
 
 Add tests to verify the layered resolution behavior:
 
