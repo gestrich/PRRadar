@@ -169,9 +169,15 @@ The repo config editor already has a `githubAccount` text field (added in earlie
 
 ## - [ ] Phase 5: Add CLI Commands for Credential Management
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills to read**: `swift-app-architecture:swift-architecture`, `python-architecture:cli-architecture`
 
 Add a `credentials` subcommand group under `config` for managing credential accounts from the terminal. Note: `config add` already accepts `--github-account <name>`, and `GitHubServiceFactory`'s error message already references `config credentials add`.
+
+**CLI Architecture Notes:**
+- **Thin command layer**: Each subcommand's `run()` should only orchestrate — instantiate `SettingsService`, call the appropriate credential method, format output, and handle errors. No business logic in the command itself.
+- **Explicit parameters**: Commands receive all inputs via ArgumentParser `@Argument`/`@Option` properties — never read environment variables directly in a command's `run()`.
+- **Consistent structure**: Follow the existing `ConfigCommand` subcommand pattern — each credential subcommand is a nested `AsyncParsableCommand` struct inside `CredentialsCommand`, using `SettingsService` methods the same way `AddCommand`/`RemoveCommand`/`ListCommand` do today.
+- **Error handling at command boundary**: Credential commands are a system boundary (user input). Validate account names are non-empty, handle Keychain errors (e.g., item not found), and print user-friendly messages to stderr via `printError()` before throwing `ValidationError`.
 
 **Tasks:**
 - Add `CredentialsCommand` as a new subcommand of `ConfigCommand` with these subcommands:
