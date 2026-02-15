@@ -23,7 +23,6 @@ let package = Package(
         .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
         .package(url: "https://github.com/gonzalezreal/swift-markdown-ui.git", from: "2.4.1"),
         .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main"),
-        .package(url: "https://github.com/square/Valet.git", from: "5.0.0"),
     ],
     targets: [
         // SDK Layer
@@ -38,9 +37,6 @@ let package = Package(
 
         .target(
             name: "KeychainSDK",
-            dependencies: [
-                .product(name: "Valet", package: "Valet"),
-            ],
             path: "Sources/sdks/KeychainSDK"
         ),
 
