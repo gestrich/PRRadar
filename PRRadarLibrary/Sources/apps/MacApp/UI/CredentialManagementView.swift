@@ -47,6 +47,7 @@ struct CredentialManagementView: View {
                     .accessibilityIdentifier("addCredentialButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .frame(width: 28, height: 22)
 
                     Button {
                         if let account = selectedAccount {
@@ -58,6 +59,7 @@ struct CredentialManagementView: View {
                     .accessibilityIdentifier("deleteCredentialButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .frame(width: 28, height: 22)
                     .disabled(selectedAccount == nil)
 
                     Spacer()

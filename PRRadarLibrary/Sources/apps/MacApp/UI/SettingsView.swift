@@ -122,6 +122,7 @@ private struct RepositoriesTabContent: View {
                     .accessibilityIdentifier("addConfigButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .frame(width: 28, height: 22)
 
                     Button {
                         if let configId = selectedConfigId {
@@ -133,6 +134,7 @@ private struct RepositoriesTabContent: View {
                     .accessibilityIdentifier("deleteConfigButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .frame(width: 28, height: 22)
                     .disabled(selectedConfigId == nil)
 
                     Spacer()
