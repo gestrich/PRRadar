@@ -42,16 +42,6 @@ public struct ContentView: View {
         }
         .id(selectedConfig?.id)
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gear")
-                }
-                .accessibilityIdentifier("settingsButton")
-                .help("Manage configurations")
-            }
-
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     Task { await selectedPR?.refreshPRData() }

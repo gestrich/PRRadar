@@ -8,13 +8,88 @@ public struct SettingsView: View {
     @State private var editingConfig: RepositoryConfigurationJSON?
     @State private var isAddingNew = false
     @State private var currentError: Error?
-    @State private var showCredentials = false
 
     public init(selectedConfiguration: RepositoryConfiguration? = nil) {
         self.selectedConfiguration = selectedConfiguration
     }
 
     public var body: some View {
+        VStack(spacing: 0) {
+            TabView {
+                Tab("Repositories", systemImage: "folder") {
+                    RepositoriesTabContent(
+                        settingsModel: settingsModel,
+                        selectedConfiguration: selectedConfiguration,
+                        editingConfig: $editingConfig,
+                        isAddingNew: $isAddingNew,
+                        currentError: $currentError
+                    )
+                }
+                .accessibilityIdentifier("repositoriesTab")
+
+                Tab("Credentials", systemImage: "key") {
+                    CredentialManagementView(showDoneButton: false)
+                }
+                .accessibilityIdentifier("credentialsTab")
+            }
+            .tabViewStyle(.sidebarAdaptable)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .accessibilityIdentifier("settingsDoneButton")
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+        }
+        .frame(width: 650, height: 450)
+        .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
+            Button("OK") { currentError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
+        }
+        .sheet(item: $editingConfig) { config in
+            ConfigurationEditSheet(
+                config: config,
+                isNew: isAddingNew,
+                knownAccounts: settingsModel.credentialAccounts.map(\.account)
+            ) { updatedConfig in
+                do {
+                    if isAddingNew {
+                        try settingsModel.addConfiguration(updatedConfig)
+                    } else {
+                        try settingsModel.updateConfiguration(updatedConfig)
+                    }
+                } catch {
+                    currentError = error
+                }
+                isAddingNew = false
+            } onCancel: {
+                isAddingNew = false
+            }
+        }
+    }
+
+    private var isErrorPresented: Binding<Bool> {
+        Binding(
+            get: { currentError != nil },
+            set: { if !$0 { currentError = nil } }
+        )
+    }
+}
+
+// MARK: - Repositories Tab Content
+
+private struct RepositoriesTabContent: View {
+    let settingsModel: SettingsModel
+    let selectedConfiguration: RepositoryConfiguration?
+    @Binding var editingConfig: RepositoryConfigurationJSON?
+    @Binding var isAddingNew: Bool
+    @Binding var currentError: Error?
+
+    var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("Repo Configurations")
@@ -63,57 +138,7 @@ public struct SettingsView: View {
                     }
                 }
             }
-
-            Divider()
-
-            HStack {
-                Button("Manage Credentials...") {
-                    showCredentials = true
-                }
-                .accessibilityIdentifier("manageCredentialsButton")
-                Spacer()
-                Button("Done") { dismiss() }
-                    .accessibilityIdentifier("settingsDoneButton")
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding()
         }
-        .frame(width: 550, height: 400)
-        .sheet(isPresented: $showCredentials) {
-            CredentialManagementView()
-        }
-        .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
-            Button("OK") { currentError = nil }
-        } message: { error in
-            Text(error.localizedDescription)
-        }
-        .sheet(item: $editingConfig) { config in
-            ConfigurationEditSheet(
-                config: config,
-                isNew: isAddingNew,
-                knownAccounts: settingsModel.credentialAccounts.map(\.account)
-            ) { updatedConfig in
-                do {
-                    if isAddingNew {
-                        try settingsModel.addConfiguration(updatedConfig)
-                    } else {
-                        try settingsModel.updateConfiguration(updatedConfig)
-                    }
-                } catch {
-                    currentError = error
-                }
-                isAddingNew = false
-            } onCancel: {
-                isAddingNew = false
-            }
-        }
-    }
-
-    private var isErrorPresented: Binding<Bool> {
-        Binding(
-            get: { currentError != nil },
-            set: { if !$0 { currentError = nil } }
-        )
     }
 }
 
