@@ -65,7 +65,7 @@ struct ConfigCommand: AsyncParsableCommand {
         var rulesDir: String = ""
 
         @Option(name: .long, help: "Credential account name for Keychain-stored tokens")
-        var credentialAccount: String?
+        var githubAccount: String?
 
         @Flag(name: .long, help: "Set as default configuration")
         var setDefault: Bool = false
@@ -79,7 +79,7 @@ struct ConfigCommand: AsyncParsableCommand {
                 outputDir: outputDir,
                 rulesDir: rulesDir,
                 isDefault: setDefault,
-                credentialAccount: credentialAccount
+                githubAccount: githubAccount
             )
 
             let updated = try saveUseCase.execute(config: config)

@@ -11,7 +11,7 @@ public struct ClaudeAgentEnvironment: Sendable {
     public let anthropicAPIKey: String
     let subprocessEnvironment: [String: String]
 
-    public static func build(credentialAccount: String? = nil) throws -> ClaudeAgentEnvironment {
+    public static func build(githubAccount: String? = nil) throws -> ClaudeAgentEnvironment {
         var env = ProcessInfo.processInfo.environment
         if env["HOME"] == nil {
             env["HOME"] = NSHomeDirectory()
@@ -35,7 +35,7 @@ public struct ClaudeAgentEnvironment: Sendable {
 
         let resolver = CredentialResolver(
             settingsService: SettingsService(),
-            credentialAccount: credentialAccount,
+            githubAccount: githubAccount,
             processEnvironment: env,
             dotEnv: [:]
         )

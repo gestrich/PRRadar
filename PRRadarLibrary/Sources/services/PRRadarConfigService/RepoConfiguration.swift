@@ -7,7 +7,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
     public var outputDir: String
     public var rulesDir: String
     public var isDefault: Bool
-    public var credentialAccount: String?
+    public var githubAccount: String?
 
     public var presentableDescription: String {
         let header = isDefault ? "\(name) (default)" : name
@@ -18,8 +18,8 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         if !rulesDir.isEmpty {
             lines.append("  rules:  \(rulesDir)")
         }
-        if let credentialAccount {
-            lines.append("  credentials: \(credentialAccount)")
+        if let githubAccount {
+            lines.append("  credentials: \(githubAccount)")
         }
         return lines.joined(separator: "\n")
     }
@@ -31,7 +31,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         outputDir: String = "",
         rulesDir: String = "",
         isDefault: Bool = false,
-        credentialAccount: String? = nil
+        githubAccount: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -39,7 +39,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         self.outputDir = outputDir
         self.rulesDir = rulesDir
         self.isDefault = isDefault
-        self.credentialAccount = credentialAccount
+        self.githubAccount = githubAccount
     }
 }
 

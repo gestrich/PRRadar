@@ -86,7 +86,7 @@ public struct PostCommentsUseCase: Sendable {
 
                     continuation.yield(.log(text: "Posting \(violations.count) new comments...\n"))
 
-                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, credentialAccount: config.credentialAccount)
+                    let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
                     let commentService = CommentService(githubService: gitHub)
 
                     let (successful, failed) = try await commentService.postViolations(

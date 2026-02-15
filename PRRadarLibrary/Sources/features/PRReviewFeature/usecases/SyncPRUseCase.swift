@@ -112,7 +112,7 @@ public struct SyncPRUseCase: Sendable {
                 do {
                     try Task.checkCancellation()
 
-                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, credentialAccount: config.credentialAccount)
+                    let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
 
                     guard let prNum = Int(prNumber) else {
                         continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))

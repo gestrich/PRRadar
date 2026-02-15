@@ -48,7 +48,7 @@ public struct PrepareUseCase: Sendable {
                         return
                     }
 
-                    let agentEnv = try ClaudeAgentEnvironment.build(credentialAccount: config.credentialAccount)
+                    let agentEnv = try ClaudeAgentEnvironment.build(githubAccount: config.githubAccount)
                     let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
                     let focusGenerator = FocusGeneratorService(agentClient: agentClient)
 

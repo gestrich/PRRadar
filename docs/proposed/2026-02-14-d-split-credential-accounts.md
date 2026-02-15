@@ -302,7 +302,7 @@ Removed `PRRadarEnvironment` entirely:
 - `githubTokenKey`, `anthropicAPIKeyKey`, `defaultCredentialAccount` moved to `CredentialResolver`
 - `loadDotEnv()` moved to new `EnvironmentSDK` target as `DotEnvironmentLoader`
 
-## - [ ] Phase 7: Rename `credentialAccount` to `githubAccount`
+## - [x] Phase 7: Rename `credentialAccount` to `githubAccount`
 
 Rename the field across the codebase to clarify its purpose. This is a pure rename with no behavior change.
 

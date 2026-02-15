@@ -7,7 +7,7 @@ public struct RepositoryConfiguration: Sendable {
     public let outputDir: String
     public let rulesDir: String
     public let agentScriptPath: String
-    public let credentialAccount: String?
+    public let githubAccount: String?
 
     public init(
         id: UUID = UUID(),
@@ -16,7 +16,7 @@ public struct RepositoryConfiguration: Sendable {
         outputDir: String,
         rulesDir: String,
         agentScriptPath: String,
-        credentialAccount: String? = nil
+        githubAccount: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -24,7 +24,7 @@ public struct RepositoryConfiguration: Sendable {
         self.outputDir = outputDir
         self.rulesDir = rulesDir
         self.agentScriptPath = agentScriptPath
-        self.credentialAccount = credentialAccount
+        self.githubAccount = githubAccount
     }
 
     public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil) {
@@ -34,7 +34,7 @@ public struct RepositoryConfiguration: Sendable {
         self.outputDir = outputDirOverride ?? json.outputDir
         self.rulesDir = json.rulesDir
         self.agentScriptPath = agentScriptPath
-        self.credentialAccount = json.credentialAccount
+        self.githubAccount = json.githubAccount
     }
 
     public var resolvedOutputDir: String {

@@ -164,7 +164,7 @@ private struct ConfigurationRow: View {
 
 private struct ConfigurationEditSheet: View {
     @State var config: RepositoryConfigurationJSON
-    @State private var credentialAccountText: String = ""
+    @State private var githubAccountText: String = ""
     let isNew: Bool
     let onSave: (RepositoryConfigurationJSON) -> Void
     let onCancel: () -> Void
@@ -186,7 +186,7 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
             LabeledContent("Credential Account") {
-                TextField("e.g. work, personal", text: $credentialAccountText)
+                TextField("e.g. work, personal", text: $githubAccountText)
                     .textFieldStyle(.roundedBorder)
             }
             Text("Optional. References a Keychain-stored credential account. Falls back to GITHUB_TOKEN environment variable.")
@@ -201,7 +201,7 @@ private struct ConfigurationEditSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    config.credentialAccount = credentialAccountText.isEmpty ? nil : credentialAccountText
+                    config.githubAccount = githubAccountText.isEmpty ? nil : githubAccountText
                     onSave(config)
                     dismiss()
                 }
@@ -212,7 +212,7 @@ private struct ConfigurationEditSheet: View {
         .padding()
         .frame(width: 500)
         .onAppear {
-            credentialAccountText = config.credentialAccount ?? ""
+            githubAccountText = config.githubAccount ?? ""
         }
     }
 

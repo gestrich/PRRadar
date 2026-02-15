@@ -71,7 +71,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     }
 
                     if !tasksToEvaluate.isEmpty {
-                        let agentEnv = try ClaudeAgentEnvironment.build(credentialAccount: config.credentialAccount)
+                        let agentEnv = try ClaudeAgentEnvironment.build(githubAccount: config.githubAccount)
                         let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
                         let analysisService = AnalysisService(agentClient: agentClient)
 
