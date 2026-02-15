@@ -118,11 +118,11 @@ private struct RepositoriesTabContent: View {
                         editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
                     } label: {
                         Image(systemName: "plus")
+                            .frame(width: 14, height: 14)
                     }
                     .accessibilityIdentifier("addConfigButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .frame(width: 28, height: 22)
 
                     Button {
                         if let configId = selectedConfigId {
@@ -130,11 +130,11 @@ private struct RepositoriesTabContent: View {
                         }
                     } label: {
                         Image(systemName: "minus")
+                            .frame(width: 14, height: 14)
                     }
                     .accessibilityIdentifier("deleteConfigButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .frame(width: 28, height: 22)
                     .disabled(selectedConfigId == nil)
 
                     Spacer()

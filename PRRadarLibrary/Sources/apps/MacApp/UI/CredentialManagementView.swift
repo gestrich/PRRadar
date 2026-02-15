@@ -43,11 +43,11 @@ struct CredentialManagementView: View {
                         editingAccount = EditableCredential(accountName: "", githubToken: "", anthropicKey: "")
                     } label: {
                         Image(systemName: "plus")
+                            .frame(width: 14, height: 14)
                     }
                     .accessibilityIdentifier("addCredentialButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .frame(width: 28, height: 22)
 
                     Button {
                         if let account = selectedAccount {
@@ -55,11 +55,11 @@ struct CredentialManagementView: View {
                         }
                     } label: {
                         Image(systemName: "minus")
+                            .frame(width: 14, height: 14)
                     }
                     .accessibilityIdentifier("deleteCredentialButton")
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .frame(width: 28, height: 22)
                     .disabled(selectedAccount == nil)
 
                     Spacer()
