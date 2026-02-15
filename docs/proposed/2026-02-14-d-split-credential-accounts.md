@@ -233,7 +233,9 @@ func refreshDiff(force: Bool = false) async {
 }
 ```
 
-## - [ ] Phase 5: Rewrite `CredentialResolver` with layered architecture
+## - [x] Phase 5: Rewrite `CredentialResolver` with layered architecture
+
+**Principles applied**: Explicit dependencies (processEnvironment, dotEnv) eliminate circular call to `PRRadarEnvironment.build()`; Anthropic always uses "default" account while GitHub uses configured account; ordered resolution chain: process env → .env → keychain
 
 Replace the current `CredentialResolver` with one that takes explicit lookup sources as dependencies and has `getGitHubToken()` / `getAnthropicKey()` methods that orchestrate the full resolution chain.
 
