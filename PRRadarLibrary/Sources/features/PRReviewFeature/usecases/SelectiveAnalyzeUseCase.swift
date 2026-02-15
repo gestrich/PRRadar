@@ -71,7 +71,11 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     }
 
                     if !tasksToEvaluate.isEmpty {
-                        let agentEnv = try ClaudeAgentEnvironment.build(githubAccount: config.githubAccount)
+                        let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
+                        guard let anthropicKey = resolver.getAnthropicKey() else {
+                            throw ClaudeAgentError.missingAPIKey
+                        }
+                        let agentEnv = ClaudeAgentEnvironment.build(anthropicAPIKey: anthropicKey)
                         let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
                         let analysisService = AnalysisService(agentClient: agentClient)
 

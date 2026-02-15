@@ -1,17 +1,17 @@
 import CLISDK
 import EnvironmentSDK
 import Foundation
-import PRRadarConfigService
 
 /// The resolved environment needed to run the Claude Agent subprocess.
 ///
-/// Enforces that the Anthropic API key is present at construction time —
-/// callers must resolve credentials before creating this value.
+/// Callers must resolve credentials before creating this value.
 public struct ClaudeAgentEnvironment: Sendable {
+    static let anthropicAPIKeyEnvVar = "ANTHROPIC_API_KEY"
+
     public let anthropicAPIKey: String
     let subprocessEnvironment: [String: String]
 
-    public static func build(githubAccount: String? = nil) throws -> ClaudeAgentEnvironment {
+    public static func build(anthropicAPIKey: String) -> ClaudeAgentEnvironment {
         var env = ProcessInfo.processInfo.environment
         if env["HOME"] == nil {
             env["HOME"] = NSHomeDirectory()
@@ -33,23 +33,9 @@ public struct ClaudeAgentEnvironment: Sendable {
             env[key] = value
         }
 
-        let resolver = CredentialResolver(
-            settingsService: SettingsService(),
-            githubAccount: githubAccount,
-            processEnvironment: env,
-            dotEnv: [:]
-        )
-        if env[CredentialResolver.githubTokenKey] == nil, let token = resolver.getGitHubToken() {
-            env[CredentialResolver.githubTokenKey] = token
-        }
-        if env[CredentialResolver.anthropicAPIKeyKey] == nil, let key = resolver.getAnthropicKey() {
-            env[CredentialResolver.anthropicAPIKeyKey] = key
-        }
+        env[anthropicAPIKeyEnvVar] = anthropicAPIKey
 
-        guard let apiKey = env[CredentialResolver.anthropicAPIKeyKey] else {
-            throw ClaudeAgentError.missingAPIKey
-        }
-        return ClaudeAgentEnvironment(anthropicAPIKey: apiKey, subprocessEnvironment: env)
+        return ClaudeAgentEnvironment(anthropicAPIKey: anthropicAPIKey, subprocessEnvironment: env)
     }
 
     init(anthropicAPIKey: String, subprocessEnvironment: [String: String]) {
@@ -256,7 +242,7 @@ public enum ClaudeAgentError: LocalizedError {
         case .noResult:
             return "Claude Agent returned no result"
         case .missingAPIKey:
-            return "ANTHROPIC_API_KEY not found in environment, .env, or Keychain"
+            return "\(ClaudeAgentEnvironment.anthropicAPIKeyEnvVar) not found in environment, .env, or Keychain"
         }
     }
 }
