@@ -7,7 +7,7 @@ public struct RepositoryConfiguration: Sendable {
     public let outputDir: String
     public let rulesDir: String
     public let agentScriptPath: String
-    public let githubAccount: String?
+    public let githubAccount: String
 
     public init(
         id: UUID = UUID(),
@@ -16,7 +16,7 @@ public struct RepositoryConfiguration: Sendable {
         outputDir: String,
         rulesDir: String,
         agentScriptPath: String,
-        githubAccount: String? = nil
+        githubAccount: String
     ) {
         self.id = id
         self.name = name

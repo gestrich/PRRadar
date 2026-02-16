@@ -23,7 +23,7 @@ struct LoadPRDetailUseCaseTests {
     }
 
     private func makeConfig(outputDir: String) -> RepositoryConfiguration {
-        RepositoryConfiguration(name: "test", repoPath: "/tmp/fake-repo", outputDir: outputDir, rulesDir: "/tmp/rules", agentScriptPath: "/tmp/agent.py")
+        RepositoryConfiguration(name: "test", repoPath: "/tmp/fake-repo", outputDir: outputDir, rulesDir: "/tmp/rules", agentScriptPath: "/tmp/agent.py", githubAccount: "test")
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to path: String) throws {

@@ -64,8 +64,8 @@ struct ConfigCommand: AsyncParsableCommand {
         @Option(name: .long, help: "Rules directory")
         var rulesDir: String = ""
 
-        @Option(name: .long, help: "GitHub account name for Keychain-stored token lookup")
-        var githubAccount: String?
+        @Option(name: .long, help: "Credential account name for Keychain-stored token lookup (required)")
+        var githubAccount: String
 
         @Flag(name: .long, help: "Set as default configuration")
         var setDefault: Bool = false

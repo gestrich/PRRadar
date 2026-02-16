@@ -19,6 +19,7 @@ struct CredentialResolverTests {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
+            githubAccount: "work",
             processEnvironment: ["GITHUB_TOKEN": "from-process-env"],
             dotEnv: ["GITHUB_TOKEN": "from-dotenv"]
         )
@@ -35,6 +36,7 @@ struct CredentialResolverTests {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: ["GITHUB_TOKEN": "from-dotenv"]
         )
@@ -51,9 +53,10 @@ struct CredentialResolverTests {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("from-keychain", account: "default")
+        try service.saveGitHubToken("from-keychain", account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: [:]
         )
@@ -70,9 +73,10 @@ struct CredentialResolverTests {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("from-keychain", account: "default")
+        try service.saveGitHubToken("from-keychain", account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: ["GITHUB_TOKEN": "from-dotenv"]
         )
@@ -89,6 +93,7 @@ struct CredentialResolverTests {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: [:]
         )
@@ -122,46 +127,6 @@ struct CredentialResolverTests {
         #expect(token == "work-token")
     }
 
-    @Test("GitHub token uses default account when no account configured")
-    func gitHubTokenUsesDefaultAccount() throws {
-        // Arrange
-        let keychain = InMemoryKeychainStore()
-        let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("default-token", account: "default")
-        let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: nil,
-            processEnvironment: [:],
-            dotEnv: [:]
-        )
-
-        // Act
-        let token = resolver.getGitHubToken()
-
-        // Assert
-        #expect(token == "default-token")
-    }
-
-    @Test("GitHub token uses default account when configured account is empty string")
-    func gitHubTokenDefaultsOnEmptyAccount() throws {
-        // Arrange
-        let keychain = InMemoryKeychainStore()
-        let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("default-token", account: "default")
-        let resolver = CredentialResolver(
-            settingsService: service,
-            githubAccount: "",
-            processEnvironment: [:],
-            dotEnv: [:]
-        )
-
-        // Act
-        let token = resolver.getGitHubToken()
-
-        // Assert
-        #expect(token == "default-token")
-    }
-
     // MARK: - Anthropic Key Resolution Order
 
     @Test("Anthropic key resolves from process environment first")
@@ -169,6 +134,7 @@ struct CredentialResolverTests {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
+            githubAccount: "work",
             processEnvironment: ["ANTHROPIC_API_KEY": "from-process-env"],
             dotEnv: ["ANTHROPIC_API_KEY": "from-dotenv"]
         )
@@ -185,6 +151,7 @@ struct CredentialResolverTests {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: ["ANTHROPIC_API_KEY": "from-dotenv"]
         )
@@ -201,9 +168,10 @@ struct CredentialResolverTests {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("from-keychain", account: "default")
+        try service.saveAnthropicKey("from-keychain", account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: [:]
         )
@@ -220,6 +188,7 @@ struct CredentialResolverTests {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: [:]
         )
@@ -231,14 +200,14 @@ struct CredentialResolverTests {
         #expect(key == nil)
     }
 
-    // MARK: - Anthropic Key Always Uses Default Account
+    // MARK: - Anthropic Key Account Selection
 
-    @Test("Anthropic key always uses default account regardless of configured account")
-    func anthropicKeyIgnoresConfiguredAccount() throws {
+    @Test("Anthropic key uses configured account for keychain lookup")
+    func anthropicKeyUsesConfiguredAccount() throws {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("default-key", account: "default")
+        try service.saveAnthropicKey("work-key", account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -250,18 +219,18 @@ struct CredentialResolverTests {
         let key = resolver.getAnthropicKey()
 
         // Assert
-        #expect(key == "default-key")
+        #expect(key == "work-key")
     }
 
     // MARK: - Combined Resolution
 
-    @Test("Resolves GitHub token from configured account and Anthropic key from default simultaneously")
+    @Test("Resolves both GitHub token and Anthropic key from configured account")
     func combinedResolution() throws {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
         try service.saveGitHubToken("work-gh-token", account: "work")
-        try service.saveAnthropicKey("default-anthropic-key", account: "default")
+        try service.saveAnthropicKey("work-anthropic-key", account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -275,7 +244,7 @@ struct CredentialResolverTests {
 
         // Assert
         #expect(ghToken == "work-gh-token")
-        #expect(anthropicKey == "default-anthropic-key")
+        #expect(anthropicKey == "work-anthropic-key")
     }
 
     @Test("Mixed sources: GitHub from .env, Anthropic from keychain")
@@ -283,9 +252,10 @@ struct CredentialResolverTests {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("keychain-anthropic", account: "default")
+        try service.saveAnthropicKey("keychain-anthropic", account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
+            githubAccount: "work",
             processEnvironment: [:],
             dotEnv: ["GITHUB_TOKEN": "dotenv-gh-token"]
         )

@@ -115,7 +115,7 @@ private struct RepositoriesTabContent: View {
                 HStack(spacing: 6) {
                     Button {
                         isAddingNew = true
-                        editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "")
+                        editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "", githubAccount: "")
                     } label: {
                         Image(systemName: "plus")
                             .frame(width: 14, height: 14)
@@ -249,11 +249,9 @@ private struct ConfigurationDetailView: View {
                     }
                 }
 
-                if let account = config.githubAccount {
-                    LabeledContent("Credential Account") {
-                        Text(account)
-                            .foregroundStyle(.secondary)
-                    }
+                LabeledContent("Credential Account") {
+                    Text(config.githubAccount)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -301,17 +299,19 @@ private struct ConfigurationEditSheet: View {
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
 
             LabeledContent("Credential Account") {
-                Picker("", selection: $githubAccountText) {
-                    Text("None").tag("")
-                    ForEach(knownAccounts, id: \.self) { account in
-                        Text(account).tag(account)
+                if knownAccounts.isEmpty {
+                    Text("No accounts — add one in the Credentials tab")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Picker("", selection: $githubAccountText) {
+                        Text("Select…").tag("")
+                        ForEach(knownAccounts, id: \.self) { account in
+                            Text(account).tag(account)
+                        }
                     }
+                    .labelsHidden()
                 }
-                .labelsHidden()
             }
-            Text("Optional. Selects which Keychain credential account to use. Falls back to environment variables.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
             HStack {
                 Spacer()
@@ -321,18 +321,18 @@ private struct ConfigurationEditSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    config.githubAccount = githubAccountText.isEmpty ? nil : githubAccountText
+                    config.githubAccount = githubAccountText
                     onSave(config)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(config.name.isEmpty || config.repoPath.isEmpty)
+                .disabled(config.name.isEmpty || config.repoPath.isEmpty || githubAccountText.isEmpty)
             }
         }
         .padding()
         .frame(width: 500)
         .onAppear {
-            githubAccountText = config.githubAccount ?? ""
+            githubAccountText = config.githubAccount
         }
     }
 

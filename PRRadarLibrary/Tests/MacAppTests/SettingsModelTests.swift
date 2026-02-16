@@ -37,7 +37,7 @@ struct SettingsModelTests {
     @Test("addConfiguration adds and updates settings property")
     func addConfiguration() throws {
         let model = makeModel()
-        let config = RepositoryConfigurationJSON(name: "test", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "test", repoPath: "/tmp/repo", githubAccount: "test")
 
         try model.addConfiguration(config)
 
@@ -49,7 +49,7 @@ struct SettingsModelTests {
     func updateConfiguration() throws {
         let model = makeModel()
         let configId = UUID()
-        let config = RepositoryConfigurationJSON(id: configId, name: "original", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(id: configId, name: "original", repoPath: "/tmp/repo", githubAccount: "test")
         try model.addConfiguration(config)
 
         var modified = config
@@ -63,7 +63,7 @@ struct SettingsModelTests {
     @Test("removeConfiguration removes by ID")
     func removeConfiguration() throws {
         let model = makeModel()
-        let config = RepositoryConfigurationJSON(name: "doomed", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "doomed", repoPath: "/tmp/repo", githubAccount: "test")
         try model.addConfiguration(config)
 
         try model.removeConfiguration(id: config.id)
@@ -74,8 +74,8 @@ struct SettingsModelTests {
     @Test("setDefault changes the default configuration")
     func setDefault() throws {
         let model = makeModel()
-        let first = RepositoryConfigurationJSON(name: "first", repoPath: "/tmp/repo1")
-        let second = RepositoryConfigurationJSON(name: "second", repoPath: "/tmp/repo2")
+        let first = RepositoryConfigurationJSON(name: "first", repoPath: "/tmp/repo1", githubAccount: "test")
+        let second = RepositoryConfigurationJSON(name: "second", repoPath: "/tmp/repo2", githubAccount: "test")
         try model.addConfiguration(first)
         try model.addConfiguration(second)
 
@@ -90,7 +90,7 @@ struct SettingsModelTests {
     @Test("Updating nonexistent configuration adds it")
     func updateNonexistentAdds() throws {
         let model = makeModel()
-        let config = RepositoryConfigurationJSON(name: "ghost", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "ghost", repoPath: "/tmp/repo", githubAccount: "test")
 
         try model.updateConfiguration(config)
 
@@ -101,7 +101,7 @@ struct SettingsModelTests {
     @Test("Successful add does not throw")
     func addDoesNotThrow() throws {
         let model = makeModel()
-        let config = RepositoryConfigurationJSON(name: "valid", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "valid", repoPath: "/tmp/repo", githubAccount: "test")
 
         try model.addConfiguration(config)
 
@@ -114,7 +114,7 @@ struct SettingsModelTests {
     func observeChangesYields() async throws {
         let model = makeModel()
         let stream = model.observeChanges()
-        let config = RepositoryConfigurationJSON(name: "observed", repoPath: "/tmp/repo")
+        let config = RepositoryConfigurationJSON(name: "observed", repoPath: "/tmp/repo", githubAccount: "test")
 
         try model.addConfiguration(config)
 

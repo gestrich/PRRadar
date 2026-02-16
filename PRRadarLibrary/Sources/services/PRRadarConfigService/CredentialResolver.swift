@@ -4,48 +4,33 @@ import Foundation
 public struct CredentialResolver: Sendable {
     public static let githubTokenKey = "GITHUB_TOKEN"
     public static let anthropicAPIKeyKey = "ANTHROPIC_API_KEY"
-    /// Repos with no `githubAccount` use this as the Keychain lookup key.
-    /// Lets single-credential users skip account configuration entirely.
-    public static let defaultCredentialAccount = "default"
 
     private let processEnvironment: [String: String]
     private let dotEnv: [String: String]
     private let settingsService: SettingsService
-    private let githubAccount: String?
+    private let account: String
 
     public init(
         settingsService: SettingsService,
-        githubAccount: String? = nil,
+        githubAccount: String,
         processEnvironment: [String: String] = ProcessInfo.processInfo.environment,
         dotEnv: [String: String]? = nil
     ) {
         self.settingsService = settingsService
-        self.githubAccount = githubAccount
+        self.account = githubAccount
         self.processEnvironment = processEnvironment
         self.dotEnv = dotEnv ?? DotEnvironmentLoader.loadDotEnv()
     }
 
     public func getGitHubToken() -> String? {
-        let envKey = Self.githubTokenKey
-        let keychainType = SettingsService.gitHubTokenType
-        let account = (githubAccount?.isEmpty ?? true)
-            ? Self.defaultCredentialAccount
-            : githubAccount!
-
-        if let v = processEnvironment[envKey] { return v }
-        if let v = dotEnv[envKey] { return v }
-        return try? settingsService.loadCredential(account: account, type: keychainType)
+        if let v = processEnvironment[Self.githubTokenKey] { return v }
+        if let v = dotEnv[Self.githubTokenKey] { return v }
+        return try? settingsService.loadCredential(account: account, type: SettingsService.gitHubTokenType)
     }
 
     public func getAnthropicKey() -> String? {
-        let envKey = Self.anthropicAPIKeyKey
-        let keychainType = SettingsService.anthropicKeyType
-
-        if let v = processEnvironment[envKey] { return v }
-        if let v = dotEnv[envKey] { return v }
-        return try? settingsService.loadCredential(
-            account: Self.defaultCredentialAccount,
-            type: keychainType
-        )
+        if let v = processEnvironment[Self.anthropicAPIKeyKey] { return v }
+        if let v = dotEnv[Self.anthropicAPIKeyKey] { return v }
+        return try? settingsService.loadCredential(account: account, type: SettingsService.anthropicKeyType)
     }
 }

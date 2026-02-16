@@ -19,7 +19,7 @@ public enum GitHubServiceError: Error, LocalizedError {
 }
 
 public struct GitHubServiceFactory: Sendable {
-    public static func create(repoPath: String, githubAccount: String? = nil) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
+    public static func create(repoPath: String, githubAccount: String) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
         let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: githubAccount)
         guard let token = resolver.getGitHubToken() else {
             throw GitHubServiceError.missingToken
