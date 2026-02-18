@@ -193,7 +193,7 @@ Note: repo configurations continue to use their existing use case mechanism (`Sa
 
 **Completed**: Created `SettingsCommand.swift` in the MacCLI Commands directory with `ShowCommand` (default) and `SetCommand` subcommands. `ShowCommand` loads settings via `SettingsService` and prints key-value pairs. `SetCommand` accepts `--output-dir` option, validates that at least one option is provided, then loads/mutates/saves settings. Registered `SettingsCommand.self` in `ConfigCommand`'s subcommands array. No use cases needed — direct `SettingsService.load()`/`.save()` is sufficient. 486 tests pass.
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
 
 **Skills to read**: `swift-testing`
 
@@ -202,3 +202,5 @@ Note: repo configurations continue to use their existing use case mechanism (`Sa
 - Update test fixtures that construct `RepositoryConfiguration` with `outputDir` parameter
 - Verify CLI: `swift run PRRadarMacCLI config list` shows configs without outputDir field
 - Verify CLI: `swift run PRRadarMacCLI config settings` shows outputDir value
+
+**Completed**: All validation checks passed without requiring any code changes. `swift build` succeeds. All 486 tests in 54 suites pass — test fixtures already construct `RepositoryConfiguration` with the `outputDir` parameter correctly from prior phases. `config list` displays repo configs without any `outputDir` field. `config settings` shows the global `output-dir: code-reviews` value. All 7 phases of the outputDir migration and path expansion spec are complete.
