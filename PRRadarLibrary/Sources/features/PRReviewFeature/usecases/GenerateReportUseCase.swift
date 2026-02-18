@@ -39,14 +39,14 @@ public struct GenerateReportUseCase: Sendable {
                     continuation.yield(.log(text: "Generating report (min score: \(scoreThreshold))...\n"))
 
                     let evalsDir = DataPathsService.phaseDirectory(
-                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
                     )
                     let tasksDir = DataPathsService.phaseSubdirectory(
-                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .prepare,
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .prepare,
                         subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
                     )
                     let focusAreasDir = DataPathsService.phaseSubdirectory(
-                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .prepare,
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .prepare,
                         subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: resolvedCommit
                     )
 
@@ -60,14 +60,14 @@ public struct GenerateReportUseCase: Sendable {
                     )
 
                     let reportDir = DataPathsService.phaseDirectory(
-                        outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .report, commitHash: resolvedCommit
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .report, commitHash: resolvedCommit
                     )
                     let (_, _) = try reportService.saveReport(report: report, reportDir: reportDir)
 
                     // Write phase_result.json
                     try PhaseResultWriter.writeSuccess(
                         phase: .report,
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         commitHash: resolvedCommit,
                         stats: PhaseStats(

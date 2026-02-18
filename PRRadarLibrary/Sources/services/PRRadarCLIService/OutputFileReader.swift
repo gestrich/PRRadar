@@ -9,7 +9,7 @@ public enum OutputFileReader {
         commitHash: String? = nil
     ) -> [String] {
         let phaseDir = DataPathsService.phaseDirectory(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
             phase: phase,
             commitHash: commitHash
@@ -25,7 +25,7 @@ public enum OutputFileReader {
         commitHash: String? = nil
     ) -> String {
         DataPathsService.phaseDirectory(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
             phase: phase,
             commitHash: commitHash
@@ -40,7 +40,7 @@ public enum OutputFileReader {
         commitHash: String? = nil
     ) -> [String] {
         let subdir = DataPathsService.phaseSubdirectory(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
             phase: phase,
             subdirectory: subdirectory,
@@ -58,7 +58,7 @@ public enum OutputFileReader {
         commitHash: String? = nil
     ) -> String {
         DataPathsService.phaseSubdirectory(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
             phase: phase,
             subdirectory: subdirectory,

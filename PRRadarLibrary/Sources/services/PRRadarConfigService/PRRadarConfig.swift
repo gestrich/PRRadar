@@ -42,15 +42,15 @@ public struct RepositoryConfiguration: Sendable {
         "code-review-rules"
     }
 
-    public var absoluteRulesDir: String {
+    public var resolvedRulesDir: String {
         PathUtilities.resolve(rulesDir, relativeTo: repoPath)
     }
 
-    public var absoluteOutputDir: String {
+    public var resolvedOutputDir: String {
         PathUtilities.resolve(outputDir, relativeTo: repoPath)
     }
 
     public func prDataDirectory(for prNumber: Int) -> String {
-        "\(absoluteOutputDir)/\(prNumber)"
+        "\(resolvedOutputDir)/\(prNumber)"
     }
 }

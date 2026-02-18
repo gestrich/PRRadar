@@ -47,14 +47,14 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     }
 
                     let evalsDir = DataPathsService.phaseDirectory(
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         phase: .analyze,
                         commitHash: resolvedCommit
                     )
 
                     // Partition filtered tasks into cached and fresh
-                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let prOutputDir = "\(config.resolvedOutputDir)/\(prNumber)"
                     let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
                         tasks: filteredTasks, evalsDir: evalsDir, prOutputDir: prOutputDir
                     )

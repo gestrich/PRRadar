@@ -27,7 +27,7 @@ public struct DeletePRDataUseCase: Sendable {
             }
         }
 
-        if let metadata = PRDiscoveryService.discoverPR(number: prNumber, outputDir: config.absoluteOutputDir) {
+        if let metadata = PRDiscoveryService.discoverPR(number: prNumber, outputDir: config.resolvedOutputDir) {
             return metadata
         }
 

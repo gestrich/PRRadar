@@ -15,10 +15,10 @@ public struct FetchReviewCommentsUseCase: Sendable {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let evalsDir = DataPathsService.phaseDirectory(
-            outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
+            outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
         )
         let tasksDir = DataPathsService.phaseSubdirectory(
-            outputDir: config.absoluteOutputDir, prNumber: prNumber, phase: .prepare,
+            outputDir: config.resolvedOutputDir, prNumber: prNumber, phase: .prepare,
             subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
         )
         let pending = ViolationService.loadViolations(

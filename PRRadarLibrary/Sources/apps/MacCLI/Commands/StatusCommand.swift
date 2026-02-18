@@ -19,7 +19,7 @@ struct StatusCommand: AsyncParsableCommand {
         let commitHash = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
 
         let allStatuses = DataPathsService.allPhaseStatuses(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: options.prNumber,
             commitHash: commitHash
         )
@@ -50,7 +50,7 @@ struct StatusCommand: AsyncParsableCommand {
             ))
         }
 
-        let availableCommits = listAvailableCommits(outputDir: config.absoluteOutputDir, prNumber: options.prNumber)
+        let availableCommits = listAvailableCommits(outputDir: config.resolvedOutputDir, prNumber: options.prNumber)
 
         if options.json {
             var jsonOutput: [String: Any] = [:]

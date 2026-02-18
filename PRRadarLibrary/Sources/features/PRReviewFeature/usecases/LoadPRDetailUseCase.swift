@@ -27,7 +27,7 @@ public struct LoadPRDetailUseCase: Sendable {
         let report = try? GenerateReportUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
         let phaseStatuses = DataPathsService.allPhaseStatuses(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
             commitHash: resolvedCommit
         )
@@ -143,7 +143,7 @@ public struct LoadPRDetailUseCase: Sendable {
     }
 
     private func scanAvailableCommits(prNumber: String) -> [String] {
-        let analysisRoot = "\(config.absoluteOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
+        let analysisRoot = "\(config.resolvedOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
         guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) else {
             return []
         }

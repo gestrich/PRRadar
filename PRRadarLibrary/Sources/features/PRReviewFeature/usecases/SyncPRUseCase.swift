@@ -86,7 +86,7 @@ public struct SyncPRUseCase: Sendable {
     public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: String) -> String? {
         // Try reading headRefOid from metadata/gh-pr.json
         let metadataDir = DataPathsService.phaseDirectory(
-            outputDir: config.absoluteOutputDir,
+            outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
             phase: .metadata
         )
@@ -97,7 +97,7 @@ public struct SyncPRUseCase: Sendable {
             return String(fullHash.prefix(7))
         }
         // Fallback: pick the most recent commit directory under analysis/
-        let analysisRoot = "\(config.absoluteOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
+        let analysisRoot = "\(config.resolvedOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
         if let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) {
             return dirs.sorted().last
         }
@@ -145,7 +145,7 @@ public struct SyncPRUseCase: Sendable {
                     let result = try await acquisition.acquire(
                         prNumber: prNum,
                         repoPath: config.repoPath,
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         authorCache: authorCache
                     )
 

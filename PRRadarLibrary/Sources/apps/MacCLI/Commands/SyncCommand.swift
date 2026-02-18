@@ -63,7 +63,7 @@ struct SyncCommand: AsyncParsableCommand {
 
         if `open` {
             let phaseDir = DataPathsService.phaseDirectory(
-                outputDir: config.absoluteOutputDir,
+                outputDir: config.resolvedOutputDir,
                 prNumber: options.prNumber,
                 phase: .diff,
                 commitHash: commitHash

@@ -29,7 +29,7 @@ struct PrepareCommand: AsyncParsableCommand {
 
         var result: PrepareOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: rulesDir ?? config.absoluteRulesDir, commitHash: options.commit) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: rulesDir ?? config.resolvedRulesDir, commitHash: options.commit) {
             switch progress {
             case .running(let phase):
                 if !options.json {

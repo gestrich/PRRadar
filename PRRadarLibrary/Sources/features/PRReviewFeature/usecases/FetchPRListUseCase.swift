@@ -48,7 +48,7 @@ public struct FetchPRListUseCase: Sendable {
 
                     for pr in prs.map({ $0.withAuthorNames(from: nameMap) }) {
                         let metadataDir = DataPathsService.metadataDirectory(
-                            outputDir: config.absoluteOutputDir,
+                            outputDir: config.resolvedOutputDir,
                             prNumber: String(pr.number)
                         )
                         try DataPathsService.ensureDirectoryExists(at: metadataDir)
@@ -60,7 +60,7 @@ public struct FetchPRListUseCase: Sendable {
                     }
 
                     let discoveredPRs = PRDiscoveryService.discoverPRs(
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         repoSlug: repoSlug
                     )
                     continuation.yield(.completed(output: discoveredPRs))

@@ -73,7 +73,7 @@ public struct ContentView: View {
 
                 Button {
                     if let pr = selectedPR {
-                        let path = "\(pr.config.absoluteOutputDir)/\(pr.prNumber)"
+                        let path = "\(pr.config.resolvedOutputDir)/\(pr.prNumber)"
                         NSWorkspace.shared.open(URL(fileURLWithPath: path))
                     }
                 } label: {

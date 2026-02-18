@@ -58,7 +58,7 @@ public struct PrepareUseCase: Sendable {
                     let focusGenerator = FocusGeneratorService(agentClient: agentClient)
 
                     let focusDir = DataPathsService.phaseSubdirectory(
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         phase: .prepare,
                         subdirectory: DataPathsService.prepareFocusAreasSubdir,
@@ -114,7 +114,7 @@ public struct PrepareUseCase: Sendable {
                     let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesDir)
 
                     let rulesOutputDir = DataPathsService.phaseSubdirectory(
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         phase: .prepare,
                         subdirectory: DataPathsService.prepareRulesSubdir,
@@ -132,7 +132,7 @@ public struct PrepareUseCase: Sendable {
 
                     let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps)
                     let prepareDir = DataPathsService.phaseDirectory(
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         phase: .prepare,
                         commitHash: resolvedCommit
@@ -149,7 +149,7 @@ public struct PrepareUseCase: Sendable {
                     // Write phase_result.json for prepare phase
                     try PhaseResultWriter.writeSuccess(
                         phase: .prepare,
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         commitHash: resolvedCommit,
                         stats: PhaseStats(

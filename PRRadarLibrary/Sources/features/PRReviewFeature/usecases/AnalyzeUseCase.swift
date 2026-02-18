@@ -50,7 +50,7 @@ public struct AnalyzeUseCase: Sendable {
                     )
 
                     let evalsDir = DataPathsService.phaseDirectory(
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         phase: .analyze,
                         commitHash: resolvedCommit
@@ -81,7 +81,7 @@ public struct AnalyzeUseCase: Sendable {
                         // Write phase_result.json
                         try PhaseResultWriter.writeSuccess(
                             phase: .analyze,
-                            outputDir: config.absoluteOutputDir,
+                            outputDir: config.resolvedOutputDir,
                             prNumber: prNumber,
                             commitHash: resolvedCommit,
                             stats: PhaseStats(artifactsProduced: 0)
@@ -94,7 +94,7 @@ public struct AnalyzeUseCase: Sendable {
                     }
 
                     // Partition tasks into cached (blob hash unchanged) and fresh (need evaluation)
-                    let prOutputDir = "\(config.absoluteOutputDir)/\(prNumber)"
+                    let prOutputDir = "\(config.resolvedOutputDir)/\(prNumber)"
                     let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
                         tasks: tasks, evalsDir: evalsDir, prOutputDir: prOutputDir
                     )
@@ -179,7 +179,7 @@ public struct AnalyzeUseCase: Sendable {
                     // Write phase_result.json
                     try PhaseResultWriter.writeSuccess(
                         phase: .analyze,
-                        outputDir: config.absoluteOutputDir,
+                        outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         commitHash: resolvedCommit,
                         stats: PhaseStats(
