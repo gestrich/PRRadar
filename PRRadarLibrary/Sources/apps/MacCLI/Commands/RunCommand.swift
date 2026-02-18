@@ -38,7 +38,7 @@ struct RunCommand: AsyncParsableCommand {
 
         for try await progress in useCase.execute(
             prNumber: options.prNumber,
-            rulesDir: rulesDir ?? config.rulesDir,
+            rulesDir: rulesDir ?? config.absoluteRulesDir,
             repoPath: options.repoPath,
             noDryRun: noDryRun,
             minScore: minScore

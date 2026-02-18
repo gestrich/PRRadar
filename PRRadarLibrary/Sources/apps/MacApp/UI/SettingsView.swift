@@ -296,7 +296,7 @@ private struct ConfigurationEditSheet: View {
 
             pathField(label: "Repo Path", text: $config.repoPath, placeholder: "/path/to/repo")
             pathField(label: "Output Dir", text: $config.outputDir, placeholder: "~/Desktop/code-reviews")
-            pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "/path/to/rules")
+            pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "code-review-rules")
 
             LabeledContent("Credential Account") {
                 if knownAccounts.isEmpty {

@@ -38,8 +38,12 @@ public struct RepositoryConfiguration: Sendable {
         self.githubAccount = json.githubAccount
     }
 
-    public static func defaultRulesDir(repoPath: String) -> String {
-        "\(repoPath)/code-review-rules"
+    public static var defaultRulesDir: String {
+        "code-review-rules"
+    }
+
+    public var absoluteRulesDir: String {
+        PathUtilities.resolve(rulesDir, relativeTo: repoPath)
     }
 
     public var resolvedOutputDir: String {

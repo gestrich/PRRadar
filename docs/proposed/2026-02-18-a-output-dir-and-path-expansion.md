@@ -65,7 +65,7 @@ Refactor `absoluteOutputDir` and `PRDiscoveryService` to call `PathUtilities.res
 
 **Completed**: Added `PathUtilities` enum with both `resolve(_:relativeTo:)` and `expandTilde(_:)` methods. The `expandTilde` convenience was added because `PRDiscoveryService` only needs tilde expansion (no relative-to-base resolution). Added 7 unit tests. Added `EnvironmentSDK` to test target dependencies in Package.swift.
 
-## - [ ] Phase 2: Add tilde expansion for rulesDir
+## - [x] Phase 2: Add tilde expansion for rulesDir
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -94,6 +94,8 @@ Update the UI placeholder in `SettingsView.swift` to hint at relative support: `
 - `PRModel.swift` — update caller
 - `ConfigCommand.swift` — update default
 - `SettingsView.swift` — update placeholder
+
+**Completed**: Changed `defaultRulesDir` from `static func` (returning `"{repoPath}/code-review-rules"`) to `static var` (returning just `"code-review-rules"`). Added `absoluteRulesDir` computed property using `PathUtilities.resolve`. Updated all CLI commands and PRModel to use `absoluteRulesDir` as the fallback when no `--rules-dir` override is provided. `PrepareUseCase` itself didn't need changes since it receives the resolved path from callers. Updated SettingsView placeholder to `"code-review-rules"`.
 
 ## - [ ] Phase 3: Add outputDir to AppSettings as a global setting
 
