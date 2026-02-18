@@ -146,7 +146,7 @@ Remove outputDir display from `ConfigurationDetailView` and the edit field from 
 
 **Completed**: All Phase 4 work was already implemented during Phase 3. Verified: `resolveConfig()` in `PRRadarMacCLI.swift` passes `settings.outputDir` (line 93). `AppModel.selectConfig()` passes `settingsModel.settings.outputDir` (line 30). `ConfigCommand.AddCommand` has no `--output-dir` option. `ConfigurationDetailView` and `ConfigurationEditSheet` have no outputDir fields. Build passes.
 
-## - [ ] Phase 5: Add "General" settings tab for outputDir
+## - [x] Phase 5: Add "General" settings tab for outputDir
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -167,6 +167,8 @@ Add methods to `SettingsModel` for updating the global output dir (load/save thr
 **Files**:
 - `SettingsView.swift` — add "General" tab, create `GeneralSettingsView`
 - `SettingsModel.swift` — add `updateOutputDir(_:)` method
+
+**Completed**: Added `GeneralSettingsView` as the first tab ("General" with gearshape icon) in `SettingsView`. The view uses a Form with an output directory text field and Browse button (NSOpenPanel for directory selection), plus a caption explaining tilde/relative path support. Saves on every keystroke via `onChange(of:)` calling `settingsModel.updateOutputDir(_:)`. Added `settingsService` as a direct dependency on `SettingsModel` (alongside existing use cases) so `updateOutputDir` can load/mutate/save without a dedicated use case. Updated test helper `makeModel()` to pass the new parameter. 486 tests pass.
 
 ## - [ ] Phase 6: Add CLI commands for general settings
 

@@ -6,6 +6,7 @@ import PRReviewFeature
 @MainActor
 public final class SettingsModel {
 
+    private let settingsService: SettingsService
     private let loadSettingsUseCase: LoadSettingsUseCase
     private let saveConfigurationUseCase: SaveConfigurationUseCase
     private let removeConfigurationUseCase: RemoveConfigurationUseCase
@@ -28,6 +29,7 @@ public final class SettingsModel {
     private(set) var credentialAccounts: [CredentialStatus] = []
 
     public init(
+        settingsService: SettingsService,
         loadSettingsUseCase: LoadSettingsUseCase,
         saveConfigurationUseCase: SaveConfigurationUseCase,
         removeConfigurationUseCase: RemoveConfigurationUseCase,
@@ -37,6 +39,7 @@ public final class SettingsModel {
         removeCredentialsUseCase: RemoveCredentialsUseCase,
         loadCredentialStatusUseCase: LoadCredentialStatusUseCase
     ) {
+        self.settingsService = settingsService
         self.loadSettingsUseCase = loadSettingsUseCase
         self.saveConfigurationUseCase = saveConfigurationUseCase
         self.removeConfigurationUseCase = removeConfigurationUseCase
@@ -55,6 +58,7 @@ public final class SettingsModel {
     public convenience init() {
         let service = SettingsService()
         self.init(
+            settingsService: service,
             loadSettingsUseCase: LoadSettingsUseCase(settingsService: service),
             saveConfigurationUseCase: SaveConfigurationUseCase(settingsService: service),
             removeConfigurationUseCase: RemoveConfigurationUseCase(settingsService: service),
@@ -82,6 +86,13 @@ public final class SettingsModel {
 
     func setDefault(id: UUID) throws {
         settings = try setDefaultConfigurationUseCase.execute(id: id)
+    }
+
+    // MARK: - General Settings
+
+    func updateOutputDir(_ outputDir: String) throws {
+        settings.outputDir = outputDir
+        try settingsService.save(settings)
     }
 
     // MARK: - Credentials

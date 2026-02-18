@@ -15,6 +15,11 @@ public struct SettingsView: View {
 
     public var body: some View {
         TabView {
+            Tab("General", systemImage: "gearshape") {
+                GeneralSettingsView()
+            }
+            .accessibilityIdentifier("generalTab")
+
             Tab("Repositories", systemImage: "folder") {
                 RepositoriesTabContent(
                     settingsModel: settingsModel,
@@ -57,6 +62,65 @@ public struct SettingsView: View {
             } onCancel: {
                 isAddingNew = false
             }
+        }
+    }
+
+    private var isErrorPresented: Binding<Bool> {
+        Binding(
+            get: { currentError != nil },
+            set: { if !$0 { currentError = nil } }
+        )
+    }
+}
+
+// MARK: - General Settings
+
+private struct GeneralSettingsView: View {
+    @Environment(SettingsModel.self) private var settingsModel
+    @State private var outputDir: String = ""
+    @State private var currentError: Error?
+
+    var body: some View {
+        Form {
+            Section("Output") {
+                LabeledContent("Output Directory") {
+                    HStack {
+                        TextField("code-reviews", text: $outputDir)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Browse...") {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            if panel.runModal() == .OK, let url = panel.url {
+                                outputDir = url.path
+                            }
+                        }
+                    }
+                }
+                .accessibilityIdentifier("outputDirField")
+
+                Text("Absolute path or relative to each repo. Supports ~ expansion.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            outputDir = settingsModel.settings.outputDir
+        }
+        .onChange(of: outputDir) { _, newValue in
+            do {
+                try settingsModel.updateOutputDir(newValue)
+            } catch {
+                currentError = error
+            }
+        }
+        .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
+            Button("OK") { currentError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
         }
     }
 

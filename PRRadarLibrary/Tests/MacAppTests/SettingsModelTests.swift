@@ -13,6 +13,7 @@ struct SettingsModelTests {
         let fileURL = dir.appendingPathComponent("settings.json")
         let service = SettingsService(settingsURL: fileURL)
         return SettingsModel(
+            settingsService: service,
             loadSettingsUseCase: LoadSettingsUseCase(settingsService: service),
             saveConfigurationUseCase: SaveConfigurationUseCase(settingsService: service),
             removeConfigurationUseCase: RemoveConfigurationUseCase(settingsService: service),
