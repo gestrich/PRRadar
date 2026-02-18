@@ -1,10 +1,11 @@
+import EnvironmentSDK
 import Foundation
 import PRRadarModels
 
 public enum PRDiscoveryService {
     public static func discoverPRs(outputDir: String, repoSlug: String? = nil) -> [PRMetadata] {
         let fileManager = FileManager.default
-        let expandedPath = NSString(string: outputDir).expandingTildeInPath
+        let expandedPath = PathUtilities.expandTilde(outputDir)
 
         guard fileManager.fileExists(atPath: expandedPath),
               let contents = try? fileManager.contentsOfDirectory(atPath: expandedPath)

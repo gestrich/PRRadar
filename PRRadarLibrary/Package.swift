@@ -138,6 +138,7 @@ let package = Package(
             name: "PRRadarModelsTests",
             dependencies: [
                 .target(name: "ClaudeSDK"),
+                .target(name: "EnvironmentSDK"),
                 .target(name: "PRRadarModels"),
                 .target(name: "PRRadarConfigService"),
                 .target(name: "PRRadarCLIService"),
