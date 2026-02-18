@@ -350,7 +350,7 @@ private struct ConfigurationEditSheet: View {
             }
 
             pathField(label: "Repo Path", text: $config.repoPath, placeholder: "/path/to/repo")
-            pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "code-review-rules")
+            pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: RepositoryConfiguration.defaultRulesDir)
 
             LabeledContent("Credential Account") {
                 if knownAccounts.isEmpty {
