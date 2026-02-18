@@ -7,7 +7,7 @@ struct ConfigCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "config",
         abstract: "Manage saved configurations",
-        subcommands: [AddCommand.self, ListCommand.self, RemoveCommand.self, SetDefaultCommand.self, CredentialsCommand.self],
+        subcommands: [AddCommand.self, ListCommand.self, RemoveCommand.self, SetDefaultCommand.self, CredentialsCommand.self, SettingsCommand.self],
         defaultSubcommand: ListCommand.self
     )
 
