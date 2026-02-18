@@ -326,7 +326,7 @@ private struct ConfigurationEditSheet: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(config.name.isEmpty || config.repoPath.isEmpty || githubAccountText.isEmpty)
+                .disabled(config.name.isEmpty || config.repoPath.isEmpty || config.rulesDir.isEmpty || githubAccountText.isEmpty)
             }
         }
         .padding()

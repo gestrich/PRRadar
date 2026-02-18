@@ -18,7 +18,7 @@ public struct RunAllUseCase: Sendable {
 
     public func execute(
         since: String,
-        rulesDir: String? = nil,
+        rulesDir: String,
         minScore: String? = nil,
         repo: String? = nil,
         comment: Bool = false,

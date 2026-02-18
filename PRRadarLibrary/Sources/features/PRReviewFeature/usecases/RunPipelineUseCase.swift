@@ -23,7 +23,7 @@ public struct RunPipelineUseCase: Sendable {
 
     public func execute(
         prNumber: String,
-        rulesDir: String? = nil,
+        rulesDir: String,
         repoPath: String? = nil,
         noDryRun: Bool = false,
         minScore: String? = nil

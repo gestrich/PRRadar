@@ -49,6 +49,8 @@
   should persist internally so callers don't need to manage save timing. This
   also lets AppSettings drop `inout` usage and mutable vars since the service
   owns the read-modify-write cycle.
+- [x] Make rules directory required or fall back to a well-known repo path
+  Falls back to `{repoPath}/code-review-rules/` when rulesDir is not configured.
 - [ ] Reorganize PRRadarCLIService into meaningful service modules
   The services in PRRadarCLIService apply to both the Mac app and CLI, not
   just the CLI. Break them out of the "CLIService" folder into more

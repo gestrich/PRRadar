@@ -25,7 +25,7 @@ public struct PrepareUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, rulesDir: String?, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
+    public func execute(prNumber: String, rulesDir: String, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .prepare))
 
@@ -101,17 +101,17 @@ public struct PrepareUseCase: Sendable {
                     continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
 
                     // Load rules
-                    guard let rulesPath = rulesDir, !rulesPath.isEmpty else {
+                    guard !rulesDir.isEmpty else {
                         continuation.yield(.failed(error: "No rules directory specified", logs: ""))
                         continuation.finish()
                         return
                     }
 
-                    continuation.yield(.log(text: "Loading rules from \(rulesPath)...\n"))
+                    continuation.yield(.log(text: "Loading rules from \(rulesDir)...\n"))
 
                     let gitOps = GitHubServiceFactory.createGitOps()
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
-                    let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesPath)
+                    let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesDir)
 
                     let rulesOutputDir = DataPathsService.phaseSubdirectory(
                         outputDir: config.absoluteOutputDir,
@@ -143,7 +143,7 @@ public struct PrepareUseCase: Sendable {
                         outputDir: prepareDir,
                         repoPath: self.config.repoPath,
                         commit: fullDiff.commitHash,
-                        rulesDir: rulesPath
+                        rulesDir: rulesDir
                     )
 
                     // Write phase_result.json for prepare phase

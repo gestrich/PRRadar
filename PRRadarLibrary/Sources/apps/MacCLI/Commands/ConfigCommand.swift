@@ -77,7 +77,7 @@ struct ConfigCommand: AsyncParsableCommand {
                 name: name,
                 repoPath: repoPath,
                 outputDir: outputDir,
-                rulesDir: rulesDir,
+                rulesDir: rulesDir.isEmpty ? RepositoryConfiguration.defaultRulesDir(repoPath: repoPath) : rulesDir,
                 isDefault: setDefault,
                 githubAccount: githubAccount
             )
