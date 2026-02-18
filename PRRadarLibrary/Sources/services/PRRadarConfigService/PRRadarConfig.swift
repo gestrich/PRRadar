@@ -28,11 +28,11 @@ public struct RepositoryConfiguration: Sendable {
         self.githubAccount = githubAccount
     }
 
-    public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil) {
+    public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, outputDir: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil) {
         self.id = json.id
         self.name = json.name
         self.repoPath = repoPathOverride ?? json.repoPath
-        self.outputDir = outputDirOverride ?? json.outputDir
+        self.outputDir = outputDirOverride ?? outputDir
         self.rulesDir = json.rulesDir
         self.agentScriptPath = agentScriptPath
         self.githubAccount = json.githubAccount
@@ -46,12 +46,8 @@ public struct RepositoryConfiguration: Sendable {
         PathUtilities.resolve(rulesDir, relativeTo: repoPath)
     }
 
-    public var resolvedOutputDir: String {
-        outputDir.isEmpty ? "code-reviews" : outputDir
-    }
-
     public var absoluteOutputDir: String {
-        PathUtilities.resolve(resolvedOutputDir, relativeTo: repoPath)
+        PathUtilities.resolve(outputDir, relativeTo: repoPath)
     }
 
     public func prDataDirectory(for prNumber: Int) -> String {

@@ -27,7 +27,7 @@ public final class AppModel {
 
     func selectConfig(_ jsonConfig: RepositoryConfigurationJSON?) {
         if let jsonConfig {
-            let config = RepositoryConfiguration(from: jsonConfig, agentScriptPath: agentScriptPath)
+            let config = RepositoryConfiguration(from: jsonConfig, agentScriptPath: agentScriptPath, outputDir: settingsModel.settings.outputDir)
             allPRsModel = AllPRsModel(config: config)
         } else {
             allPRsModel = nil

@@ -97,7 +97,7 @@ Update the UI placeholder in `SettingsView.swift` to hint at relative support: `
 
 **Completed**: Changed `defaultRulesDir` from `static func` (returning `"{repoPath}/code-review-rules"`) to `static var` (returning just `"code-review-rules"`). Added `absoluteRulesDir` computed property using `PathUtilities.resolve`. Updated all CLI commands and PRModel to use `absoluteRulesDir` as the fallback when no `--rules-dir` override is provided. `PrepareUseCase` itself didn't need changes since it receives the resolved path from callers. Updated SettingsView placeholder to `"code-review-rules"`.
 
-## - [ ] Phase 3: Add outputDir to AppSettings as a global setting
+## - [x] Phase 3: Add outputDir to AppSettings as a global setting
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -123,6 +123,8 @@ Actually, the cleanest approach: `RepositoryConfiguration.init(from:)` gains an 
 - `RepoConfiguration.swift` — add `outputDir` to `AppSettings`, remove from `RepositoryConfigurationJSON`
 - `PRRadarConfig.swift` — update `RepositoryConfiguration.init(from:)` to accept outputDir parameter, simplify `absoluteOutputDir` (just tilde expand, require absolute)
 - `SettingsService.swift` — no changes (just saves/loads AppSettings)
+
+**Completed**: Added `outputDir` field to `AppSettings` with `defaultOutputDir = "code-reviews"` static constant. Added custom `init(from:)` decoder for backward compatibility with existing settings files that lack the `outputDir` key. Removed `outputDir` from `RepositoryConfigurationJSON` (including init, presentableDescription). Removed `resolvedOutputDir` from `RepositoryConfiguration` — the empty-string fallback is no longer needed since the value always comes from `AppSettings`. Updated `RepositoryConfiguration.init(from:)` to accept an `outputDir` parameter sourced from `AppSettings.outputDir`; the `outputDirOverride` from CLI still takes precedence. Updated all callers: `resolveConfig()` in CLI passes `settings.outputDir`, `AppModel.selectConfig()` passes `settingsModel.settings.outputDir`. Removed outputDir display from `ConfigurationDetailView` and edit field from `ConfigurationEditSheet`. Removed `--output-dir` from `ConfigCommand.AddCommand`. 486 tests pass.
 
 ## - [ ] Phase 4: Update config resolution (CLI and MacApp) for global outputDir
 

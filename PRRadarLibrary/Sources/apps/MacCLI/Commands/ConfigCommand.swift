@@ -58,9 +58,6 @@ struct ConfigCommand: AsyncParsableCommand {
         @Option(name: .long, help: "Path to the repository")
         var repoPath: String
 
-        @Option(name: .long, help: "Output directory for phase results")
-        var outputDir: String = ""
-
         @Option(name: .long, help: "Rules directory")
         var rulesDir: String = ""
 
@@ -76,7 +73,6 @@ struct ConfigCommand: AsyncParsableCommand {
             let config = RepositoryConfigurationJSON(
                 name: name,
                 repoPath: repoPath,
-                outputDir: outputDir,
                 rulesDir: rulesDir.isEmpty ? RepositoryConfiguration.defaultRulesDir : rulesDir,
                 isDefault: setDefault,
                 githubAccount: githubAccount

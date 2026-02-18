@@ -231,15 +231,6 @@ private struct ConfigurationDetailView: View {
                         .truncationMode(.middle)
                 }
 
-                if !config.outputDir.isEmpty {
-                    LabeledContent("Output Dir") {
-                        Text(config.outputDir)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-
                 if !config.rulesDir.isEmpty {
                     LabeledContent("Rules Dir") {
                         Text(config.rulesDir)
@@ -295,7 +286,6 @@ private struct ConfigurationEditSheet: View {
             }
 
             pathField(label: "Repo Path", text: $config.repoPath, placeholder: "/path/to/repo")
-            pathField(label: "Output Dir", text: $config.outputDir, placeholder: "~/Desktop/code-reviews")
             pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: "code-review-rules")
 
             LabeledContent("Credential Account") {

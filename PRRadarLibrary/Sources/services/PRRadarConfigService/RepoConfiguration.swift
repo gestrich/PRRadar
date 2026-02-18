@@ -4,7 +4,6 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
     public let id: UUID
     public var name: String
     public var repoPath: String
-    public var outputDir: String
     public var rulesDir: String
     public var isDefault: Bool
     public var githubAccount: String
@@ -12,9 +11,6 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
     public var presentableDescription: String {
         let header = isDefault ? "\(name) (default)" : name
         var lines = [header, "  repo:   \(repoPath)"]
-        if !outputDir.isEmpty {
-            lines.append("  output: \(outputDir)")
-        }
         if !rulesDir.isEmpty {
             lines.append("  rules:  \(rulesDir)")
         }
@@ -26,7 +22,6 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         id: UUID = UUID(),
         name: String,
         repoPath: String,
-        outputDir: String = "",
         rulesDir: String = "",
         isDefault: Bool = false,
         githubAccount: String
@@ -34,7 +29,6 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         self.id = id
         self.name = name
         self.repoPath = repoPath
-        self.outputDir = outputDir
         self.rulesDir = rulesDir
         self.isDefault = isDefault
         self.githubAccount = githubAccount
@@ -43,9 +37,19 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
 
 public struct AppSettings: Codable, Sendable {
     public var configurations: [RepositoryConfigurationJSON]
+    public var outputDir: String
 
-    public init(configurations: [RepositoryConfigurationJSON] = []) {
+    public static let defaultOutputDir = "code-reviews"
+
+    public init(configurations: [RepositoryConfigurationJSON] = [], outputDir: String = AppSettings.defaultOutputDir) {
         self.configurations = configurations
+        self.outputDir = outputDir
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        configurations = try container.decode([RepositoryConfigurationJSON].self, forKey: .configurations)
+        outputDir = try container.decodeIfPresent(String.self, forKey: .outputDir) ?? AppSettings.defaultOutputDir
     }
 
     public var defaultConfiguration: RepositoryConfigurationJSON? {

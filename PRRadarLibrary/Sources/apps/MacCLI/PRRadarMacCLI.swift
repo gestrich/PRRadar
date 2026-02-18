@@ -90,6 +90,7 @@ func resolveConfig(
     return RepositoryConfiguration(
         from: namedConfig,
         agentScriptPath: resolveAgentScriptPath(),
+        outputDir: settings.outputDir,
         repoPathOverride: repoPath,
         outputDirOverride: outputDir
     )
