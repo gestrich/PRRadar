@@ -126,7 +126,7 @@ Actually, the cleanest approach: `RepositoryConfiguration.init(from:)` gains an 
 
 **Completed**: Added `outputDir` field to `AppSettings` with `defaultOutputDir = "code-reviews"` static constant. Added custom `init(from:)` decoder for backward compatibility with existing settings files that lack the `outputDir` key. Removed `outputDir` from `RepositoryConfigurationJSON` (including init, presentableDescription). Removed `resolvedOutputDir` from `RepositoryConfiguration` — the empty-string fallback is no longer needed since the value always comes from `AppSettings`. Updated `RepositoryConfiguration.init(from:)` to accept an `outputDir` parameter sourced from `AppSettings.outputDir`; the `outputDirOverride` from CLI still takes precedence. Updated all callers: `resolveConfig()` in CLI passes `settings.outputDir`, `AppModel.selectConfig()` passes `settingsModel.settings.outputDir`. Removed outputDir display from `ConfigurationDetailView` and edit field from `ConfigurationEditSheet`. Removed `--output-dir` from `ConfigCommand.AddCommand`. 486 tests pass.
 
-## - [ ] Phase 4: Update config resolution (CLI and MacApp) for global outputDir
+## - [x] Phase 4: Update config resolution (CLI and MacApp) for global outputDir
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -143,6 +143,8 @@ Remove outputDir display from `ConfigurationDetailView` and the edit field from 
 - `ConfigCommand.swift` — remove `--output-dir` from `AddCommand`
 - `SettingsView.swift` — remove outputDir from detail view and edit sheet
 - MacApp model files that construct `RepositoryConfiguration`
+
+**Completed**: All Phase 4 work was already implemented during Phase 3. Verified: `resolveConfig()` in `PRRadarMacCLI.swift` passes `settings.outputDir` (line 93). `AppModel.selectConfig()` passes `settingsModel.settings.outputDir` (line 30). `ConfigCommand.AddCommand` has no `--output-dir` option. `ConfigurationDetailView` and `ConfigurationEditSheet` have no outputDir fields. Build passes.
 
 ## - [ ] Phase 5: Add "General" settings tab for outputDir
 
