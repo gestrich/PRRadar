@@ -6,11 +6,11 @@ import PRReviewFeature
 @MainActor
 public final class SettingsModel {
 
-    private let settingsService: SettingsService
     private let loadSettingsUseCase: LoadSettingsUseCase
     private let saveConfigurationUseCase: SaveConfigurationUseCase
     private let removeConfigurationUseCase: RemoveConfigurationUseCase
     private let setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase
+    private let updateOutputDirUseCase: UpdateOutputDirUseCase
     private let listCredentialAccountsUseCase: ListCredentialAccountsUseCase
     private let saveCredentialsUseCase: SaveCredentialsUseCase
     private let removeCredentialsUseCase: RemoveCredentialsUseCase
@@ -29,21 +29,21 @@ public final class SettingsModel {
     private(set) var credentialAccounts: [CredentialStatus] = []
 
     public init(
-        settingsService: SettingsService,
         loadSettingsUseCase: LoadSettingsUseCase,
         saveConfigurationUseCase: SaveConfigurationUseCase,
         removeConfigurationUseCase: RemoveConfigurationUseCase,
         setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase,
+        updateOutputDirUseCase: UpdateOutputDirUseCase,
         listCredentialAccountsUseCase: ListCredentialAccountsUseCase,
         saveCredentialsUseCase: SaveCredentialsUseCase,
         removeCredentialsUseCase: RemoveCredentialsUseCase,
         loadCredentialStatusUseCase: LoadCredentialStatusUseCase
     ) {
-        self.settingsService = settingsService
         self.loadSettingsUseCase = loadSettingsUseCase
         self.saveConfigurationUseCase = saveConfigurationUseCase
         self.removeConfigurationUseCase = removeConfigurationUseCase
         self.setDefaultConfigurationUseCase = setDefaultConfigurationUseCase
+        self.updateOutputDirUseCase = updateOutputDirUseCase
         self.listCredentialAccountsUseCase = listCredentialAccountsUseCase
         self.saveCredentialsUseCase = saveCredentialsUseCase
         self.removeCredentialsUseCase = removeCredentialsUseCase
@@ -58,11 +58,11 @@ public final class SettingsModel {
     public convenience init() {
         let service = SettingsService()
         self.init(
-            settingsService: service,
             loadSettingsUseCase: LoadSettingsUseCase(settingsService: service),
             saveConfigurationUseCase: SaveConfigurationUseCase(settingsService: service),
             removeConfigurationUseCase: RemoveConfigurationUseCase(settingsService: service),
             setDefaultConfigurationUseCase: SetDefaultConfigurationUseCase(settingsService: service),
+            updateOutputDirUseCase: UpdateOutputDirUseCase(settingsService: service),
             listCredentialAccountsUseCase: ListCredentialAccountsUseCase(settingsService: service),
             saveCredentialsUseCase: SaveCredentialsUseCase(settingsService: service),
             removeCredentialsUseCase: RemoveCredentialsUseCase(settingsService: service),
@@ -91,8 +91,7 @@ public final class SettingsModel {
     // MARK: - General Settings
 
     func updateOutputDir(_ outputDir: String) throws {
-        settings.outputDir = outputDir
-        try settingsService.save(settings)
+        settings = try updateOutputDirUseCase.execute(outputDir: outputDir)
     }
 
     // MARK: - Credentials

@@ -85,7 +85,7 @@ private struct GeneralSettingsView: View {
             Section("Output") {
                 LabeledContent("Output Directory") {
                     HStack {
-                        TextField("code-reviews", text: $outputDir)
+                        TextField(AppSettings.defaultOutputDir, text: $outputDir)
                             .textFieldStyle(.roundedBorder)
                         Button("Browse...") {
                             let panel = NSOpenPanel()

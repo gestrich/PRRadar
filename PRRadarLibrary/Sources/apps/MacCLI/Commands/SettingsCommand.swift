@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import PRRadarConfigService
+import PRReviewFeature
 
 struct SettingsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -17,7 +18,8 @@ struct SettingsCommand: AsyncParsableCommand {
         )
 
         func run() async throws {
-            let settings = SettingsService().load()
+            let service = SettingsService()
+            let settings = LoadSettingsUseCase(settingsService: service).execute()
             print("General settings:\n")
             print("  output-dir: \(settings.outputDir)")
         }
@@ -33,18 +35,13 @@ struct SettingsCommand: AsyncParsableCommand {
         var outputDir: String?
 
         func run() async throws {
-            guard outputDir != nil else {
+            guard let outputDir else {
                 throw ValidationError("No settings provided. Use --output-dir to set the output directory.")
             }
 
             let service = SettingsService()
-            var settings = service.load()
-
-            if let outputDir {
-                settings.outputDir = outputDir
-            }
-
-            try service.save(settings)
+            let useCase = UpdateOutputDirUseCase(settingsService: service)
+            let settings = try useCase.execute(outputDir: outputDir)
             print("Settings updated:\n")
             print("  output-dir: \(settings.outputDir)")
         }
