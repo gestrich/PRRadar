@@ -183,8 +183,8 @@ public enum RuleEvaluationResult: Codable, Sendable {
     }
 
     public func violationComment(task: AnalysisTaskOutput?) -> PRComment? {
-        guard let v = violation else { return nil }
-        return PRComment.from(evaluation: v, task: task)
+        guard let violation else { return nil }
+        return PRComment.from(evaluation: violation, task: task)
     }
 
     // MARK: - Codable
