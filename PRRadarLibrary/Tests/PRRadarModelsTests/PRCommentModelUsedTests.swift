@@ -4,13 +4,12 @@ import Testing
 @Suite("PRComment modelUsed threading")
 struct PRCommentModelUsedTests {
 
-    @Test("from() copies modelUsed from RuleEvaluationResult")
+    @Test("from() copies modelUsed from EvaluationSuccess")
     func fromCopiesModelUsed() {
         // Arrange
-        let evaluation = RuleEvaluationResult(
+        let evaluation = EvaluationSuccess(
             taskId: "task-1",
             ruleName: "test-rule",
-            ruleFilePath: "/rules/test.md",
             filePath: "src/app.swift",
             evaluation: RuleEvaluation(
                 violatesRule: true,
@@ -34,10 +33,9 @@ struct PRCommentModelUsedTests {
     @Test("from() copies costUsd alongside modelUsed")
     func fromCopiesCostAndModel() {
         // Arrange
-        let evaluation = RuleEvaluationResult(
+        let evaluation = EvaluationSuccess(
             taskId: "task-2",
             ruleName: "naming-rule",
-            ruleFilePath: "/rules/naming.md",
             filePath: "src/utils.swift",
             evaluation: RuleEvaluation(
                 violatesRule: true,

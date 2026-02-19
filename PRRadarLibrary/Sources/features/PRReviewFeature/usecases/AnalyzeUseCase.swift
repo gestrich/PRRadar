@@ -21,9 +21,7 @@ public struct AnalysisOutput: Sendable {
     /// Merge evaluations with task metadata into structured comments.
     public var comments: [PRComment] {
         let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
-        return evaluations
-            .filter(\.evaluation.violatesRule)
-            .map { PRComment.from(evaluation: $0, task: taskMap[$0.taskId]) }
+        return evaluations.compactMap { $0.violationComment(task: taskMap[$0.taskId]) }
     }
 }
 
@@ -130,11 +128,18 @@ public struct AnalyzeUseCase: Sendable {
                             repoPath: effectiveRepoPath,
                             onStart: { index, total, task in
                                 let globalIndex = cachedCount + index
-                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] Evaluating \(task.rule.name)...\n"))
+                                let fileName = (task.focusArea.filePath as NSString).lastPathComponent
+                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(fileName) — \(task.rule.name)...\n"))
                             },
                             onResult: { index, total, result in
                                 let globalIndex = cachedCount + index
-                                let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+                                let status: String
+                                switch result {
+                                case .success(let s):
+                                    status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
+                                case .error(let e):
+                                    status = "ERROR: \(e.errorMessage)"
+                                }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 continuation.yield(.analysisResult(result))
                             },
@@ -158,7 +163,7 @@ public struct AnalyzeUseCase: Sendable {
 
                     // Combine cached and fresh results
                     let allResults = cachedResults + freshResults
-                    let violationCount = allResults.filter(\.evaluation.violatesRule).count
+                    let violationCount = allResults.filter(\.isViolation).count
 
                     let summary = AnalysisSummary(
                         prNumber: Int(prNumber) ?? 0,

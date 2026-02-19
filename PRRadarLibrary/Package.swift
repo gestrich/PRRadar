@@ -30,6 +30,7 @@ let package = Package(
             name: "ClaudeSDK",
             dependencies: [
                 .product(name: "CLISDK", package: "SwiftCLI"),
+                .target(name: "ConcurrencySDK"),
                 .target(name: "EnvironmentSDK"),
             ],
             path: "Sources/sdks/ClaudeSDK"
@@ -59,6 +60,11 @@ let package = Package(
         .target(
             name: "EnvironmentSDK",
             path: "Sources/sdks/EnvironmentSDK"
+        ),
+
+        .target(
+            name: "ConcurrencySDK",
+            path: "Sources/sdks/ConcurrencySDK"
         ),
 
         // Services Layer — Domain Models (Foundation-only, no other target deps)

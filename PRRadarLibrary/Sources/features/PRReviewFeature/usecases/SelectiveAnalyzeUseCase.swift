@@ -91,7 +91,13 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                             },
                             onResult: { index, total, result in
                                 let globalIndex = cachedCount + index
-                                let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+                                let status: String
+                                switch result {
+                                case .success(let s):
+                                    status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
+                                case .error(let e):
+                                    status = "ERROR: \(e.errorMessage)"
+                                }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 continuation.yield(.analysisResult(result))
                             },
@@ -109,7 +115,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                         // Write task snapshots for the evaluated tasks (for cache)
                         try AnalysisCacheService.writeTaskSnapshots(tasks: tasksToEvaluate, evalsDir: evalsDir)
 
-                        let violationCount = (cachedResults + freshResults).filter(\.evaluation.violatesRule).count
+                        let violationCount = (cachedResults + freshResults).filter(\.isViolation).count
                         continuation.yield(.log(text: AnalysisCacheService.completionMessage(freshCount: freshCount, cachedCount: cachedCount, totalCount: totalCount, violationCount: violationCount) + "\n"))
                     }
 
@@ -151,7 +157,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
             }
         }
 
-        let violationCount = evaluations.filter(\.evaluation.violatesRule).count
+        let violationCount = evaluations.filter(\.isViolation).count
         let summary = AnalysisSummary(
             prNumber: Int(prNumber) ?? 0,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),

@@ -74,10 +74,9 @@ struct AnalysisSummaryModelsUsedTests {
     // MARK: - Helpers
 
     private func makeResult(taskId: String, modelUsed: String) -> RuleEvaluationResult {
-        RuleEvaluationResult(
+        .success(EvaluationSuccess(
             taskId: taskId,
             ruleName: "test-rule",
-            ruleFilePath: "/rules/test.md",
             filePath: "test.swift",
             evaluation: RuleEvaluation(
                 violatesRule: false,
@@ -89,6 +88,6 @@ struct AnalysisSummaryModelsUsedTests {
             modelUsed: modelUsed,
             durationMs: 1000,
             costUsd: 0.001
-        )
+        ))
     }
 }

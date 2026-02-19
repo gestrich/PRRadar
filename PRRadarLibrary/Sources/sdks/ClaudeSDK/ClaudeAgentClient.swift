@@ -1,4 +1,5 @@
 import CLISDK
+import ConcurrencySDK
 import EnvironmentSDK
 import Foundation
 
@@ -182,11 +183,16 @@ public struct ClaudeAgentClient: Sendable {
         self.environment = environment
     }
 
+    private static let inactivityTimeout: TimeInterval = 120
+
     /// Stream events as they arrive from the Claude Agent process.
     ///
     /// Launches the agent script, reads stdout line by line, and yields
     /// `ClaudeAgentStreamEvent` values in real time. The final event is always
     /// `.result` containing the structured output with cost/duration metadata.
+    ///
+    /// The stream will fail with `ClaudeAgentError.agentTimedOut` when no
+    /// events arrive for `inactivityTimeout` seconds.
     public func stream(_ request: ClaudeAgentRequest) -> AsyncThrowingStream<ClaudeAgentStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -206,11 +212,25 @@ public struct ClaudeAgentClient: Sendable {
                         parser: ClaudeAgentMessageParser()
                     )
 
-                    for try await event in stream {
-                        continuation.yield(event)
-                    }
+                    let watchdog = InactivityWatchdog(
+                        timeout: Self.inactivityTimeout,
+                        onTimeout: {
+                            continuation.finish(throwing: ClaudeAgentError.agentTimedOut(Int(Self.inactivityTimeout)))
+                        }
+                    )
+                    await watchdog.start()
 
-                    continuation.finish()
+                    do {
+                        for try await event in stream {
+                            await watchdog.recordActivity()
+                            continuation.yield(event)
+                        }
+                        await watchdog.cancel()
+                        continuation.finish()
+                    } catch {
+                        await watchdog.cancel()
+                        throw error
+                    }
                 } catch let error as CLIClientError {
                     continuation.finish(throwing: ClaudeAgentError.agentFailed("\(error)"))
                 } catch {
@@ -219,6 +239,7 @@ public struct ClaudeAgentClient: Sendable {
             }
         }
     }
+
 }
 
 public enum ClaudeAgentError: LocalizedError {
@@ -226,6 +247,7 @@ public enum ClaudeAgentError: LocalizedError {
     case pythonNotFound
     case invalidInput(String)
     case agentFailed(String)
+    case agentTimedOut(Int)
     case noResult
     case missingAPIKey
 
@@ -239,6 +261,8 @@ public enum ClaudeAgentError: LocalizedError {
             return "Invalid Claude Agent input: \(detail)"
         case .agentFailed(let detail):
             return "Claude Agent failed: \(detail)"
+        case .agentTimedOut(let seconds):
+            return "No response from Claude Agent for \(seconds) seconds"
         case .noResult:
             return "Claude Agent returned no result"
         case .missingAPIKey:

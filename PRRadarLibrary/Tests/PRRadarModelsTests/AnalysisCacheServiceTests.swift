@@ -45,10 +45,9 @@ struct AnalysisCacheServiceTests {
     }
 
     private func makeResult(taskId: String, violates: Bool = false) -> RuleEvaluationResult {
-        RuleEvaluationResult(
+        .success(EvaluationSuccess(
             taskId: taskId,
             ruleName: "rule-\(taskId)",
-            ruleFilePath: "",
             filePath: "file.swift",
             evaluation: RuleEvaluation(
                 violatesRule: violates,
@@ -60,7 +59,7 @@ struct AnalysisCacheServiceTests {
             modelUsed: "claude-sonnet-4-20250514",
             durationMs: 1000,
             costUsd: 0.10
-        )
+        ))
     }
 
     private func writeAnalysisResult(_ result: RuleEvaluationResult, to dir: String) throws {
@@ -109,7 +108,7 @@ struct AnalysisCacheServiceTests {
         // Assert
         #expect(cached.count == 1)
         #expect(cached[0].taskId == "t1")
-        #expect(cached[0].evaluation.violatesRule == true)
+        #expect(cached[0].isViolation == true)
         #expect(toEvaluate.isEmpty)
     }
 
@@ -422,7 +421,7 @@ struct AnalysisCacheServiceTests {
 
         // Assert: same-commit result (violates: true) should be returned, not cross-commit (violates: false)
         #expect(cached.count == 1)
-        #expect(cached[0].evaluation.violatesRule == true)
+        #expect(cached[0].isViolation == true)
     }
 
     // MARK: - findPriorEvalsDirs

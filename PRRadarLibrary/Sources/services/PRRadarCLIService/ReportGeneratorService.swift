@@ -96,16 +96,15 @@ public struct ReportGeneratorService: Sendable {
                 totalCost += cost
             }
 
-            guard result.evaluation.violatesRule else { continue }
-            guard result.evaluation.score >= minScore else { continue }
+            guard let v = result.violation, v.evaluation.score >= minScore else { continue }
 
-            let filePath = result.filePath.isEmpty ? result.evaluation.filePath : result.filePath
+            let filePath = v.filePath.isEmpty ? v.evaluation.filePath : v.filePath
 
             let documentationLink: String?
             let relevantClaudeSkill: String?
             let methodName: String?
 
-            if let taskData = taskMetadata[result.taskId] {
+            if let taskData = taskMetadata[v.taskId] {
                 documentationLink = taskData.rule.documentationLink
                 relevantClaudeSkill = nil
                 methodName = taskData.focusArea.description
@@ -116,11 +115,11 @@ public struct ReportGeneratorService: Sendable {
             }
 
             violations.append(ViolationRecord(
-                ruleName: result.ruleName,
-                score: result.evaluation.score,
+                ruleName: v.ruleName,
+                score: v.evaluation.score,
                 filePath: filePath,
-                lineNumber: result.evaluation.lineNumber,
-                comment: result.evaluation.comment,
+                lineNumber: v.evaluation.lineNumber,
+                comment: v.evaluation.comment,
                 methodName: methodName,
                 documentationLink: documentationLink,
                 relevantClaudeSkill: relevantClaudeSkill

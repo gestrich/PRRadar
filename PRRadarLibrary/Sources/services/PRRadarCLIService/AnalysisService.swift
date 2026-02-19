@@ -195,16 +195,15 @@ public struct AnalysisService: Sendable {
             )
         }
 
-        return RuleEvaluationResult(
+        return .success(EvaluationSuccess(
             taskId: task.taskId,
             ruleName: task.rule.name,
-            ruleFilePath: "",
             filePath: task.focusArea.filePath,
             evaluation: evaluation,
             modelUsed: model,
             durationMs: agentResult.durationMs,
             costUsd: agentResult.costUsd
-        )
+        ))
     }
 
     /// Run analysis for all tasks, writing results to the evaluations directory.
@@ -227,22 +226,33 @@ public struct AnalysisService: Sendable {
             let index = i + 1
             onStart?(index, total, task)
 
-            let result = try await analyzeTask(
-                task,
-                repoPath: repoPath,
-                transcriptDir: evalsDir,
-                onPrompt: onPrompt,
-                onAIText: onAIText,
-                onAIToolUse: onAIToolUse
-            )
+            var result: RuleEvaluationResult
+            do {
+                result = try await analyzeTask(
+                    task,
+                    repoPath: repoPath,
+                    transcriptDir: evalsDir,
+                    onPrompt: onPrompt,
+                    onAIText: onAIText,
+                    onAIToolUse: onAIToolUse
+                )
+
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(result)
+                let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
+                try data.write(to: URL(fileURLWithPath: resultPath))
+            } catch {
+                result = .error(EvaluationError(
+                    taskId: task.taskId,
+                    ruleName: task.rule.name,
+                    filePath: task.focusArea.filePath,
+                    errorMessage: error.localizedDescription,
+                    modelUsed: task.rule.model ?? Self.defaultModel
+                ))
+            }
+
             results.append(result)
-
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(result)
-            let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
-            try data.write(to: URL(fileURLWithPath: resultPath))
-
             onResult?(index, total, result)
         }
 

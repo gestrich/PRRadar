@@ -159,7 +159,13 @@ public enum AnalysisCacheService {
 
     /// Per-task progress line for a cached result.
     public static func cachedTaskMessage(index: Int, totalCount: Int, result: RuleEvaluationResult) -> String {
-        let status = result.evaluation.violatesRule ? "VIOLATION (\(result.evaluation.score)/10)" : "OK"
+        let status: String
+        switch result {
+        case .success(let s):
+            status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
+        case .error(let e):
+            status = "ERROR: \(e.errorMessage)"
+        }
         return "[\(index)/\(totalCount)] \(result.ruleName) — \(status) (cached)"
     }
 

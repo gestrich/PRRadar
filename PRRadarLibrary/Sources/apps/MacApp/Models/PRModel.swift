@@ -615,7 +615,7 @@ final class PRModel: Identifiable, Hashable {
                 prNumber: Int(prNumber) ?? 0,
                 evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                 totalTasks: 1,
-                violationsFound: result.evaluation.violatesRule ? 1 : 0,
+                violationsFound: result.isViolation ? 1 : 0,
                 totalCostUsd: result.costUsd ?? 0,
                 totalDurationMs: result.durationMs,
                 results: [result]
@@ -630,7 +630,7 @@ final class PRModel: Identifiable, Hashable {
         var evaluations = existing.evaluations.filter { $0.taskId != result.taskId }
         evaluations.append(result)
 
-        let violationCount = evaluations.filter(\.evaluation.violatesRule).count
+        let violationCount = evaluations.filter(\.isViolation).count
         let summary = AnalysisSummary(
             prNumber: Int(prNumber) ?? 0,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),

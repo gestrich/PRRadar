@@ -105,7 +105,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             }
             print("  Duration: \(output.summary.totalDurationMs)ms")
 
-            let violations = output.evaluations.filter { $0.evaluation.violatesRule }
+            let violations = output.evaluations.compactMap(\.violation)
             if !violations.isEmpty {
                 print("\nViolations:")
                 for eval in violations.sorted(by: { $0.evaluation.score > $1.evaluation.score }) {
@@ -114,6 +114,15 @@ struct AnalyzeCommand: AsyncParsableCommand {
                     print("  \(color)[\(score)/10]\u{001B}[0m \(eval.ruleName)")
                     print("    \(eval.filePath):\(eval.evaluation.lineNumber ?? 0)")
                     print("    \(eval.evaluation.comment)")
+                }
+            }
+
+            let errors = output.evaluations.compactMap(\.error)
+            if !errors.isEmpty {
+                print("\nErrors:")
+                for err in errors {
+                    print("  \(err.ruleName) — \(err.filePath)")
+                    print("    \(err.errorMessage)")
                 }
             }
         }

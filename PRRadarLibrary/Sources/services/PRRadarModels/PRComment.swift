@@ -43,9 +43,9 @@ public struct PRComment: Sendable, Identifiable {
         self.modelUsed = modelUsed
     }
 
-    /// Create from an evaluation result and its associated task metadata.
+    /// Create from a successful evaluation result and its associated task metadata.
     public static func from(
-        evaluation: RuleEvaluationResult,
+        evaluation: EvaluationSuccess,
         task: AnalysisTaskOutput?
     ) -> PRComment {
         PRComment(

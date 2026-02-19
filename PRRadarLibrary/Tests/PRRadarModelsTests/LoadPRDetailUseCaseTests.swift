@@ -78,12 +78,12 @@ struct LoadPRDetailUseCaseTests {
         try writeJSON(task, to: "\(prepareTasksDir)/data-t1.json")
 
         // Evaluate: results and summary
-        let evalResult = RuleEvaluationResult(
-            taskId: "t1", ruleName: "test-rule", ruleFilePath: "rules/test.md",
+        let evalResult: RuleEvaluationResult = .success(EvaluationSuccess(
+            taskId: "t1", ruleName: "test-rule",
             filePath: "file.swift",
             evaluation: RuleEvaluation(violatesRule: true, score: 7, comment: "Violation found", filePath: "file.swift", lineNumber: 5),
             modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.10
-        )
+        ))
         try writeJSON(evalResult, to: "\(evaluateDir)/data-t1.json")
 
         let summary = AnalysisSummary(

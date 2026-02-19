@@ -60,15 +60,15 @@ struct AnalysisOutputTests {
         #expect(eval.lineNumber == nil)
     }
 
-    // MARK: - RuleEvaluationResult
+    // MARK: - RuleEvaluationResult (success)
 
-    @Test("RuleEvaluationResult decodes from Python's EvaluationResult.to_dict()")
+    @Test("RuleEvaluationResult decodes success case")
     func ruleEvaluationResultDecode() throws {
         let json = """
         {
+            "status": "success",
             "task_id": "error-handling-method-handler_py-process-10-25",
             "rule_name": "error-handling",
-            "rule_file_path": "/rules/error-handling.md",
             "file_path": "src/handler.py",
             "evaluation": {
                 "violates_rule": true,
@@ -86,18 +86,17 @@ struct AnalysisOutputTests {
         let result = try JSONDecoder().decode(RuleEvaluationResult.self, from: json)
         #expect(result.taskId == "error-handling-method-handler_py-process-10-25")
         #expect(result.ruleName == "error-handling")
-        #expect(result.ruleFilePath == "/rules/error-handling.md")
         #expect(result.filePath == "src/handler.py")
-        #expect(result.evaluation.violatesRule == true)
-        #expect(result.evaluation.score == 8)
-        #expect(result.evaluation.lineNumber == 15)
+        #expect(result.evaluation?.violatesRule == true)
+        #expect(result.evaluation?.score == 8)
+        #expect(result.evaluation?.lineNumber == 15)
         #expect(result.modelUsed == "claude-sonnet-4-20250514")
         #expect(result.durationMs == 3420)
         #expect(result.costUsd == 0.0045)
     }
 
-    @Test("RuleEvaluationResult with null cost_usd")
-    func ruleEvaluationResultNullCost() throws {
+    @Test("RuleEvaluationResult decodes legacy JSON without status field as success")
+    func ruleEvaluationResultDecodeLegacy() throws {
         let json = """
         {
             "task_id": "task-1",
@@ -119,11 +118,77 @@ struct AnalysisOutputTests {
         let result = try JSONDecoder().decode(RuleEvaluationResult.self, from: json)
         #expect(result.costUsd == nil)
         #expect(result.modelUsed == "claude-haiku-4-5-20251001")
+        guard case .success = result else {
+            Issue.record("Expected .success case")
+            return
+        }
+    }
+
+    // MARK: - RuleEvaluationResult (error)
+
+    @Test("RuleEvaluationResult decodes error case")
+    func ruleEvaluationResultDecodeError() throws {
+        let json = """
+        {
+            "status": "error",
+            "task_id": "task-fail",
+            "rule_name": "test-rule",
+            "file_path": "src/app.swift",
+            "error_message": "No response from Claude Agent for 120 seconds",
+            "model_used": "claude-sonnet-4-20250514"
+        }
+        """.data(using: .utf8)!
+
+        let result = try JSONDecoder().decode(RuleEvaluationResult.self, from: json)
+        guard case .error(let e) = result else {
+            Issue.record("Expected .error case")
+            return
+        }
+        #expect(e.taskId == "task-fail")
+        #expect(e.errorMessage == "No response from Claude Agent for 120 seconds")
+        #expect(result.isViolation == false)
+        #expect(result.costUsd == nil)
+        #expect(result.durationMs == 0)
+    }
+
+    // MARK: - RuleEvaluationResult round-trip
+
+    @Test("RuleEvaluationResult success round-trips through encode/decode")
+    func ruleEvaluationResultRoundTrip() throws {
+        let original: RuleEvaluationResult = .success(EvaluationSuccess(
+            taskId: "t1", ruleName: "r1", filePath: "f.py",
+            evaluation: RuleEvaluation(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001
+        ))
+
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(RuleEvaluationResult.self, from: encoded)
+
+        #expect(original.taskId == decoded.taskId)
+        #expect(original.isViolation == decoded.isViolation)
+        #expect(original.costUsd == decoded.costUsd)
+    }
+
+    @Test("RuleEvaluationResult error round-trips through encode/decode")
+    func ruleEvaluationResultErrorRoundTrip() throws {
+        let original: RuleEvaluationResult = .error(EvaluationError(
+            taskId: "t1", ruleName: "r1", filePath: "f.py",
+            errorMessage: "Timeout", modelUsed: "claude-sonnet-4-20250514"
+        ))
+
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(RuleEvaluationResult.self, from: encoded)
+
+        guard case .error(let e) = decoded else {
+            Issue.record("Expected .error case")
+            return
+        }
+        #expect(e.errorMessage == "Timeout")
     }
 
     // MARK: - AnalysisSummary
 
-    @Test("AnalysisSummary decodes from Python's AnalysisSummary.to_dict()")
+    @Test("AnalysisSummary decodes from JSON")
     func analysisSummaryDecode() throws {
         let json = """
         {
@@ -135,9 +200,9 @@ struct AnalysisOutputTests {
             "total_duration_ms": 45000,
             "results": [
                 {
+                    "status": "success",
                     "task_id": "rule-a-focus-1",
                     "rule_name": "rule-a",
-                    "rule_file_path": "/rules/a.md",
                     "file_path": "src/main.py",
                     "evaluation": {
                         "violates_rule": true,
@@ -151,9 +216,9 @@ struct AnalysisOutputTests {
                     "cost_usd": 0.003
                 },
                 {
+                    "status": "success",
                     "task_id": "rule-b-focus-2",
                     "rule_name": "rule-b",
-                    "rule_file_path": "/rules/b.md",
                     "file_path": "src/utils.py",
                     "evaluation": {
                         "violates_rule": false,
@@ -178,8 +243,8 @@ struct AnalysisOutputTests {
         #expect(summary.totalCostUsd == 0.0523)
         #expect(summary.totalDurationMs == 45000)
         #expect(summary.results.count == 2)
-        #expect(summary.results[0].evaluation.violatesRule == true)
-        #expect(summary.results[1].evaluation.violatesRule == false)
+        #expect(summary.results[0].isViolation == true)
+        #expect(summary.results[1].isViolation == false)
     }
 
     @Test("AnalysisSummary with empty results")
@@ -203,36 +268,18 @@ struct AnalysisOutputTests {
 
     @Test("AnalysisSummary round-trips through encode/decode")
     func analysisSummaryRoundTrip() throws {
-        let json = """
-        {
-            "pr_number": 10,
-            "evaluated_at": "2025-03-01T12:00:00Z",
-            "total_tasks": 5,
-            "violations_found": 1,
-            "total_cost_usd": 0.01,
-            "total_duration_ms": 10000,
-            "results": [
-                {
-                    "task_id": "t1",
-                    "rule_name": "r1",
-                    "rule_file_path": "/r1.md",
-                    "file_path": "f.py",
-                    "evaluation": {
-                        "violates_rule": true,
-                        "score": 5,
-                        "comment": "Issue",
-                        "file_path": "f.py",
-                        "line_number": 1
-                    },
-                    "model_used": "claude-sonnet-4-20250514",
-                    "duration_ms": 1000,
-                    "cost_usd": 0.001
-                }
-            ]
-        }
-        """.data(using: .utf8)!
+        let result: RuleEvaluationResult = .success(EvaluationSuccess(
+            taskId: "t1", ruleName: "r1", filePath: "f.py",
+            evaluation: RuleEvaluation(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001
+        ))
 
-        let original = try JSONDecoder().decode(AnalysisSummary.self, from: json)
+        let original = AnalysisSummary(
+            prNumber: 10, evaluatedAt: "2025-03-01T12:00:00Z",
+            totalTasks: 5, violationsFound: 1, totalCostUsd: 0.01, totalDurationMs: 10000,
+            results: [result]
+        )
+
         let encoded = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(AnalysisSummary.self, from: encoded)
 
