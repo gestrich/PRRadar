@@ -68,7 +68,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
 
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
-                        continuation.yield(.analysisResult(result))
+                        continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
                     }
 
                     if !tasksToEvaluate.isEmpty {
@@ -99,7 +99,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                     status = "ERROR: \(e.errorMessage)"
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                continuation.yield(.analysisResult(result))
+                                continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
                             },
                             onPrompt: { text, task in
                                 continuation.yield(.aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))

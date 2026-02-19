@@ -112,8 +112,8 @@ public struct RunPipelineUseCase: Sendable {
                             continuation.yield(.aiPrompt(context))
                         case .aiToolUse(let name):
                             continuation.yield(.aiToolUse(name: name))
-                        case .analysisResult(let result):
-                            continuation.yield(.analysisResult(result))
+                        case .analysisResult(let result, let cumulativeOutput):
+                            continuation.yield(.analysisResult(result, cumulativeOutput: cumulativeOutput))
                         case .completed:
                             evalCompleted = true
                         case .failed(let error, let logs):

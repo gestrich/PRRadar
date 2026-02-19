@@ -20,7 +20,7 @@ public enum PhaseProgress<Output: Sendable>: Sendable {
     case aiPrompt(AIPromptContext)
     case aiToolUse(name: String)
     case progress(current: Int, total: Int)
-    case analysisResult(RuleEvaluationResult)
+    case analysisResult(RuleEvaluationResult, cumulativeOutput: AnalysisOutput)
     case completed(output: Output)
     case failed(error: String, logs: String)
 }

@@ -548,7 +548,7 @@ final class PRModel: Identifiable, Hashable {
                     appendAIPrompt(context)
                 case .aiToolUse(let name):
                     appendAIToolUse(name)
-                case .analysisResult(let result):
+                case .analysisResult(let result, _):
                     activeAnalysisFilePath = nil
                     mergeAnalysisResult(result)
                 case .completed:
@@ -587,7 +587,7 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
-                case .analysisResult(let result):
+                case .analysisResult(let result, _):
                     selectiveAnalysisInFlight.remove(result.taskId)
                     mergeAnalysisResult(result)
                 case .completed:

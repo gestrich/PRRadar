@@ -11,6 +11,11 @@ public struct AnalysisOutput: Sendable {
     public let summary: AnalysisSummary
     public let cachedCount: Int
 
+    public static let empty = AnalysisOutput(
+        evaluations: [],
+        summary: AnalysisSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
+    )
+
     public init(evaluations: [RuleEvaluationResult], tasks: [AnalysisTaskOutput] = [], summary: AnalysisSummary, cachedCount: Int = 0) {
         self.evaluations = evaluations
         self.tasks = tasks
@@ -105,7 +110,7 @@ public struct AnalyzeUseCase: Sendable {
 
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
-                        continuation.yield(.analysisResult(result))
+                        continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
                     }
 
                     var freshResults: [RuleEvaluationResult] = []
@@ -141,7 +146,7 @@ public struct AnalyzeUseCase: Sendable {
                                     status = "ERROR: \(e.errorMessage)"
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                continuation.yield(.analysisResult(result))
+                                continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
                             },
                             onPrompt: { text, task in
                                 continuation.yield(.aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))
