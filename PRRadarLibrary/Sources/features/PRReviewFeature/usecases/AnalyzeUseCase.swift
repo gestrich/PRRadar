@@ -23,6 +23,31 @@ public struct AnalysisOutput: Sendable {
         self.cachedCount = cachedCount
     }
 
+    /// Build a cumulative output from a running list of evaluations, deduplicating by taskId.
+    static func cumulative(evaluations: [RuleEvaluationResult], tasks: [AnalysisTaskOutput], prNumber: Int, cachedCount: Int = 0) -> AnalysisOutput {
+        var seen = Set<String>()
+        var deduped: [RuleEvaluationResult] = []
+        for eval in evaluations.reversed() {
+            if seen.insert(eval.taskId).inserted {
+                deduped.append(eval)
+            }
+        }
+        deduped.reverse()
+
+        let violationCount = deduped.filter(\.isViolation).count
+        let summary = AnalysisSummary(
+            prNumber: prNumber,
+            evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+            totalTasks: deduped.count,
+            violationsFound: violationCount,
+            totalCostUsd: deduped.compactMap(\.costUsd).reduce(0, +),
+            totalDurationMs: deduped.map(\.durationMs).reduce(0, +),
+            results: deduped
+        )
+
+        return AnalysisOutput(evaluations: deduped, tasks: tasks, summary: summary, cachedCount: cachedCount)
+    }
+
     /// Merge evaluations with task metadata into structured comments.
     public var comments: [PRComment] {
         let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
@@ -108,9 +133,14 @@ public struct AnalyzeUseCase: Sendable {
 
                     continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
+                    let prNum = Int(prNumber) ?? 0
+                    var cumulativeEvaluations: [RuleEvaluationResult] = []
+
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
-                        continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
+                        cumulativeEvaluations.append(result)
+                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNum, cachedCount: cachedCount)
+                        continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                     }
 
                     var freshResults: [RuleEvaluationResult] = []
@@ -146,7 +176,9 @@ public struct AnalyzeUseCase: Sendable {
                                     status = "ERROR: \(e.errorMessage)"
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
+                                cumulativeEvaluations.append(result)
+                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNum, cachedCount: cachedCount)
+                                continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                             },
                             onPrompt: { text, task in
                                 continuation.yield(.aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))

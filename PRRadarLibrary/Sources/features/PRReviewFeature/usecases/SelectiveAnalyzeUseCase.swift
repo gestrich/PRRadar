@@ -66,9 +66,15 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     continuation.yield(.log(text: "Selective evaluation: \(totalCount) tasks match filter\n"))
                     continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
+                    // Seed cumulative evaluations with existing results from disk (prior runs)
+                    let prNum = Int(prNumber) ?? 0
+                    var cumulativeEvaluations = Self.loadExistingEvaluations(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
-                        continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
+                        cumulativeEvaluations.append(result)
+                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNum, cachedCount: cachedCount)
+                        continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                     }
 
                     if !tasksToEvaluate.isEmpty {
@@ -99,7 +105,9 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                     status = "ERROR: \(e.errorMessage)"
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                continuation.yield(.analysisResult(result, cumulativeOutput: .empty))
+                                cumulativeEvaluations.append(result)
+                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNum, cachedCount: cachedCount)
+                                continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                             },
                             onPrompt: { text, task in
                                 continuation.yield(.aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))
@@ -131,6 +139,23 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                 }
             }
         }
+    }
+
+    /// Load existing evaluation results from disk to seed cumulative tracking.
+    private static func loadExistingEvaluations(config: RepositoryConfiguration, prNumber: String, commitHash: String?) -> [RuleEvaluationResult] {
+        let evalFiles = PhaseOutputParser.listPhaseFiles(
+            config: config, prNumber: prNumber, phase: .analyze, commitHash: commitHash
+        ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
+
+        var evaluations: [RuleEvaluationResult] = []
+        for file in evalFiles {
+            if let evaluation: RuleEvaluationResult = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .analyze, filename: file, commitHash: commitHash
+            ) {
+                evaluations.append(evaluation)
+            }
+        }
+        return evaluations
     }
 
     /// Build an AnalysisOutput by reading all individual result files from disk.

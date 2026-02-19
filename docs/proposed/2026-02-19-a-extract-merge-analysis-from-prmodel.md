@@ -42,7 +42,7 @@ case analysisResult(RuleEvaluationResult, cumulativeOutput: AnalysisOutput)
 - PRModel destructuring sites ignore cumulativeOutput with `_` (Phase 3 will use it)
 - All 488 tests pass
 
-## - [ ] Phase 2: Build cumulative AnalysisOutput inside the use cases
+## - [x] Phase 2: Build cumulative AnalysisOutput inside the use cases
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -62,6 +62,8 @@ Move the merge logic into `AnalyzeUseCase` and `SelectiveAnalyzeUseCase`. As eac
 **Files to modify:**
 - `Sources/features/PRReviewFeature/usecases/AnalyzeUseCase.swift`
 - `Sources/features/PRReviewFeature/usecases/SelectiveAnalyzeUseCase.swift`
+
+**Completion notes:** Added `AnalysisOutput.cumulative(evaluations:tasks:prNumber:cachedCount:)` static method that deduplicates by taskId (keeping last occurrence, matching PRModel's behavior) and builds a summary. Both use cases now maintain a `cumulativeEvaluations` array and yield real cumulative output with each `.analysisResult`. `SelectiveAnalyzeUseCase` seeds its cumulative state with `loadExistingEvaluations()` from disk (prior run results) so the progressive output includes the full picture. All 488 tests pass.
 
 ## - [ ] Phase 3: Simplify PRModel to assign instead of compute
 
