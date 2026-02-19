@@ -93,7 +93,7 @@ The CLI's `AnalyzeCommand` currently has `case .analysisResult: break`. Update t
 
 **Completion notes:** All CLI consumers (AnalyzeCommand, RunCommand, RunAllCommand, PrepareCommand, RefreshPRCommand, RefreshCommand, SyncCommand, CommentCommand, ReportCommand) already use `case .analysisResult: break` which is idiomatic Swift for matching an enum case while ignoring associated values. This is consistent with other cases in the same switch statements (e.g., `.aiPrompt: break`, `.progress: break`). Phase 1 proactively fixed all 23 consumer sites to compile with the new enum shape, so no additional code changes were needed. Build succeeds.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -101,3 +101,5 @@ The CLI's `AnalyzeCommand` currently has `case .analysisResult: break`. Update t
 - Run `swift test` — all 431+ tests pass
 - Verify no remaining references to `mergeAnalysisResult` in the codebase
 - If existing tests cover `AnalyzeUseCase` streaming behavior, confirm they still pass with the new cumulative output in `.analysisResult` events
+
+**Completion notes:** `swift build` succeeds with no errors. All 488 tests in 54 suites pass. No references to `mergeAnalysisResult` remain in Swift source code (only in documentation files describing the refactor). All phases of the extract-mergeAnalysisResult spec are now complete.
