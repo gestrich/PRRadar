@@ -85,9 +85,9 @@ private struct GeneralSettingsView: View {
             Section("Output") {
                 LabeledContent("Output Directory") {
                     HStack {
-                        TextField(AppSettings.defaultOutputDir, text: $outputDir)
+                        TextField("", text: $outputDir, prompt: Text(AppSettings.defaultOutputDir))
                             .textFieldStyle(.roundedBorder)
-                        Button("Browse...") {
+                        Button {
                             let panel = NSOpenPanel()
                             panel.canChooseFiles = false
                             panel.canChooseDirectories = true
@@ -95,12 +95,14 @@ private struct GeneralSettingsView: View {
                             if panel.runModal() == .OK, let url = panel.url {
                                 outputDir = url.path
                             }
+                        } label: {
+                            Image(systemName: "folder")
                         }
                     }
                 }
                 .accessibilityIdentifier("outputDirField")
 
-                Text("Absolute path or relative to each repo. Supports ~ expansion.")
+                Text("Absolute path to the output directory.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -108,7 +110,8 @@ private struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            outputDir = settingsModel.settings.outputDir
+            let stored = settingsModel.settings.outputDir
+            outputDir = stored.isEmpty ? AppSettings.defaultOutputDir : stored
         }
         .onChange(of: outputDir) { _, newValue in
             do {
@@ -395,7 +398,7 @@ private struct ConfigurationEditSheet: View {
             HStack {
                 TextField(placeholder, text: text)
                     .textFieldStyle(.roundedBorder)
-                Button("Browse...") {
+                Button {
                     let panel = NSOpenPanel()
                     panel.canChooseFiles = false
                     panel.canChooseDirectories = true
@@ -403,6 +406,8 @@ private struct ConfigurationEditSheet: View {
                     if panel.runModal() == .OK, let url = panel.url {
                         text.wrappedValue = url.path
                     }
+                } label: {
+                    Image(systemName: "folder")
                 }
             }
         }

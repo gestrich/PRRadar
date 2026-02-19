@@ -4,7 +4,10 @@ public struct AppSettings: Codable, Sendable {
     public var configurations: [RepositoryConfigurationJSON]
     public var outputDir: String
 
-    public static let defaultOutputDir = "code-reviews"
+    public static var defaultOutputDir: String {
+        let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
+        return desktop.appendingPathComponent("code-reviews").path
+    }
 
     public init(configurations: [RepositoryConfigurationJSON] = [], outputDir: String = AppSettings.defaultOutputDir) {
         self.configurations = configurations
