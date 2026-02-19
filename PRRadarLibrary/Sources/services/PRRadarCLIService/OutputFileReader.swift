@@ -15,7 +15,7 @@ public enum OutputFileReader {
             commitHash: commitHash
         )
         let contents = try? FileManager.default.contentsOfDirectory(atPath: phaseDir)
-        return (contents ?? []).sorted()
+        return contents ?? []
     }
 
     public static func phaseDirectoryPath(
@@ -47,7 +47,7 @@ public enum OutputFileReader {
             commitHash: commitHash
         )
         let contents = try? FileManager.default.contentsOfDirectory(atPath: subdir)
-        return (contents ?? []).sorted()
+        return contents ?? []
     }
 
     public static func phaseSubdirectoryPath(

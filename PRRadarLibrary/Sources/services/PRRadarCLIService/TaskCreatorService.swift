@@ -60,13 +60,6 @@ public struct TaskCreatorService: Sendable {
             }
         }
 
-        tasks.sort { a, b in
-            if a.focusArea.filePath != b.focusArea.filePath {
-                return a.focusArea.filePath < b.focusArea.filePath
-            }
-            return a.rule.name < b.rule.name
-        }
-
         return tasks
     }
 

@@ -42,10 +42,10 @@ public struct AnalyzeUseCase: Sendable {
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     let effectiveRepoPath = repoPath ?? config.repoPath
 
-                    // Load tasks from prepare phase
+                    // Load tasks from prepare phase (sorted file-first, then rule name)
                     let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
-                    )
+                    ).sorted()
 
                     let evalsDir = DataPathsService.phaseDirectory(
                         outputDir: config.resolvedOutputDir,
