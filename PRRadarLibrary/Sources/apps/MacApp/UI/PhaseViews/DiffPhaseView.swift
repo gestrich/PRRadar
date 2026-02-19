@@ -251,6 +251,7 @@ struct DiffPhaseView: View {
     }
 
     private func isFileInFlight(_ file: String) -> Bool {
+        if prModel.activeAnalysisFilePath == file { return true }
         let fileTaskIds = Set(tasks.filter { $0.focusArea.filePath == file }.map(\.taskId))
         return !fileTaskIds.isDisjoint(with: prModel.selectiveAnalysisInFlight)
     }

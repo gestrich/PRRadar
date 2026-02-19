@@ -6,6 +6,7 @@ struct AITranscriptView: View {
 
     let transcriptsByPhase: [PRRadarPhase: [ClaudeAgentTranscript]]
     var isStreaming: Bool = false
+    var activeFilePath: String?
 
     @State private var selectedPhase: PRRadarPhase = .prepare
     @State private var selectedTranscriptId: String?
@@ -178,6 +179,10 @@ struct AITranscriptView: View {
                         Text(group.displayName)
                             .font(.caption)
                             .fontWeight(.semibold)
+                        if activeFilePath == group.filePath {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
                     }
                     .foregroundStyle(.secondary)
                     .help(group.filePath)

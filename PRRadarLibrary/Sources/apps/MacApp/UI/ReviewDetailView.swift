@@ -183,9 +183,9 @@ struct ReviewDetailView: View {
     @ViewBuilder
     private var aiOutputView: some View {
         if prModel.isAIPhaseRunning, !prModel.liveTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts, isStreaming: true)
+            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts, isStreaming: true, activeFilePath: prModel.activeAnalysisFilePath)
         } else if prModel.isAIPhaseRunning, !prModel.savedTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts, isStreaming: true)
+            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts, isStreaming: true, activeFilePath: prModel.activeAnalysisFilePath)
         } else if !prModel.savedTranscripts.isEmpty {
             AITranscriptView(transcriptsByPhase: prModel.savedTranscripts)
         } else if !prModel.liveTranscripts.isEmpty {

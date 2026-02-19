@@ -27,6 +27,7 @@ final class PRModel: Identifiable, Hashable {
 
     private var liveAccumulators: [LiveTranscriptAccumulator] = []
     private(set) var currentLivePhase: PRRadarPhase?
+    private(set) var activeAnalysisFilePath: String?
 
     private(set) var operationMode: OperationMode = .idle
     private(set) var selectiveAnalysisInFlight: Set<String> = []
@@ -454,6 +455,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func appendAIPrompt(_ context: AIPromptContext) {
         let count = liveAccumulators.count
+        activeAnalysisFilePath = context.filePath
         liveAccumulators.append(LiveTranscriptAccumulator(
             identifier: "task-\(count + 1)",
             prompt: context.text,
@@ -547,19 +549,23 @@ final class PRModel: Identifiable, Hashable {
                 case .aiToolUse(let name):
                     appendAIToolUse(name)
                 case .analysisResult(let result):
+                    activeAnalysisFilePath = nil
                     mergeAnalysisResult(result)
                 case .completed:
                     inProgressAnalysis = nil
+                    activeAnalysisFilePath = nil
                     currentLivePhase = nil
                     let logs = runningLogs(for: .analyze)
                     reloadDetail()
                     phaseStates[.analyze] = .completed(logs: logs)
                 case .failed(let error, let logs):
+                    activeAnalysisFilePath = nil
                     currentLivePhase = nil
                     phaseStates[.analyze] = .failed(error: error, logs: logs)
                 }
             }
         } catch {
+            activeAnalysisFilePath = nil
             currentLivePhase = nil
             let logs = runningLogs(for: .analyze)
             phaseStates[.analyze] = .failed(error: error.localizedDescription, logs: logs)
