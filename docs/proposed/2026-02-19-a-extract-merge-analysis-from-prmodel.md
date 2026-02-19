@@ -83,13 +83,15 @@ Delete `PRModel.mergeAnalysisResult()` entirely.
 
 **Completion notes:** Deleted `mergeAnalysisResult()` (39 lines of domain logic) from PRModel. Both `runAnalyze()` and `runSelectiveAnalysis()` now assign `cumulativeOutput` directly to `inProgressAnalysis`. In `runSelectiveAnalysis`, `result.taskId` is still destructured to update `selectiveAnalysisInFlight`. Build succeeds.
 
-## - [ ] Phase 4: Update CLI consumers for the new enum shape
+## - [x] Phase 4: Update CLI consumers for the new enum shape
 
 The CLI's `AnalyzeCommand` currently has `case .analysisResult: break`. Update the pattern match to account for the new associated value, keeping the `break`.
 
 **Files to modify:**
 - `Sources/apps/MacCLI/Commands/AnalyzeCommand.swift` — Update pattern match
 - Any other switch-case sites on `PhaseProgress.analysisResult` (search for `.analysisResult` across the codebase)
+
+**Completion notes:** All CLI consumers (AnalyzeCommand, RunCommand, RunAllCommand, PrepareCommand, RefreshPRCommand, RefreshCommand, SyncCommand, CommentCommand, ReportCommand) already use `case .analysisResult: break` which is idiomatic Swift for matching an enum case while ignoring associated values. This is consistent with other cases in the same switch statements (e.g., `.aiPrompt: break`, `.progress: break`). Phase 1 proactively fixed all 23 consumer sites to compile with the new enum shape, so no additional code changes were needed. Build succeeds.
 
 ## - [ ] Phase 5: Validation
 
