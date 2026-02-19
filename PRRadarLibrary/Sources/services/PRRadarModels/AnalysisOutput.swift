@@ -17,14 +17,6 @@ public struct RuleEvaluation: Codable, Sendable {
         self.filePath = filePath
         self.lineNumber = lineNumber
     }
-
-    enum CodingKeys: String, CodingKey {
-        case violatesRule = "violates_rule"
-        case score
-        case comment
-        case filePath = "file_path"
-        case lineNumber = "line_number"
-    }
 }
 
 /// A successful evaluation result with metadata.
@@ -54,16 +46,6 @@ public struct EvaluationSuccess: Codable, Sendable {
         self.durationMs = durationMs
         self.costUsd = costUsd
     }
-
-    enum CodingKeys: String, CodingKey {
-        case taskId = "task_id"
-        case ruleName = "rule_name"
-        case filePath = "file_path"
-        case evaluation
-        case modelUsed = "model_used"
-        case durationMs = "duration_ms"
-        case costUsd = "cost_usd"
-    }
 }
 
 /// An evaluation that failed due to an error (network, timeout, etc.).
@@ -86,14 +68,6 @@ public struct EvaluationError: Codable, Sendable {
         self.filePath = filePath
         self.errorMessage = errorMessage
         self.modelUsed = modelUsed
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case taskId = "task_id"
-        case ruleName = "rule_name"
-        case filePath = "file_path"
-        case errorMessage = "error_message"
-        case modelUsed = "model_used"
     }
 }
 
@@ -190,23 +164,16 @@ public enum RuleEvaluationResult: Codable, Sendable {
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case status
-    }
-
-    private enum Status: String, Codable {
         case success
         case error
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let status = try container.decodeIfPresent(Status.self, forKey: .status) ?? .success
-        switch status {
-        case .success:
-            // Decode from the same top-level container (flat JSON)
-            self = .success(try EvaluationSuccess(from: decoder))
-        case .error:
-            self = .error(try EvaluationError(from: decoder))
+        if container.contains(.success) {
+            self = .success(try container.decode(EvaluationSuccess.self, forKey: .success))
+        } else {
+            self = .error(try container.decode(EvaluationError.self, forKey: .error))
         }
     }
 
@@ -214,11 +181,9 @@ public enum RuleEvaluationResult: Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .success(let s):
-            try container.encode(Status.success, forKey: .status)
-            try s.encode(to: encoder)
+            try container.encode(s, forKey: .success)
         case .error(let e):
-            try container.encode(Status.error, forKey: .status)
-            try e.encode(to: encoder)
+            try container.encode(e, forKey: .error)
         }
     }
 }
@@ -254,15 +219,5 @@ public struct AnalysisSummary: Codable, Sendable {
     /// Distinct model IDs used across all evaluation results, sorted alphabetically.
     public var modelsUsed: [String] {
         Array(Set(results.map(\.modelUsed))).sorted()
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case prNumber = "pr_number"
-        case evaluatedAt = "evaluated_at"
-        case totalTasks = "total_tasks"
-        case violationsFound = "violations_found"
-        case totalCostUsd = "total_cost_usd"
-        case totalDurationMs = "total_duration_ms"
-        case results
     }
 }

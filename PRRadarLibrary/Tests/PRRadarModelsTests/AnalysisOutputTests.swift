@@ -7,15 +7,15 @@ struct AnalysisOutputTests {
 
     // MARK: - RuleEvaluation
 
-    @Test("RuleEvaluation decodes from Python's RuleEvaluation.to_dict()")
+    @Test("RuleEvaluation decodes with all fields")
     func ruleEvaluationDecode() throws {
         let json = """
         {
-            "violates_rule": true,
+            "violatesRule": true,
             "score": 7,
             "comment": "Missing error handling in async function. Wrap the await call in a try/catch block.",
-            "file_path": "src/api/handler.py",
-            "line_number": 42
+            "filePath": "src/api/handler.py",
+            "lineNumber": 42
         }
         """.data(using: .utf8)!
 
@@ -27,15 +27,15 @@ struct AnalysisOutputTests {
         #expect(eval.lineNumber == 42)
     }
 
-    @Test("RuleEvaluation decodes with null line_number (no violation location)")
+    @Test("RuleEvaluation decodes with null lineNumber")
     func ruleEvaluationNullLineNumber() throws {
         let json = """
         {
-            "violates_rule": false,
+            "violatesRule": false,
             "score": 2,
             "comment": "Code follows the naming convention correctly.",
-            "file_path": "src/utils.py",
-            "line_number": null
+            "filePath": "src/utils.py",
+            "lineNumber": null
         }
         """.data(using: .utf8)!
 
@@ -45,14 +45,14 @@ struct AnalysisOutputTests {
         #expect(eval.lineNumber == nil)
     }
 
-    @Test("RuleEvaluation decodes without line_number key (Python omits when None)")
+    @Test("RuleEvaluation decodes without lineNumber key")
     func ruleEvaluationMissingLineNumber() throws {
         let json = """
         {
-            "violates_rule": false,
+            "violatesRule": false,
             "score": 1,
             "comment": "No issues found.",
-            "file_path": "config.py"
+            "filePath": "config.py"
         }
         """.data(using: .utf8)!
 
@@ -66,20 +66,21 @@ struct AnalysisOutputTests {
     func ruleEvaluationResultDecode() throws {
         let json = """
         {
-            "status": "success",
-            "task_id": "error-handling-method-handler_py-process-10-25",
-            "rule_name": "error-handling",
-            "file_path": "src/handler.py",
-            "evaluation": {
-                "violates_rule": true,
-                "score": 8,
-                "comment": "Critical: unhandled exception in production code path.",
-                "file_path": "src/handler.py",
-                "line_number": 15
-            },
-            "model_used": "claude-sonnet-4-20250514",
-            "duration_ms": 3420,
-            "cost_usd": 0.0045
+            "success": {
+                "taskId": "error-handling-method-handler_py-process-10-25",
+                "ruleName": "error-handling",
+                "filePath": "src/handler.py",
+                "evaluation": {
+                    "violatesRule": true,
+                    "score": 8,
+                    "comment": "Critical: unhandled exception in production code path.",
+                    "filePath": "src/handler.py",
+                    "lineNumber": 15
+                },
+                "modelUsed": "claude-sonnet-4-20250514",
+                "durationMs": 3420,
+                "costUsd": 0.0045
+            }
         }
         """.data(using: .utf8)!
 
@@ -95,47 +96,19 @@ struct AnalysisOutputTests {
         #expect(result.costUsd == 0.0045)
     }
 
-    @Test("RuleEvaluationResult decodes legacy JSON without status field as success")
-    func ruleEvaluationResultDecodeLegacy() throws {
-        let json = """
-        {
-            "task_id": "task-1",
-            "rule_name": "test-rule",
-            "rule_file_path": "/rules/test.md",
-            "file_path": "test.py",
-            "evaluation": {
-                "violates_rule": false,
-                "score": 1,
-                "comment": "OK",
-                "file_path": "test.py"
-            },
-            "model_used": "claude-haiku-4-5-20251001",
-            "duration_ms": 500,
-            "cost_usd": null
-        }
-        """.data(using: .utf8)!
-
-        let result = try JSONDecoder().decode(RuleEvaluationResult.self, from: json)
-        #expect(result.costUsd == nil)
-        #expect(result.modelUsed == "claude-haiku-4-5-20251001")
-        guard case .success = result else {
-            Issue.record("Expected .success case")
-            return
-        }
-    }
-
     // MARK: - RuleEvaluationResult (error)
 
     @Test("RuleEvaluationResult decodes error case")
     func ruleEvaluationResultDecodeError() throws {
         let json = """
         {
-            "status": "error",
-            "task_id": "task-fail",
-            "rule_name": "test-rule",
-            "file_path": "src/app.swift",
-            "error_message": "No response from Claude Agent for 120 seconds",
-            "model_used": "claude-sonnet-4-20250514"
+            "error": {
+                "taskId": "task-fail",
+                "ruleName": "test-rule",
+                "filePath": "src/app.swift",
+                "errorMessage": "No response from Claude Agent for 120 seconds",
+                "modelUsed": "claude-sonnet-4-20250514"
+            }
         }
         """.data(using: .utf8)!
 
@@ -192,44 +165,46 @@ struct AnalysisOutputTests {
     func analysisSummaryDecode() throws {
         let json = """
         {
-            "pr_number": 42,
-            "evaluated_at": "2025-01-15T10:30:00+00:00",
-            "total_tasks": 15,
-            "violations_found": 3,
-            "total_cost_usd": 0.0523,
-            "total_duration_ms": 45000,
+            "prNumber": 42,
+            "evaluatedAt": "2025-01-15T10:30:00+00:00",
+            "totalTasks": 15,
+            "violationsFound": 3,
+            "totalCostUsd": 0.0523,
+            "totalDurationMs": 45000,
             "results": [
                 {
-                    "status": "success",
-                    "task_id": "rule-a-focus-1",
-                    "rule_name": "rule-a",
-                    "file_path": "src/main.py",
-                    "evaluation": {
-                        "violates_rule": true,
-                        "score": 6,
-                        "comment": "Moderate issue found.",
-                        "file_path": "src/main.py",
-                        "line_number": 30
-                    },
-                    "model_used": "claude-sonnet-4-20250514",
-                    "duration_ms": 2500,
-                    "cost_usd": 0.003
+                    "success": {
+                        "taskId": "rule-a-focus-1",
+                        "ruleName": "rule-a",
+                        "filePath": "src/main.py",
+                        "evaluation": {
+                            "violatesRule": true,
+                            "score": 6,
+                            "comment": "Moderate issue found.",
+                            "filePath": "src/main.py",
+                            "lineNumber": 30
+                        },
+                        "modelUsed": "claude-sonnet-4-20250514",
+                        "durationMs": 2500,
+                        "costUsd": 0.003
+                    }
                 },
                 {
-                    "status": "success",
-                    "task_id": "rule-b-focus-2",
-                    "rule_name": "rule-b",
-                    "file_path": "src/utils.py",
-                    "evaluation": {
-                        "violates_rule": false,
-                        "score": 2,
-                        "comment": "Looks good.",
-                        "file_path": "src/utils.py",
-                        "line_number": null
-                    },
-                    "model_used": "claude-sonnet-4-20250514",
-                    "duration_ms": 1800,
-                    "cost_usd": 0.002
+                    "success": {
+                        "taskId": "rule-b-focus-2",
+                        "ruleName": "rule-b",
+                        "filePath": "src/utils.py",
+                        "evaluation": {
+                            "violatesRule": false,
+                            "score": 2,
+                            "comment": "Looks good.",
+                            "filePath": "src/utils.py",
+                            "lineNumber": null
+                        },
+                        "modelUsed": "claude-sonnet-4-20250514",
+                        "durationMs": 1800,
+                        "costUsd": 0.002
+                    }
                 }
             ]
         }
@@ -251,12 +226,12 @@ struct AnalysisOutputTests {
     func analysisSummaryEmpty() throws {
         let json = """
         {
-            "pr_number": 1,
-            "evaluated_at": "2025-02-01T00:00:00+00:00",
-            "total_tasks": 0,
-            "violations_found": 0,
-            "total_cost_usd": 0.0,
-            "total_duration_ms": 0,
+            "prNumber": 1,
+            "evaluatedAt": "2025-02-01T00:00:00+00:00",
+            "totalTasks": 0,
+            "violationsFound": 0,
+            "totalCostUsd": 0.0,
+            "totalDurationMs": 0,
             "results": []
         }
         """.data(using: .utf8)!
