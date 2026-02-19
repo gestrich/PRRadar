@@ -65,7 +65,7 @@ Move the merge logic into `AnalyzeUseCase` and `SelectiveAnalyzeUseCase`. As eac
 
 **Completion notes:** Added `AnalysisOutput.cumulative(evaluations:tasks:prNumber:cachedCount:)` static method that deduplicates by taskId (keeping last occurrence, matching PRModel's behavior) and builds a summary. Both use cases now maintain a `cumulativeEvaluations` array and yield real cumulative output with each `.analysisResult`. `SelectiveAnalyzeUseCase` seeds its cumulative state with `loadExistingEvaluations()` from disk (prior run results) so the progressive output includes the full picture. All 488 tests pass.
 
-## - [ ] Phase 3: Simplify PRModel to assign instead of compute
+## - [x] Phase 3: Simplify PRModel to assign instead of compute
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -80,6 +80,8 @@ Delete `PRModel.mergeAnalysisResult()` entirely.
 
 **Files to modify:**
 - `Sources/apps/MacApp/Models/PRModel.swift` — Remove `mergeAnalysisResult()`, update both `runAnalyze()` and `runSelectiveAnalysis()` switch cases
+
+**Completion notes:** Deleted `mergeAnalysisResult()` (39 lines of domain logic) from PRModel. Both `runAnalyze()` and `runSelectiveAnalysis()` now assign `cumulativeOutput` directly to `inProgressAnalysis`. In `runSelectiveAnalysis`, `result.taskId` is still destructured to update `selectiveAnalysisInFlight`. Build succeeds.
 
 ## - [ ] Phase 4: Update CLI consumers for the new enum shape
 

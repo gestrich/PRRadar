@@ -548,9 +548,9 @@ final class PRModel: Identifiable, Hashable {
                     appendAIPrompt(context)
                 case .aiToolUse(let name):
                     appendAIToolUse(name)
-                case .analysisResult(let result, _):
+                case .analysisResult(_, let cumulativeOutput):
                     activeAnalysisFilePath = nil
-                    mergeAnalysisResult(result)
+                    inProgressAnalysis = cumulativeOutput
                 case .completed:
                     inProgressAnalysis = nil
                     activeAnalysisFilePath = nil
@@ -587,9 +587,9 @@ final class PRModel: Identifiable, Hashable {
                 case .aiOutput: break
                 case .aiPrompt: break
                 case .aiToolUse: break
-                case .analysisResult(let result, _):
+                case .analysisResult(let result, let cumulativeOutput):
                     selectiveAnalysisInFlight.remove(result.taskId)
-                    mergeAnalysisResult(result)
+                    inProgressAnalysis = cumulativeOutput
                 case .completed:
                     inProgressAnalysis = nil
                     selectiveAnalysisInFlight = []
@@ -613,46 +613,6 @@ final class PRModel: Identifiable, Hashable {
         Task {
             await runSelectiveAnalysis(filter: filter)
         }
-    }
-
-    private func mergeAnalysisResult(_ result: RuleEvaluationResult) {
-        guard let existing = analysis else {
-            let summary = AnalysisSummary(
-                prNumber: Int(prNumber) ?? 0,
-                evaluatedAt: ISO8601DateFormatter().string(from: Date()),
-                totalTasks: 1,
-                violationsFound: result.isViolation ? 1 : 0,
-                totalCostUsd: result.costUsd ?? 0,
-                totalDurationMs: result.durationMs,
-                results: [result]
-            )
-            inProgressAnalysis = AnalysisOutput(
-                evaluations: [result],
-                summary: summary
-            )
-            return
-        }
-
-        var evaluations = existing.evaluations.filter { $0.taskId != result.taskId }
-        evaluations.append(result)
-
-        let violationCount = evaluations.filter(\.isViolation).count
-        let summary = AnalysisSummary(
-            prNumber: Int(prNumber) ?? 0,
-            evaluatedAt: ISO8601DateFormatter().string(from: Date()),
-            totalTasks: evaluations.count,
-            violationsFound: violationCount,
-            totalCostUsd: evaluations.compactMap(\.costUsd).reduce(0, +),
-            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +),
-            results: evaluations
-        )
-
-        inProgressAnalysis = AnalysisOutput(
-            evaluations: evaluations,
-            tasks: existing.tasks,
-            summary: summary,
-            cachedCount: existing.cachedCount
-        )
     }
 
     private func runReport() async {
