@@ -67,7 +67,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
                     // Seed cumulative evaluations with existing results from disk (prior runs)
-                    var cumulativeEvaluations = Self.loadExistingEvaluations(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+                    var cumulativeEvaluations = try Self.loadExistingEvaluations(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
@@ -141,18 +141,17 @@ public struct SelectiveAnalyzeUseCase: Sendable {
     }
 
     /// Load existing evaluation results from disk to seed cumulative tracking.
-    private static func loadExistingEvaluations(config: RepositoryConfiguration, prNumber: Int, commitHash: String?) -> [RuleEvaluationResult] {
+    private static func loadExistingEvaluations(config: RepositoryConfiguration, prNumber: Int, commitHash: String?) throws -> [RuleEvaluationResult] {
         let evalFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .analyze, commitHash: commitHash
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
         var evaluations: [RuleEvaluationResult] = []
         for file in evalFiles {
-            if let evaluation: RuleEvaluationResult = try? PhaseOutputParser.parsePhaseOutput(
+            let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
                 config: config, prNumber: prNumber, phase: .analyze, filename: file, commitHash: commitHash
-            ) {
-                evaluations.append(evaluation)
-            }
+            )
+            evaluations.append(evaluation)
         }
         return evaluations
     }
@@ -174,11 +173,10 @@ public struct SelectiveAnalyzeUseCase: Sendable {
 
         var evaluations: [RuleEvaluationResult] = []
         for file in evalFiles {
-            if let evaluation: RuleEvaluationResult = try? PhaseOutputParser.parsePhaseOutput(
+            let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
                 config: config, prNumber: prNumber, phase: .analyze, filename: file, commitHash: commitHash
-            ) {
-                evaluations.append(evaluation)
-            }
+            )
+            evaluations.append(evaluation)
         }
 
         let violationCount = evaluations.filter(\.isViolation).count
