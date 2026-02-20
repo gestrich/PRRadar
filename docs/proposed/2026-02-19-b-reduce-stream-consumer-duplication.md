@@ -127,7 +127,7 @@ case .failed(let error, let logs):
 
 **Notes:** `runPrepare`, `runAnalyze`, and `runReport` now use lifecycle helpers for all state transitions. `runSelectiveAnalysis` was left unchanged — it doesn't use `phaseStates` at all (no `.running` setup, no `.completed`/`.failed` transitions), so none of the helpers apply. Per-method side effects (clearing `inProgressAnalysis`, `activeAnalysisFilePath`) remain inline before the helper calls. The catch blocks in `runAnalyze` and `runReport` still capture `runningLogs` before calling `failPhase` since the logs need to be preserved. Build passes.
 
-## - [ ] Phase 3: Apply helpers to `refreshDiff` and `runComments` where they fit
+## - [x] Phase 3: Apply helpers to `refreshDiff` and `runComments` where they fit
 
 These two methods have unique patterns but still share some boilerplate with the helpers.
 
@@ -137,6 +137,8 @@ These two methods have unique patterns but still share some boilerplate with the
 
 **File to modify:**
 - `Sources/apps/MacApp/Models/PRModel.swift`
+
+**Notes:** Only `failPhase` applied cleanly to `refreshDiff` — both the in-stream `.failed` case (with concatenated existing + new logs) and the generic `catch` block now use `failPhase`. `startPhase` didn't apply because the startup has conditional `.refreshing` vs `.running` logic. `completePhase` didn't apply because the completion calls `reloadDetail(commitHash:)` with a parameter, not the parameterless `reloadDetail()` that `completePhase` uses. `runComments` was left unchanged — it uses `commentPostingState` instead of `phaseStates`, so none of the helpers apply. Build passes.
 
 ## - [ ] Phase 4: Validation
 

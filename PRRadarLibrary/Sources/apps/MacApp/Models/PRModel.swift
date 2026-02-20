@@ -225,7 +225,7 @@ final class PRModel: Identifiable, Hashable {
                         phaseStates[.diff] = .completed(logs: logs)
                     case .failed(let error, let logs):
                         let existingLogs = runningLogs(for: .diff)
-                        phaseStates[.diff] = .failed(error: error, logs: existingLogs + logs)
+                        failPhase(.diff, error: error, logs: existingLogs + logs)
                     }
                 }
             } catch is CancellationError {
@@ -236,7 +236,7 @@ final class PRModel: Identifiable, Hashable {
                 }
             } catch {
                 let logs = runningLogs(for: .diff)
-                phaseStates[.diff] = .failed(error: error.localizedDescription, logs: logs)
+                failPhase(.diff, error: error.localizedDescription, logs: logs)
             }
         }
         refreshTask = task
