@@ -65,10 +65,10 @@ public struct PrepareUseCase: Sendable {
                         requestedTypes: [.file],
                         transcriptDir: focusDir,
                         onAIText: { text in
-                            continuation.yield(.aiOutput(text: text))
+                            continuation.yield(.taskOutput(text: text))
                         },
                         onAIToolUse: { name in
-                            continuation.yield(.aiToolUse(name: name))
+                            continuation.yield(.taskToolUse(name: name))
                         }
                     )
                     try FileManager.default.createDirectory(atPath: focusDir, withIntermediateDirectories: true)

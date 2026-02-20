@@ -213,10 +213,10 @@ final class PRModel: Identifiable, Hashable {
                         break
                     case .log(let text):
                         appendLog(text, to: .diff)
-                    case .aiOutput: break
-                    case .aiPrompt: break
-                    case .aiToolUse: break
-                    case .analysisResult: break
+                    case .taskOutput: break
+                    case .taskPrompt: break
+                    case .taskToolUse: break
+                    case .taskCompleted: break
                     case .completed(let snapshot):
                         reloadDetail(commitHash: snapshot.commitHash)
                         let logs = runningLogs(for: .diff)
@@ -352,10 +352,10 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendCommentLog(text)
-                case .aiOutput: break
-                case .aiPrompt: break
-                case .aiToolUse: break
-                case .analysisResult: break
+                case .taskOutput: break
+                case .taskPrompt: break
+                case .taskToolUse: break
+                case .taskCompleted: break
                 case .completed(let output):
                     comments = output
                     let logs = commentPostingLogs
@@ -453,7 +453,7 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .running(logs: existing + text)
     }
 
-    private func appendAIPrompt(_ context: AIPromptContext) {
+    private func appendAIPrompt(_ context: TaskPromptContext) {
         let count = liveAccumulators.count
         activeAnalysisFilePath = context.filePath
         liveAccumulators.append(LiveTranscriptAccumulator(
@@ -503,13 +503,13 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendLog(text, to: .prepare)
-                case .aiOutput(let text):
+                case .taskOutput(let text):
                     appendAIOutput(text)
-                case .aiPrompt(let context):
+                case .taskPrompt(let context):
                     appendAIPrompt(context)
-                case .aiToolUse(let name):
+                case .taskToolUse(let name):
                     appendAIToolUse(name)
-                case .analysisResult: break
+                case .taskCompleted: break
                 case .completed:
                     currentLivePhase = nil
                     let logs = runningLogs(for: .prepare)
@@ -542,15 +542,15 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendLog(text, to: .analyze)
-                case .aiOutput(let text):
+                case .taskOutput(let text):
                     appendAIOutput(text)
-                case .aiPrompt(let context):
+                case .taskPrompt(let context):
                     appendAIPrompt(context)
-                case .aiToolUse(let name):
+                case .taskToolUse(let name):
                     appendAIToolUse(name)
-                case .analysisResult(_, let cumulativeOutput):
+                case .taskCompleted(_, let cumulative):
                     activeAnalysisFilePath = nil
-                    inProgressAnalysis = cumulativeOutput
+                    inProgressAnalysis = cumulative
                 case .completed:
                     inProgressAnalysis = nil
                     activeAnalysisFilePath = nil
@@ -584,12 +584,12 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendLog(text, to: .analyze)
-                case .aiOutput: break
-                case .aiPrompt: break
-                case .aiToolUse: break
-                case .analysisResult(let result, let cumulativeOutput):
-                    selectiveAnalysisInFlight.remove(result.taskId)
-                    inProgressAnalysis = cumulativeOutput
+                case .taskOutput: break
+                case .taskPrompt: break
+                case .taskToolUse: break
+                case .taskCompleted(let taskId, let cumulative):
+                    selectiveAnalysisInFlight.remove(taskId)
+                    inProgressAnalysis = cumulative
                 case .completed:
                     inProgressAnalysis = nil
                     selectiveAnalysisInFlight = []
@@ -629,10 +629,10 @@ final class PRModel: Identifiable, Hashable {
                     break
                 case .log(let text):
                     appendLog(text, to: .report)
-                case .aiOutput: break
-                case .aiPrompt: break
-                case .aiToolUse: break
-                case .analysisResult: break
+                case .taskOutput: break
+                case .taskPrompt: break
+                case .taskToolUse: break
+                case .taskCompleted: break
                 case .completed:
                     let logs = runningLogs(for: .report)
                     reloadDetail()

@@ -33,10 +33,10 @@ struct SyncCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
-            case .aiOutput: break
-            case .aiPrompt: break
-            case .aiToolUse: break
-            case .analysisResult: break
+            case .taskOutput: break
+            case .taskPrompt: break
+            case .taskToolUse: break
+            case .taskCompleted: break
             case .completed(let snapshot):
                 outputFiles = snapshot.files
                 commitHash = snapshot.commitHash

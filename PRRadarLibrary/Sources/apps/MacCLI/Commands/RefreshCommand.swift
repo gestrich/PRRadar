@@ -51,10 +51,10 @@ struct RefreshCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !json { print(text, terminator: "") }
-            case .aiOutput: break
-            case .aiPrompt: break
-            case .aiToolUse: break
-            case .analysisResult: break
+            case .taskOutput: break
+            case .taskPrompt: break
+            case .taskToolUse: break
+            case .taskCompleted: break
             case .completed(let prs):
                 if json {
                     let encoded = prs.map { pr in

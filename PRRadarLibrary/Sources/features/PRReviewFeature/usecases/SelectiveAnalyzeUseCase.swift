@@ -73,7 +73,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                         cumulativeEvaluations.append(result)
                         let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
-                        continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
+                        continuation.yield(.taskCompleted(taskId: result.taskId, cumulative: cumOutput))
                     }
 
                     if !tasksToEvaluate.isEmpty {
@@ -106,16 +106,16 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 cumulativeEvaluations.append(result)
                                 let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
-                                continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
+                                continuation.yield(.taskCompleted(taskId: result.taskId, cumulative: cumOutput))
                             },
                             onPrompt: { text, task in
-                                continuation.yield(.aiPrompt(AIPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))
+                                continuation.yield(.taskPrompt(TaskPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))
                             },
                             onAIText: { text in
-                                continuation.yield(.aiOutput(text: text))
+                                continuation.yield(.taskOutput(text: text))
                             },
                             onAIToolUse: { name in
-                                continuation.yield(.aiToolUse(name: name))
+                                continuation.yield(.taskToolUse(name: name))
                             }
                         )
 
