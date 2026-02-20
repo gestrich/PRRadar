@@ -512,9 +512,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func runPrepare() async {
-        phaseStates[.prepare] = .running(logs: "")
-        liveAccumulators = []
-        currentLivePhase = .prepare
+        startPhase(.prepare, tracksLiveTranscripts: true)
 
         let useCase = PrepareUseCase(config: config)
 
@@ -536,25 +534,18 @@ final class PRModel: Identifiable, Hashable {
                 case .taskToolUse: break
                 case .taskCompleted: break
                 case .completed:
-                    currentLivePhase = nil
-                    let logs = runningLogs(for: .prepare)
-                    reloadDetail()
-                    phaseStates[.prepare] = .completed(logs: logs)
+                    completePhase(.prepare, tracksLiveTranscripts: true)
                 case .failed(let error, let logs):
-                    currentLivePhase = nil
-                    phaseStates[.prepare] = .failed(error: error, logs: logs)
+                    failPhase(.prepare, error: error, logs: logs, tracksLiveTranscripts: true)
                 }
             }
         } catch {
-            currentLivePhase = nil
-            phaseStates[.prepare] = .failed(error: error.localizedDescription, logs: "")
+            failPhase(.prepare, error: error.localizedDescription, logs: "", tracksLiveTranscripts: true)
         }
     }
 
     private func runAnalyze() async {
-        phaseStates[.analyze] = .running(logs: "Running evaluations...\n")
-        liveAccumulators = []
-        currentLivePhase = .analyze
+        startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
 
         let useCase = AnalyzeUseCase(config: config)
 
@@ -581,21 +572,16 @@ final class PRModel: Identifiable, Hashable {
                 case .completed:
                     inProgressAnalysis = nil
                     activeAnalysisFilePath = nil
-                    currentLivePhase = nil
-                    let logs = runningLogs(for: .analyze)
-                    reloadDetail()
-                    phaseStates[.analyze] = .completed(logs: logs)
+                    completePhase(.analyze, tracksLiveTranscripts: true)
                 case .failed(let error, let logs):
                     activeAnalysisFilePath = nil
-                    currentLivePhase = nil
-                    phaseStates[.analyze] = .failed(error: error, logs: logs)
+                    failPhase(.analyze, error: error, logs: logs, tracksLiveTranscripts: true)
                 }
             }
         } catch {
             activeAnalysisFilePath = nil
-            currentLivePhase = nil
             let logs = runningLogs(for: .analyze)
-            phaseStates[.analyze] = .failed(error: error.localizedDescription, logs: logs)
+            failPhase(.analyze, error: error.localizedDescription, logs: logs, tracksLiveTranscripts: true)
         }
     }
 
@@ -645,7 +631,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func runReport() async {
-        phaseStates[.report] = .running(logs: "Generating report...\n")
+        startPhase(.report, logs: "Generating report...\n")
 
         let useCase = GenerateReportUseCase(config: config)
 
@@ -665,16 +651,14 @@ final class PRModel: Identifiable, Hashable {
                 case .taskToolUse: break
                 case .taskCompleted: break
                 case .completed:
-                    let logs = runningLogs(for: .report)
-                    reloadDetail()
-                    phaseStates[.report] = .completed(logs: logs)
+                    completePhase(.report)
                 case .failed(let error, let logs):
-                    phaseStates[.report] = .failed(error: error, logs: logs)
+                    failPhase(.report, error: error, logs: logs)
                 }
             }
         } catch {
             let logs = runningLogs(for: .report)
-            phaseStates[.report] = .failed(error: error.localizedDescription, logs: logs)
+            failPhase(.report, error: error.localizedDescription, logs: logs)
         }
     }
 

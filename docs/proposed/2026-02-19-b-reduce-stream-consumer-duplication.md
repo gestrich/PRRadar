@@ -64,7 +64,7 @@ private func failPhase(_ phase: PRRadarPhase, error: String, logs: String, track
 
 **Notes:** Added after `appendAIToolUse` in the Helpers section. The spec used `[:]` for `liveAccumulators` but the actual type is `[LiveTranscriptAccumulator]`, so `[]` was used instead. Build passes.
 
-## - [ ] Phase 2: Rewrite the 4 standard phase runners to use the helpers
+## - [x] Phase 2: Rewrite the 4 standard phase runners to use the helpers
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -122,8 +122,10 @@ case .failed(let error, let logs):
 
 **`runSelectiveAnalysis`** — uses `startPhase` but has its own completion logic (clearing `selectiveAnalysisInFlight`, no `reloadDetail` on completion via the standard path). If the existing completion path doesn't match `completePhase` exactly, keep the inline code and only use `startPhase` and `failPhase`.
 
-**File to modify:**
+**File modified:**
 - `Sources/apps/MacApp/Models/PRModel.swift`
+
+**Notes:** `runPrepare`, `runAnalyze`, and `runReport` now use lifecycle helpers for all state transitions. `runSelectiveAnalysis` was left unchanged — it doesn't use `phaseStates` at all (no `.running` setup, no `.completed`/`.failed` transitions), so none of the helpers apply. Per-method side effects (clearing `inProgressAnalysis`, `activeAnalysisFilePath`) remain inline before the helper calls. The catch blocks in `runAnalyze` and `runReport` still capture `runningLogs` before calling `failPhase` since the logs need to be preserved. Build passes.
 
 ## - [ ] Phase 3: Apply helpers to `refreshDiff` and `runComments` where they fit
 
