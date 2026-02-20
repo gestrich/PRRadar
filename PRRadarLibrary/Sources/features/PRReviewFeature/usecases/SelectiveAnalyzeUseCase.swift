@@ -14,7 +14,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
     }
 
     public func execute(
-        prNumber: String,
+        prNumber: Int,
         filter: AnalysisFilter,
         repoPath: String? = nil,
         commitHash: String? = nil
@@ -67,13 +67,12 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
                     // Seed cumulative evaluations with existing results from disk (prior runs)
-                    let prNum = Int(prNumber) ?? 0
                     var cumulativeEvaluations = Self.loadExistingEvaluations(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                         cumulativeEvaluations.append(result)
-                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNum, cachedCount: cachedCount)
+                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
                         continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                     }
 
@@ -106,7 +105,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 cumulativeEvaluations.append(result)
-                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNum, cachedCount: cachedCount)
+                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
                                 continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                             },
                             onPrompt: { text, task in
@@ -142,7 +141,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
     }
 
     /// Load existing evaluation results from disk to seed cumulative tracking.
-    private static func loadExistingEvaluations(config: RepositoryConfiguration, prNumber: String, commitHash: String?) -> [RuleEvaluationResult] {
+    private static func loadExistingEvaluations(config: RepositoryConfiguration, prNumber: Int, commitHash: String?) -> [RuleEvaluationResult] {
         let evalFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .analyze, commitHash: commitHash
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
@@ -164,7 +163,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
     /// giving the UI a complete picture of all evaluations.
     private static func buildMergedOutput(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         allTasks: [AnalysisTaskOutput],
         cachedCount: Int,
         commitHash: String? = nil
@@ -184,7 +183,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
 
         let violationCount = evaluations.filter(\.isViolation).count
         let summary = AnalysisSummary(
-            prNumber: Int(prNumber) ?? 0,
+            prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
             totalTasks: evaluations.count,
             violationsFound: violationCount,

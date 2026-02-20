@@ -58,8 +58,6 @@ public struct PRAcquisitionService: Sendable {
         outputDir: String,
         authorCache: AuthorCacheService? = nil
     ) async throws -> AcquisitionResult {
-        let prNumberStr = String(prNumber)
-
         // --- Fetch all data from GitHub ---
 
         let repository: GitHubRepository
@@ -109,7 +107,7 @@ public struct PRAcquisitionService: Sendable {
 
         let metadataDir = DataPathsService.phaseDirectory(
             outputDir: outputDir,
-            prNumber: prNumberStr,
+            prNumber: prNumber,
             phase: .metadata
         )
         try DataPathsService.ensureDirectoryExists(at: metadataDir)
@@ -137,7 +135,7 @@ public struct PRAcquisitionService: Sendable {
         try PhaseResultWriter.writeSuccess(
             phase: .metadata,
             outputDir: outputDir,
-            prNumber: prNumberStr,
+            prNumber: prNumber,
             stats: PhaseStats(
                 artifactsProduced: 3,
                 metadata: ["commitHash": shortCommitHash]
@@ -148,7 +146,7 @@ public struct PRAcquisitionService: Sendable {
 
         let diffDir = DataPathsService.phaseDirectory(
             outputDir: outputDir,
-            prNumber: prNumberStr,
+            prNumber: prNumber,
             phase: .diff,
             commitHash: shortCommitHash
         )
@@ -178,7 +176,7 @@ public struct PRAcquisitionService: Sendable {
         try PhaseResultWriter.writeSuccess(
             phase: .diff,
             outputDir: outputDir,
-            prNumber: prNumberStr,
+            prNumber: prNumber,
             commitHash: shortCommitHash,
             stats: PhaseStats(
                 artifactsProduced: 6,

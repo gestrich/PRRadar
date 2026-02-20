@@ -110,7 +110,7 @@ struct PhaseBehaviorTests {
     func phaseDirectoryMetadata() {
         let dir = DataPathsService.phaseDirectory(
             outputDir: "/output",
-            prNumber: "42",
+            prNumber: 42,
             phase: .metadata
         )
         #expect(dir == "/output/42/metadata")
@@ -120,7 +120,7 @@ struct PhaseBehaviorTests {
     func phaseDirectoryCommitScoped() {
         let dir = DataPathsService.phaseDirectory(
             outputDir: "/output",
-            prNumber: "42",
+            prNumber: 42,
             phase: .diff,
             commitHash: "abc1234"
         )
@@ -131,7 +131,7 @@ struct PhaseBehaviorTests {
     func metadataDirectory() {
         let dir = DataPathsService.metadataDirectory(
             outputDir: "/output",
-            prNumber: "42"
+            prNumber: 42
         )
         #expect(dir == "/output/42/metadata")
     }
@@ -140,7 +140,7 @@ struct PhaseBehaviorTests {
     func analysisDirectory() {
         let dir = DataPathsService.analysisDirectory(
             outputDir: "/output",
-            prNumber: "42",
+            prNumber: 42,
             commitHash: "abc1234"
         )
         #expect(dir == "/output/42/analysis/abc1234")
@@ -149,17 +149,17 @@ struct PhaseBehaviorTests {
     @Test("commit-scoped phase subdirectories build correct paths")
     func commitScopedSubdirectories() {
         let prepareDir = DataPathsService.phaseDirectory(
-            outputDir: "/output", prNumber: "42", phase: .prepare, commitHash: "abc1234"
+            outputDir: "/output", prNumber: 42, phase: .prepare, commitHash: "abc1234"
         )
         #expect(prepareDir == "/output/42/analysis/abc1234/prepare")
 
         let analyzeDir = DataPathsService.phaseDirectory(
-            outputDir: "/output", prNumber: "42", phase: .analyze, commitHash: "abc1234"
+            outputDir: "/output", prNumber: 42, phase: .analyze, commitHash: "abc1234"
         )
         #expect(analyzeDir == "/output/42/analysis/abc1234/evaluate")
 
         let reportDir = DataPathsService.phaseDirectory(
-            outputDir: "/output", prNumber: "42", phase: .report, commitHash: "abc1234"
+            outputDir: "/output", prNumber: 42, phase: .report, commitHash: "abc1234"
         )
         #expect(reportDir == "/output/42/analysis/abc1234/report")
     }
@@ -169,7 +169,7 @@ struct PhaseBehaviorTests {
         let canRun = DataPathsService.canRunPhase(
             .metadata,
             outputDir: "/nonexistent",
-            prNumber: "1"
+            prNumber: 1
         )
         #expect(canRun)
     }
@@ -179,7 +179,7 @@ struct PhaseBehaviorTests {
         let canRun = DataPathsService.canRunPhase(
             .diff,
             outputDir: "/nonexistent",
-            prNumber: "1"
+            prNumber: 1
         )
         #expect(canRun)
     }
@@ -189,7 +189,7 @@ struct PhaseBehaviorTests {
         let error = DataPathsService.validateCanRun(
             .prepare,
             outputDir: "/nonexistent",
-            prNumber: "1"
+            prNumber: 1
         )
         #expect(error != nil)
         #expect(error!.contains("diff"))
@@ -199,7 +199,7 @@ struct PhaseBehaviorTests {
     func phaseDirectoryLegacyFallback() {
         let dir = DataPathsService.phaseDirectory(
             outputDir: "/output",
-            prNumber: "42",
+            prNumber: 42,
             phase: .diff
         )
         #expect(dir == "/output/42/diff")
@@ -209,7 +209,7 @@ struct PhaseBehaviorTests {
     func phaseSubdirectory() {
         let dir = DataPathsService.phaseSubdirectory(
             outputDir: "/output",
-            prNumber: "42",
+            prNumber: 42,
             phase: .prepare,
             subdirectory: DataPathsService.prepareFocusAreasSubdir,
             commitHash: "abc1234"
@@ -223,10 +223,10 @@ struct PhaseBehaviorTests {
     func metadataIgnoresCommitHash() {
         // Act
         let withHash = DataPathsService.phaseDirectory(
-            outputDir: "/output", prNumber: "42", phase: .metadata, commitHash: "abc1234"
+            outputDir: "/output", prNumber: 42, phase: .metadata, commitHash: "abc1234"
         )
         let withoutHash = DataPathsService.phaseDirectory(
-            outputDir: "/output", prNumber: "42", phase: .metadata
+            outputDir: "/output", prNumber: 42, phase: .metadata
         )
 
         // Assert
@@ -240,7 +240,7 @@ struct PhaseBehaviorTests {
     func phaseExistsNonexistent() {
         // Act
         let exists = DataPathsService.phaseExists(
-            outputDir: "/nonexistent", prNumber: "1", phase: .diff, commitHash: "abc1234"
+            outputDir: "/nonexistent", prNumber: 1, phase: .diff, commitHash: "abc1234"
         )
 
         // Assert
@@ -256,7 +256,7 @@ struct PhaseBehaviorTests {
 
         // Act
         let exists = DataPathsService.phaseExists(
-            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+            outputDir: outputDir, prNumber: 1, phase: .diff, commitHash: "abc1234"
         )
 
         // Assert
@@ -273,7 +273,7 @@ struct PhaseBehaviorTests {
 
         // Act
         let exists = DataPathsService.phaseExists(
-            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+            outputDir: outputDir, prNumber: 1, phase: .diff, commitHash: "abc1234"
         )
 
         // Assert
@@ -292,10 +292,10 @@ struct PhaseBehaviorTests {
 
         // Act
         let existsA = DataPathsService.phaseExists(
-            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+            outputDir: outputDir, prNumber: 1, phase: .diff, commitHash: "abc1234"
         )
         let existsB = DataPathsService.phaseExists(
-            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "def5678"
+            outputDir: outputDir, prNumber: 1, phase: .diff, commitHash: "def5678"
         )
 
         // Assert
@@ -312,7 +312,7 @@ struct PhaseBehaviorTests {
 
         // Act
         let status = DataPathsService.phaseStatus(
-            .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            .diff, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert
@@ -326,13 +326,13 @@ struct PhaseBehaviorTests {
         // Arrange
         let outputDir = try makeTempDir()
         try PhaseResultWriter.writeSuccess(
-            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: "abc1234",
             stats: PhaseStats(artifactsProduced: 3)
         )
 
         // Act
         let status = DataPathsService.phaseStatus(
-            .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            .diff, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert
@@ -347,13 +347,13 @@ struct PhaseBehaviorTests {
         // Arrange
         let outputDir = try makeTempDir()
         try PhaseResultWriter.writeFailure(
-            phase: .analyze, outputDir: outputDir, prNumber: "1",
+            phase: .analyze, outputDir: outputDir, prNumber: 1,
             commitHash: "abc1234", error: "API timeout"
         )
 
         // Act
         let status = DataPathsService.phaseStatus(
-            .analyze, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            .analyze, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert
@@ -367,13 +367,13 @@ struct PhaseBehaviorTests {
         // Arrange
         let outputDir = try makeTempDir()
         try PhaseResultWriter.writeSuccess(
-            phase: .metadata, outputDir: outputDir, prNumber: "1",
+            phase: .metadata, outputDir: outputDir, prNumber: 1,
             stats: PhaseStats(artifactsProduced: 4)
         )
 
         // Act
         let status = DataPathsService.phaseStatus(
-            .metadata, outputDir: outputDir, prNumber: "1"
+            .metadata, outputDir: outputDir, prNumber: 1
         )
 
         // Assert
@@ -389,21 +389,21 @@ struct PhaseBehaviorTests {
         // Arrange
         let outputDir = try makeTempDir()
         try PhaseResultWriter.writeSuccess(
-            phase: .metadata, outputDir: outputDir, prNumber: "1",
+            phase: .metadata, outputDir: outputDir, prNumber: 1,
             stats: PhaseStats(artifactsProduced: 3)
         )
         try PhaseResultWriter.writeSuccess(
-            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: "abc1234",
             stats: PhaseStats(artifactsProduced: 5)
         )
         try PhaseResultWriter.writeSuccess(
-            phase: .prepare, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            phase: .prepare, outputDir: outputDir, prNumber: 1, commitHash: "abc1234",
             stats: PhaseStats(artifactsProduced: 10)
         )
 
         // Act
         let statuses = DataPathsService.allPhaseStatuses(
-            outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert
@@ -419,16 +419,16 @@ struct PhaseBehaviorTests {
         // Arrange
         let outputDir = try makeTempDir()
         try PhaseResultWriter.writeSuccess(
-            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234",
+            phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: "abc1234",
             stats: PhaseStats(artifactsProduced: 5)
         )
 
         // Act
         let statusesA = DataPathsService.allPhaseStatuses(
-            outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
         let statusesB = DataPathsService.allPhaseStatuses(
-            outputDir: outputDir, prNumber: "1", commitHash: "def5678"
+            outputDir: outputDir, prNumber: 1, commitHash: "def5678"
         )
 
         // Assert
@@ -443,17 +443,17 @@ struct PhaseBehaviorTests {
         // Arrange
         let outputDir = try makeTempDir()
         let diffDir = DataPathsService.phaseDirectory(
-            outputDir: outputDir, prNumber: "1", phase: .diff, commitHash: "abc1234"
+            outputDir: outputDir, prNumber: 1, phase: .diff, commitHash: "abc1234"
         )
         try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
         try "content".write(toFile: "\(diffDir)/diff-raw.diff", atomically: true, encoding: .utf8)
 
         // Act
         let canRunPrepare = DataPathsService.canRunPhase(
-            .prepare, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            .prepare, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
         let canRunAnalyze = DataPathsService.canRunPhase(
-            .analyze, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            .analyze, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert
@@ -471,11 +471,11 @@ struct PhaseBehaviorTests {
 
         // Act
         try PhaseResultWriter.writeSuccess(
-            phase: .analyze, outputDir: outputDir, prNumber: "1",
+            phase: .analyze, outputDir: outputDir, prNumber: 1,
             commitHash: "abc1234", stats: stats
         )
         let result = PhaseResultWriter.read(
-            phase: .analyze, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            phase: .analyze, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert
@@ -494,7 +494,7 @@ struct PhaseBehaviorTests {
 
         // Act
         let result = PhaseResultWriter.read(
-            phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: "abc1234"
+            phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: "abc1234"
         )
 
         // Assert

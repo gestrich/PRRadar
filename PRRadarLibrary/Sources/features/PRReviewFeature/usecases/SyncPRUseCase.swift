@@ -42,7 +42,7 @@ public struct SyncPRUseCase: Sendable {
         self.config = config
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) -> SyncSnapshot {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) -> SyncSnapshot {
         let resolvedCommit = commitHash ?? resolveCommitHash(config: config, prNumber: prNumber)
 
         // Diff files live under analysis/<commit>/diff/
@@ -83,7 +83,7 @@ public struct SyncPRUseCase: Sendable {
     }
 
     /// Resolve the commit hash from metadata/gh-pr.json, or scan analysis/ for the latest commit directory.
-    public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: String) -> String? {
+    public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: Int) -> String? {
         // Try reading headRefOid from metadata/gh-pr.json
         let metadataDir = DataPathsService.phaseDirectory(
             outputDir: config.resolvedOutputDir,
@@ -104,7 +104,7 @@ public struct SyncPRUseCase: Sendable {
         return nil
     }
 
-    public func execute(prNumber: String, force: Bool = false) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
+    public func execute(prNumber: Int, force: Bool = false) -> AsyncThrowingStream<PhaseProgress<SyncSnapshot>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
 
@@ -114,12 +114,6 @@ public struct SyncPRUseCase: Sendable {
 
                     let (gitHub, gitOps) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
 
-                    guard let prNum = Int(prNumber) else {
-                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
-                        continuation.finish()
-                        return
-                    }
-
                     try Task.checkCancellation()
 
                     if !force {
@@ -127,7 +121,7 @@ public struct SyncPRUseCase: Sendable {
                             config: config, prNumber: prNumber, phase: .metadata, filename: DataPathsService.ghPRFilename
                         )
                         if let cachedUpdatedAt = cachedPR?.updatedAt {
-                            let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNum)
+                            let currentUpdatedAt = try await gitHub.getPRUpdatedAt(number: prNumber)
                             if cachedUpdatedAt == currentUpdatedAt {
                                 let snapshot = Self.parseOutput(config: config, prNumber: prNumber)
                                 continuation.yield(.completed(output: snapshot))
@@ -143,7 +137,7 @@ public struct SyncPRUseCase: Sendable {
                     continuation.yield(.log(text: "Fetching PR #\(prNumber) from GitHub...\n"))
 
                     let result = try await acquisition.acquire(
-                        prNumber: prNum,
+                        prNumber: prNumber,
                         repoPath: config.repoPath,
                         outputDir: config.resolvedOutputDir,
                         authorCache: authorCache

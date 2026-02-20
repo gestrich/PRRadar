@@ -21,18 +21,12 @@ public struct GenerateReportUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, minScore: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<ReportPhaseOutput>, Error> {
+    public func execute(prNumber: Int, minScore: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<ReportPhaseOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .report))
 
             Task {
                 do {
-                    guard let prNum = Int(prNumber) else {
-                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
-                        continuation.finish()
-                        return
-                    }
-
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
                     let scoreThreshold = Int(minScore ?? "5") ?? 5
 
@@ -52,7 +46,7 @@ public struct GenerateReportUseCase: Sendable {
 
                     let reportService = ReportGeneratorService()
                     let report = try reportService.generateReport(
-                        prNumber: prNum,
+                        prNumber: prNumber,
                         minScore: scoreThreshold,
                         evalsDir: evalsDir,
                         tasksDir: tasksDir,
@@ -89,7 +83,7 @@ public struct GenerateReportUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) throws -> ReportPhaseOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> ReportPhaseOutput {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let report: ReviewReport = try PhaseOutputParser.parsePhaseOutput(

@@ -55,8 +55,8 @@ final class PRModel: Identifiable, Hashable {
 
     // MARK: - Computed Properties
 
-    var prNumber: String {
-        String(metadata.number)
+    var prNumber: Int {
+        metadata.number
     }
 
     var reconciledComments: [ReviewComment] {

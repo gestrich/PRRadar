@@ -4,7 +4,7 @@ import PRRadarConfigService
 public enum OutputFileReader {
     public static func files(
         in config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         commitHash: String? = nil
     ) -> [String] {
@@ -20,7 +20,7 @@ public enum OutputFileReader {
 
     public static func phaseDirectoryPath(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         commitHash: String? = nil
     ) -> String {
@@ -34,7 +34,7 @@ public enum OutputFileReader {
 
     public static func files(
         in config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         commitHash: String? = nil
@@ -52,7 +52,7 @@ public enum OutputFileReader {
 
     public static func phaseSubdirectoryPath(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         commitHash: String? = nil

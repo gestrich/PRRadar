@@ -28,7 +28,7 @@ public struct PostCommentsUseCase: Sendable {
     }
 
     public func execute(
-        prNumber: String,
+        prNumber: Int,
         minScore: String? = nil,
         dryRun: Bool = true,
         commitHash: String? = nil
@@ -38,12 +38,6 @@ public struct PostCommentsUseCase: Sendable {
 
             Task {
                 do {
-                    guard let prNum = Int(prNumber) else {
-                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
-                        continuation.finish()
-                        return
-                    }
-
                     let scoreThreshold = Int(minScore ?? "5") ?? 5
 
                     let fetchUseCase = FetchReviewCommentsUseCase(config: config)
@@ -91,7 +85,7 @@ public struct PostCommentsUseCase: Sendable {
 
                     let (successful, failed) = try await commentService.postViolations(
                         comments: violations,
-                        prNumber: prNum
+                        prNumber: prNumber
                     )
 
                     continuation.yield(.log(text: "Posted: \(successful) successful, \(failed) failed\n"))

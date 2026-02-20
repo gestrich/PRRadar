@@ -81,7 +81,7 @@ public struct ContentView: View {
                 }
                 .accessibilityIdentifier("folderButton")
                 .help("Open PR data in Finder")
-                .disabled(selectedPR == nil || selectedPR!.prNumber.isEmpty || isDeletingPR)
+                .disabled(selectedPR == nil || isDeletingPR)
 
                 Button {
                     if let pr = selectedPR,
@@ -411,7 +411,7 @@ public struct ContentView: View {
             Text("Delete PR Data")
                 .font(.headline)
 
-            Text("All local review data for PR #\(selectedPR?.prNumber ?? "") will be deleted and re-fetched from GitHub.")
+            Text("All local review data for PR #\(selectedPR.map { "\($0.prNumber)" } ?? "") will be deleted and re-fetched from GitHub.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -478,7 +478,7 @@ public struct ContentView: View {
 
     private var isPRActionDisabled: Bool {
         guard let pr = selectedPR else { return true }
-        return pr.isAnyPhaseRunning || pr.prNumber.isEmpty || isDeletingPR
+        return pr.isAnyPhaseRunning || isDeletingPR
     }
 
     private var isRefreshing: Bool {

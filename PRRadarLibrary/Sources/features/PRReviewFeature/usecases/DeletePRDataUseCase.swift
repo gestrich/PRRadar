@@ -18,7 +18,7 @@ public struct DeletePRDataUseCase: Sendable {
         }
 
         let syncUseCase = SyncPRUseCase(config: config)
-        for try await progress in syncUseCase.execute(prNumber: String(prNumber)) {
+        for try await progress in syncUseCase.execute(prNumber: prNumber) {
             switch progress {
             case .failed(let error, _):
                 throw DeletePRDataError.syncFailed(error)

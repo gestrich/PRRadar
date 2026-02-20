@@ -8,7 +8,7 @@ public enum PhaseResultWriter {
     public static func writeSuccess(
         phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil,
         stats: PhaseStats? = nil
     ) throws {
@@ -24,7 +24,7 @@ public enum PhaseResultWriter {
     public static func writeFailure(
         phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil,
         error: String
     ) throws {
@@ -40,7 +40,7 @@ public enum PhaseResultWriter {
     public static func read(
         phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil
     ) -> PhaseResult? {
         let phaseDir = DataPathsService.phaseDirectory(
@@ -64,7 +64,7 @@ public enum PhaseResultWriter {
         _ result: PhaseResult,
         phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil
     ) throws {
         let phaseDir = DataPathsService.phaseDirectory(

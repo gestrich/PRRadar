@@ -50,7 +50,7 @@ public struct RunAllUseCase: Sendable {
                     let totalCount = prs.count
 
                     for (index, pr) in prs.enumerated() {
-                        let prNumber = String(pr.number)
+                        let prNumber = pr.number
                         let current = index + 1
                         continuation.yield(.progress(current: current, total: totalCount))
                         continuation.yield(.log(text: "\n[\(current)/\(totalCount)] PR #\(prNumber): \(pr.title)\n"))

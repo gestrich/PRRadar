@@ -16,7 +16,7 @@ public enum PRDiscoveryService {
         let prs: [PRMetadata] = contents.compactMap { dirName in
             guard let prNumber = Int(dirName) else { return nil }
 
-            let metadataDir = DataPathsService.metadataDirectory(outputDir: expandedPath, prNumber: dirName)
+            let metadataDir = DataPathsService.metadataDirectory(outputDir: expandedPath, prNumber: prNumber)
             let ghPRPath = "\(metadataDir)/gh-pr.json"
 
             guard fileManager.fileExists(atPath: ghPRPath),

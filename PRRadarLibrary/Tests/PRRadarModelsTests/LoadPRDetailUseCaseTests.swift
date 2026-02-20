@@ -32,7 +32,7 @@ struct LoadPRDetailUseCaseTests {
     }
 
     /// Set up a minimal fully-analyzed PR output directory structure.
-    private func setupFullPR(outputDir: String, prNumber: String, commitHash: String) throws {
+    private func setupFullPR(outputDir: String, prNumber: Int, commitHash: String) throws {
         let metadataDir = "\(outputDir)/\(prNumber)/metadata"
         let diffDir = "\(outputDir)/\(prNumber)/analysis/\(commitHash)/diff"
         let prepareDir = "\(outputDir)/\(prNumber)/analysis/\(commitHash)/prepare"
@@ -125,12 +125,12 @@ struct LoadPRDetailUseCaseTests {
         // Arrange
         let outputDir = try makeTempDir()
         let commitHash = "abc1234"
-        try setupFullPR(outputDir: outputDir, prNumber: "1", commitHash: commitHash)
+        try setupFullPR(outputDir: outputDir, prNumber: 1, commitHash: commitHash)
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         #expect(detail.commitHash == commitHash)
@@ -167,7 +167,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.commitHash == "abc1234")
@@ -192,13 +192,13 @@ struct LoadPRDetailUseCaseTests {
         try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
         let diff = GitDiff(rawContent: "diff content", hunks: [], commitHash: commitHash)
         try writeJSON(diff, to: "\(diffDir)/\(DataPathsService.diffParsedJSONFilename)")
-        try PhaseResultWriter.writeSuccess(phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: commitHash, stats: PhaseStats(artifactsProduced: 1))
+        try PhaseResultWriter.writeSuccess(phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: commitHash, stats: PhaseStats(artifactsProduced: 1))
 
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         #expect(detail.syncSnapshot != nil)
@@ -232,7 +232,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1")
+        let detail = useCase.execute(prNumber: 1)
 
         // Assert
         #expect(detail.commitHash == expectedShortHash)
@@ -255,7 +255,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1")
+        let detail = useCase.execute(prNumber: 1)
 
         // Assert
         #expect(detail.commitHash == commitHash)
@@ -270,7 +270,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1")
+        let detail = useCase.execute(prNumber: 1)
 
         // Assert
         #expect(detail.commitHash == nil)
@@ -314,7 +314,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         #expect(detail.savedTranscripts[.prepare]?.count == 1)
@@ -339,7 +339,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         #expect(detail.savedTranscripts[.analyze] == nil)
@@ -361,7 +361,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.postedComments != nil)
@@ -382,7 +382,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.imageURLMap["screenshot.png"] == "https://example.com/screenshot.png")
@@ -397,7 +397,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.imageURLMap.isEmpty)
@@ -421,7 +421,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.availableCommits.count == 3)
@@ -438,7 +438,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.availableCommits.isEmpty)
@@ -456,7 +456,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.availableCommits == ["abc1234"])
@@ -483,7 +483,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         let loaded = try #require(detail.analysisSummary)
@@ -501,7 +501,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "abc1234")
+        let detail = useCase.execute(prNumber: 1, commitHash: "abc1234")
 
         // Assert
         #expect(detail.analysisSummary == nil)
@@ -514,15 +514,15 @@ struct LoadPRDetailUseCaseTests {
         // Arrange
         let outputDir = try makeTempDir()
         let commitHash = "abc1234"
-        try PhaseResultWriter.writeSuccess(phase: .metadata, outputDir: outputDir, prNumber: "1", stats: PhaseStats(artifactsProduced: 3))
-        try PhaseResultWriter.writeSuccess(phase: .diff, outputDir: outputDir, prNumber: "1", commitHash: commitHash, stats: PhaseStats(artifactsProduced: 5))
-        try PhaseResultWriter.writeFailure(phase: .prepare, outputDir: outputDir, prNumber: "1", commitHash: commitHash, error: "timeout")
+        try PhaseResultWriter.writeSuccess(phase: .metadata, outputDir: outputDir, prNumber: 1, stats: PhaseStats(artifactsProduced: 3))
+        try PhaseResultWriter.writeSuccess(phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: commitHash, stats: PhaseStats(artifactsProduced: 5))
+        try PhaseResultWriter.writeFailure(phase: .prepare, outputDir: outputDir, prNumber: 1, commitHash: commitHash, error: "timeout")
 
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         #expect(detail.phaseStatuses[.metadata]?.isComplete == true)
@@ -549,7 +549,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: commitHash)
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
         #expect(detail.syncSnapshot == nil)
@@ -570,7 +570,7 @@ struct LoadPRDetailUseCaseTests {
         let useCase = LoadPRDetailUseCase(config: config)
 
         // Act
-        let detail = useCase.execute(prNumber: "1", commitHash: "aaa1111")
+        let detail = useCase.execute(prNumber: 1, commitHash: "aaa1111")
 
         // Assert
         #expect(detail.availableCommits == ["aaa1111", "mmm5555", "zzz9999"])

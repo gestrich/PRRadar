@@ -96,7 +96,7 @@ struct StatusCommand: AsyncParsableCommand {
         }
     }
 
-    private func listAvailableCommits(outputDir: String, prNumber: String) -> [String] {
+    private func listAvailableCommits(outputDir: String, prNumber: Int) -> [String] {
         let analysisRoot = "\(outputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
         guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) else {
             return []

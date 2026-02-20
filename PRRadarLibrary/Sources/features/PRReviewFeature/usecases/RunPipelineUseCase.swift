@@ -22,7 +22,7 @@ public struct RunPipelineUseCase: Sendable {
     }
 
     public func execute(
-        prNumber: String,
+        prNumber: Int,
         rulesDir: String,
         repoPath: String? = nil,
         noDryRun: Bool = false,

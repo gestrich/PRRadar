@@ -28,7 +28,7 @@ struct PRRadarMacCLI: AsyncParsableCommand {
 
 struct CLIOptions: ParsableArguments {
     @Argument(help: "Pull request number")
-    var prNumber: String
+    var prNumber: Int
 
     @Option(name: .long, help: "Named configuration from settings")
     var config: String?

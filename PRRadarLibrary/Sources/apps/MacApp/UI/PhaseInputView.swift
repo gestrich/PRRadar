@@ -151,7 +151,7 @@ struct PhaseInputView: View {
     private func stateView(for targetPhase: PRRadarPhase) -> some View {
         switch prModel.stateFor(targetPhase) {
         case .idle:
-            if !prModel.canRunPhase(targetPhase) && !prModel.prNumber.isEmpty {
+            if !prModel.canRunPhase(targetPhase) {
                 Text("Prerequisite phases must complete first.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

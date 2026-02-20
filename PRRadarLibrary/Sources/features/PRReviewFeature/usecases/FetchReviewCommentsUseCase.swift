@@ -11,7 +11,7 @@ public struct FetchReviewCommentsUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, minScore: Int = 5, commitHash: String? = nil) -> [ReviewComment] {
+    public func execute(prNumber: Int, minScore: Int = 5, commitHash: String? = nil) -> [ReviewComment] {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let evalsDir = DataPathsService.phaseDirectory(

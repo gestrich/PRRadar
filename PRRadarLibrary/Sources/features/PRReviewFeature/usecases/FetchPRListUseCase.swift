@@ -49,7 +49,7 @@ public struct FetchPRListUseCase: Sendable {
                     for pr in prs.map({ $0.withAuthorNames(from: nameMap) }) {
                         let metadataDir = DataPathsService.metadataDirectory(
                             outputDir: config.resolvedOutputDir,
-                            prNumber: String(pr.number)
+                            prNumber: pr.number
                         )
                         try DataPathsService.ensureDirectoryExists(at: metadataDir)
                         let prData = try encoder.encode(pr)

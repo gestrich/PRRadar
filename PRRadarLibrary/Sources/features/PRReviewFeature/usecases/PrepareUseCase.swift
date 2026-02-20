@@ -25,18 +25,12 @@ public struct PrepareUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, rulesDir: String, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
+    public func execute(prNumber: Int, rulesDir: String, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .prepare))
 
             Task {
                 do {
-                    guard let prNum = Int(prNumber) else {
-                        continuation.yield(.failed(error: "Invalid PR number: \(prNumber)", logs: ""))
-                        continuation.finish()
-                        return
-                    }
-
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
                     // Generate focus areas
@@ -67,7 +61,7 @@ public struct PrepareUseCase: Sendable {
 
                     let focusResults = try await focusGenerator.generateAllFocusAreas(
                         hunks: fullDiff.hunks,
-                        prNumber: prNum,
+                        prNumber: prNumber,
                         requestedTypes: [.file],
                         transcriptDir: focusDir,
                         onAIText: { text in
@@ -87,7 +81,7 @@ public struct PrepareUseCase: Sendable {
                         allFocusAreas.append(contentsOf: result.focusAreas)
                         totalCost += result.generationCostUsd
                         let typeOutput = FocusAreaTypeOutput(
-                            prNumber: prNum,
+                            prNumber: prNumber,
                             generatedAt: ISO8601DateFormatter().string(from: Date()),
                             focusType: focusType.rawValue,
                             focusAreas: result.focusAreas,
@@ -128,7 +122,7 @@ public struct PrepareUseCase: Sendable {
 
                     // Create tasks
                     // Fetch the PR ref so git objects are available locally for blob hash lookups
-                    try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNum)/head", repoPath: self.config.repoPath)
+                    try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: self.config.repoPath)
 
                     let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps)
                     let prepareDir = DataPathsService.phaseDirectory(
@@ -171,7 +165,7 @@ public struct PrepareUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) throws -> PrepareOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> PrepareOutput {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let focusFiles = PhaseOutputParser.listPhaseFiles(

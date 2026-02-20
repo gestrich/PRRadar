@@ -11,7 +11,7 @@ public struct LoadPRDetailUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, commitHash: String? = nil) -> PRDetail {
+    public func execute(prNumber: Int, commitHash: String? = nil) -> PRDetail {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let syncSnapshot: SyncSnapshot? = {
@@ -84,7 +84,7 @@ public struct LoadPRDetailUseCase: Sendable {
 
     // MARK: - Private
 
-    private func loadSavedTranscripts(prNumber: String, commitHash: String?) -> [PRRadarPhase: [ClaudeAgentTranscript]] {
+    private func loadSavedTranscripts(prNumber: Int, commitHash: String?) -> [PRRadarPhase: [ClaudeAgentTranscript]] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
@@ -117,7 +117,7 @@ public struct LoadPRDetailUseCase: Sendable {
     }
 
     private func loadTranscripts(
-        from files: [String], prNumber: String, phase: PRRadarPhase,
+        from files: [String], prNumber: Int, phase: PRRadarPhase,
         subdirectory: String?, commitHash: String?, decoder: JSONDecoder
     ) -> [ClaudeAgentTranscript] {
         let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
@@ -142,7 +142,7 @@ public struct LoadPRDetailUseCase: Sendable {
         return transcripts
     }
 
-    private func scanAvailableCommits(prNumber: String) -> [String] {
+    private func scanAvailableCommits(prNumber: Int) -> [String] {
         let analysisRoot = "\(config.resolvedOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
         guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) else {
             return []

@@ -13,16 +13,14 @@ public struct PostSingleCommentUseCase: Sendable {
     public func execute(
         comment: PRComment,
         commitSHA: String,
-        prNumber: String
+        prNumber: Int
     ) async throws -> Bool {
         let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
         let commentService = CommentService(githubService: gitHub)
 
-        guard let prNum = Int(prNumber) else { return false }
-
         do {
             try await commentService.postReviewComment(
-                prNumber: prNum,
+                prNumber: prNumber,
                 comment: comment,
                 commitSHA: commitSHA
             )

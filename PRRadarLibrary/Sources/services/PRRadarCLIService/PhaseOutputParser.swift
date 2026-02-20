@@ -6,7 +6,7 @@ public enum PhaseOutputParser {
     /// Decode a single JSON file from a phase output directory.
     public static func parsePhaseOutput<T: Decodable>(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         filename: String,
         commitHash: String? = nil
@@ -19,7 +19,7 @@ public enum PhaseOutputParser {
     /// List all files in a phase output directory.
     public static func listPhaseFiles(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         commitHash: String? = nil
     ) -> [String] {
@@ -29,7 +29,7 @@ public enum PhaseOutputParser {
     /// Read raw file data from a phase output directory.
     public static func readPhaseFile(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         filename: String,
         commitHash: String? = nil
@@ -48,7 +48,7 @@ public enum PhaseOutputParser {
     /// Read a text file from a phase output directory.
     public static func readPhaseTextFile(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         filename: String,
         commitHash: String? = nil
@@ -65,7 +65,7 @@ public enum PhaseOutputParser {
     /// Decode all data artifact JSON files (those with the `data-` prefix) in a phase directory.
     public static func parseAllPhaseFiles<T: Decodable>(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         commitHash: String? = nil
     ) throws -> [T] {
@@ -82,7 +82,7 @@ public enum PhaseOutputParser {
     /// Decode a single JSON file from a phase subdirectory.
     public static func parsePhaseOutput<T: Decodable>(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         filename: String,
@@ -95,7 +95,7 @@ public enum PhaseOutputParser {
     /// List all files in a phase subdirectory.
     public static func listPhaseFiles(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         commitHash: String? = nil
@@ -106,7 +106,7 @@ public enum PhaseOutputParser {
     /// Read raw file data from a phase subdirectory.
     public static func readPhaseFile(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         filename: String,
@@ -126,7 +126,7 @@ public enum PhaseOutputParser {
     /// Decode all data artifact JSON files in a phase subdirectory.
     public static func parseAllPhaseFiles<T: Decodable>(
         config: RepositoryConfiguration,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         commitHash: String? = nil

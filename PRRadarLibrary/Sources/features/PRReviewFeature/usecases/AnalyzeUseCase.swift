@@ -63,7 +63,7 @@ public struct AnalyzeUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: String, repoPath: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
+    public func execute(prNumber: Int, repoPath: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
@@ -95,7 +95,7 @@ public struct AnalyzeUseCase: Sendable {
 
                         // Write empty summary
                         let summary = AnalysisSummary(
-                            prNumber: Int(prNumber) ?? 0,
+                            prNumber: prNumber,
                             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                             totalTasks: 0,
                             violationsFound: 0,
@@ -133,13 +133,12 @@ public struct AnalyzeUseCase: Sendable {
 
                     continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
-                    let prNum = Int(prNumber) ?? 0
                     var cumulativeEvaluations: [RuleEvaluationResult] = []
 
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                         cumulativeEvaluations.append(result)
-                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNum, cachedCount: cachedCount)
+                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNumber, cachedCount: cachedCount)
                         continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                     }
 
@@ -177,7 +176,7 @@ public struct AnalyzeUseCase: Sendable {
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 cumulativeEvaluations.append(result)
-                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNum, cachedCount: cachedCount)
+                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNumber, cachedCount: cachedCount)
                                 continuation.yield(.analysisResult(result, cumulativeOutput: cumOutput))
                             },
                             onPrompt: { text, task in
@@ -203,7 +202,7 @@ public struct AnalyzeUseCase: Sendable {
                     let violationCount = allResults.filter(\.isViolation).count
 
                     let summary = AnalysisSummary(
-                        prNumber: Int(prNumber) ?? 0,
+                        prNumber: prNumber,
                         evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                         totalTasks: allResults.count,
                         violationsFound: violationCount,
@@ -244,7 +243,7 @@ public struct AnalyzeUseCase: Sendable {
         }
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: String, commitHash: String? = nil) throws -> AnalysisOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> AnalysisOutput {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
         let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(

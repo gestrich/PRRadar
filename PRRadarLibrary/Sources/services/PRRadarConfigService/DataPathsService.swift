@@ -127,7 +127,7 @@ public enum DataPathsService {
     /// PR-level metadata directory: `<output>/<prNumber>/metadata/`
     public static func metadataDirectory(
         outputDir: String,
-        prNumber: String
+        prNumber: Int
     ) -> String {
         "\(outputDir)/\(prNumber)/\(metadataDirectoryName)"
     }
@@ -135,7 +135,7 @@ public enum DataPathsService {
     /// Commit-level analysis root: `<output>/<prNumber>/analysis/<commitHash>/`
     public static func analysisDirectory(
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String
     ) -> String {
         "\(outputDir)/\(prNumber)/\(analysisDirectoryName)/\(commitHash)"
@@ -151,7 +151,7 @@ public enum DataPathsService {
     /// the nil-commitHash branch can be removed.
     public static func phaseDirectory(
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         commitHash: String? = nil
     ) -> String {
@@ -167,7 +167,7 @@ public enum DataPathsService {
     /// Get a subdirectory within a phase directory (e.g., focus-areas within prepare).
     public static func phaseSubdirectory(
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         subdirectory: String,
         commitHash: String? = nil
@@ -185,7 +185,7 @@ public enum DataPathsService {
     /// Check whether a phase directory exists and has content.
     public static func phaseExists(
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         phase: PRRadarPhase,
         commitHash: String? = nil
     ) -> Bool {
@@ -202,7 +202,7 @@ public enum DataPathsService {
     public static func canRunPhase(
         _ phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil
     ) -> Bool {
         guard let predecessor = phase.requiredPredecessor else { return true }
@@ -213,7 +213,7 @@ public enum DataPathsService {
     public static func validateCanRun(
         _ phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil
     ) -> String? {
         guard canRunPhase(phase, outputDir: outputDir, prNumber: prNumber, commitHash: commitHash) else {
@@ -232,7 +232,7 @@ public enum DataPathsService {
     public static func phaseStatus(
         _ phase: PRRadarPhase,
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil
     ) -> PhaseStatus {
         let dir = phaseDirectory(outputDir: outputDir, prNumber: prNumber, phase: phase, commitHash: commitHash)
@@ -273,7 +273,7 @@ public enum DataPathsService {
     /// Get status for all phases.
     public static func allPhaseStatuses(
         outputDir: String,
-        prNumber: String,
+        prNumber: Int,
         commitHash: String? = nil
     ) -> [PRRadarPhase: PhaseStatus] {
         var result: [PRRadarPhase: PhaseStatus] = [:]
