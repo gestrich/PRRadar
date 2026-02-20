@@ -74,9 +74,8 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                         cumulativeEvaluations.append(result)
-                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
                         if let task = taskMap[result.taskId] {
-                            continuation.yield(.taskEvent(task: task, event: .completed(cumulative: cumOutput)))
+                            continuation.yield(.taskEvent(task: task, event: .completed(result: result)))
                         }
                     }
 
@@ -109,9 +108,8 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 cumulativeEvaluations.append(result)
-                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
                                 if let task = taskMap[result.taskId] {
-                                    continuation.yield(.taskEvent(task: task, event: .completed(cumulative: cumOutput)))
+                                    continuation.yield(.taskEvent(task: task, event: .completed(result: result)))
                                 }
                             },
                             onPrompt: { text, task in

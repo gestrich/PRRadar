@@ -6,10 +6,10 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct AnalysisOutput: Sendable {
-    public let evaluations: [RuleEvaluationResult]
-    public let tasks: [AnalysisTaskOutput]
-    public let summary: AnalysisSummary
-    public let cachedCount: Int
+    public var evaluations: [RuleEvaluationResult]
+    public var tasks: [AnalysisTaskOutput]
+    public var summary: AnalysisSummary
+    public var cachedCount: Int
 
     public static let empty = AnalysisOutput(
         evaluations: [],
@@ -21,6 +21,25 @@ public struct AnalysisOutput: Sendable {
         self.tasks = tasks
         self.summary = summary
         self.cachedCount = cachedCount
+    }
+
+    public mutating func appendResult(_ result: RuleEvaluationResult, prNumber: Int) {
+        if let existingIndex = evaluations.firstIndex(where: { $0.taskId == result.taskId }) {
+            evaluations[existingIndex] = result
+        } else {
+            evaluations.append(result)
+        }
+
+        let violationCount = evaluations.filter(\.isViolation).count
+        summary = AnalysisSummary(
+            prNumber: prNumber,
+            evaluatedAt: ISO8601DateFormatter().string(from: Date()),
+            totalTasks: evaluations.count,
+            violationsFound: violationCount,
+            totalCostUsd: evaluations.compactMap(\.costUsd).reduce(0, +),
+            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +),
+            results: evaluations
+        )
     }
 
     /// Build a cumulative output from a running list of evaluations, deduplicating by taskId.
@@ -139,9 +158,8 @@ public struct AnalyzeUseCase: Sendable {
                     for (index, result) in cachedResults.enumerated() {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                         cumulativeEvaluations.append(result)
-                        let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNumber, cachedCount: cachedCount)
                         if let task = taskMap[result.taskId] {
-                            continuation.yield(.taskEvent(task: task, event: .completed(cumulative: cumOutput)))
+                            continuation.yield(.taskEvent(task: task, event: .completed(result: result)))
                         }
                     }
 
@@ -179,9 +197,8 @@ public struct AnalyzeUseCase: Sendable {
                                 }
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 cumulativeEvaluations.append(result)
-                                let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: tasks, prNumber: prNumber, cachedCount: cachedCount)
                                 if let task = taskMap[result.taskId] {
-                                    continuation.yield(.taskEvent(task: task, event: .completed(cumulative: cumOutput)))
+                                    continuation.yield(.taskEvent(task: task, event: .completed(result: result)))
                                 }
                             },
                             onPrompt: { text, task in

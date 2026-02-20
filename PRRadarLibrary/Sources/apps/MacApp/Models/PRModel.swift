@@ -537,6 +537,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func runAnalyze() async {
         startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
+        inProgressAnalysis = .empty
 
         let useCase = AnalyzeUseCase(config: config)
 
@@ -552,17 +553,7 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareOutput: break
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
-                    switch event {
-                    case .output(let text):
-                        appendAIOutput(text)
-                    case .prompt(let text):
-                        appendAIPrompt(task: task, text: text)
-                    case .toolUse(let name):
-                        appendAIToolUse(name)
-                    case .completed(let cumulative):
-                        activeAnalysisFilePath = nil
-                        inProgressAnalysis = cumulative
-                    }
+                    handleTaskEvent(task, event)
                 case .completed:
                     inProgressAnalysis = nil
                     activeAnalysisFilePath = nil
@@ -580,6 +571,8 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func runSelectiveAnalysis(filter: AnalysisFilter) async {
+        inProgressAnalysis = detail?.analysis ?? .empty
+
         let useCase = SelectiveAnalyzeUseCase(config: config)
 
         do {
@@ -594,9 +587,9 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareOutput: break
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
-                    if case .completed(let cumulative) = event {
+                    handleTaskEvent(task, event)
+                    if case .completed = event {
                         selectiveAnalysisInFlight.remove(task.taskId)
-                        inProgressAnalysis = cumulative
                     }
                 case .completed:
                     inProgressAnalysis = nil
@@ -608,6 +601,20 @@ final class PRModel: Identifiable, Hashable {
             }
         } catch {
             selectiveAnalysisInFlight = []
+        }
+    }
+
+    private func handleTaskEvent(_ task: AnalysisTaskOutput, _ event: TaskProgress) {
+        switch event {
+        case .prompt(let text):
+            appendAIPrompt(task: task, text: text)
+        case .output(let text):
+            appendAIOutput(text)
+        case .toolUse(let name):
+            appendAIToolUse(name)
+        case .completed(let result):
+            activeAnalysisFilePath = nil
+            inProgressAnalysis?.appendResult(result, prNumber: prNumber)
         }
     }
 
