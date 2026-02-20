@@ -140,7 +140,7 @@ These two methods have unique patterns but still share some boilerplate with the
 
 **Notes:** Only `failPhase` applied cleanly to `refreshDiff` — both the in-stream `.failed` case (with concatenated existing + new logs) and the generic `catch` block now use `failPhase`. `startPhase` didn't apply because the startup has conditional `.refreshing` vs `.running` logic. `completePhase` didn't apply because the completion calls `reloadDetail(commitHash:)` with a parameter, not the parameterless `reloadDetail()` that `completePhase` uses. `runComments` was left unchanged — it uses `commentPostingState` instead of `phaseStates`, so none of the helpers apply. Build passes.
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -150,3 +150,5 @@ These two methods have unique patterns but still share some boilerplate with the
 - Verify the switch statements are preserved (each method still handles its own AI events)
 - Verify `runComments` is unchanged if the helpers didn't apply cleanly
 - Count total lines in PRModel — expect ~60–80 fewer lines (less than the closure approach, but the code is clearer)
+
+**Notes:** Build passes, all 488 tests pass. Lifecycle helper usage verified: `runPrepare`, `runAnalyze`, and `runReport` use all three helpers (`startPhase`, `completePhase`, `failPhase`). `refreshDiff` uses only `failPhase` (start/complete don't fit its conditional logic). `runSelectiveAnalysis` and `runComments` are unchanged as expected. All 6 methods retain their own `for try await` loop and switch statement. Line count: 722 (was 718, net +4). The spec's estimate of 60–80 fewer lines was optimistic — the helpers add 19 lines while saving ~15 from callers. The real benefit is clarity: completion and failure paths are now one-liners instead of 3–4 line sequences.
