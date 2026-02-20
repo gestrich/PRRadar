@@ -63,16 +63,19 @@ struct AnalyzeCommand: AsyncParsableCommand {
                 if !options.json { print(text, terminator: "") }
             case .prepareOutput: break
             case .prepareToolUse: break
-            case .taskOutput(_, let text):
-                if !options.json && !quiet {
-                    printAIOutput(text, verbose: verbose)
+            case .taskEvent(_, let event):
+                switch event {
+                case .output(let text):
+                    if !options.json && !quiet {
+                        printAIOutput(text, verbose: verbose)
+                    }
+                case .toolUse(let name):
+                    if !options.json && !quiet && verbose {
+                        printAIToolUse(name)
+                    }
+                case .prompt, .completed:
+                    break
                 }
-            case .taskPrompt: break
-            case .taskToolUse(_, let name):
-                if !options.json && !quiet && verbose {
-                    printAIToolUse(name)
-                }
-            case .taskCompleted: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

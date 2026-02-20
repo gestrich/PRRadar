@@ -47,10 +47,7 @@ struct PrepareCommand: AsyncParsableCommand {
                 if !options.json && !quiet && verbose {
                     printAIToolUse(name)
                 }
-            case .taskOutput: break
-            case .taskPrompt: break
-            case .taskToolUse: break
-            case .taskCompleted: break
+            case .taskEvent: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

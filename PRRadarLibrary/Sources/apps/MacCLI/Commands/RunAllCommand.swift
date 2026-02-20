@@ -80,16 +80,19 @@ struct RunAllCommand: AsyncParsableCommand {
                 if !quiet && verbose {
                     printAIToolUse(name)
                 }
-            case .taskOutput(_, let text):
-                if !quiet {
-                    printAIOutput(text, verbose: verbose)
+            case .taskEvent(_, let event):
+                switch event {
+                case .output(let text):
+                    if !quiet {
+                        printAIOutput(text, verbose: verbose)
+                    }
+                case .toolUse(let name):
+                    if !quiet && verbose {
+                        printAIToolUse(name)
+                    }
+                case .prompt, .completed:
+                    break
                 }
-            case .taskPrompt: break
-            case .taskToolUse(_, let name):
-                if !quiet && verbose {
-                    printAIToolUse(name)
-                }
-            case .taskCompleted: break
             case .completed(let output):
                 print("\nRun-all complete: \(output.analyzedCount) succeeded, \(output.failedCount) failed")
             case .failed(let error, let logs):

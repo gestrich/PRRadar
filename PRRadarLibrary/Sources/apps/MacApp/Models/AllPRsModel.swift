@@ -100,10 +100,7 @@ final class AllPRsModel {
                     appendRefreshLog(text)
                 case .prepareOutput: break
                 case .prepareToolUse: break
-                case .taskOutput: break
-                case .taskPrompt: break
-                case .taskToolUse: break
-                case .taskCompleted: break
+                case .taskEvent: break
                 case .completed:
                     updatedMetadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
                 case .failed(let error, _):

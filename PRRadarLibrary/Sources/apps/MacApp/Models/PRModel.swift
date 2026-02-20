@@ -215,10 +215,7 @@ final class PRModel: Identifiable, Hashable {
                         appendLog(text, to: .diff)
                     case .prepareOutput: break
                     case .prepareToolUse: break
-                    case .taskOutput: break
-                    case .taskPrompt: break
-                    case .taskToolUse: break
-                    case .taskCompleted: break
+                    case .taskEvent: break
                     case .completed(let snapshot):
                         reloadDetail(commitHash: snapshot.commitHash)
                         let logs = runningLogs(for: .diff)
@@ -356,10 +353,7 @@ final class PRModel: Identifiable, Hashable {
                     appendCommentLog(text)
                 case .prepareOutput: break
                 case .prepareToolUse: break
-                case .taskOutput: break
-                case .taskPrompt: break
-                case .taskToolUse: break
-                case .taskCompleted: break
+                case .taskEvent: break
                 case .completed(let output):
                     comments = output
                     let logs = commentPostingLogs
@@ -529,10 +523,7 @@ final class PRModel: Identifiable, Hashable {
                     appendAIOutput(text)
                 case .prepareToolUse(let name):
                     appendAIToolUse(name)
-                case .taskOutput: break
-                case .taskPrompt: break
-                case .taskToolUse: break
-                case .taskCompleted: break
+                case .taskEvent: break
                 case .completed:
                     completePhase(.prepare, tracksLiveTranscripts: true)
                 case .failed(let error, let logs):
@@ -560,15 +551,18 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .analyze)
                 case .prepareOutput: break
                 case .prepareToolUse: break
-                case .taskOutput(_, let text):
-                    appendAIOutput(text)
-                case .taskPrompt(let task, let text):
-                    appendAIPrompt(task: task, text: text)
-                case .taskToolUse(_, let name):
-                    appendAIToolUse(name)
-                case .taskCompleted(_, let cumulative):
-                    activeAnalysisFilePath = nil
-                    inProgressAnalysis = cumulative
+                case .taskEvent(let task, let event):
+                    switch event {
+                    case .output(let text):
+                        appendAIOutput(text)
+                    case .prompt(let text):
+                        appendAIPrompt(task: task, text: text)
+                    case .toolUse(let name):
+                        appendAIToolUse(name)
+                    case .completed(let cumulative):
+                        activeAnalysisFilePath = nil
+                        inProgressAnalysis = cumulative
+                    }
                 case .completed:
                     inProgressAnalysis = nil
                     activeAnalysisFilePath = nil
@@ -599,12 +593,11 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .analyze)
                 case .prepareOutput: break
                 case .prepareToolUse: break
-                case .taskOutput: break
-                case .taskPrompt: break
-                case .taskToolUse: break
-                case .taskCompleted(let task, let cumulative):
-                    selectiveAnalysisInFlight.remove(task.taskId)
-                    inProgressAnalysis = cumulative
+                case .taskEvent(let task, let event):
+                    if case .completed(let cumulative) = event {
+                        selectiveAnalysisInFlight.remove(task.taskId)
+                        inProgressAnalysis = cumulative
+                    }
                 case .completed:
                     inProgressAnalysis = nil
                     selectiveAnalysisInFlight = []
@@ -646,10 +639,7 @@ final class PRModel: Identifiable, Hashable {
                     appendLog(text, to: .report)
                 case .prepareOutput: break
                 case .prepareToolUse: break
-                case .taskOutput: break
-                case .taskPrompt: break
-                case .taskToolUse: break
-                case .taskCompleted: break
+                case .taskEvent: break
                 case .completed:
                     completePhase(.report)
                 case .failed(let error, let logs):

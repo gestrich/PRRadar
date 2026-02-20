@@ -73,14 +73,8 @@ public struct RunAllUseCase: Sendable {
                                 continuation.yield(.prepareOutput(text: text))
                             case .prepareToolUse(let name):
                                 continuation.yield(.prepareToolUse(name: name))
-                            case .taskOutput(let task, let text):
-                                continuation.yield(.taskOutput(task: task, text: text))
-                            case .taskPrompt(let task, let text):
-                                continuation.yield(.taskPrompt(task: task, text: text))
-                            case .taskToolUse(let task, let name):
-                                continuation.yield(.taskToolUse(task: task, name: name))
-                            case .taskCompleted(let task, let cumulative):
-                                continuation.yield(.taskCompleted(task: task, cumulative: cumulative))
+                            case .taskEvent(let task, let event):
+                                continuation.yield(.taskEvent(task: task, event: event))
                             case .completed:
                                 succeeded = true
                             case .failed(let error, _):

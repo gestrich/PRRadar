@@ -29,10 +29,7 @@ struct RefreshPRCommand: AsyncParsableCommand {
                 print(text, terminator: "")
             case .prepareOutput: break
             case .prepareToolUse: break
-            case .taskOutput: break
-            case .taskPrompt: break
-            case .taskToolUse: break
-            case .taskCompleted: break
+            case .taskEvent: break
             case .completed(let output):
                 result = output
             case .failed(let error, let logs):

@@ -42,7 +42,10 @@ No other files change yet.
 
 **File to create:** `Sources/features/PRReviewFeature/models/TaskProgress.swift`
 
-## - [ ] Phase 2: Replace task cases in `PhaseProgress` with `.taskEvent` (pure mechanical)
+## - [x] Phase 2: Replace task cases in `PhaseProgress` with `.taskEvent` (pure mechanical)
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Pure mechanical substitution — no behavioral changes, only pattern-match syntax updated across all 16 files
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

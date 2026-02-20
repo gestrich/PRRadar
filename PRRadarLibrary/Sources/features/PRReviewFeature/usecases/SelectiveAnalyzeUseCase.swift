@@ -76,7 +76,7 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                         cumulativeEvaluations.append(result)
                         let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
                         if let task = taskMap[result.taskId] {
-                            continuation.yield(.taskCompleted(task: task, cumulative: cumOutput))
+                            continuation.yield(.taskEvent(task: task, event: .completed(cumulative: cumOutput)))
                         }
                     }
 
@@ -111,17 +111,17 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 cumulativeEvaluations.append(result)
                                 let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
                                 if let task = taskMap[result.taskId] {
-                                    continuation.yield(.taskCompleted(task: task, cumulative: cumOutput))
+                                    continuation.yield(.taskEvent(task: task, event: .completed(cumulative: cumOutput)))
                                 }
                             },
                             onPrompt: { text, task in
-                                continuation.yield(.taskPrompt(task: task, text: text))
+                                continuation.yield(.taskEvent(task: task, event: .prompt(text: text)))
                             },
                             onAIText: { text, task in
-                                continuation.yield(.taskOutput(task: task, text: text))
+                                continuation.yield(.taskEvent(task: task, event: .output(text: text)))
                             },
                             onAIToolUse: { name, task in
-                                continuation.yield(.taskToolUse(task: task, name: name))
+                                continuation.yield(.taskEvent(task: task, event: .toolUse(name: name)))
                             }
                         )
 
