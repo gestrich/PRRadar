@@ -72,12 +72,20 @@ struct RunAllCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 print(text, terminator: "")
-            case .taskOutput(let text):
+            case .prepareOutput(let text):
+                if !quiet {
+                    printAIOutput(text, verbose: verbose)
+                }
+            case .prepareToolUse(let name):
+                if !quiet && verbose {
+                    printAIToolUse(name)
+                }
+            case .taskOutput(_, let text):
                 if !quiet {
                     printAIOutput(text, verbose: verbose)
                 }
             case .taskPrompt: break
-            case .taskToolUse(let name):
+            case .taskToolUse(_, let name):
                 if !quiet && verbose {
                     printAIToolUse(name)
                 }

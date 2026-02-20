@@ -66,6 +66,8 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                     continuation.yield(.log(text: "Selective evaluation: \(totalCount) tasks match filter\n"))
                     continuation.yield(.log(text: AnalysisCacheService.startMessage(cachedCount: cachedCount, freshCount: freshCount, totalCount: totalCount) + "\n"))
 
+                    let taskMap = Dictionary(uniqueKeysWithValues: allTasks.map { ($0.taskId, $0) })
+
                     // Seed cumulative evaluations with existing results from disk (prior runs)
                     var cumulativeEvaluations = try Self.loadExistingEvaluations(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
@@ -73,7 +75,9 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                         continuation.yield(.log(text: AnalysisCacheService.cachedTaskMessage(index: index + 1, totalCount: totalCount, result: result) + "\n"))
                         cumulativeEvaluations.append(result)
                         let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
-                        continuation.yield(.taskCompleted(taskId: result.taskId, cumulative: cumOutput))
+                        if let task = taskMap[result.taskId] {
+                            continuation.yield(.taskCompleted(task: task, cumulative: cumOutput))
+                        }
                     }
 
                     if !tasksToEvaluate.isEmpty {
@@ -106,16 +110,18 @@ public struct SelectiveAnalyzeUseCase: Sendable {
                                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 cumulativeEvaluations.append(result)
                                 let cumOutput = AnalysisOutput.cumulative(evaluations: cumulativeEvaluations, tasks: allTasks, prNumber: prNumber, cachedCount: cachedCount)
-                                continuation.yield(.taskCompleted(taskId: result.taskId, cumulative: cumOutput))
+                                if let task = taskMap[result.taskId] {
+                                    continuation.yield(.taskCompleted(task: task, cumulative: cumOutput))
+                                }
                             },
                             onPrompt: { text, task in
-                                continuation.yield(.taskPrompt(TaskPromptContext(text: text, filePath: task.focusArea.filePath, ruleName: task.rule.name)))
+                                continuation.yield(.taskPrompt(task: task, text: text))
                             },
-                            onAIText: { text in
-                                continuation.yield(.taskOutput(text: text))
+                            onAIText: { text, task in
+                                continuation.yield(.taskOutput(task: task, text: text))
                             },
-                            onAIToolUse: { name in
-                                continuation.yield(.taskToolUse(name: name))
+                            onAIToolUse: { name, task in
+                                continuation.yield(.taskToolUse(task: task, name: name))
                             }
                         )
 

@@ -51,6 +51,8 @@ struct RefreshCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !json { print(text, terminator: "") }
+            case .prepareOutput: break
+            case .prepareToolUse: break
             case .taskOutput: break
             case .taskPrompt: break
             case .taskToolUse: break

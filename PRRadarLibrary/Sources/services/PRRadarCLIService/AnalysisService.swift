@@ -107,8 +107,8 @@ public struct AnalysisService: Sendable {
         repoPath: String,
         transcriptDir: String? = nil,
         onPrompt: ((String, AnalysisTaskOutput) -> Void)? = nil,
-        onAIText: ((String) -> Void)? = nil,
-        onAIToolUse: ((String) -> Void)? = nil
+        onAIText: ((String, AnalysisTaskOutput) -> Void)? = nil,
+        onAIToolUse: ((String, AnalysisTaskOutput) -> Void)? = nil
     ) async throws -> RuleEvaluationResult {
         let model = task.rule.model ?? Self.defaultModel
         let focusedContent = task.focusArea.getFocusedContent()
@@ -141,10 +141,10 @@ public struct AnalysisService: Sendable {
         for try await event in agentClient.stream(request) {
             switch event {
             case .text(let content):
-                onAIText?(content)
+                onAIText?(content, task)
                 transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: content))
             case .toolUse(let name):
-                onAIToolUse?(name)
+                onAIToolUse?(name, task)
                 transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
             case .result(let result):
                 agentResult = result
@@ -214,8 +214,8 @@ public struct AnalysisService: Sendable {
         onStart: ((Int, Int, AnalysisTaskOutput) -> Void)? = nil,
         onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
         onPrompt: ((String, AnalysisTaskOutput) -> Void)? = nil,
-        onAIText: ((String) -> Void)? = nil,
-        onAIToolUse: ((String) -> Void)? = nil
+        onAIText: ((String, AnalysisTaskOutput) -> Void)? = nil,
+        onAIToolUse: ((String, AnalysisTaskOutput) -> Void)? = nil
     ) async throws -> [RuleEvaluationResult] {
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
 

@@ -39,15 +39,17 @@ struct PrepareCommand: AsyncParsableCommand {
                 break
             case .log(let text):
                 if !options.json { print(text, terminator: "") }
-            case .taskOutput(let text):
+            case .prepareOutput(let text):
                 if !options.json && !quiet {
                     printAIOutput(text, verbose: verbose)
                 }
-            case .taskPrompt: break
-            case .taskToolUse(let name):
+            case .prepareToolUse(let name):
                 if !options.json && !quiet && verbose {
                     printAIToolUse(name)
                 }
+            case .taskOutput: break
+            case .taskPrompt: break
+            case .taskToolUse: break
             case .taskCompleted: break
             case .completed(let output):
                 result = output

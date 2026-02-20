@@ -43,6 +43,8 @@ public struct RunPipelineUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
+                        case .prepareOutput: break
+                        case .prepareToolUse: break
                         case .taskOutput: break
                         case .taskPrompt: break
                         case .taskToolUse: break
@@ -74,12 +76,13 @@ public struct RunPipelineUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
-                        case .taskOutput(let text):
-                            continuation.yield(.taskOutput(text: text))
-                        case .taskPrompt(let context):
-                            continuation.yield(.taskPrompt(context))
-                        case .taskToolUse(let name):
-                            continuation.yield(.taskToolUse(name: name))
+                        case .prepareOutput(let text):
+                            continuation.yield(.prepareOutput(text: text))
+                        case .prepareToolUse(let name):
+                            continuation.yield(.prepareToolUse(name: name))
+                        case .taskOutput: break
+                        case .taskPrompt: break
+                        case .taskToolUse: break
                         case .taskCompleted: break
                         case .completed:
                             rulesCompleted = true
@@ -106,14 +109,16 @@ public struct RunPipelineUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
-                        case .taskOutput(let text):
-                            continuation.yield(.taskOutput(text: text))
-                        case .taskPrompt(let context):
-                            continuation.yield(.taskPrompt(context))
-                        case .taskToolUse(let name):
-                            continuation.yield(.taskToolUse(name: name))
-                        case .taskCompleted(let taskId, let cumulative):
-                            continuation.yield(.taskCompleted(taskId: taskId, cumulative: cumulative))
+                        case .prepareOutput: break
+                        case .prepareToolUse: break
+                        case .taskOutput(let task, let text):
+                            continuation.yield(.taskOutput(task: task, text: text))
+                        case .taskPrompt(let task, let text):
+                            continuation.yield(.taskPrompt(task: task, text: text))
+                        case .taskToolUse(let task, let name):
+                            continuation.yield(.taskToolUse(task: task, name: name))
+                        case .taskCompleted(let task, let cumulative):
+                            continuation.yield(.taskCompleted(task: task, cumulative: cumulative))
                         case .completed:
                             evalCompleted = true
                         case .failed(let error, let logs):
@@ -139,6 +144,8 @@ public struct RunPipelineUseCase: Sendable {
                         case .progress: break
                         case .log(let text):
                             continuation.yield(.log(text: text))
+                        case .prepareOutput: break
+                        case .prepareToolUse: break
                         case .taskOutput: break
                         case .taskPrompt: break
                         case .taskToolUse: break
@@ -162,6 +169,8 @@ public struct RunPipelineUseCase: Sendable {
                             case .progress: break
                             case .log(let text):
                                 continuation.yield(.log(text: text))
+                            case .prepareOutput: break
+                            case .prepareToolUse: break
                             case .taskOutput: break
                             case .taskPrompt: break
                             case .taskToolUse: break

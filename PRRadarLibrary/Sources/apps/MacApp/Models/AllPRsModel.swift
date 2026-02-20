@@ -98,6 +98,8 @@ final class AllPRsModel {
                     break
                 case .log(let text):
                     appendRefreshLog(text)
+                case .prepareOutput: break
+                case .prepareToolUse: break
                 case .taskOutput: break
                 case .taskPrompt: break
                 case .taskToolUse: break
