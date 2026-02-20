@@ -491,6 +491,26 @@ final class PRModel: Identifiable, Hashable {
         liveAccumulators[liveAccumulators.count - 1] = last
     }
 
+    private func startPhase(_ phase: PRRadarPhase, logs: String = "", tracksLiveTranscripts: Bool = false) {
+        phaseStates[phase] = .running(logs: logs)
+        if tracksLiveTranscripts {
+            liveAccumulators = []
+            currentLivePhase = phase
+        }
+    }
+
+    private func completePhase(_ phase: PRRadarPhase, tracksLiveTranscripts: Bool = false) {
+        if tracksLiveTranscripts { currentLivePhase = nil }
+        let logs = runningLogs(for: phase)
+        reloadDetail()
+        phaseStates[phase] = .completed(logs: logs)
+    }
+
+    private func failPhase(_ phase: PRRadarPhase, error: String, logs: String, tracksLiveTranscripts: Bool = false) {
+        if tracksLiveTranscripts { currentLivePhase = nil }
+        phaseStates[phase] = .failed(error: error, logs: logs)
+    }
+
     private func runPrepare() async {
         phaseStates[.prepare] = .running(logs: "")
         liveAccumulators = []
