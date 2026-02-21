@@ -84,13 +84,15 @@ Also update `isSelectiveAnalysisRunning` → rename or remove. If other code dis
 
 **Completed.** Phase 1 already simplified `isFileInFlight`, `isFocusAreaInFlight`, and the `hunkActions` inline check to use `tasksInFlight` directly. The only remaining work was removing the dead `isSelectiveAnalysisRunning` computed property — it was defined but never referenced anywhere in the codebase. `operationMode` already distinguishes full vs selective analysis at the call sites that need it. All 488 tests pass.
 
-## - [ ] Phase 3: Clean up `resetAfterDataDeletion` and other bookkeeping
+## - [x] Phase 3: Clean up `resetAfterDataDeletion` and other bookkeeping
 
 **Skills to read**: none
 
 - Remove `activeAnalysisFilePath = nil` from `handleTaskEvent(.completed)`, `runAnalyze()` completion/failure, and `runSingleAnalysis()` — it's now computed
 - In `resetAfterDataDeletion`, replace `selectiveAnalysisInFlight = []` with `tasksInFlight = []`
 - Remove `activeAnalysisFilePath = task.focusArea.filePath` from `appendAIPrompt` — no longer needed since the computed property derives it from `liveAccumulators`
+
+**Completed.** All three cleanup items were already addressed in Phase 1: `activeAnalysisFilePath` is a computed property with no assignments anywhere, `selectiveAnalysisInFlight` was fully replaced by `tasksInFlight`, and `resetAfterDataDeletion` already clears `tasksInFlight`. Build passes with no changes needed.
 
 ## - [ ] Phase 4: Validation
 
