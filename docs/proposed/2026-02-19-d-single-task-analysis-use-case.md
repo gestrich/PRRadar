@@ -80,7 +80,10 @@ Then fix every switch site:
 - `Sources/apps/MacApp/Models/PRModel.swift`
 - `Sources/apps/MacApp/Models/AllPRsModel.swift`
 
-## - [ ] Phase 3: Narrow `TaskProgress.completed` to `RuleEvaluationResult` and extract `handleTaskEvent`
+## - [x] Phase 3: Narrow `TaskProgress.completed` to `RuleEvaluationResult` and extract `handleTaskEvent`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Narrowed associated value to single-task result; extracted shared `handleTaskEvent` helper in Apps layer; used `appendResult` mutating method on `AnalysisOutput` for incremental updates
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
