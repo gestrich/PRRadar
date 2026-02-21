@@ -254,7 +254,10 @@ In `MacApp/Models/PRModel.swift`:
 
 This phase will cause build errors in views that reference the removed properties — that's expected and fixed in Phase 3.
 
-## - [ ] Phase 3: Update views to use new PRModel API
+## - [x] Phase 3: Update views to use new PRModel API
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Views consume PRModel query methods (`isFileStreaming`, `isFocusAreaStreaming`, `allTranscripts`) instead of accessing raw state; collapsed 4-branch aiOutputView into single unified call
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 

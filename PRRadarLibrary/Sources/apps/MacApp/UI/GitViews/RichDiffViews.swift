@@ -428,7 +428,7 @@ struct AnnotatedDiffContentView: View {
         let matchingFocusAreas = focusAreasForHunk(hunk)
         if canRunSelectiveEvaluation && !matchingFocusAreas.isEmpty {
             let inFlight = matchingFocusAreas.contains { area in
-                prModel.tasksInFlight.contains { $0.focusArea.focusId == area.focusId }
+                prModel.isFocusAreaStreaming(area.focusId)
             }
 
             if inFlight {

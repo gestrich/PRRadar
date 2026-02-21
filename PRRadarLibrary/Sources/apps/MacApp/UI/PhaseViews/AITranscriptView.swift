@@ -180,7 +180,7 @@ struct AITranscriptView: View {
                         Text(group.displayName)
                             .font(.caption)
                             .fontWeight(.semibold)
-                        if prModel.tasksInFlight.contains(where: { $0.focusArea.filePath == group.filePath }) {
+                        if prModel.isFileStreaming(group.filePath) {
                             ProgressView()
                                 .controlSize(.mini)
                         }

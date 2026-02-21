@@ -251,11 +251,11 @@ struct DiffPhaseView: View {
     }
 
     private func isFileInFlight(_ file: String) -> Bool {
-        prModel.tasksInFlight.contains { $0.focusArea.filePath == file }
+        prModel.isFileStreaming(file)
     }
 
     private func isFocusAreaInFlight(_ focusAreaId: String) -> Bool {
-        prModel.tasksInFlight.contains { $0.focusArea.focusId == focusAreaId }
+        prModel.isFocusAreaStreaming(focusAreaId)
     }
 
     @ViewBuilder

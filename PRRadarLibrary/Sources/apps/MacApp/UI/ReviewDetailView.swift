@@ -177,26 +177,12 @@ struct ReviewDetailView: View {
     }
 
     private var hasAIOutput: Bool {
-        !prModel.savedTranscripts.isEmpty || !prModel.liveTranscripts.isEmpty
+        !prModel.allTranscripts.isEmpty
     }
 
     @ViewBuilder
     private var aiOutputView: some View {
-        if prModel.isAIPhaseRunning, !prModel.liveTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts, isStreaming: true)
-        } else if prModel.isAIPhaseRunning, !prModel.savedTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts, isStreaming: true)
-        } else if !prModel.savedTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts)
-        } else if !prModel.liveTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts)
-        } else {
-            ContentUnavailableView(
-                "No AI Output",
-                systemImage: "text.bubble",
-                description: Text("Run Focus Areas or Evaluations to see AI output.")
-            )
-        }
+        AITranscriptView(transcriptsByPhase: prModel.allTranscripts, isStreaming: prModel.isAIPhaseRunning)
     }
 
     @ViewBuilder
