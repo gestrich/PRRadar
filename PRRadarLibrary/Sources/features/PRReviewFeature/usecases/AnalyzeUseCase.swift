@@ -1,5 +1,3 @@
-import CLISDK
-import ClaudeSDK
 import Foundation
 import PRRadarCLIService
 import PRRadarConfigService
@@ -96,7 +94,6 @@ public struct AnalyzeUseCase: Sendable {
             Task {
                 do {
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
-                    let effectiveRepoPath = repoPath ?? config.repoPath
 
                     // Load tasks from prepare phase (sorted file-first, then rule name)
                     let tasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
@@ -175,49 +172,30 @@ public struct AnalyzeUseCase: Sendable {
                     var totalCost = 0.0
 
                     if !tasksToEvaluate.isEmpty {
-                        let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
-                        guard let anthropicKey = resolver.getAnthropicKey() else {
-                            throw ClaudeAgentError.missingAPIKey
-                        }
-                        let agentEnv = ClaudeAgentEnvironment.build(anthropicAPIKey: anthropicKey)
-                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
-                        let analysisService = AnalysisService(agentClient: agentClient)
-
+                        let singleTaskUseCase = AnalyzeSingleTaskUseCase(config: config)
                         let startTime = Date()
-                        freshResults = try await analysisService.runBatchAnalysis(
-                            tasks: tasksToEvaluate,
-                            evalsDir: evalsDir,
-                            repoPath: effectiveRepoPath,
-                            onStart: { index, total, task in
-                                let globalIndex = cachedCount + index
-                                let fileName = (task.focusArea.filePath as NSString).lastPathComponent
-                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(fileName) — \(task.rule.name)...\n"))
-                            },
-                            onResult: { index, total, result in
-                                let globalIndex = cachedCount + index
-                                let status: String
-                                switch result {
-                                case .success(let s):
-                                    status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
-                                case .error(let e):
-                                    status = "ERROR: \(e.errorMessage)"
+
+                        for (index, task) in tasksToEvaluate.enumerated() {
+                            let globalIndex = cachedCount + index + 1
+                            let fileName = (task.focusArea.filePath as NSString).lastPathComponent
+                            continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(fileName) — \(task.rule.name)...\n"))
+
+                            for try await event in singleTaskUseCase.execute(task: task, prNumber: prNumber, commitHash: resolvedCommit) {
+                                continuation.yield(.taskEvent(task: task, event: event))
+                                if case .completed(let result) = event {
+                                    freshResults.append(result)
+                                    cumulativeEvaluations.append(result)
+                                    let status: String
+                                    switch result {
+                                    case .success(let s):
+                                        status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
+                                    case .error(let e):
+                                        status = "ERROR: \(e.errorMessage)"
+                                    }
+                                    continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
                                 }
-                                continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(status)\n"))
-                                cumulativeEvaluations.append(result)
-                                if let task = taskMap[result.taskId] {
-                                    continuation.yield(.taskEvent(task: task, event: .completed(result: result)))
-                                }
-                            },
-                            onPrompt: { text, task in
-                                continuation.yield(.taskEvent(task: task, event: .prompt(text: text)))
-                            },
-                            onAIText: { text, task in
-                                continuation.yield(.taskEvent(task: task, event: .output(text: text)))
-                            },
-                            onAIToolUse: { name, task in
-                                continuation.yield(.taskEvent(task: task, event: .toolUse(name: name)))
                             }
-                        )
+                        }
 
                         durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
                         totalCost = freshResults.compactMap(\.costUsd).reduce(0, +)

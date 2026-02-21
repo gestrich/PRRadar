@@ -163,7 +163,10 @@ Implementation:
 
 **File to create:** `Sources/features/PRReviewFeature/usecases/AnalyzeSingleTaskUseCase.swift`
 
-## - [ ] Phase 5: Wire `AnalyzeSingleTaskUseCase` into `AnalyzeUseCase`
+## - [x] Phase 5: Wire `AnalyzeSingleTaskUseCase` into `AnalyzeUseCase`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Replaced batch service call with per-task use case loop; delegated credential setup and disk writes to `AnalyzeSingleTaskUseCase`; removed unused `CLISDK`/`ClaudeSDK` imports
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
