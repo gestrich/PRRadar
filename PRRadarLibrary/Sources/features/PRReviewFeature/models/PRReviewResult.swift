@@ -10,13 +10,13 @@ public struct PRReviewResult: Sendable {
 
     public static let empty = PRReviewResult(
         evaluations: [],
-        summary: PRReviewSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
+        summary: PRReviewSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0)
     )
 
     public init(streaming tasks: [RuleRequest]) {
         self.evaluations = []
         self.tasks = tasks
-        self.summary = PRReviewSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
+        self.summary = PRReviewSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0)
         self.cachedCount = 0
     }
 
@@ -41,8 +41,7 @@ public struct PRReviewResult: Sendable {
             totalTasks: evaluations.count,
             violationsFound: violationCount,
             totalCostUsd: evaluations.compactMap(\.costUsd).reduce(0, +),
-            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +),
-            results: evaluations
+            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +)
         )
     }
 
@@ -64,8 +63,7 @@ public struct PRReviewResult: Sendable {
             totalTasks: deduped.count,
             violationsFound: violationCount,
             totalCostUsd: deduped.compactMap(\.costUsd).reduce(0, +),
-            totalDurationMs: deduped.map(\.durationMs).reduce(0, +),
-            results: deduped
+            totalDurationMs: deduped.map(\.durationMs).reduce(0, +)
         )
 
         return PRReviewResult(evaluations: deduped, tasks: tasks, summary: summary, cachedCount: cachedCount)

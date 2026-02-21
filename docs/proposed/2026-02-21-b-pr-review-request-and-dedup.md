@@ -145,9 +145,9 @@ Update each caller to construct a `PRReviewRequest` and pass it:
 
 - `swift build` and `swift test` to verify
 
-## - [ ] Phase 3: Remove `results` from `PRReviewSummary`
+## - [x] Phase 3: Remove `results` from `PRReviewSummary`
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Principles applied**: PRReviewSummary is now a pure stats struct; `modelsUsed` consumers fixed in Phase 4
 
 - Edit `PRReviewSummary.swift`: remove the `results: [RuleOutcome]` property and its init parameter
 - Remove the `modelsUsed` computed property (it moves to `PRReviewResult` in Phase 4)

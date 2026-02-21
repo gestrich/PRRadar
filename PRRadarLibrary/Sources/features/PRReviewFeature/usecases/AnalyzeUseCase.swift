@@ -56,8 +56,7 @@ public struct AnalyzeUseCase: Sendable {
                             totalTasks: 0,
                             violationsFound: 0,
                             totalCostUsd: 0.0,
-                            totalDurationMs: 0,
-                            results: []
+                            totalDurationMs: 0
                         )
                         let summaryData = try encoder.encode(summary)
                         try summaryData.write(to: URL(fileURLWithPath: "\(evalsDir)/\(DataPathsService.summaryJSONFilename)"))
@@ -92,8 +91,7 @@ public struct AnalyzeUseCase: Sendable {
                         totalTasks: allResults.count,
                         violationsFound: violationCount,
                         totalCostUsd: evalResult.totalCost,
-                        totalDurationMs: evalResult.durationMs,
-                        results: allResults
+                        totalDurationMs: evalResult.durationMs
                     )
 
                     let encoder = JSONEncoder()
@@ -277,8 +275,7 @@ public struct AnalyzeUseCase: Sendable {
             totalTasks: evaluations.count,
             violationsFound: violationCount,
             totalCostUsd: evaluations.compactMap(\.costUsd).reduce(0, +),
-            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +),
-            results: evaluations
+            totalDurationMs: evaluations.map(\.durationMs).reduce(0, +)
         )
 
         return PRReviewResult(

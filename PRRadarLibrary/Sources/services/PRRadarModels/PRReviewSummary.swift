@@ -1,6 +1,6 @@
 import Foundation
 
-/// Summary of an evaluation run.
+/// Summary statistics for an evaluation run.
 public struct PRReviewSummary: Codable, Sendable {
     public let prNumber: Int
     public let evaluatedAt: String
@@ -8,7 +8,6 @@ public struct PRReviewSummary: Codable, Sendable {
     public let violationsFound: Int
     public let totalCostUsd: Double
     public let totalDurationMs: Int
-    public let results: [RuleOutcome]
 
     public init(
         prNumber: Int,
@@ -16,8 +15,7 @@ public struct PRReviewSummary: Codable, Sendable {
         totalTasks: Int,
         violationsFound: Int,
         totalCostUsd: Double,
-        totalDurationMs: Int,
-        results: [RuleOutcome]
+        totalDurationMs: Int
     ) {
         self.prNumber = prNumber
         self.evaluatedAt = evaluatedAt
@@ -25,11 +23,5 @@ public struct PRReviewSummary: Codable, Sendable {
         self.violationsFound = violationsFound
         self.totalCostUsd = totalCostUsd
         self.totalDurationMs = totalDurationMs
-        self.results = results
-    }
-
-    /// Distinct model IDs used across all evaluation results, sorted alphabetically.
-    public var modelsUsed: [String] {
-        Array(Set(results.map(\.modelUsed))).sorted()
     }
 }
