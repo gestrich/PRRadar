@@ -81,9 +81,9 @@ public struct PRReviewResult: Sendable {
 
 ## Phases
 
-## - [ ] Phase 1: Create `PRReviewRequest` and update `AnalyzeUseCase`
+## - [x] Phase 1: Create `PRReviewRequest` and update `AnalyzeUseCase`
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Confirmed `repoPath` was unused before removing; kept init defaults for convenient construction
 
 - Create `PRReviewRequest.swift` in `PRReviewFeature/models/`:
   ```swift

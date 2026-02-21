@@ -13,11 +13,11 @@ public struct AnalyzeUseCase: Sendable {
 
     // MARK: - Public API
 
-    public func execute(prNumber: Int, filter: RuleFilter? = nil, repoPath: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
-        if let filter {
-            executeFiltered(prNumber: prNumber, filter: filter, commitHash: commitHash)
+    public func execute(request: PRReviewRequest) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
+        if let filter = request.filter {
+            executeFiltered(prNumber: request.prNumber, filter: filter, commitHash: request.commitHash)
         } else {
-            executeFullRun(prNumber: prNumber, commitHash: commitHash)
+            executeFullRun(prNumber: request.prNumber, commitHash: request.commitHash)
         }
     }
 
