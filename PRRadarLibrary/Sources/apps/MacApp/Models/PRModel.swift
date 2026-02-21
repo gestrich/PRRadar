@@ -537,7 +537,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func runAnalyze() async {
         startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
-        inProgressAnalysis = .empty
+        inProgressAnalysis = AnalysisOutput(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeUseCase(config: config)
 
@@ -571,7 +571,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func runSelectiveAnalysis(filter: AnalysisFilter) async {
-        inProgressAnalysis = detail?.analysis ?? .empty
+        inProgressAnalysis = detail?.analysis ?? AnalysisOutput(streaming: preparation?.tasks ?? [])
 
         let useCase = SelectiveAnalyzeUseCase(config: config)
 

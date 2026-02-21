@@ -16,6 +16,13 @@ public struct AnalysisOutput: Sendable {
         summary: AnalysisSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
     )
 
+    public init(streaming tasks: [AnalysisTaskOutput]) {
+        self.evaluations = []
+        self.tasks = tasks
+        self.summary = AnalysisSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
+        self.cachedCount = 0
+    }
+
     public init(evaluations: [RuleEvaluationResult], tasks: [AnalysisTaskOutput] = [], summary: AnalysisSummary, cachedCount: Int = 0) {
         self.evaluations = evaluations
         self.tasks = tasks
