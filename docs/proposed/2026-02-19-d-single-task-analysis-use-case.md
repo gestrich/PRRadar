@@ -133,7 +133,10 @@ Where `insertResult` is a simple helper that appends to `inProgressAnalysis.eval
 - `Sources/features/PRReviewFeature/usecases/SelectiveAnalyzeUseCase.swift`
 - `Sources/apps/MacApp/Models/PRModel.swift`
 
-## - [ ] Phase 4: Create `AnalyzeSingleTaskUseCase`
+## - [x] Phase 4: Create `AnalyzeSingleTaskUseCase`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Features-layer use case returning `AsyncThrowingStream<TaskProgress, Error>`; replicates credential setup and disk-write patterns from `AnalyzeUseCase`; delegates single-operation work to `AnalysisService.analyzeTask()`
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
