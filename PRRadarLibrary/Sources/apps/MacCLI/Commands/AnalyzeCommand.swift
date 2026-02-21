@@ -102,7 +102,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             }
             print("  Violations found: \(output.summary.violationsFound)")
             print("  Cost: $\(String(format: "%.4f", output.summary.totalCostUsd))")
-            let models = output.summary.modelsUsed
+            let models = output.modelsUsed
             if !models.isEmpty {
                 let modelNames = models.map { displayName(forModelId: $0) }.joined(separator: ", ")
                 print("  Model: \(modelNames)")

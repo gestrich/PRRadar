@@ -161,9 +161,9 @@ Update each caller to construct a `PRReviewRequest` and pass it:
   - `PRReviewResult.cumulative()` — builds summary
 - `swift build` to verify (consumers of `modelsUsed` will fail — fixed in Phase 4)
 
-## - [ ] Phase 4: Move `modelsUsed` to `PRReviewResult` and update consumers
+## - [x] Phase 4: Move `modelsUsed` to `PRReviewResult` and update consumers
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Principles applied**: ReportPhaseView and ReportOutput use ReportSummary.modelsUsed (different type) — unaffected
 
 - Add `modelsUsed` as a computed property on `PRReviewResult`:
   ```swift

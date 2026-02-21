@@ -69,6 +69,10 @@ public struct PRReviewResult: Sendable {
         return PRReviewResult(evaluations: deduped, tasks: tasks, summary: summary, cachedCount: cachedCount)
     }
 
+    public var modelsUsed: [String] {
+        Array(Set(evaluations.map(\.modelUsed))).sorted()
+    }
+
     /// Merge evaluations with task metadata into structured comments.
     public var comments: [PRComment] {
         let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
