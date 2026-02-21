@@ -6,7 +6,7 @@ struct AITranscriptView: View {
 
     let transcriptsByPhase: [PRRadarPhase: [ClaudeAgentTranscript]]
     var isStreaming: Bool = false
-    var activeFilePath: String?
+    var tasksInFlight: Set<RuleRequest> = []
 
     @State private var selectedPhase: PRRadarPhase = .prepare
     @State private var selectedTranscriptId: String?
@@ -179,7 +179,7 @@ struct AITranscriptView: View {
                         Text(group.displayName)
                             .font(.caption)
                             .fontWeight(.semibold)
-                        if activeFilePath == group.filePath {
+                        if tasksInFlight.contains(where: { $0.focusArea.filePath == group.filePath }) {
                             ProgressView()
                                 .controlSize(.mini)
                         }
