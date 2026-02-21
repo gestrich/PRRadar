@@ -275,7 +275,10 @@ This phase will cause build errors in views that reference the removed propertie
 
 Verify build succeeds after all view updates.
 
-## - [ ] Phase 4: Validate build and tests
+## - [x] Phase 4: Validate build and tests
+
+**Skills used**: `swift-testing`
+**Principles applied**: Verified build succeeds, all 488 tests pass, no remaining references to removed properties (tasksInFlight, liveAccumulators, currentLivePhase, liveTranscripts)
 
 **Skills to read**: `/swift-testing`
 
