@@ -46,7 +46,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
 }
 
 /// An evaluation task pairing a rule with a focus area.
-public struct RuleRequest: Codable, Sendable, Equatable, Comparable {
+public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
     public let taskId: String
     public let rule: TaskRule
     public let focusArea: FocusArea
@@ -69,10 +69,14 @@ public struct RuleRequest: Codable, Sendable, Equatable, Comparable {
         case ruleBlobHash = "rule_blob_hash"
     }
 
-    /// Create an evaluation task from a full rule and focus area.
-    ///
-    /// Generates a task ID from the rule name and focus ID,
-    /// and extracts the subset of rule fields needed for evaluation.
+    public static func == (lhs: RuleRequest, rhs: RuleRequest) -> Bool {
+        lhs.taskId == rhs.taskId
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(taskId)
+    }
+
     public static func < (lhs: RuleRequest, rhs: RuleRequest) -> Bool {
         if lhs.focusArea.filePath != rhs.focusArea.filePath {
             return lhs.focusArea.filePath < rhs.focusArea.filePath

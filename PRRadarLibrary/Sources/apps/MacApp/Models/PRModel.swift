@@ -27,10 +27,12 @@ final class PRModel: Identifiable, Hashable {
 
     private var liveAccumulators: [LiveTranscriptAccumulator] = []
     private(set) var currentLivePhase: PRRadarPhase?
-    private(set) var activeAnalysisFilePath: String?
+    var activeAnalysisFilePath: String? {
+        liveAccumulators.last?.filePath
+    }
 
     private(set) var operationMode: OperationMode = .idle
-    private(set) var selectiveAnalysisInFlight: Set<String> = []
+    private(set) var tasksInFlight: Set<RuleRequest> = []
     private var refreshTask: Task<Void, Never>?
 
     // MARK: - Forwarding Properties
@@ -92,7 +94,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var isSelectiveAnalysisRunning: Bool {
-        !selectiveAnalysisInFlight.isEmpty
+        !tasksInFlight.isEmpty
     }
 
     var isAIPhaseRunning: Bool {
@@ -133,7 +135,7 @@ final class PRModel: Identifiable, Hashable {
         liveAccumulators = []
         currentLivePhase = nil
         operationMode = .idle
-        selectiveAnalysisInFlight = []
+        tasksInFlight = []
         refreshTask?.cancel()
         refreshTask = nil
         reloadDetail()
@@ -453,7 +455,6 @@ final class PRModel: Identifiable, Hashable {
 
     private func appendAIPrompt(task: RuleRequest, text: String) {
         let count = liveAccumulators.count
-        activeAnalysisFilePath = task.focusArea.filePath
         liveAccumulators.append(LiveTranscriptAccumulator(
             identifier: "task-\(count + 1)",
             prompt: text,
@@ -537,7 +538,9 @@ final class PRModel: Identifiable, Hashable {
 
     private func runAnalyze() async {
         startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
-        inProgressAnalysis = PRReviewResult(streaming: preparation?.tasks ?? [])
+        let tasks = preparation?.tasks ?? []
+        inProgressAnalysis = PRReviewResult(streaming: tasks)
+        tasksInFlight = Set(tasks)
 
         let useCase = AnalyzeUseCase(config: config)
         let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash)
@@ -555,17 +558,20 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
                     handleTaskEvent(task, event)
+                    if case .completed = event {
+                        tasksInFlight.remove(task)
+                    }
                 case .completed:
                     inProgressAnalysis = nil
-                    activeAnalysisFilePath = nil
+                    tasksInFlight = []
                     completePhase(.analyze, tracksLiveTranscripts: true)
                 case .failed(let error, let logs):
-                    activeAnalysisFilePath = nil
+                    tasksInFlight = []
                     failPhase(.analyze, error: error, logs: logs, tracksLiveTranscripts: true)
                 }
             }
         } catch {
-            activeAnalysisFilePath = nil
+            tasksInFlight = []
             let logs = runningLogs(for: .analyze)
             failPhase(.analyze, error: error.localizedDescription, logs: logs, tracksLiveTranscripts: true)
         }
@@ -591,18 +597,18 @@ final class PRModel: Identifiable, Hashable {
                 case .taskEvent(let task, let event):
                     handleTaskEvent(task, event)
                     if case .completed = event {
-                        selectiveAnalysisInFlight.remove(task.taskId)
+                        tasksInFlight.remove(task)
                     }
                 case .completed:
                     inProgressAnalysis = nil
-                    selectiveAnalysisInFlight = []
+                    tasksInFlight = []
                     reloadDetail()
                 case .failed:
-                    selectiveAnalysisInFlight = []
+                    tasksInFlight = []
                 }
             }
         } catch {
-            selectiveAnalysisInFlight = []
+            tasksInFlight = []
         }
     }
 
@@ -615,7 +621,6 @@ final class PRModel: Identifiable, Hashable {
         case .toolUse(let name):
             appendAIToolUse(name)
         case .completed(let result):
-            activeAnalysisFilePath = nil
             inProgressAnalysis?.appendResult(result, prNumber: prNumber)
         }
     }
@@ -625,8 +630,7 @@ final class PRModel: Identifiable, Hashable {
         let matchingTasks = tasks.filter { filter.matches($0) }
         guard !matchingTasks.isEmpty else { return }
 
-        let matchingTaskIds = Set(matchingTasks.map(\.taskId))
-        selectiveAnalysisInFlight.formUnion(matchingTaskIds)
+        tasksInFlight.formUnion(matchingTasks)
 
         if matchingTasks.count == 1, let task = matchingTasks.first {
             Task {
@@ -656,9 +660,8 @@ final class PRModel: Identifiable, Hashable {
         }
 
         inProgressAnalysis = nil
-        activeAnalysisFilePath = nil
 
-        selectiveAnalysisInFlight.remove(task.taskId)
+        tasksInFlight.remove(task)
         currentLivePhase = nil
     }
 
