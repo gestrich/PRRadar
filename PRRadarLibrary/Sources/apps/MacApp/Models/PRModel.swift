@@ -570,10 +570,10 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func runSelectiveAnalysis(filter: AnalysisFilter) async {
+    private func runFilteredAnalysis(filter: AnalysisFilter) async {
         inProgressAnalysis = detail?.analysis ?? AnalysisOutput(streaming: preparation?.tasks ?? [])
 
-        let useCase = SelectiveAnalyzeUseCase(config: config)
+        let useCase = AnalyzeUseCase(config: config)
 
         do {
             for try await progress in useCase.execute(prNumber: prNumber, filter: filter, commitHash: currentCommitHash) {
@@ -626,7 +626,7 @@ final class PRModel: Identifiable, Hashable {
         selectiveAnalysisInFlight.formUnion(matchingTaskIds)
 
         Task {
-            await runSelectiveAnalysis(filter: filter)
+            await runFilteredAnalysis(filter: filter)
         }
     }
 

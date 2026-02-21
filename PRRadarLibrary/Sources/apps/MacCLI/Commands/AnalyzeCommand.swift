@@ -36,14 +36,13 @@ struct AnalyzeCommand: AsyncParsableCommand {
             ruleNames: rule.isEmpty ? nil : rule
         )
 
-        let stream: AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error>
-        if filter.isEmpty {
-            let useCase = AnalyzeUseCase(config: config)
-            stream = useCase.execute(prNumber: options.prNumber, repoPath: options.repoPath, commitHash: options.commit)
-        } else {
-            let useCase = SelectiveAnalyzeUseCase(config: config)
-            stream = useCase.execute(prNumber: options.prNumber, filter: filter, repoPath: options.repoPath, commitHash: options.commit)
-        }
+        let useCase = AnalyzeUseCase(config: config)
+        let stream = useCase.execute(
+            prNumber: options.prNumber,
+            filter: filter.isEmpty ? nil : filter,
+            repoPath: options.repoPath,
+            commitHash: options.commit
+        )
 
         if !options.json {
             print("Analyzing PR #\(options.prNumber)...")

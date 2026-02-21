@@ -190,7 +190,10 @@ Cached tasks still yield `.taskEvent(task, .completed(cachedResult))` without go
 
 **File to modify:** `Sources/features/PRReviewFeature/usecases/AnalyzeUseCase.swift`
 
-## - [ ] Phase 6: Unify AnalyzeUseCase and SelectiveAnalyzeUseCase
+## - [x] Phase 6: Unify AnalyzeUseCase and SelectiveAnalyzeUseCase
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: 3-tier method structure (dispatch → specific → shared helper) instead of boolean branching; `execute(filter:)` dispatches to `executeFullRun()` or `executeFiltered()`, both calling shared `runEvaluations()` helper; PRModel keeps separate `runAnalyze()` and `runFilteredAnalysis(filter:)` for clear linear flow; removed dead `cumulativeEvaluations` tracking and `loadExistingEvaluations()`
 
 Add optional `filter: AnalysisFilter?` to `AnalyzeUseCase.execute()`. When present:
 - Filter tasks before evaluation
