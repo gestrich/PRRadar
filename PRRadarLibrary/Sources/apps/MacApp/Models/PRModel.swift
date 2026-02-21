@@ -532,8 +532,6 @@ final class PRModel: Identifiable, Hashable {
         startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
         let tasks = preparation?.tasks ?? []
         inProgressAnalysis = PRReviewResult(streaming: tasks)
-        tasksInFlight = Set(tasks)
-
         let useCase = AnalyzeUseCase(config: config)
         let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash)
 
@@ -549,6 +547,7 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareOutput: break
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
+                    tasksInFlight.insert(task)
                     handleTaskEvent(task, event)
                     if case .completed = event {
                         tasksInFlight.remove(task)
@@ -587,6 +586,7 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareOutput: break
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
+                    tasksInFlight.insert(task)
                     handleTaskEvent(task, event)
                     if case .completed = event {
                         tasksInFlight.remove(task)
@@ -622,8 +622,6 @@ final class PRModel: Identifiable, Hashable {
         let matchingTasks = tasks.filter { filter.matches($0) }
         guard !matchingTasks.isEmpty else { return }
 
-        tasksInFlight.formUnion(matchingTasks)
-
         if matchingTasks.count == 1, let task = matchingTasks.first {
             Task {
                 await runSingleAnalysis(task: task)
@@ -644,6 +642,7 @@ final class PRModel: Identifiable, Hashable {
 
         do {
             for try await event in useCase.execute(task: task, prNumber: prNumber, commitHash: currentCommitHash) {
+                tasksInFlight.insert(task)
                 handleTaskEvent(task, event)
             }
             reloadDetail()

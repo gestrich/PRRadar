@@ -4,9 +4,10 @@ import SwiftUI
 
 struct AITranscriptView: View {
 
+    @Environment(PRModel.self) private var prModel
+
     let transcriptsByPhase: [PRRadarPhase: [ClaudeAgentTranscript]]
     var isStreaming: Bool = false
-    var tasksInFlight: Set<RuleRequest> = []
 
     @State private var selectedPhase: PRRadarPhase = .prepare
     @State private var selectedTranscriptId: String?
@@ -179,7 +180,7 @@ struct AITranscriptView: View {
                         Text(group.displayName)
                             .font(.caption)
                             .fontWeight(.semibold)
-                        if tasksInFlight.contains(where: { $0.focusArea.filePath == group.filePath }) {
+                        if prModel.tasksInFlight.contains(where: { $0.focusArea.filePath == group.filePath }) {
                             ProgressView()
                                 .controlSize(.mini)
                         }

@@ -5,7 +5,7 @@ import SwiftUI
 
 struct ReviewDetailView: View {
 
-    let prModel: PRModel
+    @Environment(PRModel.self) private var prModel
     @State private var selectedNavPhase: NavigationPhase = .summary
     @State private var showEffectiveDiff = false
     @State private var showAIOutput = false
@@ -183,9 +183,9 @@ struct ReviewDetailView: View {
     @ViewBuilder
     private var aiOutputView: some View {
         if prModel.isAIPhaseRunning, !prModel.liveTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts, isStreaming: true, tasksInFlight: prModel.tasksInFlight)
+            AITranscriptView(transcriptsByPhase: prModel.liveTranscripts, isStreaming: true)
         } else if prModel.isAIPhaseRunning, !prModel.savedTranscripts.isEmpty {
-            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts, isStreaming: true, tasksInFlight: prModel.tasksInFlight)
+            AITranscriptView(transcriptsByPhase: prModel.savedTranscripts, isStreaming: true)
         } else if !prModel.savedTranscripts.isEmpty {
             AITranscriptView(transcriptsByPhase: prModel.savedTranscripts)
         } else if !prModel.liveTranscripts.isEmpty {

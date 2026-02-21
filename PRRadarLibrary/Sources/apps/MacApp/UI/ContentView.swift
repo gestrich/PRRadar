@@ -341,7 +341,8 @@ public struct ContentView: View {
     private var detailView: some View {
         if allPRs != nil {
             if let selectedPR {
-                ReviewDetailView(prModel: selectedPR)
+                ReviewDetailView()
+                    .environment(selectedPR)
                     .id(selectedPR.metadata.number)
             } else {
                 ContentUnavailableView(
