@@ -40,7 +40,7 @@ In `PRModel`:
 
 **Completed**: Deleted the `activeAnalysisFilePath` computed property from `PRModel`. Grep confirmed no remaining references in source code. Build passes cleanly.
 
-## - [ ] Phase 3: Validation
+## - [x] Phase 3: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -48,3 +48,5 @@ In `PRModel`:
 - `swift test` — all existing tests pass
 - Manual spot-check: during full analysis, the transcript sidebar shows spinners on all file group headers that have pending `RuleRequest`s, not just the currently-streaming one
 - Manual spot-check: selective analysis still shows spinners correctly in both the diff view and transcript view
+
+**Completed**: Build succeeds cleanly. All 488 tests in 54 suites pass. Manual spot-checks deferred (require running the full GUI app with a live PR).
