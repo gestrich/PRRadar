@@ -37,12 +37,12 @@ struct AnalyzeCommand: AsyncParsableCommand {
         )
 
         let useCase = AnalyzeUseCase(config: config)
-        let stream = useCase.execute(
+        let request = PRReviewRequest(
             prNumber: options.prNumber,
             filter: filter.isEmpty ? nil : filter,
-            repoPath: options.repoPath,
             commitHash: options.commit
         )
+        let stream = useCase.execute(request: request)
 
         if !options.json {
             print("Analyzing PR #\(options.prNumber)...")

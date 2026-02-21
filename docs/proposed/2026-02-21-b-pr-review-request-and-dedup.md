@@ -103,9 +103,9 @@ public struct PRReviewResult: Sendable {
 - Update all internal references within `AnalyzeUseCase` that read `prNumber`, `filter`, `repoPath`, `commitHash` to read from `request.*`
 - `swift build` to verify (callers will fail — that's expected, fixed in Phase 2)
 
-## - [ ] Phase 2: Update all callers of `AnalyzeUseCase.execute()`
+## - [x] Phase 2: Update all callers of `AnalyzeUseCase.execute()`
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Also removed unused `repoPath` from `RunPipelineUseCase.execute()` since it was only passed through
 
 Update each caller to construct a `PRReviewRequest` and pass it:
 

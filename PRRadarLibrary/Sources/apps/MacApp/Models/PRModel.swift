@@ -540,9 +540,10 @@ final class PRModel: Identifiable, Hashable {
         inProgressAnalysis = PRReviewResult(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeUseCase(config: config)
+        let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, commitHash: currentCommitHash) {
+            for try await progress in useCase.execute(request: request) {
                 switch progress {
                 case .running:
                     break
@@ -574,9 +575,10 @@ final class PRModel: Identifiable, Hashable {
         inProgressAnalysis = detail?.analysis ?? PRReviewResult(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeUseCase(config: config)
+        let request = PRReviewRequest(prNumber: prNumber, filter: filter, commitHash: currentCommitHash)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, filter: filter, commitHash: currentCommitHash) {
+            for try await progress in useCase.execute(request: request) {
                 switch progress {
                 case .running:
                     break
