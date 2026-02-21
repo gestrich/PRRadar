@@ -21,8 +21,8 @@ struct AnalysisCacheServiceTests {
         return path
     }
 
-    private func makeTask(id: String, blobHash: String, ruleBlobHash: String? = nil) -> AnalysisTaskOutput {
-        AnalysisTaskOutput(
+    private func makeTask(id: String, blobHash: String, ruleBlobHash: String? = nil) -> RuleRequest {
+        RuleRequest(
             taskId: id,
             rule: TaskRule(
                 name: "rule-\(id)",
@@ -44,12 +44,12 @@ struct AnalysisCacheServiceTests {
         )
     }
 
-    private func makeResult(taskId: String, violates: Bool = false) -> RuleEvaluationResult {
+    private func makeResult(taskId: String, violates: Bool = false) -> RuleOutcome {
         .success(EvaluationSuccess(
             taskId: taskId,
             ruleName: "rule-\(taskId)",
             filePath: "file.swift",
-            evaluation: RuleEvaluation(
+            finding: RuleFinding(
                 violatesRule: violates,
                 score: violates ? 7 : 1,
                 comment: violates ? "Violation found" : "OK",
@@ -62,13 +62,13 @@ struct AnalysisCacheServiceTests {
         ))
     }
 
-    private func writeAnalysisResult(_ result: RuleEvaluationResult, to dir: String) throws {
+    private func writeAnalysisResult(_ result: RuleOutcome, to dir: String) throws {
         let data = try encoder.encode(result)
         let path = "\(dir)/data-\(result.taskId).json"
         try data.write(to: URL(fileURLWithPath: path))
     }
 
-    private func writeTaskSnapshot(_ task: AnalysisTaskOutput, to dir: String) throws {
+    private func writeTaskSnapshot(_ task: RuleRequest, to dir: String) throws {
         let data = try encoder.encode(task)
         let path = "\(dir)/task-\(task.taskId).json"
         try data.write(to: URL(fileURLWithPath: path))
@@ -194,7 +194,7 @@ struct AnalysisCacheServiceTests {
         for task in tasks {
             let path = "\(dir)/task-\(task.taskId).json"
             let data = try #require(FileManager.default.contents(atPath: path))
-            let decoded = try decoder.decode(AnalysisTaskOutput.self, from: data)
+            let decoded = try decoder.decode(RuleRequest.self, from: data)
             #expect(decoded == task)
         }
     }

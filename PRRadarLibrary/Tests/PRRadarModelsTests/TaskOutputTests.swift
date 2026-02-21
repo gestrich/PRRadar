@@ -47,9 +47,9 @@ struct TaskOutputTests {
         #expect(rule.documentationLink == nil)
     }
 
-    // MARK: - AnalysisTaskOutput
+    // MARK: - RuleRequest
 
-    @Test("AnalysisTaskOutput decodes from Python's EvaluationTask.to_dict()")
+    @Test("RuleRequest decodes from Python's EvaluationTask.to_dict()")
     func analysisTaskOutputDecode() throws {
         let json = """
         {
@@ -75,7 +75,7 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        let task = try JSONDecoder().decode(RuleRequest.self, from: json)
         #expect(task.taskId == "error-handling-method-handler_py-process-10-25")
         #expect(task.rule.name == "error-handling")
         #expect(task.rule.category == "reliability")
@@ -85,7 +85,7 @@ struct TaskOutputTests {
         #expect(task.gitBlobHash == "abc123def456789")
     }
 
-    @Test("AnalysisTaskOutput with documentation_link in rule")
+    @Test("RuleRequest with documentation_link in rule")
     func analysisTaskWithDocs() throws {
         let json = """
         {
@@ -112,14 +112,14 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        let task = try JSONDecoder().decode(RuleRequest.self, from: json)
         #expect(task.rule.documentationLink == "https://example.com/docs-guide")
         #expect(task.rule.model == nil)
         #expect(task.focusArea.focusType == .file)
         #expect(task.gitBlobHash == "fedcba987654321")
     }
 
-    @Test("AnalysisTaskOutput decodes without rule_blob_hash (backward compatible)")
+    @Test("RuleRequest decodes without rule_blob_hash (backward compatible)")
     func analysisTaskWithoutRuleBlobHash() throws {
         let json = """
         {
@@ -145,12 +145,12 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        let task = try JSONDecoder().decode(RuleRequest.self, from: json)
         #expect(task.gitBlobHash == "abc123")
         #expect(task.ruleBlobHash == nil)
     }
 
-    @Test("AnalysisTaskOutput decodes with rule_blob_hash")
+    @Test("RuleRequest decodes with rule_blob_hash")
     func analysisTaskWithRuleBlobHash() throws {
         let json = """
         {
@@ -177,12 +177,12 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let task = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        let task = try JSONDecoder().decode(RuleRequest.self, from: json)
         #expect(task.gitBlobHash == "abc123")
         #expect(task.ruleBlobHash == "def456rule")
     }
 
-    @Test("AnalysisTaskOutput round-trips through encode/decode")
+    @Test("RuleRequest round-trips through encode/decode")
     func analysisTaskRoundTrip() throws {
         let json = """
         {
@@ -209,9 +209,9 @@ struct TaskOutputTests {
         }
         """.data(using: .utf8)!
 
-        let original = try JSONDecoder().decode(AnalysisTaskOutput.self, from: json)
+        let original = try JSONDecoder().decode(RuleRequest.self, from: json)
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(AnalysisTaskOutput.self, from: encoded)
+        let decoded = try JSONDecoder().decode(RuleRequest.self, from: encoded)
 
         #expect(original.taskId == decoded.taskId)
         #expect(original.rule.name == decoded.rule.name)
@@ -220,7 +220,7 @@ struct TaskOutputTests {
         #expect(original.ruleBlobHash == decoded.ruleBlobHash)
     }
 
-    @Test("AnalysisTaskOutput.from() factory includes ruleBlobHash")
+    @Test("RuleRequest.from() factory includes ruleBlobHash")
     func analysisTaskFromFactory() throws {
         let rule = ReviewRule(
             name: "test-rule",
@@ -240,12 +240,12 @@ struct TaskOutputTests {
             focusType: .file
         )
 
-        let taskWithHash = AnalysisTaskOutput.from(
+        let taskWithHash = RuleRequest.from(
             rule: rule, focusArea: focusArea, gitBlobHash: "src123", ruleBlobHash: "rule456"
         )
         #expect(taskWithHash.ruleBlobHash == "rule456")
 
-        let taskWithoutHash = AnalysisTaskOutput.from(
+        let taskWithoutHash = RuleRequest.from(
             rule: rule, focusArea: focusArea, gitBlobHash: "src123"
         )
         #expect(taskWithoutHash.ruleBlobHash == nil)

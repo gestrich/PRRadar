@@ -3,7 +3,7 @@ import SwiftUI
 
 struct TaskRowView: View {
 
-    let task: AnalysisTaskOutput
+    let task: RuleRequest
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {

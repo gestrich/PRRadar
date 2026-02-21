@@ -4,7 +4,7 @@ import Foundation
 ///
 /// All fields are optional — nil means "no filter" for that dimension.
 /// When multiple fields are set, they combine with AND logic.
-public struct AnalysisFilter: Sendable {
+public struct RuleFilter: Sendable {
     public let filePath: String?
     public let focusAreaId: String?
     public let ruleNames: [String]?
@@ -16,7 +16,7 @@ public struct AnalysisFilter: Sendable {
     }
 
     /// Returns true if the given task matches all non-nil filter criteria.
-    public func matches(_ task: AnalysisTaskOutput) -> Bool {
+    public func matches(_ task: RuleRequest) -> Bool {
         if let filePath, task.focusArea.filePath != filePath {
             return false
         }

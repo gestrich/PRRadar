@@ -14,13 +14,13 @@ public enum AnalysisCacheService {
     /// Cached results from prior commits are copied into the current evaluate directory
     /// so each commit directory is self-contained.
     public static func partitionTasks(
-        tasks: [AnalysisTaskOutput],
+        tasks: [RuleRequest],
         evalsDir: String,
         prOutputDir: String? = nil
-    ) -> (cached: [RuleEvaluationResult], toEvaluate: [AnalysisTaskOutput]) {
+    ) -> (cached: [RuleOutcome], toEvaluate: [RuleRequest]) {
         let decoder = JSONDecoder()
-        var cached: [RuleEvaluationResult] = []
-        var toEvaluate: [AnalysisTaskOutput] = []
+        var cached: [RuleOutcome] = []
+        var toEvaluate: [RuleRequest] = []
 
         let priorEvalsDirs = prOutputDir.map { findPriorEvalsDirs(prOutputDir: $0, currentEvalsDir: evalsDir) } ?? []
 
@@ -47,18 +47,18 @@ public enum AnalysisCacheService {
 
     /// Check a single evaluate directory for a cached result matching both blob hashes.
     private static func lookupCachedResult(
-        task: AnalysisTaskOutput,
+        task: RuleRequest,
         evalsDir: String,
         decoder: JSONDecoder
-    ) -> RuleEvaluationResult? {
+    ) -> RuleOutcome? {
         let evalPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
         let taskPath = "\(evalsDir)/\(taskFilePrefix)\(task.taskId).json"
 
         guard
             let evalData = FileManager.default.contents(atPath: evalPath),
             let taskData = FileManager.default.contents(atPath: taskPath),
-            let priorResult = try? decoder.decode(RuleEvaluationResult.self, from: evalData),
-            let priorTask = try? decoder.decode(AnalysisTaskOutput.self, from: taskData),
+            let priorResult = try? decoder.decode(RuleOutcome.self, from: evalData),
+            let priorTask = try? decoder.decode(RuleRequest.self, from: taskData),
             blobHashesMatch(prior: priorTask, current: task)
         else {
             return nil
@@ -70,11 +70,11 @@ public enum AnalysisCacheService {
     /// Scan prior commit evaluate directories for a matching cached result.
     /// When found, copies the result and task snapshot into the target evaluate directory.
     private static func lookupCrossCommitResult(
-        task: AnalysisTaskOutput,
+        task: RuleRequest,
         priorEvalsDirs: [String],
         targetEvalsDir: String,
         decoder: JSONDecoder
-    ) -> RuleEvaluationResult? {
+    ) -> RuleOutcome? {
         for priorDir in priorEvalsDirs {
             guard let result = lookupCachedResult(task: task, evalsDir: priorDir, decoder: decoder) else {
                 continue
@@ -98,7 +98,7 @@ public enum AnalysisCacheService {
 
     /// Compare both gitBlobHash and ruleBlobHash between a prior task snapshot and the current task.
     /// A nil ruleBlobHash on both sides is treated as a match (backward compatibility).
-    private static func blobHashesMatch(prior: AnalysisTaskOutput, current: AnalysisTaskOutput) -> Bool {
+    private static func blobHashesMatch(prior: RuleRequest, current: RuleRequest) -> Bool {
         guard prior.gitBlobHash == current.gitBlobHash else { return false }
         guard prior.ruleBlobHash == current.ruleBlobHash else { return false }
         return true
@@ -158,11 +158,11 @@ public enum AnalysisCacheService {
     }
 
     /// Per-task progress line for a cached result.
-    public static func cachedTaskMessage(index: Int, totalCount: Int, result: RuleEvaluationResult) -> String {
+    public static func cachedTaskMessage(index: Int, totalCount: Int, result: RuleOutcome) -> String {
         let status: String
         switch result {
         case .success(let s):
-            status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
+            status = s.finding.violatesRule ? "VIOLATION (\(s.finding.score)/10)" : "OK"
         case .error(let e):
             status = "ERROR: \(e.errorMessage)"
         }
@@ -179,7 +179,7 @@ public enum AnalysisCacheService {
 
     /// Write task snapshots to the evaluations directory for future cache checks.
     public static func writeTaskSnapshots(
-        tasks: [AnalysisTaskOutput],
+        tasks: [RuleRequest],
         evalsDir: String
     ) throws {
         let encoder = JSONEncoder()

@@ -1,13 +1,13 @@
 import Testing
 @testable import PRRadarModels
 
-@Suite("AnalysisSummary modelsUsed")
-struct AnalysisSummaryModelsUsedTests {
+@Suite("PRReviewSummary modelsUsed")
+struct PRReviewSummaryModelsUsedTests {
 
     @Test("Returns distinct sorted model IDs from results")
     func distinctSortedModels() {
         // Arrange
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: 1,
             evaluatedAt: "2025-01-01T00:00:00Z",
             totalTasks: 3,
@@ -31,7 +31,7 @@ struct AnalysisSummaryModelsUsedTests {
     @Test("Returns empty array when no results")
     func emptyResults() {
         // Arrange
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: 1,
             evaluatedAt: "2025-01-01T00:00:00Z",
             totalTasks: 0,
@@ -51,7 +51,7 @@ struct AnalysisSummaryModelsUsedTests {
     @Test("Returns single model when all results use same model")
     func singleModel() {
         // Arrange
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: 1,
             evaluatedAt: "2025-01-01T00:00:00Z",
             totalTasks: 2,
@@ -73,12 +73,12 @@ struct AnalysisSummaryModelsUsedTests {
 
     // MARK: - Helpers
 
-    private func makeResult(taskId: String, modelUsed: String) -> RuleEvaluationResult {
+    private func makeResult(taskId: String, modelUsed: String) -> RuleOutcome {
         .success(EvaluationSuccess(
             taskId: taskId,
             ruleName: "test-rule",
             filePath: "test.swift",
-            evaluation: RuleEvaluation(
+            finding: RuleFinding(
                 violatesRule: false,
                 score: 1,
                 comment: "OK",

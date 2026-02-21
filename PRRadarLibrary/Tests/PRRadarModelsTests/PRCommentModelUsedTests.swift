@@ -11,7 +11,7 @@ struct PRCommentModelUsedTests {
             taskId: "task-1",
             ruleName: "test-rule",
             filePath: "src/app.swift",
-            evaluation: RuleEvaluation(
+            finding: RuleFinding(
                 violatesRule: true,
                 score: 7,
                 comment: "Issue found",
@@ -37,7 +37,7 @@ struct PRCommentModelUsedTests {
             taskId: "task-2",
             ruleName: "naming-rule",
             filePath: "src/utils.swift",
-            evaluation: RuleEvaluation(
+            finding: RuleFinding(
                 violatesRule: true,
                 score: 5,
                 comment: "Naming violation",

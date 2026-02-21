@@ -1,7 +1,7 @@
 import Foundation
 
 /// An evaluation that failed due to an error (network, timeout, etc.).
-public struct EvaluationError: Codable, Sendable {
+public struct RuleError: Codable, Sendable {
     public let taskId: String
     public let ruleName: String
     public let filePath: String

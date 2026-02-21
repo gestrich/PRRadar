@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import PRRadarModels
 
-@Suite("AnalysisFilter")
-struct AnalysisFilterTests {
+@Suite("RuleFilter")
+struct RuleFilterTests {
 
     // MARK: - Helpers
 
@@ -11,8 +11,8 @@ struct AnalysisFilterTests {
         ruleName: String = "error-handling",
         filePath: String = "src/handler.py",
         focusId: String = "method-handler_py-process-10-25"
-    ) -> AnalysisTaskOutput {
-        AnalysisTaskOutput(
+    ) -> RuleRequest {
+        RuleRequest(
             taskId: "\(ruleName)_\(focusId)",
             rule: TaskRule(
                 name: ruleName,
@@ -38,7 +38,7 @@ struct AnalysisFilterTests {
     @Test("isEmpty returns true when all fields are nil")
     func isEmptyAllNil() {
         // Arrange
-        let filter = AnalysisFilter()
+        let filter = RuleFilter()
 
         // Assert
         #expect(filter.isEmpty)
@@ -47,7 +47,7 @@ struct AnalysisFilterTests {
     @Test("isEmpty returns false when filePath is set")
     func isEmptyWithFilePath() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler.py")
+        let filter = RuleFilter(filePath: "src/handler.py")
 
         // Assert
         #expect(!filter.isEmpty)
@@ -56,7 +56,7 @@ struct AnalysisFilterTests {
     @Test("isEmpty returns false when focusAreaId is set")
     func isEmptyWithFocusAreaId() {
         // Arrange
-        let filter = AnalysisFilter(focusAreaId: "focus-1")
+        let filter = RuleFilter(focusAreaId: "focus-1")
 
         // Assert
         #expect(!filter.isEmpty)
@@ -65,7 +65,7 @@ struct AnalysisFilterTests {
     @Test("isEmpty returns false when ruleNames is set")
     func isEmptyWithRuleNames() {
         // Arrange
-        let filter = AnalysisFilter(ruleNames: ["error-handling"])
+        let filter = RuleFilter(ruleNames: ["error-handling"])
 
         // Assert
         #expect(!filter.isEmpty)
@@ -76,7 +76,7 @@ struct AnalysisFilterTests {
     @Test("Empty filter matches any task")
     func emptyFilterMatchesAll() {
         // Arrange
-        let filter = AnalysisFilter()
+        let filter = RuleFilter()
         let task = makeTask()
 
         // Act
@@ -91,7 +91,7 @@ struct AnalysisFilterTests {
     @Test("Filter matches task with matching file path")
     func filePathMatch() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler.py")
+        let filter = RuleFilter(filePath: "src/handler.py")
         let task = makeTask(filePath: "src/handler.py")
 
         // Act
@@ -104,7 +104,7 @@ struct AnalysisFilterTests {
     @Test("Filter rejects task with different file path")
     func filePathMismatch() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/other.py")
+        let filter = RuleFilter(filePath: "src/other.py")
         let task = makeTask(filePath: "src/handler.py")
 
         // Act
@@ -117,7 +117,7 @@ struct AnalysisFilterTests {
     @Test("File path filter requires exact match")
     func filePathExactMatch() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler")
+        let filter = RuleFilter(filePath: "src/handler")
         let task = makeTask(filePath: "src/handler.py")
 
         // Act
@@ -132,7 +132,7 @@ struct AnalysisFilterTests {
     @Test("Filter matches task with matching focus area ID")
     func focusAreaIdMatch() {
         // Arrange
-        let filter = AnalysisFilter(focusAreaId: "method-handler_py-process-10-25")
+        let filter = RuleFilter(focusAreaId: "method-handler_py-process-10-25")
         let task = makeTask(focusId: "method-handler_py-process-10-25")
 
         // Act
@@ -145,7 +145,7 @@ struct AnalysisFilterTests {
     @Test("Filter rejects task with different focus area ID")
     func focusAreaIdMismatch() {
         // Arrange
-        let filter = AnalysisFilter(focusAreaId: "method-other-1-5")
+        let filter = RuleFilter(focusAreaId: "method-other-1-5")
         let task = makeTask(focusId: "method-handler_py-process-10-25")
 
         // Act
@@ -160,7 +160,7 @@ struct AnalysisFilterTests {
     @Test("Filter matches task when rule name is in the list")
     func ruleNameMatch() {
         // Arrange
-        let filter = AnalysisFilter(ruleNames: ["error-handling"])
+        let filter = RuleFilter(ruleNames: ["error-handling"])
         let task = makeTask(ruleName: "error-handling")
 
         // Act
@@ -173,7 +173,7 @@ struct AnalysisFilterTests {
     @Test("Filter matches task when rule name is one of multiple in the list")
     func ruleNameMatchMultiple() {
         // Arrange
-        let filter = AnalysisFilter(ruleNames: ["naming-conventions", "error-handling", "logging"])
+        let filter = RuleFilter(ruleNames: ["naming-conventions", "error-handling", "logging"])
         let task = makeTask(ruleName: "error-handling")
 
         // Act
@@ -186,7 +186,7 @@ struct AnalysisFilterTests {
     @Test("Filter rejects task when rule name is not in the list")
     func ruleNameMismatch() {
         // Arrange
-        let filter = AnalysisFilter(ruleNames: ["naming-conventions", "logging"])
+        let filter = RuleFilter(ruleNames: ["naming-conventions", "logging"])
         let task = makeTask(ruleName: "error-handling")
 
         // Act
@@ -199,7 +199,7 @@ struct AnalysisFilterTests {
     @Test("Empty ruleNames array matches no tasks")
     func emptyRuleNamesArray() {
         // Arrange
-        let filter = AnalysisFilter(ruleNames: [])
+        let filter = RuleFilter(ruleNames: [])
         let task = makeTask(ruleName: "error-handling")
 
         // Act
@@ -214,7 +214,7 @@ struct AnalysisFilterTests {
     @Test("Filter with filePath AND ruleNames matches task meeting both criteria")
     func combinedFilePathAndRuleName() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler.py", ruleNames: ["error-handling"])
+        let filter = RuleFilter(filePath: "src/handler.py", ruleNames: ["error-handling"])
         let task = makeTask(ruleName: "error-handling", filePath: "src/handler.py")
 
         // Act
@@ -227,7 +227,7 @@ struct AnalysisFilterTests {
     @Test("Filter with filePath AND ruleNames rejects task matching only filePath")
     func combinedFilterRejectsPartialFilePathMatch() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler.py", ruleNames: ["naming-conventions"])
+        let filter = RuleFilter(filePath: "src/handler.py", ruleNames: ["naming-conventions"])
         let task = makeTask(ruleName: "error-handling", filePath: "src/handler.py")
 
         // Act
@@ -240,7 +240,7 @@ struct AnalysisFilterTests {
     @Test("Filter with filePath AND ruleNames rejects task matching only ruleNames")
     func combinedFilterRejectsPartialRuleNameMatch() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/other.py", ruleNames: ["error-handling"])
+        let filter = RuleFilter(filePath: "src/other.py", ruleNames: ["error-handling"])
         let task = makeTask(ruleName: "error-handling", filePath: "src/handler.py")
 
         // Act
@@ -253,7 +253,7 @@ struct AnalysisFilterTests {
     @Test("Filter with all three criteria matches task meeting all")
     func allThreeCriteriaMatch() {
         // Arrange
-        let filter = AnalysisFilter(
+        let filter = RuleFilter(
             filePath: "src/handler.py",
             focusAreaId: "method-handler_py-process-10-25",
             ruleNames: ["error-handling"]
@@ -274,7 +274,7 @@ struct AnalysisFilterTests {
     @Test("Filter with all three criteria rejects task failing one criterion")
     func allThreeCriteriaOneFails() {
         // Arrange
-        let filter = AnalysisFilter(
+        let filter = RuleFilter(
             filePath: "src/handler.py",
             focusAreaId: "method-handler_py-process-10-25",
             ruleNames: ["naming-conventions"]
@@ -297,7 +297,7 @@ struct AnalysisFilterTests {
     @Test("Filter by file path selects only tasks for that file")
     func filterTaskListByFile() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler.py")
+        let filter = RuleFilter(filePath: "src/handler.py")
         let tasks = [
             makeTask(ruleName: "rule-a", filePath: "src/handler.py", focusId: "f1"),
             makeTask(ruleName: "rule-b", filePath: "src/other.py", focusId: "f2"),
@@ -315,7 +315,7 @@ struct AnalysisFilterTests {
     @Test("Filter by rule name selects only tasks for those rules")
     func filterTaskListByRuleNames() {
         // Arrange
-        let filter = AnalysisFilter(ruleNames: ["error-handling", "logging"])
+        let filter = RuleFilter(ruleNames: ["error-handling", "logging"])
         let tasks = [
             makeTask(ruleName: "error-handling", focusId: "f1"),
             makeTask(ruleName: "naming-conventions", focusId: "f2"),
@@ -334,7 +334,7 @@ struct AnalysisFilterTests {
     @Test("Combined filter narrows task list by both file and rule")
     func filterTaskListCombined() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "src/handler.py", ruleNames: ["error-handling"])
+        let filter = RuleFilter(filePath: "src/handler.py", ruleNames: ["error-handling"])
         let tasks = [
             makeTask(ruleName: "error-handling", filePath: "src/handler.py", focusId: "f1"),
             makeTask(ruleName: "error-handling", filePath: "src/other.py", focusId: "f2"),
@@ -353,7 +353,7 @@ struct AnalysisFilterTests {
     @Test("Filter with no matches returns empty list")
     func filterNoMatches() {
         // Arrange
-        let filter = AnalysisFilter(filePath: "nonexistent.py")
+        let filter = RuleFilter(filePath: "nonexistent.py")
         let tasks = [
             makeTask(filePath: "src/handler.py", focusId: "f1"),
             makeTask(filePath: "src/other.py", focusId: "f2"),
@@ -371,7 +371,7 @@ struct AnalysisFilterTests {
     @Test("Filter by focus area ID selects only that specific focus area's tasks")
     func filterTaskListByFocusArea() {
         // Arrange
-        let filter = AnalysisFilter(focusAreaId: "method-handler_py-process-10-25")
+        let filter = RuleFilter(focusAreaId: "method-handler_py-process-10-25")
         let tasks = [
             makeTask(ruleName: "rule-a", focusId: "method-handler_py-process-10-25"),
             makeTask(ruleName: "rule-b", focusId: "method-handler_py-init-1-5"),
@@ -391,7 +391,7 @@ struct AnalysisFilterTests {
     @Test("Default init creates filter with all nil fields")
     func defaultInit() {
         // Arrange & Act
-        let filter = AnalysisFilter()
+        let filter = RuleFilter()
 
         // Assert
         #expect(filter.filePath == nil)
@@ -402,7 +402,7 @@ struct AnalysisFilterTests {
     @Test("Partial init leaves unspecified fields as nil")
     func partialInit() {
         // Arrange & Act
-        let filter = AnalysisFilter(filePath: "src/handler.py")
+        let filter = RuleFilter(filePath: "src/handler.py")
 
         // Assert
         #expect(filter.filePath == "src/handler.py")

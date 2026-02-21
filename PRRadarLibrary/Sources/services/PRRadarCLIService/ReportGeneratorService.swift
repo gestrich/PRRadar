@@ -88,7 +88,7 @@ public struct ReportGeneratorService: Sendable {
             let path = "\(evaluationsDir)/\(file)"
             guard let data = fm.contents(atPath: path) else { continue }
 
-            guard let result = try? JSONDecoder().decode(RuleEvaluationResult.self, from: data) else { continue }
+            guard let result = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
             totalTasks += 1
             modelSet.insert(result.modelUsed)
 
@@ -96,9 +96,9 @@ public struct ReportGeneratorService: Sendable {
                 totalCost += cost
             }
 
-            guard let violation = result.violation, violation.evaluation.score >= minScore else { continue }
+            guard let violation = result.violation, violation.finding.score >= minScore else { continue }
 
-            let filePath = violation.filePath.isEmpty ? violation.evaluation.filePath : violation.filePath
+            let filePath = violation.filePath.isEmpty ? violation.finding.filePath : violation.filePath
 
             let documentationLink: String?
             let relevantClaudeSkill: String?
@@ -116,10 +116,10 @@ public struct ReportGeneratorService: Sendable {
 
             violations.append(ViolationRecord(
                 ruleName: violation.ruleName,
-                score: violation.evaluation.score,
+                score: violation.finding.score,
                 filePath: filePath,
-                lineNumber: violation.evaluation.lineNumber,
-                comment: violation.evaluation.comment,
+                lineNumber: violation.finding.lineNumber,
+                comment: violation.finding.comment,
                 methodName: methodName,
                 documentationLink: documentationLink,
                 relevantClaudeSkill: relevantClaudeSkill
@@ -143,15 +143,15 @@ public struct ReportGeneratorService: Sendable {
         return total
     }
 
-    private func loadTaskMetadata(tasksDir: String) -> [String: AnalysisTaskOutput] {
+    private func loadTaskMetadata(tasksDir: String) -> [String: RuleRequest] {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: tasksDir) else { return [:] }
 
-        var metadata: [String: AnalysisTaskOutput] = [:]
+        var metadata: [String: RuleRequest] = [:]
         for file in files where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(tasksDir)/\(file)"
             guard let data = fm.contents(atPath: path),
-                  let task = try? JSONDecoder().decode(AnalysisTaskOutput.self, from: data) else { continue }
+                  let task = try? JSONDecoder().decode(RuleRequest.self, from: data) else { continue }
             metadata[task.taskId] = task
         }
         return metadata

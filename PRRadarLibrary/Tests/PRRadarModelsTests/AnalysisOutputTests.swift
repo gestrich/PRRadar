@@ -3,11 +3,11 @@ import Testing
 @testable import PRRadarModels
 
 @Suite("Analysis Output JSON Parsing")
-struct AnalysisOutputTests {
+struct PRReviewResultTests {
 
-    // MARK: - RuleEvaluation
+    // MARK: - RuleFinding
 
-    @Test("RuleEvaluation decodes with all fields")
+    @Test("RuleFinding decodes with all fields")
     func ruleEvaluationDecode() throws {
         let json = """
         {
@@ -19,7 +19,7 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let eval = try JSONDecoder().decode(RuleEvaluation.self, from: json)
+        let eval = try JSONDecoder().decode(RuleFinding.self, from: json)
         #expect(eval.violatesRule == true)
         #expect(eval.score == 7)
         #expect(eval.comment.contains("Missing error handling"))
@@ -27,7 +27,7 @@ struct AnalysisOutputTests {
         #expect(eval.lineNumber == 42)
     }
 
-    @Test("RuleEvaluation decodes with null lineNumber")
+    @Test("RuleFinding decodes with null lineNumber")
     func ruleEvaluationNullLineNumber() throws {
         let json = """
         {
@@ -39,13 +39,13 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let eval = try JSONDecoder().decode(RuleEvaluation.self, from: json)
+        let eval = try JSONDecoder().decode(RuleFinding.self, from: json)
         #expect(eval.violatesRule == false)
         #expect(eval.score == 2)
         #expect(eval.lineNumber == nil)
     }
 
-    @Test("RuleEvaluation decodes without lineNumber key")
+    @Test("RuleFinding decodes without lineNumber key")
     func ruleEvaluationMissingLineNumber() throws {
         let json = """
         {
@@ -56,13 +56,13 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let eval = try JSONDecoder().decode(RuleEvaluation.self, from: json)
+        let eval = try JSONDecoder().decode(RuleFinding.self, from: json)
         #expect(eval.lineNumber == nil)
     }
 
-    // MARK: - RuleEvaluationResult (success)
+    // MARK: - RuleOutcome (success)
 
-    @Test("RuleEvaluationResult decodes success case")
+    @Test("RuleOutcome decodes success case")
     func ruleEvaluationResultDecode() throws {
         let json = """
         {
@@ -70,7 +70,7 @@ struct AnalysisOutputTests {
                 "taskId": "error-handling-method-handler_py-process-10-25",
                 "ruleName": "error-handling",
                 "filePath": "src/handler.py",
-                "evaluation": {
+                "finding": {
                     "violatesRule": true,
                     "score": 8,
                     "comment": "Critical: unhandled exception in production code path.",
@@ -84,21 +84,21 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let result = try JSONDecoder().decode(RuleEvaluationResult.self, from: json)
+        let result = try JSONDecoder().decode(RuleOutcome.self, from: json)
         #expect(result.taskId == "error-handling-method-handler_py-process-10-25")
         #expect(result.ruleName == "error-handling")
         #expect(result.filePath == "src/handler.py")
-        #expect(result.evaluation?.violatesRule == true)
-        #expect(result.evaluation?.score == 8)
-        #expect(result.evaluation?.lineNumber == 15)
+        #expect(result.finding?.violatesRule == true)
+        #expect(result.finding?.score == 8)
+        #expect(result.finding?.lineNumber == 15)
         #expect(result.modelUsed == "claude-sonnet-4-20250514")
         #expect(result.durationMs == 3420)
         #expect(result.costUsd == 0.0045)
     }
 
-    // MARK: - RuleEvaluationResult (error)
+    // MARK: - RuleOutcome (error)
 
-    @Test("RuleEvaluationResult decodes error case")
+    @Test("RuleOutcome decodes error case")
     func ruleEvaluationResultDecodeError() throws {
         let json = """
         {
@@ -112,7 +112,7 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let result = try JSONDecoder().decode(RuleEvaluationResult.self, from: json)
+        let result = try JSONDecoder().decode(RuleOutcome.self, from: json)
         guard case .error(let e) = result else {
             Issue.record("Expected .error case")
             return
@@ -124,33 +124,33 @@ struct AnalysisOutputTests {
         #expect(result.durationMs == 0)
     }
 
-    // MARK: - RuleEvaluationResult round-trip
+    // MARK: - RuleOutcome round-trip
 
-    @Test("RuleEvaluationResult success round-trips through encode/decode")
+    @Test("RuleOutcome success round-trips through encode/decode")
     func ruleEvaluationResultRoundTrip() throws {
-        let original: RuleEvaluationResult = .success(EvaluationSuccess(
+        let original: RuleOutcome = .success(EvaluationSuccess(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
-            evaluation: RuleEvaluation(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
+            finding: RuleFinding(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
             modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001
         ))
 
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(RuleEvaluationResult.self, from: encoded)
+        let decoded = try JSONDecoder().decode(RuleOutcome.self, from: encoded)
 
         #expect(original.taskId == decoded.taskId)
         #expect(original.isViolation == decoded.isViolation)
         #expect(original.costUsd == decoded.costUsd)
     }
 
-    @Test("RuleEvaluationResult error round-trips through encode/decode")
+    @Test("RuleOutcome error round-trips through encode/decode")
     func ruleEvaluationResultErrorRoundTrip() throws {
-        let original: RuleEvaluationResult = .error(EvaluationError(
+        let original: RuleOutcome = .error(RuleError(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
             errorMessage: "Timeout", modelUsed: "claude-sonnet-4-20250514"
         ))
 
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(RuleEvaluationResult.self, from: encoded)
+        let decoded = try JSONDecoder().decode(RuleOutcome.self, from: encoded)
 
         guard case .error(let e) = decoded else {
             Issue.record("Expected .error case")
@@ -159,9 +159,9 @@ struct AnalysisOutputTests {
         #expect(e.errorMessage == "Timeout")
     }
 
-    // MARK: - AnalysisSummary
+    // MARK: - PRReviewSummary
 
-    @Test("AnalysisSummary decodes from JSON")
+    @Test("PRReviewSummary decodes from JSON")
     func analysisSummaryDecode() throws {
         let json = """
         {
@@ -177,7 +177,7 @@ struct AnalysisOutputTests {
                         "taskId": "rule-a-focus-1",
                         "ruleName": "rule-a",
                         "filePath": "src/main.py",
-                        "evaluation": {
+                        "finding": {
                             "violatesRule": true,
                             "score": 6,
                             "comment": "Moderate issue found.",
@@ -194,7 +194,7 @@ struct AnalysisOutputTests {
                         "taskId": "rule-b-focus-2",
                         "ruleName": "rule-b",
                         "filePath": "src/utils.py",
-                        "evaluation": {
+                        "finding": {
                             "violatesRule": false,
                             "score": 2,
                             "comment": "Looks good.",
@@ -210,7 +210,7 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let summary = try JSONDecoder().decode(AnalysisSummary.self, from: json)
+        let summary = try JSONDecoder().decode(PRReviewSummary.self, from: json)
         #expect(summary.prNumber == 42)
         #expect(summary.evaluatedAt == "2025-01-15T10:30:00+00:00")
         #expect(summary.totalTasks == 15)
@@ -222,7 +222,7 @@ struct AnalysisOutputTests {
         #expect(summary.results[1].isViolation == false)
     }
 
-    @Test("AnalysisSummary with empty results")
+    @Test("PRReviewSummary with empty results")
     func analysisSummaryEmpty() throws {
         let json = """
         {
@@ -236,27 +236,27 @@ struct AnalysisOutputTests {
         }
         """.data(using: .utf8)!
 
-        let summary = try JSONDecoder().decode(AnalysisSummary.self, from: json)
+        let summary = try JSONDecoder().decode(PRReviewSummary.self, from: json)
         #expect(summary.totalTasks == 0)
         #expect(summary.results.isEmpty)
     }
 
-    @Test("AnalysisSummary round-trips through encode/decode")
+    @Test("PRReviewSummary round-trips through encode/decode")
     func analysisSummaryRoundTrip() throws {
-        let result: RuleEvaluationResult = .success(EvaluationSuccess(
+        let result: RuleOutcome = .success(EvaluationSuccess(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
-            evaluation: RuleEvaluation(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
+            finding: RuleFinding(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
             modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001
         ))
 
-        let original = AnalysisSummary(
+        let original = PRReviewSummary(
             prNumber: 10, evaluatedAt: "2025-03-01T12:00:00Z",
             totalTasks: 5, violationsFound: 1, totalCostUsd: 0.01, totalDurationMs: 10000,
             results: [result]
         )
 
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(AnalysisSummary.self, from: encoded)
+        let decoded = try JSONDecoder().decode(PRReviewSummary.self, from: encoded)
 
         #expect(original.prNumber == decoded.prNumber)
         #expect(original.totalTasks == decoded.totalTasks)

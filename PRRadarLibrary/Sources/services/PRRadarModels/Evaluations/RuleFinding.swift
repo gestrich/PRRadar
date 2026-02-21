@@ -1,7 +1,7 @@
 import Foundation
 
 /// Result of evaluating a single rule against a focus area.
-public struct RuleEvaluation: Codable, Sendable {
+public struct RuleFinding: Codable, Sendable {
     public let violatesRule: Bool
     public let score: Int
     public let comment: String

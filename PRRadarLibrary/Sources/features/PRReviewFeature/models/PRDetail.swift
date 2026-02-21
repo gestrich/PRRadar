@@ -7,13 +7,13 @@ public struct PRDetail: Sendable {
     public let phaseStatuses: [PRRadarPhase: PhaseStatus]
     public let syncSnapshot: SyncSnapshot?
     public let preparation: PrepareOutput?
-    public let analysis: AnalysisOutput?
+    public let analysis: PRReviewResult?
     public let report: ReportPhaseOutput?
     public let postedComments: GitHubPullRequestComments?
     public let imageURLMap: [String: String]
     public let imageBaseDir: String?
     public let savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]]
-    public let analysisSummary: AnalysisSummary?
+    public let analysisSummary: PRReviewSummary?
 
     public init(
         commitHash: String?,
@@ -21,13 +21,13 @@ public struct PRDetail: Sendable {
         phaseStatuses: [PRRadarPhase: PhaseStatus],
         syncSnapshot: SyncSnapshot?,
         preparation: PrepareOutput?,
-        analysis: AnalysisOutput?,
+        analysis: PRReviewResult?,
         report: ReportPhaseOutput?,
         postedComments: GitHubPullRequestComments?,
         imageURLMap: [String: String],
         imageBaseDir: String?,
         savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]],
-        analysisSummary: AnalysisSummary?
+        analysisSummary: PRReviewSummary?
     ) {
         self.commitHash = commitHash
         self.availableCommits = availableCommits

@@ -5,7 +5,7 @@ public struct EvaluationSuccess: Codable, Sendable {
     public let taskId: String
     public let ruleName: String
     public let filePath: String
-    public let evaluation: RuleEvaluation
+    public let finding: RuleFinding
     public let modelUsed: String
     public let durationMs: Int
     public let costUsd: Double?
@@ -14,7 +14,7 @@ public struct EvaluationSuccess: Codable, Sendable {
         taskId: String,
         ruleName: String,
         filePath: String,
-        evaluation: RuleEvaluation,
+        finding: RuleFinding,
         modelUsed: String,
         durationMs: Int,
         costUsd: Double?
@@ -22,7 +22,7 @@ public struct EvaluationSuccess: Codable, Sendable {
         self.taskId = taskId
         self.ruleName = ruleName
         self.filePath = filePath
-        self.evaluation = evaluation
+        self.finding = finding
         self.modelUsed = modelUsed
         self.durationMs = durationMs
         self.costUsd = costUsd

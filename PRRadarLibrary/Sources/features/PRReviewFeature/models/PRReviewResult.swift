@@ -2,32 +2,32 @@ import Foundation
 import PRRadarCLIService
 import PRRadarModels
 
-public struct AnalysisOutput: Sendable {
-    public var evaluations: [RuleEvaluationResult]
-    public var tasks: [AnalysisTaskOutput]
-    public var summary: AnalysisSummary
+public struct PRReviewResult: Sendable {
+    public var evaluations: [RuleOutcome]
+    public var tasks: [RuleRequest]
+    public var summary: PRReviewSummary
     public var cachedCount: Int
 
-    public static let empty = AnalysisOutput(
+    public static let empty = PRReviewResult(
         evaluations: [],
-        summary: AnalysisSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
+        summary: PRReviewSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
     )
 
-    public init(streaming tasks: [AnalysisTaskOutput]) {
+    public init(streaming tasks: [RuleRequest]) {
         self.evaluations = []
         self.tasks = tasks
-        self.summary = AnalysisSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
+        self.summary = PRReviewSummary(prNumber: 0, evaluatedAt: "", totalTasks: 0, violationsFound: 0, totalCostUsd: 0, totalDurationMs: 0, results: [])
         self.cachedCount = 0
     }
 
-    public init(evaluations: [RuleEvaluationResult], tasks: [AnalysisTaskOutput] = [], summary: AnalysisSummary, cachedCount: Int = 0) {
+    public init(evaluations: [RuleOutcome], tasks: [RuleRequest] = [], summary: PRReviewSummary, cachedCount: Int = 0) {
         self.evaluations = evaluations
         self.tasks = tasks
         self.summary = summary
         self.cachedCount = cachedCount
     }
 
-    public mutating func appendResult(_ result: RuleEvaluationResult, prNumber: Int) {
+    public mutating func appendResult(_ result: RuleOutcome, prNumber: Int) {
         if let existingIndex = evaluations.firstIndex(where: { $0.taskId == result.taskId }) {
             evaluations[existingIndex] = result
         } else {
@@ -35,7 +35,7 @@ public struct AnalysisOutput: Sendable {
         }
 
         let violationCount = evaluations.filter(\.isViolation).count
-        summary = AnalysisSummary(
+        summary = PRReviewSummary(
             prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
             totalTasks: evaluations.count,
@@ -47,9 +47,9 @@ public struct AnalysisOutput: Sendable {
     }
 
     /// Build a cumulative output from a running list of evaluations, deduplicating by taskId.
-    static func cumulative(evaluations: [RuleEvaluationResult], tasks: [AnalysisTaskOutput], prNumber: Int, cachedCount: Int = 0) -> AnalysisOutput {
+    static func cumulative(evaluations: [RuleOutcome], tasks: [RuleRequest], prNumber: Int, cachedCount: Int = 0) -> PRReviewResult {
         var seen = Set<String>()
-        var deduped: [RuleEvaluationResult] = []
+        var deduped: [RuleOutcome] = []
         for eval in evaluations.reversed() {
             if seen.insert(eval.taskId).inserted {
                 deduped.append(eval)
@@ -58,7 +58,7 @@ public struct AnalysisOutput: Sendable {
         deduped.reverse()
 
         let violationCount = deduped.filter(\.isViolation).count
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
             totalTasks: deduped.count,
@@ -68,7 +68,7 @@ public struct AnalysisOutput: Sendable {
             results: deduped
         )
 
-        return AnalysisOutput(evaluations: deduped, tasks: tasks, summary: summary, cachedCount: cachedCount)
+        return PRReviewResult(evaluations: deduped, tasks: tasks, summary: summary, cachedCount: cachedCount)
     }
 
     /// Merge evaluations with task metadata into structured comments.

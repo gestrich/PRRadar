@@ -14,7 +14,7 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
     }
 
     public func execute(
-        task: AnalysisTaskOutput,
+        task: RuleRequest,
         prNumber: Int,
         commitHash: String? = nil
     ) -> AsyncThrowingStream<TaskProgress, Error> {

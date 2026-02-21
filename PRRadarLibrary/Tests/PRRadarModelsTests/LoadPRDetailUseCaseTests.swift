@@ -68,7 +68,7 @@ struct LoadPRDetailUseCaseTests {
         try writeJSON([rule], to: "\(prepareRulesDir)/\(DataPathsService.allRulesFilename)")
 
         // Prepare: tasks
-        let task = AnalysisTaskOutput(
+        let task = RuleRequest(
             taskId: "t1",
             rule: TaskRule(name: "test-rule", description: "A test rule", category: "test", content: "Rule content"),
             focusArea: focusArea,
@@ -78,15 +78,15 @@ struct LoadPRDetailUseCaseTests {
         try writeJSON(task, to: "\(prepareTasksDir)/data-t1.json")
 
         // Evaluate: results and summary
-        let evalResult: RuleEvaluationResult = .success(EvaluationSuccess(
+        let evalResult: RuleOutcome = .success(EvaluationSuccess(
             taskId: "t1", ruleName: "test-rule",
             filePath: "file.swift",
-            evaluation: RuleEvaluation(violatesRule: true, score: 7, comment: "Violation found", filePath: "file.swift", lineNumber: 5),
+            finding: RuleFinding(violatesRule: true, score: 7, comment: "Violation found", filePath: "file.swift", lineNumber: 5),
             modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.10
         ))
         try writeJSON(evalResult, to: "\(evaluateDir)/data-t1.json")
 
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: 1, evaluatedAt: "2026-01-01T00:00:00Z",
             totalTasks: 1, violationsFound: 1, totalCostUsd: 0.10, totalDurationMs: 1000,
             results: [evalResult]
@@ -472,7 +472,7 @@ struct LoadPRDetailUseCaseTests {
         let evaluateDir = "\(outputDir)/1/analysis/\(commitHash)/evaluate"
         try FileManager.default.createDirectory(atPath: evaluateDir, withIntermediateDirectories: true)
 
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: 1, evaluatedAt: "2026-01-01T00:00:00Z",
             totalTasks: 3, violationsFound: 2, totalCostUsd: 0.30, totalDurationMs: 3000,
             results: []

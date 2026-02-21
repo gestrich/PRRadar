@@ -39,9 +39,9 @@ struct TaskBehaviorTests {
         #expect(rule.documentationLink == nil)
     }
 
-    // MARK: - AnalysisTaskOutput init
+    // MARK: - RuleRequest init
 
-    @Test("AnalysisTaskOutput memberwise init sets all fields")
+    @Test("RuleRequest memberwise init sets all fields")
     func analysisTaskInit() {
         let taskRule = TaskRule(
             name: "test-rule",
@@ -59,7 +59,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = AnalysisTaskOutput(
+        let task = RuleRequest(
             taskId: "test-rule_method-main-foo-1-10",
             rule: taskRule,
             focusArea: focusArea,
@@ -72,7 +72,7 @@ struct TaskBehaviorTests {
         #expect(task.gitBlobHash == "abc123def456")
     }
 
-    // MARK: - AnalysisTaskOutput.from factory
+    // MARK: - RuleRequest.from factory
 
     @Test("from(rule:focusArea:) creates task with correct ID and rule subset")
     func analysisTaskFromFactory() {
@@ -101,7 +101,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = AnalysisTaskOutput.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6")
 
         // Task ID is rule name + focus ID
         #expect(task.taskId == "error-handling_method-main-fetch-10-20")
@@ -142,7 +142,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = AnalysisTaskOutput.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef")
 
         #expect(task.taskId == "simple_file-test-1-5")
         #expect(task.rule.model == nil)
@@ -152,7 +152,7 @@ struct TaskBehaviorTests {
 
     // MARK: - JSON round-trip
 
-    @Test("AnalysisTaskOutput round-trips through JSON with gitBlobHash")
+    @Test("RuleRequest round-trips through JSON with gitBlobHash")
     func analysisTaskJsonRoundTrip() throws {
         // Arrange
         let taskRule = TaskRule(
@@ -174,7 +174,7 @@ struct TaskBehaviorTests {
             hunkIndex: 0,
             hunkContent: "@@ content"
         )
-        let original = AnalysisTaskOutput(
+        let original = RuleRequest(
             taskId: "error-handling_method-main-fetch-10-20",
             rule: taskRule,
             focusArea: focusArea,
@@ -185,7 +185,7 @@ struct TaskBehaviorTests {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         let data = try encoder.encode(original)
-        let decoded = try JSONDecoder().decode(AnalysisTaskOutput.self, from: data)
+        let decoded = try JSONDecoder().decode(RuleRequest.self, from: data)
 
         // Assert
         #expect(decoded == original)

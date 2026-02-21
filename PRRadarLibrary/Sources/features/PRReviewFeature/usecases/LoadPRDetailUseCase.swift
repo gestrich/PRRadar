@@ -58,7 +58,7 @@ public struct LoadPRDetailUseCase: Sendable {
 
         let availableCommits = scanAvailableCommits(prNumber: prNumber)
 
-        let analysisSummary: AnalysisSummary? = try? PhaseOutputParser.parsePhaseOutput(
+        let analysisSummary: PRReviewSummary? = try? PhaseOutputParser.parsePhaseOutput(
             config: config,
             prNumber: prNumber,
             phase: .analyze,

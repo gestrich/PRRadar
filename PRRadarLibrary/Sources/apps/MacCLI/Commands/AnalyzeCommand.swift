@@ -30,7 +30,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
     func run() async throws {
         let config = try resolveConfigFromOptions(options)
 
-        let filter = AnalysisFilter(
+        let filter = RuleFilter(
             filePath: file,
             focusAreaId: focusArea,
             ruleNames: rule.isEmpty ? nil : rule
@@ -48,7 +48,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             print("Analyzing PR #\(options.prNumber)...")
         }
 
-        var result: AnalysisOutput?
+        var result: PRReviewResult?
 
         for try await progress in stream {
             switch progress {
@@ -112,12 +112,12 @@ struct AnalyzeCommand: AsyncParsableCommand {
             let violations = output.evaluations.compactMap(\.violation)
             if !violations.isEmpty {
                 print("\nViolations:")
-                for eval in violations.sorted(by: { $0.evaluation.score > $1.evaluation.score }) {
-                    let score = eval.evaluation.score
+                for eval in violations.sorted(by: { $0.finding.score > $1.finding.score }) {
+                    let score = eval.finding.score
                     let color = severityColor(score)
                     print("  \(color)[\(score)/10]\u{001B}[0m \(eval.ruleName)")
-                    print("    \(eval.filePath):\(eval.evaluation.lineNumber ?? 0)")
-                    print("    \(eval.evaluation.comment)")
+                    print("    \(eval.filePath):\(eval.finding.lineNumber ?? 0)")
+                    print("    \(eval.finding.comment)")
                 }
             }
 

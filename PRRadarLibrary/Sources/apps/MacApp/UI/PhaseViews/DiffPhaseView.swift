@@ -10,8 +10,8 @@ struct DiffPhaseView: View {
     @State private var showTasksForFile: String?
 
     private var reviewComments: [ReviewComment] { prModel.reconciledComments }
-    private var evaluationSummary: AnalysisSummary? { prModel.analysis?.summary }
-    private var tasks: [AnalysisTaskOutput] { prModel.preparation?.tasks ?? [] }
+    private var evaluationSummary: PRReviewSummary? { prModel.analysis?.summary }
+    private var tasks: [RuleRequest] { prModel.preparation?.tasks ?? [] }
 
     private var taskCountsByFile: [String: Int] {
         Dictionary(grouping: tasks, by: \.focusArea.filePath)
@@ -275,7 +275,7 @@ struct DiffPhaseView: View {
             let rules = rulesForFile(file)
 
             Button {
-                prModel.startSelectiveAnalysis(filter: AnalysisFilter(filePath: file))
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -285,7 +285,7 @@ struct DiffPhaseView: View {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
                             prModel.startSelectiveAnalysis(
-                                filter: AnalysisFilter(filePath: file, ruleNames: [rule])
+                                filter: RuleFilter(filePath: file, ruleNames: [rule])
                             )
                         }
                     }
@@ -299,7 +299,7 @@ struct DiffPhaseView: View {
         let rules = rulesForFile(file)
         Menu {
             Button {
-                prModel.startSelectiveAnalysis(filter: AnalysisFilter(filePath: file))
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
             }
@@ -309,7 +309,7 @@ struct DiffPhaseView: View {
                 ForEach(rules, id: \.self) { rule in
                     Button(rule) {
                         prModel.startSelectiveAnalysis(
-                            filter: AnalysisFilter(filePath: file, ruleNames: [rule])
+                            filter: RuleFilter(filePath: file, ruleNames: [rule])
                         )
                     }
                 }
@@ -329,7 +329,7 @@ struct DiffPhaseView: View {
 
             Button {
                 prModel.startSelectiveAnalysis(
-                    filter: AnalysisFilter(focusAreaId: focusArea.focusId)
+                    filter: RuleFilter(focusAreaId: focusArea.focusId)
                 )
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
@@ -340,7 +340,7 @@ struct DiffPhaseView: View {
                     ForEach(rules, id: \.self) { rule in
                         Button(rule) {
                             prModel.startSelectiveAnalysis(
-                                filter: AnalysisFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
+                                filter: RuleFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
                             )
                         }
                     }

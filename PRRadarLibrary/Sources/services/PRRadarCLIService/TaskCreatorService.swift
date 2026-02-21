@@ -7,7 +7,7 @@ import PRRadarModels
 /// Pairs applicable rules with focus areas to create evaluation tasks.
 ///
 /// For each focus area, filters rules by applicability (file patterns and grep patterns),
-/// then creates an `AnalysisTaskOutput` for each (rule, focusArea) pair. Writes task
+/// then creates an `RuleRequest` for each (rule, focusArea) pair. Writes task
 /// files to the prepare phase output directory.
 public struct TaskCreatorService: Sendable {
     private let ruleLoader: RuleLoaderService
@@ -27,10 +27,10 @@ public struct TaskCreatorService: Sendable {
     ///   - commit: The commit hash for source file blob lookups
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], repoPath: String, commit: String, rulesDir: String? = nil) async throws -> [AnalysisTaskOutput] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], repoPath: String, commit: String, rulesDir: String? = nil) async throws -> [RuleRequest] {
         var blobHashCache: [String: String] = [:]
         var ruleBlobHashCache: [String: String] = [:]
-        var tasks: [AnalysisTaskOutput] = []
+        var tasks: [RuleRequest] = []
 
         let rulesRepoInfo = await resolveRulesRepoInfo(rulesDir: rulesDir)
 
@@ -55,7 +55,7 @@ public struct TaskCreatorService: Sendable {
                     rule: rule, rulesRepoInfo: rulesRepoInfo, cache: &ruleBlobHashCache
                 )
 
-                let task = AnalysisTaskOutput.from(rule: rule, focusArea: focusArea, gitBlobHash: blobHash, ruleBlobHash: ruleBlobHash)
+                let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: blobHash, ruleBlobHash: ruleBlobHash)
                 tasks.append(task)
             }
         }
@@ -80,7 +80,7 @@ public struct TaskCreatorService: Sendable {
         repoPath: String,
         commit: String,
         rulesDir: String? = nil
-    ) async throws -> [AnalysisTaskOutput] {
+    ) async throws -> [RuleRequest] {
         let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath, commit: commit, rulesDir: rulesDir)
 
         let tasksDir = "\(outputDir)/\(DataPathsService.prepareTasksSubdir)"

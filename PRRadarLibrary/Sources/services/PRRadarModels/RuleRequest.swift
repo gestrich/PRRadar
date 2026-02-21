@@ -46,7 +46,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
 }
 
 /// An evaluation task pairing a rule with a focus area.
-public struct AnalysisTaskOutput: Codable, Sendable, Equatable, Comparable {
+public struct RuleRequest: Codable, Sendable, Equatable, Comparable {
     public let taskId: String
     public let rule: TaskRule
     public let focusArea: FocusArea
@@ -73,14 +73,14 @@ public struct AnalysisTaskOutput: Codable, Sendable, Equatable, Comparable {
     ///
     /// Generates a task ID from the rule name and focus ID,
     /// and extracts the subset of rule fields needed for evaluation.
-    public static func < (lhs: AnalysisTaskOutput, rhs: AnalysisTaskOutput) -> Bool {
+    public static func < (lhs: RuleRequest, rhs: RuleRequest) -> Bool {
         if lhs.focusArea.filePath != rhs.focusArea.filePath {
             return lhs.focusArea.filePath < rhs.focusArea.filePath
         }
         return lhs.rule.name < rhs.rule.name
     }
 
-    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil) -> AnalysisTaskOutput {
+    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil) -> RuleRequest {
         let taskId = "\(rule.name)_\(focusArea.focusId)"
         let taskRule = TaskRule(
             name: rule.name,
@@ -92,6 +92,6 @@ public struct AnalysisTaskOutput: Codable, Sendable, Equatable, Comparable {
             relevantClaudeSkill: rule.relevantClaudeSkill,
             ruleUrl: rule.ruleUrl
         )
-        return AnalysisTaskOutput(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
+        return RuleRequest(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
     }
 }

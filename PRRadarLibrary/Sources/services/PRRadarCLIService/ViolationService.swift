@@ -8,15 +8,15 @@ public struct ViolationService: Sendable {
 
     /// Filter evaluation results by violation status and score, converting to PRComment instances.
     public static func filterByScore(
-        results: [RuleEvaluationResult],
-        tasks: [AnalysisTaskOutput],
+        results: [RuleOutcome],
+        tasks: [RuleRequest],
         minScore: Int
     ) -> [PRComment] {
         let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.taskId, $0) })
         var comments: [PRComment] = []
 
         for result in results {
-            guard let violation = result.violation, violation.evaluation.score >= minScore else { continue }
+            guard let violation = result.violation, violation.finding.score >= minScore else { continue }
             comments.append(PRComment.from(evaluation: violation, task: taskMap[violation.taskId]))
         }
 
@@ -33,12 +33,12 @@ public struct ViolationService: Sendable {
         var comments: [PRComment] = []
 
         // Load task metadata
-        var taskMetadata: [String: AnalysisTaskOutput] = [:]
+        var taskMetadata: [String: RuleRequest] = [:]
         if let taskFiles = try? fm.contentsOfDirectory(atPath: tasksDir) {
             for file in taskFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
                 let path = "\(tasksDir)/\(file)"
                 guard let data = fm.contents(atPath: path),
-                      let task = try? JSONDecoder().decode(AnalysisTaskOutput.self, from: data) else { continue }
+                      let task = try? JSONDecoder().decode(RuleRequest.self, from: data) else { continue }
                 taskMetadata[task.taskId] = task
             }
         }
@@ -48,9 +48,9 @@ public struct ViolationService: Sendable {
         for file in evalFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
             let path = "\(evaluationsDir)/\(file)"
             guard let data = fm.contents(atPath: path),
-                  let result = try? JSONDecoder().decode(RuleEvaluationResult.self, from: data) else { continue }
+                  let result = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
 
-            guard let violation = result.violation, violation.evaluation.score >= minScore else { continue }
+            guard let violation = result.violation, violation.finding.score >= minScore else { continue }
 
             comments.append(PRComment.from(evaluation: violation, task: taskMetadata[violation.taskId]))
         }

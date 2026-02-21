@@ -103,13 +103,13 @@ public struct AnalysisService: Sendable {
 
     /// Analyze a single task using Claude via the Claude Agent.
     public func analyzeTask(
-        _ task: AnalysisTaskOutput,
+        _ task: RuleRequest,
         repoPath: String,
         transcriptDir: String? = nil,
-        onPrompt: ((String, AnalysisTaskOutput) -> Void)? = nil,
-        onAIText: ((String, AnalysisTaskOutput) -> Void)? = nil,
-        onAIToolUse: ((String, AnalysisTaskOutput) -> Void)? = nil
-    ) async throws -> RuleEvaluationResult {
+        onPrompt: ((String, RuleRequest) -> Void)? = nil,
+        onAIText: ((String, RuleRequest) -> Void)? = nil,
+        onAIToolUse: ((String, RuleRequest) -> Void)? = nil
+    ) async throws -> RuleOutcome {
         let model = task.rule.model ?? Self.defaultModel
         let focusedContent = task.focusArea.getFocusedContent()
 
@@ -174,11 +174,11 @@ public struct AnalysisService: Sendable {
             throw ClaudeAgentError.noResult
         }
 
-        let evaluation: RuleEvaluation
+        let evaluation: RuleFinding
         if let dict = agentResult.outputAsDictionary() {
             let filePath = dict["file_path"] as? String ?? task.focusArea.filePath
             let lineNumber = dict["line_number"] as? Int ?? task.focusArea.startLine
-            evaluation = RuleEvaluation(
+            evaluation = RuleFinding(
                 violatesRule: dict["violates_rule"] as? Bool ?? false,
                 score: dict["score"] as? Int ?? 1,
                 comment: dict["comment"] as? String ?? "Evaluation completed",
@@ -186,7 +186,7 @@ public struct AnalysisService: Sendable {
                 lineNumber: lineNumber
             )
         } else {
-            evaluation = RuleEvaluation(
+            evaluation = RuleFinding(
                 violatesRule: false,
                 score: 1,
                 comment: "Evaluation failed - no structured output returned",
@@ -199,7 +199,7 @@ public struct AnalysisService: Sendable {
             taskId: task.taskId,
             ruleName: task.rule.name,
             filePath: task.focusArea.filePath,
-            evaluation: evaluation,
+            finding: evaluation,
             modelUsed: model,
             durationMs: agentResult.durationMs,
             costUsd: agentResult.costUsd
@@ -208,25 +208,25 @@ public struct AnalysisService: Sendable {
 
     /// Run analysis for all tasks, writing results to the evaluations directory.
     public func runBatchAnalysis(
-        tasks: [AnalysisTaskOutput],
+        tasks: [RuleRequest],
         evalsDir: String,
         repoPath: String,
-        onStart: ((Int, Int, AnalysisTaskOutput) -> Void)? = nil,
-        onResult: ((Int, Int, RuleEvaluationResult) -> Void)? = nil,
-        onPrompt: ((String, AnalysisTaskOutput) -> Void)? = nil,
-        onAIText: ((String, AnalysisTaskOutput) -> Void)? = nil,
-        onAIToolUse: ((String, AnalysisTaskOutput) -> Void)? = nil
-    ) async throws -> [RuleEvaluationResult] {
+        onStart: ((Int, Int, RuleRequest) -> Void)? = nil,
+        onResult: ((Int, Int, RuleOutcome) -> Void)? = nil,
+        onPrompt: ((String, RuleRequest) -> Void)? = nil,
+        onAIText: ((String, RuleRequest) -> Void)? = nil,
+        onAIToolUse: ((String, RuleRequest) -> Void)? = nil
+    ) async throws -> [RuleOutcome] {
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
 
-        var results: [RuleEvaluationResult] = []
+        var results: [RuleOutcome] = []
         let total = tasks.count
 
         for (i, task) in tasks.enumerated() {
             let index = i + 1
             onStart?(index, total, task)
 
-            var result: RuleEvaluationResult
+            var result: RuleOutcome
             do {
                 result = try await analyzeTask(
                     task,
@@ -243,7 +243,7 @@ public struct AnalysisService: Sendable {
                 let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
                 try data.write(to: URL(fileURLWithPath: resultPath))
             } catch {
-                result = .error(EvaluationError(
+                result = .error(RuleError(
                     taskId: task.taskId,
                     ruleName: task.rule.name,
                     filePath: task.focusArea.filePath,

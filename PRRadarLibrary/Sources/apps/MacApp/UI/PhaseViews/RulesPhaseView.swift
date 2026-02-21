@@ -10,7 +10,7 @@ struct RulesPhaseView: View {
 
     let focusAreas: [FocusArea]
     let rules: [ReviewRule]
-    let tasks: [AnalysisTaskOutput]
+    let tasks: [RuleRequest]
 
     var body: some View {
         VStack(spacing: 0) {

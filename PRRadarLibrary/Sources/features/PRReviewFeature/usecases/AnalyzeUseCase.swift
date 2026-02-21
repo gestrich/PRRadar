@@ -13,7 +13,7 @@ public struct AnalyzeUseCase: Sendable {
 
     // MARK: - Public API
 
-    public func execute(prNumber: Int, filter: AnalysisFilter? = nil, repoPath: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
+    public func execute(prNumber: Int, filter: RuleFilter? = nil, repoPath: String? = nil, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
         if let filter {
             executeFiltered(prNumber: prNumber, filter: filter, commitHash: commitHash)
         } else {
@@ -23,7 +23,7 @@ public struct AnalyzeUseCase: Sendable {
 
     // MARK: - Full Run
 
-    private func executeFullRun(prNumber: Int, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
+    private func executeFullRun(prNumber: Int, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
@@ -31,7 +31,7 @@ public struct AnalyzeUseCase: Sendable {
                 do {
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
-                    let allTasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+                    let allTasks: [RuleRequest] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
                     ).sorted()
 
@@ -50,7 +50,7 @@ public struct AnalyzeUseCase: Sendable {
                         let encoder = JSONEncoder()
                         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-                        let summary = AnalysisSummary(
+                        let summary = PRReviewSummary(
                             prNumber: prNumber,
                             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                             totalTasks: 0,
@@ -70,7 +70,7 @@ public struct AnalyzeUseCase: Sendable {
                             stats: PhaseStats(artifactsProduced: 0)
                         )
 
-                        let output = AnalysisOutput(evaluations: [], tasks: [], summary: summary)
+                        let output = PRReviewResult(evaluations: [], tasks: [], summary: summary)
                         continuation.yield(.completed(output: output))
                         continuation.finish()
                         return
@@ -86,7 +86,7 @@ public struct AnalyzeUseCase: Sendable {
                     let allResults = evalResult.cached + evalResult.fresh
                     let violationCount = allResults.filter(\.isViolation).count
 
-                    let summary = AnalysisSummary(
+                    let summary = PRReviewSummary(
                         prNumber: prNumber,
                         evaluatedAt: ISO8601DateFormatter().string(from: Date()),
                         totalTasks: allResults.count,
@@ -115,7 +115,7 @@ public struct AnalyzeUseCase: Sendable {
 
                     continuation.yield(.log(text: AnalysisCacheService.completionMessage(freshCount: evalResult.fresh.count, cachedCount: evalResult.cached.count, totalCount: allTasks.count, violationCount: violationCount) + "\n"))
 
-                    let output = AnalysisOutput(evaluations: allResults, tasks: allTasks, summary: summary, cachedCount: evalResult.cached.count)
+                    let output = PRReviewResult(evaluations: allResults, tasks: allTasks, summary: summary, cachedCount: evalResult.cached.count)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
@@ -128,7 +128,7 @@ public struct AnalyzeUseCase: Sendable {
 
     // MARK: - Filtered Run
 
-    private func executeFiltered(prNumber: Int, filter: AnalysisFilter, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error> {
+    private func executeFiltered(prNumber: Int, filter: RuleFilter, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
@@ -136,7 +136,7 @@ public struct AnalyzeUseCase: Sendable {
                 do {
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
-                    let allTasks: [AnalysisTaskOutput] = try PhaseOutputParser.parseAllPhaseFiles(
+                    let allTasks: [RuleRequest] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
                     ).sorted()
 
@@ -187,13 +187,13 @@ public struct AnalyzeUseCase: Sendable {
     // MARK: - Shared Evaluation Loop
 
     private func runEvaluations(
-        tasks: [AnalysisTaskOutput],
-        allTasks: [AnalysisTaskOutput],
+        tasks: [RuleRequest],
+        allTasks: [RuleRequest],
         prNumber: Int,
         commitHash: String?,
         evalsDir: String,
-        continuation: AsyncThrowingStream<PhaseProgress<AnalysisOutput>, Error>.Continuation
-    ) async throws -> (cached: [RuleEvaluationResult], fresh: [RuleEvaluationResult], durationMs: Int, totalCost: Double) {
+        continuation: AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error>.Continuation
+    ) async throws -> (cached: [RuleOutcome], fresh: [RuleOutcome], durationMs: Int, totalCost: Double) {
         let prOutputDir = "\(config.resolvedOutputDir)/\(prNumber)"
         let (cachedResults, tasksToEvaluate) = AnalysisCacheService.partitionTasks(
             tasks: tasks, evalsDir: evalsDir, prOutputDir: prOutputDir
@@ -213,7 +213,7 @@ public struct AnalyzeUseCase: Sendable {
             }
         }
 
-        var freshResults: [RuleEvaluationResult] = []
+        var freshResults: [RuleOutcome] = []
         var durationMs = 0
         var totalCost = 0.0
 
@@ -233,7 +233,7 @@ public struct AnalyzeUseCase: Sendable {
                         let status: String
                         switch result {
                         case .success(let s):
-                            status = s.evaluation.violatesRule ? "VIOLATION (\(s.evaluation.score)/10)" : "OK"
+                            status = s.finding.violatesRule ? "VIOLATION (\(s.finding.score)/10)" : "OK"
                         case .error(let e):
                             status = "ERROR: \(e.errorMessage)"
                         }
@@ -254,24 +254,24 @@ public struct AnalyzeUseCase: Sendable {
     private static func buildMergedOutput(
         config: RepositoryConfiguration,
         prNumber: Int,
-        allTasks: [AnalysisTaskOutput],
+        allTasks: [RuleRequest],
         cachedCount: Int,
         commitHash: String? = nil
-    ) throws -> AnalysisOutput {
+    ) throws -> PRReviewResult {
         let evalFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .analyze, commitHash: commitHash
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
-        var evaluations: [RuleEvaluationResult] = []
+        var evaluations: [RuleOutcome] = []
         for file in evalFiles {
-            let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
+            let evaluation: RuleOutcome = try PhaseOutputParser.parsePhaseOutput(
                 config: config, prNumber: prNumber, phase: .analyze, filename: file, commitHash: commitHash
             )
             evaluations.append(evaluation)
         }
 
         let violationCount = evaluations.filter(\.isViolation).count
-        let summary = AnalysisSummary(
+        let summary = PRReviewSummary(
             prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
             totalTasks: evaluations.count,
@@ -281,7 +281,7 @@ public struct AnalyzeUseCase: Sendable {
             results: evaluations
         )
 
-        return AnalysisOutput(
+        return PRReviewResult(
             evaluations: evaluations,
             tasks: allTasks,
             summary: summary,
@@ -289,10 +289,10 @@ public struct AnalyzeUseCase: Sendable {
         )
     }
 
-    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> AnalysisOutput {
+    public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> PRReviewResult {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
-        let summary: AnalysisSummary = try PhaseOutputParser.parsePhaseOutput(
+        let summary: PRReviewSummary = try PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .analyze, filename: DataPathsService.summaryJSONFilename, commitHash: resolvedCommit
         )
 
@@ -300,18 +300,18 @@ public struct AnalyzeUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .analyze, commitHash: resolvedCommit
         ).filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
 
-        var evaluations: [RuleEvaluationResult] = []
+        var evaluations: [RuleOutcome] = []
         for file in evalFiles {
-            let evaluation: RuleEvaluationResult = try PhaseOutputParser.parsePhaseOutput(
+            let evaluation: RuleOutcome = try PhaseOutputParser.parsePhaseOutput(
                 config: config, prNumber: prNumber, phase: .analyze, filename: file, commitHash: resolvedCommit
             )
             evaluations.append(evaluation)
         }
 
-        let tasks: [AnalysisTaskOutput] = (try? PhaseOutputParser.parseAllPhaseFiles(
+        let tasks: [RuleRequest] = (try? PhaseOutputParser.parseAllPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
         )) ?? []
 
-        return AnalysisOutput(evaluations: evaluations, tasks: tasks, summary: summary)
+        return PRReviewResult(evaluations: evaluations, tasks: tasks, summary: summary)
     }
 }

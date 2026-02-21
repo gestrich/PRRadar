@@ -46,17 +46,17 @@ public struct PRComment: Sendable, Identifiable {
     /// Create from a successful evaluation result and its associated task metadata.
     public static func from(
         evaluation: EvaluationSuccess,
-        task: AnalysisTaskOutput?
+        task: RuleRequest?
     ) -> PRComment {
         PRComment(
             id: evaluation.taskId,
             ruleName: evaluation.ruleName,
-            score: evaluation.evaluation.score,
-            comment: evaluation.evaluation.comment,
-            filePath: evaluation.evaluation.filePath.isEmpty
+            score: evaluation.finding.score,
+            comment: evaluation.finding.comment,
+            filePath: evaluation.finding.filePath.isEmpty
                 ? evaluation.filePath
-                : evaluation.evaluation.filePath,
-            lineNumber: evaluation.evaluation.lineNumber,
+                : evaluation.finding.filePath,
+            lineNumber: evaluation.finding.lineNumber,
             documentationLink: task?.rule.documentationLink,
             relevantClaudeSkill: task?.rule.relevantClaudeSkill,
             ruleUrl: task?.rule.ruleUrl,

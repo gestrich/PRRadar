@@ -1,14 +1,14 @@
 import Foundation
 
 /// Summary of an evaluation run.
-public struct AnalysisSummary: Codable, Sendable {
+public struct PRReviewSummary: Codable, Sendable {
     public let prNumber: Int
     public let evaluatedAt: String
     public let totalTasks: Int
     public let violationsFound: Int
     public let totalCostUsd: Double
     public let totalDurationMs: Int
-    public let results: [RuleEvaluationResult]
+    public let results: [RuleOutcome]
 
     public init(
         prNumber: Int,
@@ -17,7 +17,7 @@ public struct AnalysisSummary: Codable, Sendable {
         violationsFound: Int,
         totalCostUsd: Double,
         totalDurationMs: Int,
-        results: [RuleEvaluationResult]
+        results: [RuleOutcome]
     ) {
         self.prNumber = prNumber
         self.evaluatedAt = evaluatedAt

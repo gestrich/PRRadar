@@ -18,7 +18,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
 
     private(set) var detail: PRDetail?
-    private var inProgressAnalysis: AnalysisOutput?
+    private var inProgressAnalysis: PRReviewResult?
     private(set) var comments: CommentPhaseOutput?
 
     private(set) var commentPostingState: CommentPostingState = .idle
@@ -37,7 +37,7 @@ final class PRModel: Identifiable, Hashable {
 
     var syncSnapshot: SyncSnapshot? { detail?.syncSnapshot }
     var preparation: PrepareOutput? { detail?.preparation }
-    var analysis: AnalysisOutput? { inProgressAnalysis ?? detail?.analysis }
+    var analysis: PRReviewResult? { inProgressAnalysis ?? detail?.analysis }
     var report: ReportPhaseOutput? { detail?.report }
     var postedComments: GitHubPullRequestComments? { detail?.postedComments }
     var imageURLMap: [String: String] { detail?.imageURLMap ?? [:] }
@@ -451,7 +451,7 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .running(logs: existing + text)
     }
 
-    private func appendAIPrompt(task: AnalysisTaskOutput, text: String) {
+    private func appendAIPrompt(task: RuleRequest, text: String) {
         let count = liveAccumulators.count
         activeAnalysisFilePath = task.focusArea.filePath
         liveAccumulators.append(LiveTranscriptAccumulator(
@@ -537,7 +537,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func runAnalyze() async {
         startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
-        inProgressAnalysis = AnalysisOutput(streaming: preparation?.tasks ?? [])
+        inProgressAnalysis = PRReviewResult(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeUseCase(config: config)
 
@@ -570,8 +570,8 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    private func runFilteredAnalysis(filter: AnalysisFilter) async {
-        inProgressAnalysis = detail?.analysis ?? AnalysisOutput(streaming: preparation?.tasks ?? [])
+    private func runFilteredAnalysis(filter: RuleFilter) async {
+        inProgressAnalysis = detail?.analysis ?? PRReviewResult(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeUseCase(config: config)
 
@@ -604,7 +604,7 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    private func handleTaskEvent(_ task: AnalysisTaskOutput, _ event: TaskProgress) {
+    private func handleTaskEvent(_ task: RuleRequest, _ event: TaskProgress) {
         switch event {
         case .prompt(let text):
             appendAIPrompt(task: task, text: text)
@@ -618,7 +618,7 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func startSelectiveAnalysis(filter: AnalysisFilter) {
+    func startSelectiveAnalysis(filter: RuleFilter) {
         guard let tasks = preparation?.tasks, !tasks.isEmpty else { return }
         let matchingTasks = tasks.filter { filter.matches($0) }
         guard !matchingTasks.isEmpty else { return }
@@ -637,10 +637,10 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    private func runSingleAnalysis(task: AnalysisTaskOutput) async {
+    private func runSingleAnalysis(task: RuleRequest) async {
         liveAccumulators = []
         currentLivePhase = .analyze
-        inProgressAnalysis = detail?.analysis ?? AnalysisOutput(streaming: preparation?.tasks ?? [])
+        inProgressAnalysis = detail?.analysis ?? PRReviewResult(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeSingleTaskUseCase(config: config)
 
