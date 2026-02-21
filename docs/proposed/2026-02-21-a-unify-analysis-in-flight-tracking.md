@@ -94,7 +94,7 @@ Also update `isSelectiveAnalysisRunning` → rename or remove. If other code dis
 
 **Completed.** All three cleanup items were already addressed in Phase 1: `activeAnalysisFilePath` is a computed property with no assignments anywhere, `selectiveAnalysisInFlight` was fully replaced by `tasksInFlight`, and `resetAfterDataDeletion` already clears `tasksInFlight`. Build passes with no changes needed.
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -103,3 +103,5 @@ Also update `isSelectiveAnalysisRunning` → rename or remove. If other code dis
 - Manual spot-check: full analysis shows per-file spinners in DiffPhaseView as each task runs, same as before
 - Manual spot-check: selective analysis (right-click a file → "Run Analysis") shows spinners on targeted files, same as before
 - Verify `AITranscriptView` still shows a spinner next to the currently-streaming file
+
+**Completed.** `swift build` succeeds with no errors. All 488 tests in 54 suites pass. Manual spot-checks for spinners in DiffPhaseView and AITranscriptView are deferred to runtime verification.
