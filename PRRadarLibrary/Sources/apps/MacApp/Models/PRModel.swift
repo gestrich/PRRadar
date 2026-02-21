@@ -620,14 +620,44 @@ final class PRModel: Identifiable, Hashable {
 
     func startSelectiveAnalysis(filter: AnalysisFilter) {
         guard let tasks = preparation?.tasks, !tasks.isEmpty else { return }
-        let matchingTaskIds = tasks
-            .filter { filter.matches($0) }
-            .map(\.taskId)
+        let matchingTasks = tasks.filter { filter.matches($0) }
+        guard !matchingTasks.isEmpty else { return }
+
+        let matchingTaskIds = Set(matchingTasks.map(\.taskId))
         selectiveAnalysisInFlight.formUnion(matchingTaskIds)
 
-        Task {
-            await runFilteredAnalysis(filter: filter)
+        if matchingTasks.count == 1, let task = matchingTasks.first {
+            Task {
+                await runSingleAnalysis(task: task)
+            }
+        } else {
+            Task {
+                await runFilteredAnalysis(filter: filter)
+            }
         }
+    }
+
+    private func runSingleAnalysis(task: AnalysisTaskOutput) async {
+        liveAccumulators = []
+        currentLivePhase = .analyze
+        inProgressAnalysis = detail?.analysis ?? AnalysisOutput(streaming: preparation?.tasks ?? [])
+
+        let useCase = AnalyzeSingleTaskUseCase(config: config)
+
+        do {
+            for try await event in useCase.execute(task: task, prNumber: prNumber, commitHash: currentCommitHash) {
+                handleTaskEvent(task, event)
+            }
+            reloadDetail()
+        } catch {
+            failPhase(.analyze, error: error.localizedDescription, logs: "")
+        }
+
+        inProgressAnalysis = nil
+        activeAnalysisFilePath = nil
+
+        selectiveAnalysisInFlight.remove(task.taskId)
+        currentLivePhase = nil
     }
 
     private func runReport() async {

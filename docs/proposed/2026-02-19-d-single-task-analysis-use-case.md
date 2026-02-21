@@ -215,7 +215,10 @@ Update callers:
 
 **File to delete:** `Sources/features/PRReviewFeature/usecases/SelectiveAnalyzeUseCase.swift`
 
-## - [ ] Phase 7: Add `runSingleAnalysis` to PRModel
+## - [x] Phase 7: Add `runSingleAnalysis` to PRModel
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Apps-layer method using `AnalyzeSingleTaskUseCase` directly; `startSelectiveAnalysis` routes single-task filters to `runSingleAnalysis`, multi-task filters to `runFilteredAnalysis`; errors propagate via `failPhase`
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
