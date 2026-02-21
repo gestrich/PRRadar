@@ -50,7 +50,7 @@ This preserves the existing behavior where `activeAnalysisFilePath` points to th
 
 **Completed.** `RuleRequest` now conforms to `Hashable` via explicit `==` and `hash(into:)` on `taskId`. `TaskRule`/`FocusArea` did not need `Hashable` since `RuleRequest` hashes by `taskId` only. `runAnalyze()` now populates `tasksInFlight` before streaming and drains per-task on `.completed`. View-layer `isFileInFlight`/`isFocusAreaInFlight` and `hunkActions` inline check updated to query `tasksInFlight` directly. All 488 tests pass.
 
-## - [ ] Phase 2: Simplify `isFileInFlight` and related checks
+## - [x] Phase 2: Simplify `isFileInFlight` and related checks
 
 **Skills to read**: none
 
@@ -81,6 +81,8 @@ private func isFocusAreaInFlight(_ focusAreaId: String) -> Bool {
 And the inline check in `RichDiffViews.hunkActions` — filter `tasksInFlight` by focus area ID instead of cross-referencing task ID strings.
 
 Also update `isSelectiveAnalysisRunning` → rename or remove. If other code distinguishes "selective vs full," keep a separate boolean or check `operationMode`. If nothing needs that distinction, remove it.
+
+**Completed.** Phase 1 already simplified `isFileInFlight`, `isFocusAreaInFlight`, and the `hunkActions` inline check to use `tasksInFlight` directly. The only remaining work was removing the dead `isSelectiveAnalysisRunning` computed property — it was defined but never referenced anywhere in the codebase. `operationMode` already distinguishes full vs selective analysis at the call sites that need it. All 488 tests pass.
 
 ## - [ ] Phase 3: Clean up `resetAfterDataDeletion` and other bookkeeping
 

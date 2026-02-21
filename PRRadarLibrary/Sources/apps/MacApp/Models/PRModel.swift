@@ -93,10 +93,6 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    var isSelectiveAnalysisRunning: Bool {
-        !tasksInFlight.isEmpty
-    }
-
     var isAIPhaseRunning: Bool {
         let aiPhases: [PRRadarPhase] = [.prepare, .analyze]
         return aiPhases.contains { phase in
