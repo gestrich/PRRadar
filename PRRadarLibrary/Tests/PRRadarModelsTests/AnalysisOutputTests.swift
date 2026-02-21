@@ -180,37 +180,7 @@ struct PRReviewResultTests {
             "totalTasks": 15,
             "violationsFound": 3,
             "totalCostUsd": 0.0523,
-            "totalDurationMs": 45000,
-            "results": [
-                {
-                    "success": {
-                        "taskId": "rule-a-focus-1",
-                        "ruleName": "rule-a",
-                        "filePath": "src/main.py",
-                        "modelUsed": "claude-sonnet-4-20250514",
-                        "durationMs": 2500,
-                        "costUsd": 0.003,
-                        "violatesRule": true,
-                        "score": 6,
-                        "comment": "Moderate issue found.",
-                        "lineNumber": 30
-                    }
-                },
-                {
-                    "success": {
-                        "taskId": "rule-b-focus-2",
-                        "ruleName": "rule-b",
-                        "filePath": "src/utils.py",
-                        "modelUsed": "claude-sonnet-4-20250514",
-                        "durationMs": 1800,
-                        "costUsd": 0.002,
-                        "violatesRule": false,
-                        "score": 2,
-                        "comment": "Looks good.",
-                        "lineNumber": null
-                    }
-                }
-            ]
+            "totalDurationMs": 45000
         }
         """.data(using: .utf8)!
 
@@ -221,12 +191,9 @@ struct PRReviewResultTests {
         #expect(summary.violationsFound == 3)
         #expect(summary.totalCostUsd == 0.0523)
         #expect(summary.totalDurationMs == 45000)
-        #expect(summary.results.count == 2)
-        #expect(summary.results[0].isViolation == true)
-        #expect(summary.results[1].isViolation == false)
     }
 
-    @Test("PRReviewSummary with empty results")
+    @Test("PRReviewSummary with zero tasks")
     func analysisSummaryEmpty() throws {
         let json = """
         {
@@ -235,28 +202,19 @@ struct PRReviewResultTests {
             "totalTasks": 0,
             "violationsFound": 0,
             "totalCostUsd": 0.0,
-            "totalDurationMs": 0,
-            "results": []
+            "totalDurationMs": 0
         }
         """.data(using: .utf8)!
 
         let summary = try JSONDecoder().decode(PRReviewSummary.self, from: json)
         #expect(summary.totalTasks == 0)
-        #expect(summary.results.isEmpty)
     }
 
     @Test("PRReviewSummary round-trips through encode/decode")
     func analysisSummaryRoundTrip() throws {
-        let result: RuleOutcome = .success(RuleResult(
-            taskId: "t1", ruleName: "r1", filePath: "f.py",
-            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001,
-            violatesRule: true, score: 5, comment: "Issue", lineNumber: 1
-        ))
-
         let original = PRReviewSummary(
             prNumber: 10, evaluatedAt: "2025-03-01T12:00:00Z",
-            totalTasks: 5, violationsFound: 1, totalCostUsd: 0.01, totalDurationMs: 10000,
-            results: [result]
+            totalTasks: 5, violationsFound: 1, totalCostUsd: 0.01, totalDurationMs: 10000
         )
 
         let encoded = try JSONEncoder().encode(original)
@@ -265,6 +223,6 @@ struct PRReviewResultTests {
         #expect(original.prNumber == decoded.prNumber)
         #expect(original.totalTasks == decoded.totalTasks)
         #expect(original.violationsFound == decoded.violationsFound)
-        #expect(original.results.count == decoded.results.count)
+        #expect(original.totalCostUsd == decoded.totalCostUsd)
     }
 }

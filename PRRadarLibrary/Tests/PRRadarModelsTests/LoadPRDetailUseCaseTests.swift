@@ -87,8 +87,7 @@ struct LoadPRDetailUseCaseTests {
 
         let summary = PRReviewSummary(
             prNumber: 1, evaluatedAt: "2026-01-01T00:00:00Z",
-            totalTasks: 1, violationsFound: 1, totalCostUsd: 0.10, totalDurationMs: 1000,
-            results: [evalResult]
+            totalTasks: 1, violationsFound: 1, totalCostUsd: 0.10, totalDurationMs: 1000
         )
         try writeJSON(summary, to: "\(evaluateDir)/\(DataPathsService.summaryJSONFilename)")
 
@@ -473,8 +472,7 @@ struct LoadPRDetailUseCaseTests {
 
         let summary = PRReviewSummary(
             prNumber: 1, evaluatedAt: "2026-01-01T00:00:00Z",
-            totalTasks: 3, violationsFound: 2, totalCostUsd: 0.30, totalDurationMs: 3000,
-            results: []
+            totalTasks: 3, violationsFound: 2, totalCostUsd: 0.30, totalDurationMs: 3000
         )
         try writeJSON(summary, to: "\(evaluateDir)/\(DataPathsService.summaryJSONFilename)")
 

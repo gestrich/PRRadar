@@ -178,9 +178,9 @@ Update each caller to construct a `PRReviewRequest` and pass it:
   - **`ReportOutput`** (`PRRadarModels/ReportOutput.swift`): reads `summary.modelsUsed` — same investigation as above, determine if this is `PRReviewSummary` or `ReportSummary`.
 - `swift build` and `swift test` to verify
 
-## - [ ] Phase 5: Update tests
+## - [x] Phase 5: Update tests
 
-**Skills to read**: `swift-testing`
+**Principles applied**: Rewrote modelsUsed tests against PRReviewResult; AnalysisCacheServiceTests needed no changes
 
 - **`AnalysisOutputTests.swift`**: Update PRReviewSummary JSON decode tests — remove `"results"` from JSON fixtures, remove assertions on `summary.results`. Update round-trip test to not include `results`.
 - **`AnalysisSummaryModelsUsedTests.swift`**: This entire suite tests `PRReviewSummary.modelsUsed`. Since `modelsUsed` now lives on `PRReviewResult`, rewrite these tests to construct `PRReviewResult` instances and verify `modelsUsed` there instead.

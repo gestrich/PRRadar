@@ -1,71 +1,57 @@
 import Testing
 @testable import PRRadarModels
+@testable import PRReviewFeature
 
-@Suite("PRReviewSummary modelsUsed")
-struct PRReviewSummaryModelsUsedTests {
+@Suite("PRReviewResult modelsUsed")
+struct PRReviewResultModelsUsedTests {
 
-    @Test("Returns distinct sorted model IDs from results")
+    @Test("Returns distinct sorted model IDs from evaluations")
     func distinctSortedModels() {
         // Arrange
-        let summary = PRReviewSummary(
-            prNumber: 1,
-            evaluatedAt: "2025-01-01T00:00:00Z",
-            totalTasks: 3,
-            violationsFound: 1,
-            totalCostUsd: 0.01,
-            totalDurationMs: 3000,
-            results: [
+        let result = PRReviewResult(
+            evaluations: [
                 makeResult(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
                 makeResult(taskId: "t2", modelUsed: "claude-haiku-4-5-20251001"),
                 makeResult(taskId: "t3", modelUsed: "claude-sonnet-4-20250514"),
-            ]
+            ],
+            summary: makeSummary(totalTasks: 3, violationsFound: 1)
         )
 
         // Act
-        let models = summary.modelsUsed
+        let models = result.modelsUsed
 
         // Assert
         #expect(models == ["claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"])
     }
 
-    @Test("Returns empty array when no results")
-    func emptyResults() {
+    @Test("Returns empty array when no evaluations")
+    func emptyEvaluations() {
         // Arrange
-        let summary = PRReviewSummary(
-            prNumber: 1,
-            evaluatedAt: "2025-01-01T00:00:00Z",
-            totalTasks: 0,
-            violationsFound: 0,
-            totalCostUsd: 0.0,
-            totalDurationMs: 0,
-            results: []
+        let result = PRReviewResult(
+            evaluations: [],
+            summary: makeSummary(totalTasks: 0, violationsFound: 0)
         )
 
         // Act
-        let models = summary.modelsUsed
+        let models = result.modelsUsed
 
         // Assert
         #expect(models.isEmpty)
     }
 
-    @Test("Returns single model when all results use same model")
+    @Test("Returns single model when all evaluations use same model")
     func singleModel() {
         // Arrange
-        let summary = PRReviewSummary(
-            prNumber: 1,
-            evaluatedAt: "2025-01-01T00:00:00Z",
-            totalTasks: 2,
-            violationsFound: 0,
-            totalCostUsd: 0.005,
-            totalDurationMs: 2000,
-            results: [
+        let result = PRReviewResult(
+            evaluations: [
                 makeResult(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
                 makeResult(taskId: "t2", modelUsed: "claude-sonnet-4-20250514"),
-            ]
+            ],
+            summary: makeSummary(totalTasks: 2, violationsFound: 0)
         )
 
         // Act
-        let models = summary.modelsUsed
+        let models = result.modelsUsed
 
         // Assert
         #expect(models == ["claude-sonnet-4-20250514"])
@@ -86,5 +72,16 @@ struct PRReviewSummaryModelsUsedTests {
             comment: "OK",
             lineNumber: nil
         ))
+    }
+
+    private func makeSummary(totalTasks: Int, violationsFound: Int) -> PRReviewSummary {
+        PRReviewSummary(
+            prNumber: 1,
+            evaluatedAt: "2025-01-01T00:00:00Z",
+            totalTasks: totalTasks,
+            violationsFound: violationsFound,
+            totalCostUsd: 0.01,
+            totalDurationMs: 3000
+        )
     }
 }
