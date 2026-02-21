@@ -27,10 +27,6 @@ final class PRModel: Identifiable, Hashable {
 
     private var liveAccumulators: [LiveTranscriptAccumulator] = []
     private(set) var currentLivePhase: PRRadarPhase?
-    var activeAnalysisFilePath: String? {
-        liveAccumulators.last?.filePath
-    }
-
     private(set) var operationMode: OperationMode = .idle
     private(set) var tasksInFlight: Set<RuleRequest> = []
     private var refreshTask: Task<Void, Never>?

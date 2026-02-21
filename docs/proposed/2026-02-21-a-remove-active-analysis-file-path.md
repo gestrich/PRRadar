@@ -30,13 +30,15 @@ In `ReviewDetailView` (lines 186-188):
 
 **Completed**: Both `AITranscriptView` and `ReviewDetailView` updated. The non-streaming call sites (lines 190, 192) correctly use the default empty set since they omit the parameter.
 
-## - [ ] Phase 2: Remove `activeAnalysisFilePath`
+## - [x] Phase 2: Remove `activeAnalysisFilePath`
 
 **Skills to read**: none
 
 In `PRModel`:
 - Delete the `activeAnalysisFilePath` computed property (lines 30-32)
 - Verify no other files reference it (the grep from earlier showed only `AITranscriptView` and `ReviewDetailView`, both updated in Phase 1)
+
+**Completed**: Deleted the `activeAnalysisFilePath` computed property from `PRModel`. Grep confirmed no remaining references in source code. Build passes cleanly.
 
 ## - [ ] Phase 3: Validation
 
