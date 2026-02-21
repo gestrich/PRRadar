@@ -25,10 +25,9 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittingCommentIds: Set<String> = []
     private(set) var submittedCommentIds: Set<String> = []
 
-    private var liveAccumulators: [LiveTranscriptAccumulator] = []
-    private(set) var currentLivePhase: PRRadarPhase?
+    private(set) var evaluations: [String: TaskEvaluation] = [:]
+    private var prepareAccumulator: LiveTranscriptAccumulator?
     private(set) var operationMode: OperationMode = .idle
-    private(set) var tasksInFlight: Set<RuleRequest> = []
     private var refreshTask: Task<Void, Never>?
 
     // MARK: - Forwarding Properties
@@ -90,16 +89,26 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var isAIPhaseRunning: Bool {
-        let aiPhases: [PRRadarPhase] = [.prepare, .analyze]
-        return aiPhases.contains { phase in
-            if case .running = stateFor(phase) { return true }
-            return false
-        }
+        prepareAccumulator != nil || evaluations.values.contains { $0.isStreaming }
     }
 
-    var liveTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] {
-        guard let phase = currentLivePhase, !liveAccumulators.isEmpty else { return [:] }
-        return [phase: liveAccumulators.map { $0.toClaudeAgentTranscript() }]
+    var allTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] {
+        var result: [PRRadarPhase: [ClaudeAgentTranscript]] = [:]
+
+        if let acc = prepareAccumulator {
+            result[.prepare] = [acc.toClaudeAgentTranscript()]
+        } else if let prepareTranscripts = savedTranscripts[.prepare], !prepareTranscripts.isEmpty {
+            result[.prepare] = prepareTranscripts
+        }
+
+        let analyzeTranscripts = evaluations.values
+            .sorted(by: { $0.request < $1.request })
+            .compactMap { $0.transcript }
+        if !analyzeTranscripts.isEmpty {
+            result[.analyze] = analyzeTranscripts
+        }
+
+        return result
     }
 
     var hasPendingComments: Bool {
@@ -124,10 +133,9 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .idle
         submittingCommentIds = []
         submittedCommentIds = []
-        liveAccumulators = []
-        currentLivePhase = nil
+        evaluations = [:]
+        prepareAccumulator = nil
         operationMode = .idle
-        tasksInFlight = []
         refreshTask?.cancel()
         refreshTask = nil
         reloadDetail()
@@ -154,6 +162,27 @@ final class PRModel: Identifiable, Hashable {
             } else {
                 phaseStates[phase] = .failed(error: status.missingItems.first ?? "Incomplete", logs: "")
             }
+        }
+
+        if let tasks = newDetail.preparation?.tasks {
+            let outcomeMap = Dictionary(
+                (newDetail.analysis?.evaluations ?? []).map { ($0.taskId, $0) },
+                uniquingKeysWith: { _, new in new }
+            )
+            let transcriptMap = Dictionary(
+                (newDetail.savedTranscripts[.analyze] ?? []).map {
+                    ("\($0.filePath):\($0.ruleName)", $0)
+                },
+                uniquingKeysWith: { _, new in new }
+            )
+            var newEvaluations: [String: TaskEvaluation] = [:]
+            for task in tasks {
+                var eval = TaskEvaluation(request: task, phase: .analyze)
+                eval.outcome = outcomeMap[task.taskId]
+                eval.savedTranscript = transcriptMap["\(task.focusArea.filePath):\(task.rule.name)"]
+                newEvaluations[task.taskId] = eval
+            }
+            evaluations = newEvaluations
         }
 
         if let summary = newDetail.analysisSummary {
@@ -445,61 +474,31 @@ final class PRModel: Identifiable, Hashable {
         commentPostingState = .running(logs: existing + text)
     }
 
-    private func appendAIPrompt(task: RuleRequest, text: String) {
-        let count = liveAccumulators.count
-        liveAccumulators.append(LiveTranscriptAccumulator(
-            identifier: "task-\(count + 1)",
-            prompt: text,
-            filePath: task.focusArea.filePath,
-            ruleName: task.rule.name,
-            startedAt: Date()
-        ))
+    func isFileStreaming(_ filePath: String) -> Bool {
+        evaluations.values.contains { $0.isStreaming && $0.request.focusArea.filePath == filePath }
     }
 
-    private func appendAIOutput(_ text: String) {
-        if liveAccumulators.isEmpty {
-            liveAccumulators.append(LiveTranscriptAccumulator(
-                identifier: "task-1",
-                prompt: "",
-                startedAt: Date()
-            ))
-        }
-        liveAccumulators[liveAccumulators.count - 1].textChunks += text
+    func isFocusAreaStreaming(_ focusId: String) -> Bool {
+        evaluations.values.contains { $0.isStreaming && $0.request.focusArea.focusId == focusId }
     }
 
-    private func appendAIToolUse(_ name: String) {
-        guard !liveAccumulators.isEmpty else { return }
-        var last = liveAccumulators[liveAccumulators.count - 1]
-        if !last.textChunks.isEmpty {
-            last.events.append(ClaudeAgentTranscriptEvent(type: .text, content: last.textChunks))
-            last.textChunks = ""
-        }
-        last.events.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
-        liveAccumulators[liveAccumulators.count - 1] = last
-    }
-
-    private func startPhase(_ phase: PRRadarPhase, logs: String = "", tracksLiveTranscripts: Bool = false) {
+    private func startPhase(_ phase: PRRadarPhase, logs: String = "") {
         phaseStates[phase] = .running(logs: logs)
-        if tracksLiveTranscripts {
-            liveAccumulators = []
-            currentLivePhase = phase
-        }
     }
 
-    private func completePhase(_ phase: PRRadarPhase, tracksLiveTranscripts: Bool = false) {
-        if tracksLiveTranscripts { currentLivePhase = nil }
+    private func completePhase(_ phase: PRRadarPhase) {
         let logs = runningLogs(for: phase)
         reloadDetail()
         phaseStates[phase] = .completed(logs: logs)
     }
 
-    private func failPhase(_ phase: PRRadarPhase, error: String, logs: String, tracksLiveTranscripts: Bool = false) {
-        if tracksLiveTranscripts { currentLivePhase = nil }
+    private func failPhase(_ phase: PRRadarPhase, error: String, logs: String) {
         phaseStates[phase] = .failed(error: error, logs: logs)
     }
 
     private func runPrepare() async {
-        startPhase(.prepare, tracksLiveTranscripts: true)
+        startPhase(.prepare)
+        prepareAccumulator = nil
 
         let useCase = PrepareUseCase(config: config)
 
@@ -513,23 +512,34 @@ final class PRModel: Identifiable, Hashable {
                 case .log(let text):
                     appendLog(text, to: .prepare)
                 case .prepareOutput(let text):
-                    appendAIOutput(text)
+                    if prepareAccumulator == nil {
+                        prepareAccumulator = LiveTranscriptAccumulator(
+                            identifier: "prepare",
+                            prompt: "",
+                            startedAt: Date()
+                        )
+                    }
+                    prepareAccumulator?.textChunks += text
                 case .prepareToolUse(let name):
-                    appendAIToolUse(name)
+                    prepareAccumulator?.flushTextAndAppendToolUse(name)
                 case .taskEvent: break
                 case .completed:
-                    completePhase(.prepare, tracksLiveTranscripts: true)
+                    prepareAccumulator = nil
+                    completePhase(.prepare)
                 case .failed(let error, let logs):
-                    failPhase(.prepare, error: error, logs: logs, tracksLiveTranscripts: true)
+                    prepareAccumulator = nil
+                    failPhase(.prepare, error: error, logs: logs)
                 }
             }
         } catch {
-            failPhase(.prepare, error: error.localizedDescription, logs: "", tracksLiveTranscripts: true)
+            prepareAccumulator = nil
+            failPhase(.prepare, error: error.localizedDescription, logs: "")
         }
     }
 
     private func runAnalyze() async {
-        startPhase(.analyze, logs: "Running evaluations...\n", tracksLiveTranscripts: true)
+        startPhase(.analyze, logs: "Running evaluations...\n")
+        for key in evaluations.keys { evaluations[key]?.accumulator = nil }
         let tasks = preparation?.tasks ?? []
         inProgressAnalysis = PRReviewResult(streaming: tasks)
         let useCase = AnalyzeUseCase(config: config)
@@ -547,29 +557,26 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareOutput: break
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
-                    tasksInFlight.insert(task)
                     handleTaskEvent(task, event)
-                    if case .completed = event {
-                        tasksInFlight.remove(task)
-                    }
                 case .completed:
                     inProgressAnalysis = nil
-                    tasksInFlight = []
-                    completePhase(.analyze, tracksLiveTranscripts: true)
+                    for key in evaluations.keys { evaluations[key]?.accumulator = nil }
+                    completePhase(.analyze)
                 case .failed(let error, let logs):
-                    tasksInFlight = []
-                    failPhase(.analyze, error: error, logs: logs, tracksLiveTranscripts: true)
+                    for key in evaluations.keys { evaluations[key]?.accumulator = nil }
+                    failPhase(.analyze, error: error, logs: logs)
                 }
             }
         } catch {
-            tasksInFlight = []
+            for key in evaluations.keys { evaluations[key]?.accumulator = nil }
             let logs = runningLogs(for: .analyze)
-            failPhase(.analyze, error: error.localizedDescription, logs: logs, tracksLiveTranscripts: true)
+            failPhase(.analyze, error: error.localizedDescription, logs: logs)
         }
     }
 
     private func runFilteredAnalysis(filter: RuleFilter) async {
         inProgressAnalysis = detail?.analysis ?? PRReviewResult(streaming: preparation?.tasks ?? [])
+        for key in evaluations.keys { evaluations[key]?.accumulator = nil }
 
         let useCase = AnalyzeUseCase(config: config)
         let request = PRReviewRequest(prNumber: prNumber, filter: filter, commitHash: currentCommitHash)
@@ -586,33 +593,37 @@ final class PRModel: Identifiable, Hashable {
                 case .prepareOutput: break
                 case .prepareToolUse: break
                 case .taskEvent(let task, let event):
-                    tasksInFlight.insert(task)
                     handleTaskEvent(task, event)
-                    if case .completed = event {
-                        tasksInFlight.remove(task)
-                    }
                 case .completed:
                     inProgressAnalysis = nil
-                    tasksInFlight = []
+                    for key in evaluations.keys { evaluations[key]?.accumulator = nil }
                     reloadDetail()
                 case .failed:
-                    tasksInFlight = []
+                    for key in evaluations.keys { evaluations[key]?.accumulator = nil }
                 }
             }
         } catch {
-            tasksInFlight = []
+            for key in evaluations.keys { evaluations[key]?.accumulator = nil }
         }
     }
 
     private func handleTaskEvent(_ task: RuleRequest, _ event: TaskProgress) {
         switch event {
         case .prompt(let text):
-            appendAIPrompt(task: task, text: text)
+            let count = evaluations.values.filter { $0.accumulator != nil }.count
+            evaluations[task.taskId]?.accumulator = LiveTranscriptAccumulator(
+                identifier: "task-\(count + 1)",
+                prompt: text,
+                filePath: task.focusArea.filePath,
+                ruleName: task.rule.name,
+                startedAt: Date()
+            )
         case .output(let text):
-            appendAIOutput(text)
+            evaluations[task.taskId]?.accumulator?.textChunks += text
         case .toolUse(let name):
-            appendAIToolUse(name)
+            evaluations[task.taskId]?.accumulator?.flushTextAndAppendToolUse(name)
         case .completed(let result):
+            evaluations[task.taskId]?.outcome = result
             inProgressAnalysis?.appendResult(result, prNumber: prNumber)
         }
     }
@@ -634,26 +645,23 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func runSingleAnalysis(task: RuleRequest) async {
-        liveAccumulators = []
-        currentLivePhase = .analyze
+        evaluations[task.taskId]?.accumulator = nil
         inProgressAnalysis = detail?.analysis ?? PRReviewResult(streaming: preparation?.tasks ?? [])
 
         let useCase = AnalyzeSingleTaskUseCase(config: config)
 
         do {
             for try await event in useCase.execute(task: task, prNumber: prNumber, commitHash: currentCommitHash) {
-                tasksInFlight.insert(task)
                 handleTaskEvent(task, event)
             }
+            evaluations[task.taskId]?.accumulator = nil
             reloadDetail()
         } catch {
+            evaluations[task.taskId]?.accumulator = nil
             failPhase(.analyze, error: error.localizedDescription, logs: "")
         }
 
         inProgressAnalysis = nil
-
-        tasksInFlight.remove(task)
-        currentLivePhase = nil
     }
 
     private func runReport() async {

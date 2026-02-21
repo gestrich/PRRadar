@@ -159,7 +159,10 @@ Current `liveAccumulators` array preserves insertion order (processing order). A
 
 ## Phases
 
-## - [ ] Phase 1: Create `TaskEvaluation` struct and add `flushTextAndAppendToolUse` to `LiveTranscriptAccumulator`
+## - [x] Phase 1: Create `TaskEvaluation` struct and add `flushTextAndAppendToolUse` to `LiveTranscriptAccumulator`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: New struct placed in Apps layer (MacApp/Models/) per architecture rules; composes existing domain types without modifying them
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -179,7 +182,10 @@ mutating func flushTextAndAppendToolUse(_ name: String) {
 
 Verify build succeeds. The new type is not used yet — no behavioral change.
 
-## - [ ] Phase 2: Replace PRModel state with `evaluations` + `prepareAccumulator`
+## - [x] Phase 2: Replace PRModel state with `evaluations` + `prepareAccumulator`
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: @Observable state stays in Apps layer; evaluations populated in applyDetail() for persistent lifecycle; query methods expose streaming state to views
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
