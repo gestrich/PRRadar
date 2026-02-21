@@ -723,6 +723,14 @@ final class PRModel: Identifiable, Hashable {
         var events: [ClaudeAgentTranscriptEvent] = []
         let startedAt: Date
 
+        mutating func flushTextAndAppendToolUse(_ name: String) {
+            if !textChunks.isEmpty {
+                events.append(ClaudeAgentTranscriptEvent(type: .text, content: textChunks))
+                textChunks = ""
+            }
+            events.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
+        }
+
         func toClaudeAgentTranscript() -> ClaudeAgentTranscript {
             var finalEvents = events
             if !textChunks.isEmpty {
