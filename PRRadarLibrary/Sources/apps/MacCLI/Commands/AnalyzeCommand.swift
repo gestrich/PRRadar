@@ -112,12 +112,12 @@ struct AnalyzeCommand: AsyncParsableCommand {
             let violations = output.evaluations.compactMap(\.violation)
             if !violations.isEmpty {
                 print("\nViolations:")
-                for eval in violations.sorted(by: { $0.finding.score > $1.finding.score }) {
-                    let score = eval.finding.score
+                for eval in violations.sorted(by: { $0.score > $1.score }) {
+                    let score = eval.score
                     let color = severityColor(score)
                     print("  \(color)[\(score)/10]\u{001B}[0m \(eval.ruleName)")
-                    print("    \(eval.filePath):\(eval.finding.lineNumber ?? 0)")
-                    print("    \(eval.finding.comment)")
+                    print("    \(eval.filePath):\(eval.lineNumber ?? 0)")
+                    print("    \(eval.comment)")
                 }
             }
 

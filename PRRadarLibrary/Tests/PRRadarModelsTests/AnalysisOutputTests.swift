@@ -5,59 +5,72 @@ import Testing
 @Suite("Analysis Output JSON Parsing")
 struct PRReviewResultTests {
 
-    // MARK: - RuleFinding
+    // MARK: - RuleResult
 
-    @Test("RuleFinding decodes with all fields")
-    func ruleEvaluationDecode() throws {
+    @Test("RuleResult decodes with all fields")
+    func ruleResultDecode() throws {
         let json = """
         {
+            "taskId": "task-1",
+            "ruleName": "error-handling",
+            "filePath": "src/api/handler.py",
+            "modelUsed": "claude-sonnet-4-20250514",
+            "durationMs": 1000,
+            "costUsd": 0.003,
             "violatesRule": true,
             "score": 7,
             "comment": "Missing error handling in async function. Wrap the await call in a try/catch block.",
-            "filePath": "src/api/handler.py",
             "lineNumber": 42
         }
         """.data(using: .utf8)!
 
-        let eval = try JSONDecoder().decode(RuleFinding.self, from: json)
-        #expect(eval.violatesRule == true)
-        #expect(eval.score == 7)
-        #expect(eval.comment.contains("Missing error handling"))
-        #expect(eval.filePath == "src/api/handler.py")
-        #expect(eval.lineNumber == 42)
+        let result = try JSONDecoder().decode(RuleResult.self, from: json)
+        #expect(result.violatesRule == true)
+        #expect(result.score == 7)
+        #expect(result.comment.contains("Missing error handling"))
+        #expect(result.filePath == "src/api/handler.py")
+        #expect(result.lineNumber == 42)
     }
 
-    @Test("RuleFinding decodes with null lineNumber")
-    func ruleEvaluationNullLineNumber() throws {
+    @Test("RuleResult decodes with null lineNumber")
+    func ruleResultNullLineNumber() throws {
         let json = """
         {
+            "taskId": "task-1",
+            "ruleName": "naming",
+            "filePath": "src/utils.py",
+            "modelUsed": "claude-sonnet-4-20250514",
+            "durationMs": 1000,
             "violatesRule": false,
             "score": 2,
             "comment": "Code follows the naming convention correctly.",
-            "filePath": "src/utils.py",
             "lineNumber": null
         }
         """.data(using: .utf8)!
 
-        let eval = try JSONDecoder().decode(RuleFinding.self, from: json)
-        #expect(eval.violatesRule == false)
-        #expect(eval.score == 2)
-        #expect(eval.lineNumber == nil)
+        let result = try JSONDecoder().decode(RuleResult.self, from: json)
+        #expect(result.violatesRule == false)
+        #expect(result.score == 2)
+        #expect(result.lineNumber == nil)
     }
 
-    @Test("RuleFinding decodes without lineNumber key")
-    func ruleEvaluationMissingLineNumber() throws {
+    @Test("RuleResult decodes without lineNumber key")
+    func ruleResultMissingLineNumber() throws {
         let json = """
         {
+            "taskId": "task-1",
+            "ruleName": "naming",
+            "filePath": "config.py",
+            "modelUsed": "claude-sonnet-4-20250514",
+            "durationMs": 1000,
             "violatesRule": false,
             "score": 1,
-            "comment": "No issues found.",
-            "filePath": "config.py"
+            "comment": "No issues found."
         }
         """.data(using: .utf8)!
 
-        let eval = try JSONDecoder().decode(RuleFinding.self, from: json)
-        #expect(eval.lineNumber == nil)
+        let result = try JSONDecoder().decode(RuleResult.self, from: json)
+        #expect(result.lineNumber == nil)
     }
 
     // MARK: - RuleOutcome (success)
@@ -70,16 +83,13 @@ struct PRReviewResultTests {
                 "taskId": "error-handling-method-handler_py-process-10-25",
                 "ruleName": "error-handling",
                 "filePath": "src/handler.py",
-                "finding": {
-                    "violatesRule": true,
-                    "score": 8,
-                    "comment": "Critical: unhandled exception in production code path.",
-                    "filePath": "src/handler.py",
-                    "lineNumber": 15
-                },
                 "modelUsed": "claude-sonnet-4-20250514",
                 "durationMs": 3420,
-                "costUsd": 0.0045
+                "costUsd": 0.0045,
+                "violatesRule": true,
+                "score": 8,
+                "comment": "Critical: unhandled exception in production code path.",
+                "lineNumber": 15
             }
         }
         """.data(using: .utf8)!
@@ -88,9 +98,9 @@ struct PRReviewResultTests {
         #expect(result.taskId == "error-handling-method-handler_py-process-10-25")
         #expect(result.ruleName == "error-handling")
         #expect(result.filePath == "src/handler.py")
-        #expect(result.finding?.violatesRule == true)
-        #expect(result.finding?.score == 8)
-        #expect(result.finding?.lineNumber == 15)
+        #expect(result.success?.violatesRule == true)
+        #expect(result.success?.score == 8)
+        #expect(result.success?.lineNumber == 15)
         #expect(result.modelUsed == "claude-sonnet-4-20250514")
         #expect(result.durationMs == 3420)
         #expect(result.costUsd == 0.0045)
@@ -128,10 +138,10 @@ struct PRReviewResultTests {
 
     @Test("RuleOutcome success round-trips through encode/decode")
     func ruleEvaluationResultRoundTrip() throws {
-        let original: RuleOutcome = .success(EvaluationSuccess(
+        let original: RuleOutcome = .success(RuleResult(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
-            finding: RuleFinding(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
-            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001,
+            violatesRule: true, score: 5, comment: "Issue", lineNumber: 1
         ))
 
         let encoded = try JSONEncoder().encode(original)
@@ -177,16 +187,13 @@ struct PRReviewResultTests {
                         "taskId": "rule-a-focus-1",
                         "ruleName": "rule-a",
                         "filePath": "src/main.py",
-                        "finding": {
-                            "violatesRule": true,
-                            "score": 6,
-                            "comment": "Moderate issue found.",
-                            "filePath": "src/main.py",
-                            "lineNumber": 30
-                        },
                         "modelUsed": "claude-sonnet-4-20250514",
                         "durationMs": 2500,
-                        "costUsd": 0.003
+                        "costUsd": 0.003,
+                        "violatesRule": true,
+                        "score": 6,
+                        "comment": "Moderate issue found.",
+                        "lineNumber": 30
                     }
                 },
                 {
@@ -194,16 +201,13 @@ struct PRReviewResultTests {
                         "taskId": "rule-b-focus-2",
                         "ruleName": "rule-b",
                         "filePath": "src/utils.py",
-                        "finding": {
-                            "violatesRule": false,
-                            "score": 2,
-                            "comment": "Looks good.",
-                            "filePath": "src/utils.py",
-                            "lineNumber": null
-                        },
                         "modelUsed": "claude-sonnet-4-20250514",
                         "durationMs": 1800,
-                        "costUsd": 0.002
+                        "costUsd": 0.002,
+                        "violatesRule": false,
+                        "score": 2,
+                        "comment": "Looks good.",
+                        "lineNumber": null
                     }
                 }
             ]
@@ -243,10 +247,10 @@ struct PRReviewResultTests {
 
     @Test("PRReviewSummary round-trips through encode/decode")
     func analysisSummaryRoundTrip() throws {
-        let result: RuleOutcome = .success(EvaluationSuccess(
+        let result: RuleOutcome = .success(RuleResult(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
-            finding: RuleFinding(violatesRule: true, score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1),
-            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001,
+            violatesRule: true, score: 5, comment: "Issue", lineNumber: 1
         ))
 
         let original = PRReviewSummary(

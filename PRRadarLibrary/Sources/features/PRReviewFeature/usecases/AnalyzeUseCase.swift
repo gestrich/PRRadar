@@ -233,7 +233,7 @@ public struct AnalyzeUseCase: Sendable {
                         let status: String
                         switch result {
                         case .success(let s):
-                            status = s.finding.violatesRule ? "VIOLATION (\(s.finding.score)/10)" : "OK"
+                            status = s.violatesRule ? "VIOLATION (\(s.score)/10)" : "OK"
                         case .error(let e):
                             status = "ERROR: \(e.errorMessage)"
                         }

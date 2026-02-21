@@ -96,9 +96,7 @@ public struct ReportGeneratorService: Sendable {
                 totalCost += cost
             }
 
-            guard let violation = result.violation, violation.finding.score >= minScore else { continue }
-
-            let filePath = violation.filePath.isEmpty ? violation.finding.filePath : violation.filePath
+            guard let violation = result.violation, violation.score >= minScore else { continue }
 
             let documentationLink: String?
             let relevantClaudeSkill: String?
@@ -116,10 +114,10 @@ public struct ReportGeneratorService: Sendable {
 
             violations.append(ViolationRecord(
                 ruleName: violation.ruleName,
-                score: violation.finding.score,
-                filePath: filePath,
-                lineNumber: violation.finding.lineNumber,
-                comment: violation.finding.comment,
+                score: violation.score,
+                filePath: violation.filePath,
+                lineNumber: violation.lineNumber,
+                comment: violation.comment,
                 methodName: methodName,
                 documentationLink: documentationLink,
                 relevantClaudeSkill: relevantClaudeSkill

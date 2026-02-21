@@ -74,20 +74,17 @@ struct PRReviewSummaryModelsUsedTests {
     // MARK: - Helpers
 
     private func makeResult(taskId: String, modelUsed: String) -> RuleOutcome {
-        .success(EvaluationSuccess(
+        .success(RuleResult(
             taskId: taskId,
             ruleName: "test-rule",
             filePath: "test.swift",
-            finding: RuleFinding(
-                violatesRule: false,
-                score: 1,
-                comment: "OK",
-                filePath: "test.swift",
-                lineNumber: nil
-            ),
             modelUsed: modelUsed,
             durationMs: 1000,
-            costUsd: 0.001
+            costUsd: 0.001,
+            violatesRule: false,
+            score: 1,
+            comment: "OK",
+            lineNumber: nil
         ))
     }
 }

@@ -45,20 +45,17 @@ struct AnalysisCacheServiceTests {
     }
 
     private func makeResult(taskId: String, violates: Bool = false) -> RuleOutcome {
-        .success(EvaluationSuccess(
+        .success(RuleResult(
             taskId: taskId,
             ruleName: "rule-\(taskId)",
             filePath: "file.swift",
-            finding: RuleFinding(
-                violatesRule: violates,
-                score: violates ? 7 : 1,
-                comment: violates ? "Violation found" : "OK",
-                filePath: "file.swift",
-                lineNumber: 5
-            ),
             modelUsed: "claude-sonnet-4-20250514",
             durationMs: 1000,
-            costUsd: 0.10
+            costUsd: 0.10,
+            violatesRule: violates,
+            score: violates ? 7 : 1,
+            comment: violates ? "Violation found" : "OK",
+            lineNumber: 5
         ))
     }
 

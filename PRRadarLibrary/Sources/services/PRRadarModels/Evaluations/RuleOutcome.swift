@@ -2,7 +2,7 @@ import Foundation
 
 /// Either a successful evaluation or an error.
 public enum RuleOutcome: Codable, Sendable {
-    case success(EvaluationSuccess)
+    case success(RuleResult)
     case error(RuleError)
 
     // MARK: - Convenience Accessors
@@ -57,14 +57,14 @@ public enum RuleOutcome: Codable, Sendable {
         error != nil
     }
 
-    public var violation: EvaluationSuccess? {
+    public var violation: RuleResult? {
         switch self {
-        case .success(let s) where s.finding.violatesRule: s
+        case .success(let s) where s.violatesRule: s
         default: nil
         }
     }
 
-    public var success: EvaluationSuccess? {
+    public var success: RuleResult? {
         switch self {
         case .success(let s): s
         case .error: nil
@@ -78,16 +78,9 @@ public enum RuleOutcome: Codable, Sendable {
         }
     }
 
-    public var finding: RuleFinding? {
-        switch self {
-        case .success(let s): s.finding
-        case .error: nil
-        }
-    }
-
     public func violationComment(task: RuleRequest?) -> PRComment? {
         guard let violation else { return nil }
-        return PRComment.from(evaluation: violation, task: task)
+        return PRComment.from(result: violation, task: task)
     }
 
     // MARK: - Codable
@@ -100,7 +93,7 @@ public enum RuleOutcome: Codable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if container.contains(.success) {
-            self = .success(try container.decode(EvaluationSuccess.self, forKey: .success))
+            self = .success(try container.decode(RuleResult.self, forKey: .success))
         } else {
             self = .error(try container.decode(RuleError.self, forKey: .error))
         }

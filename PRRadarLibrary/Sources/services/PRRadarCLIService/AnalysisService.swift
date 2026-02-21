@@ -174,36 +174,39 @@ public struct AnalysisService: Sendable {
             throw ClaudeAgentError.noResult
         }
 
-        let evaluation: RuleFinding
+        let ruleResult: RuleResult
         if let dict = agentResult.outputAsDictionary() {
-            let filePath = dict["file_path"] as? String ?? task.focusArea.filePath
+            let aiFilePath = dict["file_path"] as? String
+            let filePath = (aiFilePath?.isEmpty == false) ? aiFilePath! : task.focusArea.filePath
             let lineNumber = dict["line_number"] as? Int ?? task.focusArea.startLine
-            evaluation = RuleFinding(
+            ruleResult = RuleResult(
+                taskId: task.taskId,
+                ruleName: task.rule.name,
+                filePath: filePath,
+                modelUsed: model,
+                durationMs: agentResult.durationMs,
+                costUsd: agentResult.costUsd,
                 violatesRule: dict["violates_rule"] as? Bool ?? false,
                 score: dict["score"] as? Int ?? 1,
                 comment: dict["comment"] as? String ?? "Evaluation completed",
-                filePath: filePath,
                 lineNumber: lineNumber
             )
         } else {
-            evaluation = RuleFinding(
+            ruleResult = RuleResult(
+                taskId: task.taskId,
+                ruleName: task.rule.name,
+                filePath: task.focusArea.filePath,
+                modelUsed: model,
+                durationMs: agentResult.durationMs,
+                costUsd: agentResult.costUsd,
                 violatesRule: false,
                 score: 1,
                 comment: "Evaluation failed - no structured output returned",
-                filePath: task.focusArea.filePath,
                 lineNumber: task.focusArea.startLine
             )
         }
 
-        return .success(EvaluationSuccess(
-            taskId: task.taskId,
-            ruleName: task.rule.name,
-            filePath: task.focusArea.filePath,
-            finding: evaluation,
-            modelUsed: model,
-            durationMs: agentResult.durationMs,
-            costUsd: agentResult.costUsd
-        ))
+        return .success(ruleResult)
     }
 
     /// Run analysis for all tasks, writing results to the evaluations directory.
