@@ -188,9 +188,9 @@ Update each caller to construct a `PRReviewRequest` and pass it:
 - **`AnalysisCacheServiceTests.swift`**: Update `PRReviewSummary` construction to remove `results` parameter.
 - `swift test` to verify all pass
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
 
-**Skills to read**: `swift-testing`
+**Principles applied**: Verified no stale references to old types; ReportSummary.modelsUsed is a separate type, unaffected
 
 - `swift build` — clean build succeeds
 - `swift test` — all tests pass
