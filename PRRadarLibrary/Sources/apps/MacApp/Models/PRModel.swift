@@ -721,41 +721,4 @@ final class PRModel: Identifiable, Hashable {
         case completed(logs: String)
         case failed(error: String, logs: String)
     }
-
-    struct LiveTranscriptAccumulator {
-        let identifier: String
-        var prompt: String
-        var filePath: String?
-        var ruleName: String?
-        var textChunks: String = ""
-        var events: [ClaudeAgentTranscriptEvent] = []
-        let startedAt: Date
-
-        mutating func flushTextAndAppendToolUse(_ name: String) {
-            if !textChunks.isEmpty {
-                events.append(ClaudeAgentTranscriptEvent(type: .text, content: textChunks))
-                textChunks = ""
-            }
-            events.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
-        }
-
-        func toClaudeAgentTranscript() -> ClaudeAgentTranscript {
-            var finalEvents = events
-            if !textChunks.isEmpty {
-                finalEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: textChunks))
-            }
-            let formatter = ISO8601DateFormatter()
-            return ClaudeAgentTranscript(
-                identifier: identifier,
-                model: "streaming",
-                startedAt: formatter.string(from: startedAt),
-                prompt: prompt.isEmpty ? nil : prompt,
-                filePath: filePath ?? "",
-                ruleName: ruleName ?? "",
-                events: finalEvents,
-                costUsd: 0,
-                durationMs: Int(Date().timeIntervalSince(startedAt) * 1000)
-            )
-        }
-    }
 }

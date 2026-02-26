@@ -5,7 +5,7 @@ import PRRadarModels
 struct TaskEvaluation: Identifiable {
     let request: RuleRequest
     let phase: PRRadarPhase
-    var accumulator: PRModel.LiveTranscriptAccumulator?
+    var accumulator: LiveTranscriptAccumulator?
     var savedTranscript: ClaudeAgentTranscript?
     var outcome: RuleOutcome?
 

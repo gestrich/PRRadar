@@ -31,7 +31,10 @@ By moving `TaskEvaluation` to the services layer and adopting it in `PRReviewRes
 
 ## Phases
 
-## - [ ] Phase 1: Extract `LiveTranscriptAccumulator` to PRRadarModels
+## - [x] Phase 1: Extract `LiveTranscriptAccumulator` to PRRadarModels
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Moved streaming transcript accumulator from app layer to services layer (PRRadarModels) where it belongs as a domain type. Made public and Sendable per architecture conventions.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
