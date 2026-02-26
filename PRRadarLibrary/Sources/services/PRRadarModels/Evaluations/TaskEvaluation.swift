@@ -20,6 +20,10 @@ public struct TaskEvaluation: Identifiable, Sendable {
         return savedTranscript
     }
 
+    public var violationComment: PRComment? {
+        outcome?.violationComment(task: request)
+    }
+
     public init(
         request: RuleRequest,
         phase: PRRadarPhase,
@@ -32,5 +36,21 @@ public struct TaskEvaluation: Identifiable, Sendable {
         self.accumulator = accumulator
         self.savedTranscript = savedTranscript
         self.outcome = outcome
+    }
+}
+
+// MARK: - Collection Helpers
+
+extension [TaskEvaluation] {
+    public var outcomes: [RuleOutcome] {
+        compactMap(\.outcome)
+    }
+
+    public var violationComments: [PRComment] {
+        compactMap(\.violationComment)
+    }
+
+    public func indexForTaskId(_ taskId: String) -> Int? {
+        firstIndex(where: { $0.request.taskId == taskId })
     }
 }

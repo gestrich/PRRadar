@@ -9,10 +9,10 @@ struct PRReviewResultModelsUsedTests {
     func distinctSortedModels() {
         // Arrange
         let result = PRReviewResult(
-            evaluations: [
-                makeResult(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
-                makeResult(taskId: "t2", modelUsed: "claude-haiku-4-5-20251001"),
-                makeResult(taskId: "t3", modelUsed: "claude-sonnet-4-20250514"),
+            taskEvaluations: [
+                makeTaskEvaluation(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
+                makeTaskEvaluation(taskId: "t2", modelUsed: "claude-haiku-4-5-20251001"),
+                makeTaskEvaluation(taskId: "t3", modelUsed: "claude-sonnet-4-20250514"),
             ],
             summary: makeSummary(totalTasks: 3, violationsFound: 1)
         )
@@ -28,7 +28,7 @@ struct PRReviewResultModelsUsedTests {
     func emptyEvaluations() {
         // Arrange
         let result = PRReviewResult(
-            evaluations: [],
+            taskEvaluations: [],
             summary: makeSummary(totalTasks: 0, violationsFound: 0)
         )
 
@@ -43,9 +43,9 @@ struct PRReviewResultModelsUsedTests {
     func singleModel() {
         // Arrange
         let result = PRReviewResult(
-            evaluations: [
-                makeResult(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
-                makeResult(taskId: "t2", modelUsed: "claude-sonnet-4-20250514"),
+            taskEvaluations: [
+                makeTaskEvaluation(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
+                makeTaskEvaluation(taskId: "t2", modelUsed: "claude-sonnet-4-20250514"),
             ],
             summary: makeSummary(totalTasks: 2, violationsFound: 0)
         )
@@ -59,8 +59,29 @@ struct PRReviewResultModelsUsedTests {
 
     // MARK: - Helpers
 
-    private func makeResult(taskId: String, modelUsed: String) -> RuleOutcome {
-        .success(RuleResult(
+    private func makeTaskEvaluation(taskId: String, modelUsed: String) -> TaskEvaluation {
+        let rule = TaskRule(
+            name: "test-rule",
+            description: "A test rule",
+            category: "test",
+            content: "test content"
+        )
+        let focusArea = FocusArea(
+            focusId: "\(taskId)-focus",
+            filePath: "test.swift",
+            startLine: 1,
+            endLine: 10,
+            description: "test focus",
+            hunkIndex: 0,
+            hunkContent: ""
+        )
+        let request = RuleRequest(
+            taskId: taskId,
+            rule: rule,
+            focusArea: focusArea,
+            gitBlobHash: "abc123"
+        )
+        let outcome = RuleOutcome.success(RuleResult(
             taskId: taskId,
             ruleName: "test-rule",
             filePath: "test.swift",
@@ -72,6 +93,7 @@ struct PRReviewResultModelsUsedTests {
             comment: "OK",
             lineNumber: nil
         ))
+        return TaskEvaluation(request: request, phase: .analyze, outcome: outcome)
     }
 
     private func makeSummary(totalTasks: Int, violationsFound: Int) -> PRReviewSummary {

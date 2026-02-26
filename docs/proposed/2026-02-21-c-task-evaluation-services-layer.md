@@ -64,7 +64,10 @@ Move `TaskEvaluation` from `MacApp/Models/TaskEvaluation.swift` to `PRRadarModel
 
 Verify build succeeds. No behavioral change.
 
-## - [ ] Phase 3: Refactor `PRReviewResult` to hold `[TaskEvaluation]`
+## - [x] Phase 3: Refactor `PRReviewResult` to hold `[TaskEvaluation]`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Replaced parallel `evaluations`/`tasks` arrays with unified `taskEvaluations: [TaskEvaluation]`. Added collection helpers (`outcomes`, `violationComments`, `indexForTaskId`) on `[TaskEvaluation]` in PRRadarModels to keep PRReviewResult logic concise.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
