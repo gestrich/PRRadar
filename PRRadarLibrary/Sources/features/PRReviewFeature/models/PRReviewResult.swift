@@ -24,6 +24,15 @@ public struct PRReviewResult: Sendable {
         self.cachedCount = cachedCount
     }
 
+    public init(tasks: [RuleRequest], outcomes: [RuleOutcome], summary: PRReviewSummary, cachedCount: Int = 0) {
+        let outcomeMap = Dictionary(outcomes.map { ($0.taskId, $0) }, uniquingKeysWith: { _, latest in latest })
+        self.taskEvaluations = tasks.map { task in
+            TaskEvaluation(request: task, phase: .analyze, outcome: outcomeMap[task.taskId])
+        }
+        self.summary = summary
+        self.cachedCount = cachedCount
+    }
+
     public mutating func appendResult(_ result: RuleOutcome, prNumber: Int) {
         if let idx = taskEvaluations.indexForTaskId(result.taskId) {
             taskEvaluations[idx].outcome = result

@@ -117,7 +117,10 @@ Replace the parallel arrays in `PRReviewResult` with a single `[TaskEvaluation]`
 
 This phase is intentionally source-breaking: compile errors from `evaluations`/`tasks` access should be fixed to use `taskEvaluations` in Phases 4-5.
 
-## - [ ] Phase 4: Update `AnalyzeUseCase` to produce `TaskEvaluation` arrays
+## - [x] Phase 4: Update `AnalyzeUseCase` to produce `TaskEvaluation` arrays
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `PRReviewResult(tasks:outcomes:summary:)` convenience initializer to encapsulate the join logic. Updated all three AnalyzeUseCase methods (`executeFullRun`, `buildMergedOutput`, `parseOutput`) to use the new initializer instead of maintaining separate arrays.
 
 Update `AnalyzeUseCase` to construct `[TaskEvaluation]` directly instead of maintaining separate `[RuleOutcome]` + `[RuleRequest]` arrays.
 

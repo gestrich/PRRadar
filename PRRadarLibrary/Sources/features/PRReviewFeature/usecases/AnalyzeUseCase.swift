@@ -69,7 +69,7 @@ public struct AnalyzeUseCase: Sendable {
                             stats: PhaseStats(artifactsProduced: 0)
                         )
 
-                        let output = PRReviewResult(evaluations: [], tasks: [], summary: summary)
+                        let output = PRReviewResult(taskEvaluations: [], summary: summary)
                         continuation.yield(.completed(output: output))
                         continuation.finish()
                         return
@@ -113,7 +113,7 @@ public struct AnalyzeUseCase: Sendable {
 
                     continuation.yield(.log(text: AnalysisCacheService.completionMessage(freshCount: evalResult.fresh.count, cachedCount: evalResult.cached.count, totalCount: allTasks.count, violationCount: violationCount) + "\n"))
 
-                    let output = PRReviewResult(evaluations: allResults, tasks: allTasks, summary: summary, cachedCount: evalResult.cached.count)
+                    let output = PRReviewResult(tasks: allTasks, outcomes: allResults, summary: summary, cachedCount: evalResult.cached.count)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {
@@ -279,8 +279,8 @@ public struct AnalyzeUseCase: Sendable {
         )
 
         return PRReviewResult(
-            evaluations: evaluations,
             tasks: allTasks,
+            outcomes: evaluations,
             summary: summary,
             cachedCount: cachedCount
         )
@@ -309,6 +309,6 @@ public struct AnalyzeUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
         )) ?? []
 
-        return PRReviewResult(evaluations: evaluations, tasks: tasks, summary: summary)
+        return PRReviewResult(tasks: tasks, outcomes: evaluations, summary: summary)
     }
 }
