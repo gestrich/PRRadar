@@ -47,7 +47,10 @@ Move `LiveTranscriptAccumulator` from its current location as a nested struct in
 
 Verify build succeeds. No behavioral change.
 
-## - [ ] Phase 2: Move `TaskEvaluation` to PRRadarModels
+## - [x] Phase 2: Move `TaskEvaluation` to PRRadarModels
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Moved `TaskEvaluation` from app layer to services layer (PRRadarModels/Evaluations/) per architecture conventions. Also moved `PRRadarPhase` enum from PRRadarConfigService to PRRadarModels to resolve circular dependency — it's a domain model that belongs there.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

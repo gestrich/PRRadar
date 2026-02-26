@@ -1,5 +1,6 @@
 import Foundation
 import PRRadarConfigService
+import PRRadarModels
 
 public enum PhaseOutputParser {
 

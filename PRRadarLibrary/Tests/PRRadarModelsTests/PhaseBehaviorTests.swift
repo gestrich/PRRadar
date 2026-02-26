@@ -1,4 +1,5 @@
 import Foundation
+import PRRadarModels
 import Testing
 @testable import PRRadarConfigService
 @testable import PRRadarCLIService
