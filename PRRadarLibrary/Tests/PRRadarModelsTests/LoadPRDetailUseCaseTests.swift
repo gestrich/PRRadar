@@ -140,7 +140,7 @@ struct LoadPRDetailUseCaseTests {
         #expect(detail.preparation?.rules.count == 1)
         #expect(detail.preparation?.tasks.count == 1)
         #expect(detail.analysis != nil)
-        #expect(detail.analysis?.evaluations.count == 1)
+        #expect(detail.analysis?.taskEvaluations.count == 1)
         #expect(detail.analysis?.summary.violationsFound == 1)
         #expect(detail.report != nil)
         #expect(detail.report?.report.violations.count == 1)

@@ -164,11 +164,7 @@ final class PRModel: Identifiable, Hashable {
             }
         }
 
-        if let tasks = newDetail.preparation?.tasks {
-            let outcomeMap = Dictionary(
-                (newDetail.analysis?.evaluations ?? []).map { ($0.taskId, $0) },
-                uniquingKeysWith: { _, new in new }
-            )
+        if let taskEvals = newDetail.taskEvaluations {
             let transcriptMap = Dictionary(
                 (newDetail.savedTranscripts[.analyze] ?? []).map {
                     ("\($0.filePath):\($0.ruleName)", $0)
@@ -176,11 +172,9 @@ final class PRModel: Identifiable, Hashable {
                 uniquingKeysWith: { _, new in new }
             )
             var newEvaluations: [String: TaskEvaluation] = [:]
-            for task in tasks {
-                var eval = TaskEvaluation(request: task, phase: .analyze)
-                eval.outcome = outcomeMap[task.taskId]
-                eval.savedTranscript = transcriptMap["\(task.focusArea.filePath):\(task.rule.name)"]
-                newEvaluations[task.taskId] = eval
+            for var eval in taskEvals {
+                eval.savedTranscript = transcriptMap["\(eval.request.focusArea.filePath):\(eval.request.rule.name)"]
+                newEvaluations[eval.request.taskId] = eval
             }
             evaluations = newEvaluations
         }

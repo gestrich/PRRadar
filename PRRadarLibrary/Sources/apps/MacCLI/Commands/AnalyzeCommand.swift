@@ -109,7 +109,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             }
             print("  Duration: \(output.summary.totalDurationMs)ms")
 
-            let violations = output.evaluations.compactMap(\.violation)
+            let violations = output.taskEvaluations.outcomes.compactMap(\.violation)
             if !violations.isEmpty {
                 print("\nViolations:")
                 for eval in violations.sorted(by: { $0.score > $1.score }) {
@@ -121,7 +121,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
                 }
             }
 
-            let errors = output.evaluations.compactMap(\.error)
+            let errors = output.taskEvaluations.outcomes.compactMap(\.error)
             if !errors.isEmpty {
                 print("\nErrors:")
                 for err in errors {

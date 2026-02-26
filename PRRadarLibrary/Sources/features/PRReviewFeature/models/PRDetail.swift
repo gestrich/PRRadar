@@ -42,4 +42,8 @@ public struct PRDetail: Sendable {
         self.savedTranscripts = savedTranscripts
         self.analysisSummary = analysisSummary
     }
+
+    public var taskEvaluations: [TaskEvaluation]? {
+        analysis?.taskEvaluations ?? preparation?.tasks.map { TaskEvaluation(request: $0, phase: .analyze) }
+    }
 }
