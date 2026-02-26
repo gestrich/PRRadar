@@ -136,7 +136,10 @@ Update `AnalyzeUseCase` to construct `[TaskEvaluation]` directly instead of main
 
 Verify build succeeds after this phase.
 
-## - [ ] Phase 5: Update CLI and app consumers
+## - [x] Phase 5: Update CLI and app consumers
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Used `output.taskEvaluations.outcomes` for CLI access; added `PRDetail.taskEvaluations` computed property to encapsulate analysis-or-preparation fallback, simplifying PRModel's `applyDetail`.
 
 1. **`AnalyzeCommand`**:
    - Replace `output.evaluations.compactMap(\.violation)` with `output.taskEvaluations.compactMap { $0.outcome?.violation }`
