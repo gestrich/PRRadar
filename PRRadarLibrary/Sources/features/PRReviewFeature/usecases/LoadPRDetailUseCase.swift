@@ -78,7 +78,8 @@ public struct LoadPRDetailUseCase: Sendable {
             imageURLMap: imageURLMap,
             imageBaseDir: imageBaseDir,
             savedTranscripts: savedTranscripts,
-            analysisSummary: analysisSummary
+            analysisSummary: analysisSummary,
+            reviewComments: []
         )
     }
 

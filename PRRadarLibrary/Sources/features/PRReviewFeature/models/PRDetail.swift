@@ -14,6 +14,7 @@ public struct PRDetail: Sendable {
     public let imageBaseDir: String?
     public let savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]]
     public let analysisSummary: PRReviewSummary?
+    public let reviewComments: [ReviewComment]
 
     public init(
         commitHash: String?,
@@ -27,7 +28,8 @@ public struct PRDetail: Sendable {
         imageURLMap: [String: String],
         imageBaseDir: String?,
         savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]],
-        analysisSummary: PRReviewSummary?
+        analysisSummary: PRReviewSummary?,
+        reviewComments: [ReviewComment]
     ) {
         self.commitHash = commitHash
         self.availableCommits = availableCommits
@@ -41,6 +43,7 @@ public struct PRDetail: Sendable {
         self.imageBaseDir = imageBaseDir
         self.savedTranscripts = savedTranscripts
         self.analysisSummary = analysisSummary
+        self.reviewComments = reviewComments
     }
 
     public var taskEvaluations: [TaskEvaluation]? {
