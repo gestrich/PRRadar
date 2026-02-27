@@ -128,7 +128,10 @@ Modify `AnnotatedHunkContentView` to render `InlineCommentComposeView` when the 
 - If so, render `InlineCommentComposeView` below that line, passing `onCancel: { composingCommentLine = nil }`
 - The compose view should appear between the line's existing comments and the next diff line
 
-## - [ ] Phase 7: CLI post-comment Subcommand
+## - [x] Phase 7: CLI post-comment Subcommand
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Followed existing CLI command patterns (AsyncParsableCommand, CLIOptions, resolveConfigFromOptions). Uses PostManualCommentUseCase directly since no streaming progress is needed.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
