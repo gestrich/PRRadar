@@ -16,6 +16,43 @@ enum DiffLayout {
     static let gutterWidth: CGFloat = 96
 }
 
+// MARK: - Inline Comment Card
+
+struct InlineCommentCard<Content: View>: View {
+    let accentColor: Color
+    var lineBackground: Color = .clear
+    var gutterBackground: Color = Color.gray.opacity(0.1)
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(accentColor)
+                .frame(width: 3)
+
+            content
+                .padding(12)
+        }
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(accentColor.opacity(0.2), lineWidth: 1)
+        )
+        .frame(maxWidth: 720, alignment: .leading)
+        .padding(.leading, DiffLayout.gutterWidth)
+        .padding(.trailing, 16)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack(alignment: .leading) {
+                lineBackground
+                gutterBackground.frame(width: DiffLayout.gutterWidth)
+            }
+        }
+    }
+}
+
 // MARK: - Views
 
 struct DiffLineRowView: View {

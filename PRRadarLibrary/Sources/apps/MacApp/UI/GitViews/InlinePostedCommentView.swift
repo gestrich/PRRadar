@@ -11,11 +11,7 @@ struct InlinePostedCommentView: View {
     var gutterBackground: Color = Color.gray.opacity(0.1)
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.green)
-                .frame(width: 3)
-
+        InlineCommentCard(accentColor: .green, lineBackground: lineBackground, gutterBackground: gutterBackground) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     if let author = comment.author {
@@ -44,24 +40,6 @@ struct InlinePostedCommentView: View {
                 }
 
                 RichContentView(comment.body, imageURLMap: imageURLMap, imageBaseDir: imageBaseDir)
-            }
-            .padding(12)
-        }
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.green.opacity(0.2), lineWidth: 1)
-        )
-        .frame(maxWidth: 720, alignment: .leading)
-        .padding(.leading, DiffLayout.gutterWidth)
-        .padding(.trailing, 16)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            ZStack(alignment: .leading) {
-                lineBackground
-                gutterBackground.frame(width: DiffLayout.gutterWidth)
             }
         }
     }
