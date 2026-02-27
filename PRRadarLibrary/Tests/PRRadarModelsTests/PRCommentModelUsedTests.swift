@@ -4,9 +4,10 @@ import Testing
 @Suite("PRComment modelUsed threading")
 struct PRCommentModelUsedTests {
 
-    @Test("from() copies modelUsed from RuleResult")
+    @Test("from(violation:) copies modelUsed from RuleResult")
     func fromCopiesModelUsed() {
         // Arrange
+        let violation = Violation(score: 7, comment: "Issue found", filePath: "src/app.swift", lineNumber: 10)
         let result = RuleResult(
             taskId: "task-1",
             ruleName: "test-rule",
@@ -14,22 +15,20 @@ struct PRCommentModelUsedTests {
             modelUsed: "claude-sonnet-4-20250514",
             durationMs: 1000,
             costUsd: 0.003,
-            violatesRule: true,
-            score: 7,
-            comment: "Issue found",
-            lineNumber: 10
+            violations: [violation]
         )
 
         // Act
-        let comment = PRComment.from(result: result, task: nil)
+        let comment = PRComment.from(violation: violation, result: result, task: nil, index: 0)
 
         // Assert
         #expect(comment.modelUsed == "claude-sonnet-4-20250514")
     }
 
-    @Test("from() copies costUsd alongside modelUsed")
+    @Test("from(violation:) copies costUsd alongside modelUsed")
     func fromCopiesCostAndModel() {
         // Arrange
+        let violation = Violation(score: 5, comment: "Naming violation", filePath: "src/utils.swift", lineNumber: 42)
         let result = RuleResult(
             taskId: "task-2",
             ruleName: "naming-rule",
@@ -37,14 +36,11 @@ struct PRCommentModelUsedTests {
             modelUsed: "claude-haiku-4-5-20251001",
             durationMs: 500,
             costUsd: 0.001,
-            violatesRule: true,
-            score: 5,
-            comment: "Naming violation",
-            lineNumber: 42
+            violations: [violation]
         )
 
         // Act
-        let comment = PRComment.from(result: result, task: nil)
+        let comment = PRComment.from(violation: violation, result: result, task: nil, index: 0)
 
         // Assert
         #expect(comment.costUsd == 0.001)

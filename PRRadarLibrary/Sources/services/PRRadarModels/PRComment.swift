@@ -43,18 +43,20 @@ public struct PRComment: Sendable, Identifiable {
         self.modelUsed = modelUsed
     }
 
-    /// Creates a comment from a successful rule result and its associated task metadata.
+    /// Creates a comment from an individual violation and its parent result metadata.
     public static func from(
+        violation: Violation,
         result: RuleResult,
-        task: RuleRequest?
+        task: RuleRequest?,
+        index: Int
     ) -> PRComment {
         PRComment(
-            id: result.taskId,
+            id: "\(result.taskId)_\(index)",
             ruleName: result.ruleName,
-            score: result.score,
-            comment: result.comment,
-            filePath: result.filePath,
-            lineNumber: result.lineNumber,
+            score: violation.score,
+            comment: violation.comment,
+            filePath: violation.filePath,
+            lineNumber: violation.lineNumber,
             documentationLink: task?.rule.documentationLink,
             relevantClaudeSkill: task?.rule.relevantClaudeSkill,
             ruleUrl: task?.rule.ruleUrl,

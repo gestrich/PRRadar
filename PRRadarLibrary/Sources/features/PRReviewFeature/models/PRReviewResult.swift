@@ -38,8 +38,8 @@ public struct PRReviewResult: Sendable {
             taskEvaluations[idx].outcome = result
         }
 
+        let violationCount = taskEvaluations.violationComments.count
         let outcomes = taskEvaluations.outcomes
-        let violationCount = outcomes.filter(\.isViolation).count
         summary = PRReviewSummary(
             prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),
@@ -61,8 +61,8 @@ public struct PRReviewResult: Sendable {
         }
         deduped.reverse()
 
+        let violationCount = deduped.violationComments.count
         let outcomes = deduped.outcomes
-        let violationCount = outcomes.filter(\.isViolation).count
         let summary = PRReviewSummary(
             prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),

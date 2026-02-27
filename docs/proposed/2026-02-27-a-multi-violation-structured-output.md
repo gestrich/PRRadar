@@ -15,7 +15,7 @@ This was observed in practice: the AI's text output clearly identified 2 violati
 
 ## Phases
 
-## - [ ] Phase 1: Change Structured Output Schema to Array
+## - [x] Phase 1: Change Structured Output Schema to Array
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -70,7 +70,7 @@ Report ALL violations you find — each as a separate entry with its own score, 
 If the code does not violate the rule, return an empty violations array.
 ```
 
-## - [ ] Phase 2: Change `RuleResult` to Support Multiple Violations
+## - [x] Phase 2: Change `RuleResult` to Support Multiple Violations
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -107,7 +107,7 @@ public struct RuleResult: Codable, Sendable {
 }
 ```
 
-## - [ ] Phase 3: Update `AnalysisService.analyzeTask()` Parsing
+## - [x] Phase 3: Update `AnalysisService.analyzeTask()` Parsing
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -143,7 +143,7 @@ if let dict = agentResult.outputAsDictionary(),
 
 The return type stays `RuleOutcome` (still one outcome per task) — but the `RuleResult` inside now contains N violations.
 
-## - [ ] Phase 4: Update `RuleOutcome` Violation Accessors
+## - [x] Phase 4: Update `RuleOutcome` Violation Accessors
 
 **File**: `Sources/services/PRRadarModels/Evaluations/RuleOutcome.swift`
 
@@ -161,7 +161,7 @@ public func violationComments(task: RuleRequest?) -> [PRComment] {
 }
 ```
 
-## - [ ] Phase 5: Update `PRComment.from()` Factory
+## - [x] Phase 5: Update `PRComment.from()` Factory
 
 **File**: `Sources/services/PRRadarModels/PRComment.swift`
 
@@ -192,7 +192,7 @@ public static func from(
 
 The `id` uses `taskId_index` to make each comment unique. Remove or deprecate the old `from(result:task:)` method.
 
-## - [ ] Phase 6: Update `TaskEvaluation` and Collection Extensions
+## - [x] Phase 6: Update `TaskEvaluation` and Collection Extensions
 
 **File**: `Sources/services/PRRadarModels/Evaluations/TaskEvaluation.swift`
 
@@ -210,7 +210,7 @@ public var violationComments: [PRComment] {
 }
 ```
 
-## - [ ] Phase 7: Update `ViolationService`
+## - [x] Phase 7: Update `ViolationService`
 
 **File**: `Sources/services/PRRadarCLIService/ViolationService.swift`
 
@@ -233,7 +233,7 @@ public static func filterByScore(
 
 **Changes to `loadViolations`**: Same pattern — use `violationComments(task:)` and filter by score.
 
-## - [ ] Phase 8: Update `PRReviewResult.appendResult()`
+## - [x] Phase 8: Update `PRReviewResult.appendResult()`
 
 **File**: `Sources/features/PRReviewFeature/models/PRReviewResult.swift`
 
@@ -245,7 +245,7 @@ let violationCount = taskEvaluations.violationComments.count
 
 Apply the same change everywhere `violationsFound` is computed (in `AnalyzeUseCase` full run, filtered run, `buildMergedOutput`, `cumulative`).
 
-## - [ ] Phase 9: Validation
+## - [x] Phase 9: Validation
 
 **Skills to read**: `swift-testing`
 

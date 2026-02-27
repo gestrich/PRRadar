@@ -16,8 +16,8 @@ public struct ViolationService: Sendable {
         var comments: [PRComment] = []
 
         for result in results {
-            guard let violation = result.violation, violation.score >= minScore else { continue }
-            comments.append(PRComment.from(result: violation, task: taskMap[violation.taskId]))
+            comments.append(contentsOf: result.violationComments(task: taskMap[result.taskId])
+                .filter { $0.score >= minScore })
         }
 
         return comments
@@ -50,9 +50,8 @@ public struct ViolationService: Sendable {
             guard let data = fm.contents(atPath: path),
                   let result = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
 
-            guard let violation = result.violation, violation.score >= minScore else { continue }
-
-            comments.append(PRComment.from(result: violation, task: taskMetadata[violation.taskId]))
+            comments.append(contentsOf: result.violationComments(task: taskMetadata[result.taskId])
+                .filter { $0.score >= minScore })
         }
 
         return comments

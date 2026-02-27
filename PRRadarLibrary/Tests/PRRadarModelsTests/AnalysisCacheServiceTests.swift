@@ -45,17 +45,17 @@ struct AnalysisCacheServiceTests {
     }
 
     private func makeResult(taskId: String, violates: Bool = false) -> RuleOutcome {
-        .success(RuleResult(
+        let violations: [Violation] = violates
+            ? [Violation(score: 7, comment: "Violation found", filePath: "file.swift", lineNumber: 5)]
+            : []
+        return .success(RuleResult(
             taskId: taskId,
             ruleName: "rule-\(taskId)",
             filePath: "file.swift",
             modelUsed: "claude-sonnet-4-20250514",
             durationMs: 1000,
             costUsd: 0.10,
-            violatesRule: violates,
-            score: violates ? 7 : 1,
-            comment: violates ? "Violation found" : "OK",
-            lineNumber: 5
+            violations: violations
         ))
     }
 
@@ -239,7 +239,7 @@ struct AnalysisCacheServiceTests {
         let message = AnalysisCacheService.cachedTaskMessage(index: 2, totalCount: 10, result: result)
 
         // Assert
-        #expect(message == "[2/10] rule-t1 — VIOLATION (7/10) (cached)")
+        #expect(message == "[2/10] rule-t1 — VIOLATION (1 finding, max 7/10) (cached)")
     }
 
     // MARK: - Progress Messages: completionMessage

@@ -1,6 +1,21 @@
 import Foundation
 
-/// A successful rule evaluation with metadata and findings merged into a single type.
+/// An individual violation finding within a rule evaluation.
+public struct Violation: Codable, Sendable {
+    public let score: Int
+    public let comment: String
+    public let filePath: String
+    public let lineNumber: Int?
+
+    public init(score: Int, comment: String, filePath: String, lineNumber: Int?) {
+        self.score = score
+        self.comment = comment
+        self.filePath = filePath
+        self.lineNumber = lineNumber
+    }
+}
+
+/// A successful rule evaluation with metadata and findings.
 public struct RuleResult: Codable, Sendable {
     public let taskId: String
     public let ruleName: String
@@ -8,10 +23,9 @@ public struct RuleResult: Codable, Sendable {
     public let modelUsed: String
     public let durationMs: Int
     public let costUsd: Double?
-    public let violatesRule: Bool
-    public let score: Int
-    public let comment: String
-    public let lineNumber: Int?
+    public let violations: [Violation]
+
+    public var violatesRule: Bool { !violations.isEmpty }
 
     public init(
         taskId: String,
@@ -20,10 +34,7 @@ public struct RuleResult: Codable, Sendable {
         modelUsed: String,
         durationMs: Int,
         costUsd: Double?,
-        violatesRule: Bool,
-        score: Int,
-        comment: String,
-        lineNumber: Int?
+        violations: [Violation]
     ) {
         self.taskId = taskId
         self.ruleName = ruleName
@@ -31,9 +42,6 @@ public struct RuleResult: Codable, Sendable {
         self.modelUsed = modelUsed
         self.durationMs = durationMs
         self.costUsd = costUsd
-        self.violatesRule = violatesRule
-        self.score = score
-        self.comment = comment
-        self.lineNumber = lineNumber
+        self.violations = violations
     }
 }

@@ -7,7 +7,7 @@ struct PRReviewResultTests {
 
     // MARK: - RuleResult
 
-    @Test("RuleResult decodes with all fields")
+    @Test("RuleResult decodes with violations array")
     func ruleResultDecode() throws {
         let json = """
         {
@@ -17,23 +17,28 @@ struct PRReviewResultTests {
             "modelUsed": "claude-sonnet-4-20250514",
             "durationMs": 1000,
             "costUsd": 0.003,
-            "violatesRule": true,
-            "score": 7,
-            "comment": "Missing error handling in async function. Wrap the await call in a try/catch block.",
-            "lineNumber": 42
+            "violations": [
+                {
+                    "score": 7,
+                    "comment": "Missing error handling in async function. Wrap the await call in a try/catch block.",
+                    "filePath": "src/api/handler.py",
+                    "lineNumber": 42
+                }
+            ]
         }
         """.data(using: .utf8)!
 
         let result = try JSONDecoder().decode(RuleResult.self, from: json)
         #expect(result.violatesRule == true)
-        #expect(result.score == 7)
-        #expect(result.comment.contains("Missing error handling"))
+        #expect(result.violations.count == 1)
+        #expect(result.violations[0].score == 7)
+        #expect(result.violations[0].comment.contains("Missing error handling"))
         #expect(result.filePath == "src/api/handler.py")
-        #expect(result.lineNumber == 42)
+        #expect(result.violations[0].lineNumber == 42)
     }
 
-    @Test("RuleResult decodes with null lineNumber")
-    func ruleResultNullLineNumber() throws {
+    @Test("RuleResult decodes with empty violations array")
+    func ruleResultNoViolations() throws {
         let json = """
         {
             "taskId": "task-1",
@@ -41,21 +46,17 @@ struct PRReviewResultTests {
             "filePath": "src/utils.py",
             "modelUsed": "claude-sonnet-4-20250514",
             "durationMs": 1000,
-            "violatesRule": false,
-            "score": 2,
-            "comment": "Code follows the naming convention correctly.",
-            "lineNumber": null
+            "violations": []
         }
         """.data(using: .utf8)!
 
         let result = try JSONDecoder().decode(RuleResult.self, from: json)
         #expect(result.violatesRule == false)
-        #expect(result.score == 2)
-        #expect(result.lineNumber == nil)
+        #expect(result.violations.isEmpty)
     }
 
-    @Test("RuleResult decodes without lineNumber key")
-    func ruleResultMissingLineNumber() throws {
+    @Test("RuleResult decodes with null lineNumber in violation")
+    func ruleResultNullLineNumber() throws {
         let json = """
         {
             "taskId": "task-1",
@@ -63,14 +64,19 @@ struct PRReviewResultTests {
             "filePath": "config.py",
             "modelUsed": "claude-sonnet-4-20250514",
             "durationMs": 1000,
-            "violatesRule": false,
-            "score": 1,
-            "comment": "No issues found."
+            "violations": [
+                {
+                    "score": 2,
+                    "comment": "Code follows the naming convention correctly.",
+                    "filePath": "config.py",
+                    "lineNumber": null
+                }
+            ]
         }
         """.data(using: .utf8)!
 
         let result = try JSONDecoder().decode(RuleResult.self, from: json)
-        #expect(result.lineNumber == nil)
+        #expect(result.violations[0].lineNumber == nil)
     }
 
     // MARK: - RuleOutcome (success)
@@ -86,10 +92,14 @@ struct PRReviewResultTests {
                 "modelUsed": "claude-sonnet-4-20250514",
                 "durationMs": 3420,
                 "costUsd": 0.0045,
-                "violatesRule": true,
-                "score": 8,
-                "comment": "Critical: unhandled exception in production code path.",
-                "lineNumber": 15
+                "violations": [
+                    {
+                        "score": 8,
+                        "comment": "Critical: unhandled exception in production code path.",
+                        "filePath": "src/handler.py",
+                        "lineNumber": 15
+                    }
+                ]
             }
         }
         """.data(using: .utf8)!
@@ -99,8 +109,8 @@ struct PRReviewResultTests {
         #expect(result.ruleName == "error-handling")
         #expect(result.filePath == "src/handler.py")
         #expect(result.success?.violatesRule == true)
-        #expect(result.success?.score == 8)
-        #expect(result.success?.lineNumber == 15)
+        #expect(result.success?.violations[0].score == 8)
+        #expect(result.success?.violations[0].lineNumber == 15)
         #expect(result.modelUsed == "claude-sonnet-4-20250514")
         #expect(result.durationMs == 3420)
         #expect(result.costUsd == 0.0045)
@@ -141,7 +151,7 @@ struct PRReviewResultTests {
         let original: RuleOutcome = .success(RuleResult(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
             modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001,
-            violatesRule: true, score: 5, comment: "Issue", lineNumber: 1
+            violations: [Violation(score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1)]
         ))
 
         let encoded = try JSONEncoder().encode(original)
@@ -224,5 +234,41 @@ struct PRReviewResultTests {
         #expect(original.totalTasks == decoded.totalTasks)
         #expect(original.violationsFound == decoded.violationsFound)
         #expect(original.totalCostUsd == decoded.totalCostUsd)
+    }
+
+    // MARK: - Multi-violation
+
+    @Test("RuleResult with 2 violations produces 2 PRComments")
+    func multipleViolationsProduceMultipleComments() throws {
+        let result = RuleResult(
+            taskId: "t1", ruleName: "nullability", filePath: "Cell.m",
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 2000, costUsd: 0.01,
+            violations: [
+                Violation(score: 7, comment: "Nullable param at line 21", filePath: "Cell.m", lineNumber: 21),
+                Violation(score: 6, comment: "Nullable param at line 48", filePath: "Cell.m", lineNumber: 48),
+            ]
+        )
+        let outcome = RuleOutcome.success(result)
+        let comments = outcome.violationComments(task: nil)
+
+        #expect(comments.count == 2)
+        #expect(comments[0].lineNumber == 21)
+        #expect(comments[1].lineNumber == 48)
+        #expect(comments[0].id == "t1_0")
+        #expect(comments[1].id == "t1_1")
+    }
+
+    @Test("Empty violations array produces 0 comments and violatesRule == false")
+    func emptyViolationsArray() throws {
+        let result = RuleResult(
+            taskId: "t1", ruleName: "naming", filePath: "utils.py",
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.002,
+            violations: []
+        )
+        #expect(result.violatesRule == false)
+
+        let outcome = RuleOutcome.success(result)
+        #expect(outcome.isViolation == false)
+        #expect(outcome.violationComments(task: nil).isEmpty)
     }
 }

@@ -88,10 +88,7 @@ struct PRReviewResultModelsUsedTests {
             modelUsed: modelUsed,
             durationMs: 1000,
             costUsd: 0.001,
-            violatesRule: false,
-            score: 1,
-            comment: "OK",
-            lineNumber: nil
+            violations: []
         ))
         return TaskEvaluation(request: request, phase: .analyze, outcome: outcome)
     }

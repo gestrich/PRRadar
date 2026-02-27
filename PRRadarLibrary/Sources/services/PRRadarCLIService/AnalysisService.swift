@@ -58,43 +58,51 @@ public struct AnalysisService: Sendable {
 
     Consider:
     1. Does the new or modified code violate the rule?
-    2. How severe is the violation (1-10 scale)?
+    2. How severe is each violation (1-10 scale)?
 
     For the comment field: If the rule includes a "GitHub Comment" section, use that \
     exact text as your comment unless there is critical context-specific information \
     that must be added. Keep comments concise.
 
-    Be precise about the file path and line number where any violation occurs.
+    Report ALL violations you find — each as a separate entry with its own score, \
+    comment, file path, and line number.
+    If the code does not violate the rule, return an empty violations array.
     """
 
     // Schema stored as nonisolated(unsafe) to avoid [String: Any] Sendable issues
     nonisolated(unsafe) private static let evaluationOutputSchema: [String: Any] = [
         "type": "object",
         "properties": [
-            "violates_rule": [
-                "type": "boolean",
-                "description": "Whether the code violates the rule",
-            ],
-            "score": [
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 10,
-                "description": "Severity score: 1-4 minor, 5-7 moderate, 8-10 severe",
-            ],
-            "comment": [
-                "type": "string",
-                "description": "The GitHub comment to post. If the rule includes a 'GitHub Comment' section, use that exact format unless there is critical context-specific information to add. Keep it concise.",
-            ],
-            "file_path": [
-                "type": "string",
-                "description": "Path to the file containing the code",
-            ],
-            "line_number": [
-                "type": ["integer", "null"],
-                "description": "Specific line number of the violation, if applicable",
-            ],
+            "violations": [
+                "type": "array",
+                "items": [
+                    "type": "object",
+                    "properties": [
+                        "score": [
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10,
+                            "description": "Severity score: 1-4 minor, 5-7 moderate, 8-10 severe",
+                        ],
+                        "comment": [
+                            "type": "string",
+                            "description": "The GitHub comment to post. If the rule includes a 'GitHub Comment' section, use that exact format unless there is critical context-specific information to add. Keep it concise.",
+                        ],
+                        "file_path": [
+                            "type": "string",
+                            "description": "Path to the file containing the code",
+                        ],
+                        "line_number": [
+                            "type": ["integer", "null"],
+                            "description": "Specific line number of the violation",
+                        ],
+                    ] as [String: Any],
+                    "required": ["score", "comment"],
+                ] as [String: Any],
+                "description": "List of violations found. Empty array if no violations.",
+            ] as [String: Any],
         ] as [String: Any],
-        "required": ["violates_rule", "score", "comment"],
+        "required": ["violations"],
     ]
 
     public init(agentClient: ClaudeAgentClient) {
@@ -175,21 +183,27 @@ public struct AnalysisService: Sendable {
         }
 
         let ruleResult: RuleResult
-        if let dict = agentResult.outputAsDictionary() {
-            let aiFilePath = dict["file_path"] as? String
-            let filePath = (aiFilePath?.isEmpty == false) ? aiFilePath! : task.focusArea.filePath
-            let lineNumber = dict["line_number"] as? Int ?? task.focusArea.startLine
+        if let dict = agentResult.outputAsDictionary(),
+           let violationsArray = dict["violations"] as? [[String: Any]] {
+            let violations = violationsArray.map { v in
+                let aiFilePath = v["file_path"] as? String
+                let filePath = (aiFilePath?.isEmpty == false) ? aiFilePath! : task.focusArea.filePath
+                let lineNumber = v["line_number"] as? Int ?? task.focusArea.startLine
+                return Violation(
+                    score: v["score"] as? Int ?? 1,
+                    comment: v["comment"] as? String ?? "Evaluation completed",
+                    filePath: filePath,
+                    lineNumber: lineNumber
+                )
+            }
             ruleResult = RuleResult(
                 taskId: task.taskId,
                 ruleName: task.rule.name,
-                filePath: filePath,
+                filePath: task.focusArea.filePath,
                 modelUsed: model,
                 durationMs: agentResult.durationMs,
                 costUsd: agentResult.costUsd,
-                violatesRule: dict["violates_rule"] as? Bool ?? false,
-                score: dict["score"] as? Int ?? 1,
-                comment: dict["comment"] as? String ?? "Evaluation completed",
-                lineNumber: lineNumber
+                violations: violations
             )
         } else {
             ruleResult = RuleResult(
@@ -199,10 +213,7 @@ public struct AnalysisService: Sendable {
                 modelUsed: model,
                 durationMs: agentResult.durationMs,
                 costUsd: agentResult.costUsd,
-                violatesRule: false,
-                score: 1,
-                comment: "Evaluation failed - no structured output returned",
-                lineNumber: task.focusArea.startLine
+                violations: []
             )
         }
 

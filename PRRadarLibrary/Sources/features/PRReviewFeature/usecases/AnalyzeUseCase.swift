@@ -83,7 +83,7 @@ public struct AnalyzeUseCase: Sendable {
                     try AnalysisCacheService.writeTaskSnapshots(tasks: allTasks, evalsDir: evalsDir)
 
                     let allResults = evalResult.cached + evalResult.fresh
-                    let violationCount = allResults.filter(\.isViolation).count
+                    let violationCount = allResults.compactMap(\.success).flatMap(\.violations).count
 
                     let summary = PRReviewSummary(
                         prNumber: prNumber,
@@ -165,7 +165,7 @@ public struct AnalyzeUseCase: Sendable {
                         commitHash: resolvedCommit, evalsDir: evalsDir, continuation: continuation
                     )
 
-                    let violationCount = (evalResult.cached + evalResult.fresh).filter(\.isViolation).count
+                    let violationCount = (evalResult.cached + evalResult.fresh).compactMap(\.success).flatMap(\.violations).count
                     continuation.yield(.log(text: AnalysisCacheService.completionMessage(freshCount: evalResult.fresh.count, cachedCount: evalResult.cached.count, totalCount: filteredTasks.count, violationCount: violationCount) + "\n"))
 
                     let output = try Self.buildMergedOutput(
@@ -231,7 +231,12 @@ public struct AnalyzeUseCase: Sendable {
                         let status: String
                         switch result {
                         case .success(let s):
-                            status = s.violatesRule ? "VIOLATION (\(s.score)/10)" : "OK"
+                            if s.violatesRule {
+                                let maxScore = s.violations.map(\.score).max() ?? 0
+                                status = "VIOLATION (\(s.violations.count) finding\(s.violations.count == 1 ? "" : "s"), max \(maxScore)/10)"
+                            } else {
+                                status = "OK"
+                            }
                         case .error(let e):
                             status = "ERROR: \(e.errorMessage)"
                         }
@@ -268,7 +273,7 @@ public struct AnalyzeUseCase: Sendable {
             evaluations.append(evaluation)
         }
 
-        let violationCount = evaluations.filter(\.isViolation).count
+        let violationCount = evaluations.compactMap(\.success).flatMap(\.violations).count
         let summary = PRReviewSummary(
             prNumber: prNumber,
             evaluatedAt: ISO8601DateFormatter().string(from: Date()),

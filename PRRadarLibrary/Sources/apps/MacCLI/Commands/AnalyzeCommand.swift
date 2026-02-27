@@ -109,15 +109,14 @@ struct AnalyzeCommand: AsyncParsableCommand {
             }
             print("  Duration: \(output.summary.totalDurationMs)ms")
 
-            let violations = output.taskEvaluations.outcomes.compactMap(\.violation)
+            let violations = output.comments
             if !violations.isEmpty {
                 print("\nViolations:")
-                for eval in violations.sorted(by: { $0.score > $1.score }) {
-                    let score = eval.score
-                    let color = severityColor(score)
-                    print("  \(color)[\(score)/10]\u{001B}[0m \(eval.ruleName)")
-                    print("    \(eval.filePath):\(eval.lineNumber ?? 0)")
-                    print("    \(eval.comment)")
+                for violation in violations.sorted(by: { $0.score > $1.score }) {
+                    let color = severityColor(violation.score)
+                    print("  \(color)[\(violation.score)/10]\u{001B}[0m \(violation.ruleName)")
+                    print("    \(violation.filePath):\(violation.lineNumber ?? 0)")
+                    print("    \(violation.comment)")
                 }
             }
 

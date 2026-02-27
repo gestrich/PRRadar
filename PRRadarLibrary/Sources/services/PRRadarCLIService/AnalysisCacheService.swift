@@ -162,7 +162,12 @@ public enum AnalysisCacheService {
         let status: String
         switch result {
         case .success(let s):
-            status = s.violatesRule ? "VIOLATION (\(s.score)/10)" : "OK"
+            if s.violatesRule {
+                let maxScore = s.violations.map(\.score).max() ?? 0
+                status = "VIOLATION (\(s.violations.count) finding\(s.violations.count == 1 ? "" : "s"), max \(maxScore)/10)"
+            } else {
+                status = "OK"
+            }
         case .error(let e):
             status = "ERROR: \(e.errorMessage)"
         }

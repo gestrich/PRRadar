@@ -78,9 +78,11 @@ public enum RuleOutcome: Codable, Sendable {
         }
     }
 
-    public func violationComment(task: RuleRequest?) -> PRComment? {
-        guard let violation else { return nil }
-        return PRComment.from(result: violation, task: task)
+    public func violationComments(task: RuleRequest?) -> [PRComment] {
+        guard let violation else { return [] }
+        return violation.violations.enumerated().map { index, v in
+            PRComment.from(violation: v, result: violation, task: task, index: index)
+        }
     }
 
     // MARK: - Codable

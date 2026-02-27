@@ -20,8 +20,8 @@ public struct TaskEvaluation: Identifiable, Sendable {
         return savedTranscript
     }
 
-    public var violationComment: PRComment? {
-        outcome?.violationComment(task: request)
+    public var violationComments: [PRComment] {
+        outcome?.violationComments(task: request) ?? []
     }
 
     public init(
@@ -47,7 +47,7 @@ extension [TaskEvaluation] {
     }
 
     public var violationComments: [PRComment] {
-        compactMap(\.violationComment)
+        flatMap(\.violationComments)
     }
 
     public func indexForTaskId(_ taskId: String) -> Int? {

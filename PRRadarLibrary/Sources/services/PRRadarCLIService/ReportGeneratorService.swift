@@ -96,13 +96,13 @@ public struct ReportGeneratorService: Sendable {
                 totalCost += cost
             }
 
-            guard let violation = result.violation, violation.score >= minScore else { continue }
+            guard let successResult = result.success, successResult.violatesRule else { continue }
 
             let documentationLink: String?
             let relevantClaudeSkill: String?
             let methodName: String?
 
-            if let taskData = taskMetadata[violation.taskId] {
+            if let taskData = taskMetadata[successResult.taskId] {
                 documentationLink = taskData.rule.documentationLink
                 relevantClaudeSkill = nil
                 methodName = taskData.focusArea.description
@@ -112,16 +112,18 @@ public struct ReportGeneratorService: Sendable {
                 methodName = nil
             }
 
-            violations.append(ViolationRecord(
-                ruleName: violation.ruleName,
-                score: violation.score,
-                filePath: violation.filePath,
-                lineNumber: violation.lineNumber,
-                comment: violation.comment,
-                methodName: methodName,
-                documentationLink: documentationLink,
-                relevantClaudeSkill: relevantClaudeSkill
-            ))
+            for v in successResult.violations where v.score >= minScore {
+                violations.append(ViolationRecord(
+                    ruleName: successResult.ruleName,
+                    score: v.score,
+                    filePath: v.filePath,
+                    lineNumber: v.lineNumber,
+                    comment: v.comment,
+                    methodName: methodName,
+                    documentationLink: documentationLink,
+                    relevantClaudeSkill: relevantClaudeSkill
+                ))
+            }
         }
 
         return (violations, totalTasks, totalCost, modelSet.sorted())
