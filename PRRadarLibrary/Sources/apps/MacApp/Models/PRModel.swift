@@ -26,6 +26,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var submittedCommentIds: Set<String> = []
 
     private(set) var evaluations: [String: TaskEvaluation] = [:]
+    private(set) var reviewComments: [ReviewComment] = []
     private var prepareAccumulator: LiveTranscriptAccumulator?
     private(set) var operationMode: OperationMode = .idle
     private var refreshTask: Task<Void, Never>?
@@ -54,13 +55,6 @@ final class PRModel: Identifiable, Hashable {
 
     var prNumber: Int {
         metadata.number
-    }
-
-    var reconciledComments: [ReviewComment] {
-        ViolationService.reconcile(
-            pending: analysis?.comments ?? [],
-            posted: postedComments?.reviewComments ?? []
-        )
     }
 
     var fullDiff: GitDiff? {
@@ -127,6 +121,7 @@ final class PRModel: Identifiable, Hashable {
         detail = nil
         inProgressAnalysis = nil
         comments = nil
+        reviewComments = []
         analysisState = .loading
         detailLoaded = false
         phaseStates = [:]
@@ -189,6 +184,13 @@ final class PRModel: Identifiable, Hashable {
         } else if newDetail.syncSnapshot != nil {
             analysisState = .unavailable
         }
+
+        reloadReviewComments()
+    }
+
+    private func reloadReviewComments() {
+        reviewComments = FetchReviewCommentsUseCase(config: config)
+            .execute(prNumber: prNumber, commitHash: currentCommitHash)
     }
 
     func loadDetail() {
@@ -619,6 +621,7 @@ final class PRModel: Identifiable, Hashable {
         case .completed(let result):
             evaluations[task.taskId]?.outcome = result
             inProgressAnalysis?.appendResult(result, prNumber: prNumber)
+            reloadReviewComments()
         }
     }
 

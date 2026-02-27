@@ -9,7 +9,7 @@ struct DiffPhaseView: View {
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
 
-    private var reviewComments: [ReviewComment] { prModel.reconciledComments }
+    private var reviewComments: [ReviewComment] { prModel.reviewComments }
     private var evaluationSummary: PRReviewSummary? { prModel.analysis?.summary }
     private var tasks: [RuleRequest] { prModel.preparation?.tasks ?? [] }
 

@@ -39,7 +39,9 @@ Pass `reviewComments` to the `PRDetail` initializer. This is the same use case t
 
 **No changes to `FetchReviewCommentsUseCase`** — it already works correctly.
 
-## - [ ] Phase 3: Update `PRModel` to always load comments from disk
+## - [x] Phase 3: Update `PRModel` to always load comments from disk
+
+**Principles applied**: Replaced inline `ViolationService.reconcile()` computed property with stored `reviewComments` loaded from disk via `FetchReviewCommentsUseCase`; collapsed `reconciledComments` alias into direct `reviewComments` access
 
 **File:** `PRRadarLibrary/Sources/apps/MacApp/Models/PRModel.swift`
 
