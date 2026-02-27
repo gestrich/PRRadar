@@ -95,7 +95,10 @@ Modify `DiffLineRowView` to show a "+" button in the gutter area when hovering, 
 - Add `@State private var composingCommentLine: (filePath: String, lineNumber: Int)?` — view state tracking which line has the compose editor open
 - Pass an `onAddComment` closure to `DiffLineRowView` that sets `composingCommentLine` to `(hunk.filePath, line.newLine)`
 
-## - [ ] Phase 5: InlineCommentComposeView
+## - [x] Phase 5: InlineCommentComposeView
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Extracted shared `InlineCommentCard` container to eliminate duplicated card styling across all three inline comment views. Compose state (`commentText`, `isPosting`) is view state per MV pattern.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
