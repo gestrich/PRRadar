@@ -153,6 +153,9 @@ struct LoadPRDetailUseCaseTests {
         #expect(detail.analysisSummary?.violationsFound == 1)
         #expect(detail.analysisSummary?.totalTasks == 1)
         #expect(detail.availableCommits.contains(commitHash))
+        #expect(detail.reviewComments.count == 1)
+        #expect(detail.reviewComments.first?.ruleName == "test-rule")
+        #expect(detail.reviewComments.first?.score == 7)
     }
 
     // MARK: - Missing phases return nil/empty gracefully
@@ -179,6 +182,7 @@ struct LoadPRDetailUseCaseTests {
         #expect(detail.savedTranscripts.isEmpty)
         #expect(detail.analysisSummary == nil)
         #expect(detail.availableCommits.isEmpty)
+        #expect(detail.reviewComments.isEmpty)
     }
 
     @Test("Returns partial data when only some phases are complete")
@@ -204,6 +208,49 @@ struct LoadPRDetailUseCaseTests {
         #expect(detail.preparation == nil)
         #expect(detail.analysis == nil)
         #expect(detail.report == nil)
+        #expect(detail.reviewComments.isEmpty)
+    }
+
+    // MARK: - Review comments without summary
+
+    @Test("Loads review comments even when summary.json is missing")
+    func reviewCommentsWithoutSummary() throws {
+        // Arrange
+        let outputDir = try makeTempDir()
+        let commitHash = "abc1234"
+        let prepareTasksDir = "\(outputDir)/1/analysis/\(commitHash)/prepare/tasks"
+        let evaluateDir = "\(outputDir)/1/analysis/\(commitHash)/evaluate"
+        try FileManager.default.createDirectory(atPath: prepareTasksDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: evaluateDir, withIntermediateDirectories: true)
+
+        let focusArea = FocusArea(focusId: "f1", filePath: "file.swift", startLine: 1, endLine: 10, description: "test focus", hunkIndex: 0, hunkContent: "@@ content")
+        let task = RuleRequest(
+            taskId: "t1",
+            rule: TaskRule(name: "test-rule", description: "A test rule", category: "test", content: "Rule content"),
+            focusArea: focusArea,
+            gitBlobHash: "abc123",
+            ruleBlobHash: "def456"
+        )
+        try writeJSON(task, to: "\(prepareTasksDir)/data-t1.json")
+
+        let evalResult: RuleOutcome = .success(RuleResult(
+            taskId: "t1", ruleName: "test-rule", filePath: "file.swift",
+            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.10,
+            violatesRule: true, score: 7, comment: "Violation found", lineNumber: 5
+        ))
+        try writeJSON(evalResult, to: "\(evaluateDir)/data-t1.json")
+
+        let config = makeConfig(outputDir: outputDir)
+        let useCase = LoadPRDetailUseCase(config: config)
+
+        // Act
+        let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
+
+        // Assert
+        #expect(detail.analysis == nil)
+        #expect(detail.reviewComments.count == 1)
+        #expect(detail.reviewComments.first?.ruleName == "test-rule")
+        #expect(detail.reviewComments.first?.score == 7)
     }
 
     // MARK: - Commit hash resolution

@@ -63,9 +63,10 @@ Update call sites:
 
 This avoids calling `reloadDetail()` per task (which would clobber streaming accumulators in `evaluations`). Only the lightweight comment reload runs.
 
-## - [ ] Phase 4: Update tests
+## - [x] Phase 4: Update tests
 
-**Skills to read:** `swift-testing`
+**Skills used**: `swift-testing`
+**Principles applied**: Arrange-Act-Assert pattern with clear section comments; new test validates the core fix scenario (comments load independently of summary.json)
 
 **File:** `PRRadarLibrary/Tests/PRRadarModelsTests/LoadPRDetailUseCaseTests.swift`
 
