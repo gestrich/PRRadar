@@ -328,6 +328,20 @@ struct AnnotatedHunkContentView: View {
                         }
                     }
                 }
+
+                if let newLine = line.newLine,
+                   let compose = composingCommentLine,
+                   compose.filePath == hunk.filePath,
+                   compose.lineNumber == newLine {
+                    InlineCommentComposeView(
+                        filePath: compose.filePath,
+                        lineNumber: compose.lineNumber,
+                        prModel: prModel,
+                        lineBackground: lineBackground(for: line.lineType),
+                        gutterBackground: gutterBackground(for: line.lineType),
+                        onCancel: { composingCommentLine = nil }
+                    )
+                }
             }
         }
     }

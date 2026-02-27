@@ -114,7 +114,10 @@ Create a new view `InlineCommentComposeView` that appears inline in the diff bel
 
 **File**: `Sources/apps/MacApp/UI/GitViews/InlineCommentComposeView.swift`
 
-## - [ ] Phase 6: Show Compose View Inline in Diff
+## - [x] Phase 6: Show Compose View Inline in Diff
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Compose view renders conditionally based on view state (`composingCommentLine`), consistent with MV pattern. Placed after existing comments and before the next diff line.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
