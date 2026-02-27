@@ -62,20 +62,19 @@ Add a `refreshFromGitHub: Bool` parameter (default `false`) to `FetchReviewComme
 
 **Extract from PRAcquisitionService**: The comment-fetching and writing logic in `PRAcquisitionService.acquire()` (lines ~84-99, 118-119) should be extracted into a shared helper (e.g., a static method on a service, or inline in `FetchReviewCommentsUseCase`) so both `PRAcquisitionService` and `FetchReviewCommentsUseCase` use the same code path for fetching+saving comments.
 
-## - [ ] Phase 3: PRModel Integration
+## - [x] Phase 3: PRModel Integration
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Compose-target tracking and posting-in-progress are view state (`@State`), not model state. The model only exposes the data operation. Updated Phases 4-6 in spec to reflect this.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
-Add methods to `PRModel` for posting a manual comment and refreshing comments from GitHub.
+Add a method to `PRModel` for posting a manual comment and refreshing comments from GitHub.
 
-**New state**:
-- `manualCommentPostingLine: (filePath: String, lineNumber: Int)?` — tracks which line has the compose view open (nil = none)
-- `isPostingManualComment: Bool` — tracks submission in progress
+**Design note — view state vs model state**: Compose-target tracking (which line has the compose editor open) and posting-in-progress state are **view state** per the SwiftUI MV pattern. They belong in `@State` in the view (Phases 5-6), not in the model. The model only provides the data operation.
 
-**New methods**:
-- `openCommentCompose(filePath:lineNumber:)` — sets `manualCommentPostingLine`
-- `closeCommentCompose()` — clears `manualCommentPostingLine`
-- `postManualComment(body:)` async — calls `PostManualCommentUseCase`, then calls `FetchReviewCommentsUseCase(refreshFromGitHub: true)` which re-fetches from GitHub, saves to disk, and returns the updated `[ReviewComment]`. Assigns the result to `reviewComments`. Uses `fullDiff.commitHash` for the commit SHA. Sets `isPostingManualComment` during the operation.
+**New method**:
+- `postManualComment(filePath:lineNumber:body:)` async — calls `PostManualCommentUseCase`, then calls `FetchReviewCommentsUseCase(cachedOnly: false)` which re-fetches from GitHub, saves to disk, and returns the updated `[ReviewComment]`. Assigns the result to `reviewComments`. Uses `fullDiff.commitHash` for the commit SHA.
 
 ## - [ ] Phase 4: DiffLineRowView "+" Button
 
@@ -90,7 +89,8 @@ Modify `DiffLineRowView` to show a "+" button in the gutter area when hovering, 
 - Only show for lines with a non-nil `newLineNumber`
 
 **Changes to AnnotatedHunkContentView**:
-- Pass an `onAddComment` closure to `DiffLineRowView` that calls `prModel.openCommentCompose(filePath:lineNumber:)` with the hunk's `filePath` and the line's `newLine`
+- Add `@State private var composingCommentLine: (filePath: String, lineNumber: Int)?` — view state tracking which line has the compose editor open
+- Pass an `onAddComment` closure to `DiffLineRowView` that sets `composingCommentLine` to `(hunk.filePath, line.newLine)`
 
 ## - [ ] Phase 5: InlineCommentComposeView
 
@@ -102,9 +102,9 @@ Create a new view `InlineCommentComposeView` that appears inline in the diff bel
 
 **Content**:
 - `TextEditor` for typing the comment body
-- "Cancel" button — calls `prModel.closeCommentCompose()`
-- "Post Comment" button — calls `prModel.postManualComment(body:)`, shows spinner while posting
-- Disable Post button when text is empty or posting is in progress
+- "Cancel" button — calls an `onCancel` closure (sets `composingCommentLine = nil` in the parent)
+- "Post Comment" button — calls `prModel.postManualComment(filePath:lineNumber:body:)`, uses `@State private var isPosting = false` to show spinner while posting, clears compose on success
+- Disable Post button when text is empty or `isPosting` is true
 
 **File**: `Sources/apps/MacApp/UI/GitViews/InlineCommentComposeView.swift`
 
@@ -115,8 +115,8 @@ Create a new view `InlineCommentComposeView` that appears inline in the diff bel
 Modify `AnnotatedHunkContentView` to render `InlineCommentComposeView` when the compose target matches a line in the hunk.
 
 **Changes**:
-- After rendering each `DiffLineRowView` and its existing comments, check if `prModel.manualCommentPostingLine` matches `(hunk.filePath, line.newLine)`
-- If so, render `InlineCommentComposeView` below that line
+- After rendering each `DiffLineRowView` and its existing comments, check if `composingCommentLine` matches `(hunk.filePath, line.newLine)`
+- If so, render `InlineCommentComposeView` below that line, passing `onCancel: { composingCommentLine = nil }`
 - The compose view should appear between the line's existing comments and the next diff line
 
 ## - [ ] Phase 7: CLI post-comment Subcommand

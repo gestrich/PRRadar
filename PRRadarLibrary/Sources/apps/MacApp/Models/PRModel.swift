@@ -413,6 +413,32 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
+    // MARK: - Manual Comment Posting
+
+    func postManualComment(filePath: String, lineNumber: Int, body: String) async {
+        guard let commitSHA = fullDiff?.commitHash else { return }
+
+        let useCase = PostManualCommentUseCase(config: config)
+        let success = try? await useCase.execute(
+            prNumber: prNumber,
+            filePath: filePath,
+            lineNumber: lineNumber,
+            body: body,
+            commitSHA: commitSHA
+        )
+
+        guard success == true else { return }
+
+        let fetchUseCase = FetchReviewCommentsUseCase(config: config)
+        if let updated = try? await fetchUseCase.execute(
+            prNumber: prNumber,
+            commitHash: currentCommitHash,
+            cachedOnly: false
+        ) {
+            reviewComments = updated
+        }
+    }
+
     // MARK: - File Access
 
     func readFileFromRepo(_ relativePath: String) -> String? {
