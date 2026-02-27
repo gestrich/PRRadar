@@ -47,6 +47,42 @@ public struct PRAcquisitionService: Sendable {
         public let commitHash: String
     }
 
+    /// Fetch comments from GitHub, resolve author names, and write to `metadata/gh-comments.json`.
+    ///
+    /// Shared by `acquire()` (full sync) and `FetchReviewCommentsUseCase` (comment-only refresh).
+    public func refreshComments(
+        prNumber: Int,
+        outputDir: String,
+        authorCache: AuthorCacheService? = nil
+    ) async throws -> GitHubPullRequestComments {
+        var comments: GitHubPullRequestComments
+        do {
+            comments = try await gitHub.getPullRequestComments(number: prNumber)
+        } catch {
+            throw AcquisitionError.fetchCommentsFailed(underlying: error)
+        }
+
+        if let authorCache {
+            let logins = collectCommentAuthorLogins(comments: comments)
+            if !logins.isEmpty {
+                let nameMap = try await gitHub.resolveAuthorNames(logins: logins, cache: authorCache)
+                comments = comments.withAuthorNames(from: nameMap)
+            }
+        }
+
+        let metadataDir = DataPathsService.phaseDirectory(
+            outputDir: outputDir,
+            prNumber: prNumber,
+            phase: .metadata
+        )
+        try DataPathsService.ensureDirectoryExists(at: metadataDir)
+
+        let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
+        try write(commentsJSON, to: "\(metadataDir)/\(DataPathsService.ghCommentsFilename)")
+
+        return comments
+    }
+
     /// Fetch all PR data artifacts and write them to disk.
     ///
     /// Splits output into two locations:
@@ -81,20 +117,18 @@ public struct PRAcquisitionService: Sendable {
             throw AcquisitionError.fetchMetadataFailed(underlying: error)
         }
 
-        var comments: GitHubPullRequestComments
-        do {
-            comments = try await gitHub.getPullRequestComments(number: prNumber)
-        } catch {
-            throw AcquisitionError.fetchCommentsFailed(underlying: error)
-        }
+        let comments = try await refreshComments(
+            prNumber: prNumber,
+            outputDir: outputDir,
+            authorCache: authorCache
+        )
 
-        // Resolve author display names via cache
+        // Resolve PR author name (comment authors already resolved by refreshComments)
         if let authorCache {
-            let logins = collectAuthorLogins(pullRequest: pullRequest, comments: comments)
-            if !logins.isEmpty {
-                let nameMap = try await gitHub.resolveAuthorNames(logins: logins, cache: authorCache)
+            let prLogin = pullRequest.author?.login
+            if let prLogin {
+                let nameMap = try await gitHub.resolveAuthorNames(logins: [prLogin], cache: authorCache)
                 pullRequest = pullRequest.withAuthorNames(from: nameMap)
-                comments = comments.withAuthorNames(from: nameMap)
             }
         }
 
@@ -114,9 +148,6 @@ public struct PRAcquisitionService: Sendable {
 
         let prJSON = try JSONEncoder.prettyPrinted.encode(pullRequest)
         try write(prJSON, to: "\(metadataDir)/\(DataPathsService.ghPRFilename)")
-
-        let commentsJSON = try JSONEncoder.prettyPrinted.encode(comments)
-        try write(commentsJSON, to: "\(metadataDir)/\(DataPathsService.ghCommentsFilename)")
 
         let repoJSON = try JSONEncoder.prettyPrinted.encode(repository)
         try write(repoJSON, to: "\(metadataDir)/\(DataPathsService.ghRepoFilename)")
@@ -195,14 +226,10 @@ public struct PRAcquisitionService: Sendable {
 
     // MARK: - Private
 
-    private func collectAuthorLogins(
-        pullRequest: GitHubPullRequest,
+    private func collectCommentAuthorLogins(
         comments: GitHubPullRequestComments
     ) -> Set<String> {
         var logins = Set<String>()
-        if let login = pullRequest.author?.login {
-            logins.insert(login)
-        }
         for c in comments.comments {
             if let login = c.author?.login {
                 logins.insert(login)

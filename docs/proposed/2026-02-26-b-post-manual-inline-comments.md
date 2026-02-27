@@ -41,7 +41,10 @@ Create a new use case in `Sources/features/PRReviewFeature/usecases/` that posts
 - Returns `Bool` (success/failure)
 - File: `PostManualCommentUseCase.swift`
 
-## - [ ] Phase 2: Extend FetchReviewCommentsUseCase with Network Refresh
+## - [x] Phase 2: Extend FetchReviewCommentsUseCase with Network Refresh
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Extracted `refreshComments()` on `PRAcquisitionService` so both `acquire()` and `FetchReviewCommentsUseCase` share the same fetch+save code path. Used overloaded `execute()` (sync vs async with `cachedOnly:`) to avoid cascading async changes to existing sync callers.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
