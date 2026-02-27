@@ -146,7 +146,10 @@ Add a new CLI command for posting a manual inline comment.
 - Register in the CLI's command group
 - Print success/failure message
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Verified build, full test suite (489 tests), and end-to-end CLI `post-comment` against PRRadar-TestRepo (PR #1, Calculator.swift:20).
 
 **Skills to read**: `swift-testing`
 
