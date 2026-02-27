@@ -141,6 +141,10 @@ struct DiffLineRowView: View {
             }
         }
         .background(backgroundColor)
+        .overlay(
+            RoundedRectangle(cornerRadius: 2)
+                .stroke(Color.white.opacity(isHovering ? 0.15 : 0), lineWidth: 1)
+        )
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
