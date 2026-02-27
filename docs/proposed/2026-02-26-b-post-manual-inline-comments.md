@@ -76,7 +76,10 @@ Add a method to `PRModel` for posting a manual comment and refreshing comments f
 **New method**:
 - `postManualComment(filePath:lineNumber:body:)` async — calls `PostManualCommentUseCase`, then calls `FetchReviewCommentsUseCase(cachedOnly: false)` which re-fetches from GitHub, saves to disk, and returns the updated `[ReviewComment]`. Assigns the result to `reviewComments`. Uses `fullDiff.commitHash` for the commit SHA.
 
-## - [ ] Phase 4: DiffLineRowView "+" Button
+## - [x] Phase 4: DiffLineRowView "+" Button
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: "+" button is an overlay (no layout shift) on the gutter trailing edge, shown on full-row hover like GitHub. Compose-target state is view state (`@State`) per MV pattern.
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 

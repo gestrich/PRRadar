@@ -24,19 +24,22 @@ struct DiffLineRowView: View {
     let newLineNumber: Int?
     let lineType: DisplayDiffLineType
     let searchQuery: String
+    var onAddComment: (() -> Void)?
 
     init(
         lineContent: String,
         oldLineNumber: Int?,
         newLineNumber: Int?,
         lineType: DisplayDiffLineType,
-        searchQuery: String = ""
+        searchQuery: String = "",
+        onAddComment: (() -> Void)? = nil
     ) {
         self.lineContent = lineContent
         self.oldLineNumber = oldLineNumber
         self.newLineNumber = newLineNumber
         self.lineType = lineType
         self.searchQuery = searchQuery
+        self.onAddComment = onAddComment
     }
 
     @State private var isHovering = false
@@ -65,6 +68,20 @@ struct DiffLineRowView: View {
             .padding(.horizontal, 4)
             .frame(maxHeight: .infinity)
             .background(gutterBackground)
+            .overlay(alignment: .trailing) {
+                if isHovering, let onAddComment, newLineNumber != nil {
+                    Button(action: onAddComment) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Color.accentColor.opacity(0.7))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 12)
+                }
+            }
 
             HStack(spacing: 0) {
                 if matchesSearch {
@@ -221,6 +238,8 @@ struct AnnotatedHunkContentView: View {
     let searchQuery: String
     var prModel: PRModel
 
+    @State private var composingCommentLine: (filePath: String, lineNumber: Int)?
+
     private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
     private var imageBaseDir: String? { prModel.imageBaseDir }
 
@@ -232,7 +251,10 @@ struct AnnotatedHunkContentView: View {
                     oldLineNumber: line.oldLine,
                     newLineNumber: line.newLine,
                     lineType: line.lineType,
-                    searchQuery: searchQuery
+                    searchQuery: searchQuery,
+                    onAddComment: line.newLine != nil ? {
+                        composingCommentLine = (filePath: hunk.filePath, lineNumber: line.newLine!)
+                    } : nil
                 )
 
                 if let newLine = line.newLine,
