@@ -16,14 +16,16 @@ When only some tasks are evaluated for a PR (e.g., running 1 rule on 1 file via 
 
 ## Phases
 
-## - [ ] Phase 1: Add `reviewComments` to `PRDetail`
+## - [x] Phase 1: Add `reviewComments` to `PRDetail`
+
+**Completed**: Already implemented in prior commit (91a185d).
 
 **File:** `PRRadarLibrary/Sources/features/PRReviewFeature/models/PRDetail.swift`
 
 - Add `public let reviewComments: [ReviewComment]` property (after `analysisSummary`)
 - Add corresponding `init` parameter
 
-## - [ ] Phase 2: Load review comments in `LoadPRDetailUseCase`
+## - [x] Phase 2: Load review comments in `LoadPRDetailUseCase`
 
 **File:** `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/LoadPRDetailUseCase.swift`
 

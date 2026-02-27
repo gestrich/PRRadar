@@ -66,6 +66,9 @@ public struct LoadPRDetailUseCase: Sendable {
             commitHash: resolvedCommit
         )
 
+        let reviewComments = FetchReviewCommentsUseCase(config: config)
+            .execute(prNumber: prNumber, commitHash: resolvedCommit)
+
         return PRDetail(
             commitHash: resolvedCommit,
             availableCommits: availableCommits,
@@ -79,7 +82,7 @@ public struct LoadPRDetailUseCase: Sendable {
             imageBaseDir: imageBaseDir,
             savedTranscripts: savedTranscripts,
             analysisSummary: analysisSummary,
-            reviewComments: []
+            reviewComments: reviewComments
         )
     }
 
