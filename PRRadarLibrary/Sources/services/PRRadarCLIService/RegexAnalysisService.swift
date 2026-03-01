@@ -36,7 +36,7 @@ public struct RegexAnalysisService: Sendable {
         pattern: String,
         classifiedHunks: [ClassifiedHunk]
     ) -> RuleOutcome {
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = Date().timeIntervalSinceReferenceDate
 
         let regex: NSRegularExpression
         do {
@@ -76,7 +76,7 @@ public struct RegexAnalysisService: Sendable {
             }
         }
 
-        let durationMs = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
+        let durationMs = Int((Date().timeIntervalSinceReferenceDate - startTime) * 1000)
 
         let result = RuleResult(
             taskId: task.taskId,
