@@ -90,11 +90,17 @@ Build a utility to extract only truly new lines from the classified diff data. T
 
 Add a new `violation_regex` field to the rule frontmatter. When present, this regex is used for the actual rule evaluation instead of AI. A match means a violation.
 
+**Reuse existing regex infrastructure:** The codebase already has battle-tested regex handling that should be reused — do NOT duplicate regex implementations:
+- **YAML parsing**: `parseSimpleYAML()` in `RuleOutput.swift` already handles regex strings in frontmatter, including tricky edge cases like escaped quotes (`"[^"]+"`) and YAML escape sequences (`\\s` → `\s`). The `violation_regex` field will be parsed by this same parser automatically as a simple top-level string value — no new parsing code needed.
+- **`NSRegularExpression` compilation**: `GrepPatterns.matches()` and `AppliesTo.fnmatch()` both compile patterns via `NSRegularExpression`. Phase 4's `RegexAnalysisService` should follow the same pattern rather than introducing a different regex approach.
+- **Edge case tests**: `RuleBehaviorTests.swift` already covers escaped quotes, YAML escape sequences, and special regex characters. New tests for `violation_regex` parsing should follow these same patterns.
+
 **Tasks:**
 - Add `violationRegex: String?` property to `ReviewRule`
-- Parse `violation_regex` from YAML frontmatter in `ReviewRule.fromFile()`
+- Add `violationMessage: String?` property to `ReviewRule` — optional frontmatter field for the comment text to use in regex violations. Since regex rules have no AI to generate comments, this field provides the violation comment. Falls back to `description` when not set.
+- Parse `violation_regex` and `violation_message` from YAML frontmatter in `ReviewRule.fromFile()` — both are simple top-level string fields, so the existing `parseSimpleYAML()` handles them with no changes to the parser itself
 - Add to `CodingKeys` for JSON serialization
-- Propagate to `TaskRule` so it's available during evaluation
+- Propagate both fields to `TaskRule` so they're available during evaluation
 - Add a computed property like `isRegexOnly: Bool` that returns `true` when `violationRegex` is non-nil (these rules don't need AI)
 
 **Files to modify:**
@@ -105,15 +111,19 @@ Add a new `violation_regex` field to the rule frontmatter. When present, this re
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Create a `RegexAnalysisService` that evaluates rules using their `violation_regex` against diff content. Produces the same `RuleOutcome` output as `AnalysisService`.
+Create a `RegexAnalysisService` that evaluates rules using their `violation_regex` against diff content. Produces the same `RuleResult` output as `AnalysisService`.
+
+**Reuse existing regex infrastructure:** Follow the same `NSRegularExpression` pattern used by `GrepPatterns.matches()` in `RuleOutput.swift` (compile with `try? NSRegularExpression(pattern:options:)`, match with `firstMatch(in:range:)`). Do NOT introduce a different regex approach (e.g. Swift `Regex`, custom wrappers). The existing approach is already tested against edge cases with escaped quotes and special characters.
+
+**Architecture principle — App layer transparency:** The existing comment pipeline (`PRComment.from(violation:result:task:)` → `toGitHubMarkdown()`) already assembles the full comment from `Violation` + `RuleResult` + `RuleRequest` fields (documentation link, cost, model, Claude skill, etc.). As long as `RegexAnalysisService` produces a standard `RuleResult` with proper `Violation` objects, everything downstream (report generation, GitHub comment posting, MacApp display) works unchanged. The App/Feature layers should never need to know whether a result came from AI or regex — that distinction is handled entirely at the Services layer.
 
 **Tasks:**
 - Create `RegexAnalysisService` in `PRRadarCLIService/`
 - Method signature: `func analyzeTask(_ task: RuleRequest, classifiedHunks: [ClassifiedHunk]) -> RuleOutcome`
 - When `newCodeLinesOnly` is true on the rule, filter to lines where `classification == .new || classification == .changedInMove` (using the Phase 2 utility or `ClassifiedHunk.newCodeLines`); otherwise use all changed lines (`ClassifiedHunk.changedLines`)
-- Run `NSRegularExpression` with the `violation_regex` against each line's `content`
-- For each match, create a `Violation` with: score (configurable, default e.g. 5), comment (from rule description or a configurable message template), file path (from `ClassifiedDiffLine.filePath`), and line number (from `ClassifiedDiffLine.newLineNumber` or `oldLineNumber`)
-- Return a `RuleResult` with `modelUsed: "regex"`, `durationMs` from timing, `costUsd: 0`
+- Run `NSRegularExpression` with the `violation_regex` against each line's `content` — same compilation pattern as `GrepPatterns.matches()`
+- For each match, create a `Violation` with: score (configurable, default e.g. 5), comment (use `violationMessage` from the rule frontmatter, falling back to `description` if not set), file path (from `ClassifiedDiffLine.filePath`), and line number (from `ClassifiedDiffLine.newLineNumber` or `oldLineNumber`)
+- Return a `RuleResult` with `modelUsed: "regex"`, `durationMs` from timing, `costUsd: 0` — this flows through `PRComment.from()` unchanged, which will show `$0.0000` cost and `"regex"` as the model in the rendered comment
 
 **Files to create:**
 - `PRRadarLibrary/Sources/services/PRRadarCLIService/RegexAnalysisService.swift`
@@ -122,7 +132,7 @@ Create a `RegexAnalysisService` that evaluates rules using their `violation_rege
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Route tasks with `violation_regex` rules to the regex service instead of the AI service.
+Route tasks with `violation_regex` rules to the regex service instead of the AI service. The routing decision lives at the Services/Features layer — the App layer (CLI commands, MacApp models) should not branch on AI vs regex. Both paths produce identical `RuleResult` → `PRComment` output, so report generation, comment posting, and UI display all work unchanged.
 
 **Tasks:**
 - In `AnalyzeUseCase.swift`, before calling `AnalysisService`, check if the task's rule has a `violationRegex`
@@ -131,6 +141,7 @@ Route tasks with `violation_regex` rules to the regex service instead of the AI 
 - In `AnalyzeSingleTaskUseCase.swift`, add the same routing logic
 - In `AnalysisService.runBatchAnalysis()`, partition tasks into AI vs regex, run regex tasks first (instant), then AI tasks
 - Ensure cached evaluation logic in `AnalysisCacheService` works the same for regex results
+- No changes needed to report generation, comment posting, or MacApp display — `PRComment.from()` and `toGitHubMarkdown()` work identically for both AI and regex results
 
 **Files to modify:**
 - `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/AnalyzeUseCase.swift`
