@@ -113,7 +113,10 @@ Add "Run All Regex Rules" and "Run All AI Rules" buttons alongside the existing 
 - `PRRadarLibrary/Sources/apps/MacApp/UI/PhaseViews/DiffPhaseView.swift` (add menu items)
 - `PRRadarLibrary/Sources/apps/MacApp/Models/PRModel.swift` (thread `analysisMode` through)
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Tests follow Arrange-Act-Assert pattern with `#expect` assertions; mode filtering logic tested directly via AnalysisMode.matches() since AnalyzeUseCase is tightly coupled with file I/O
 
 **Skills to read**: `/swift-testing`
 
