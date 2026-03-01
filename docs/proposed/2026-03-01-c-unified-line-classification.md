@@ -77,7 +77,7 @@ The `lineType` preserves the raw git diff info (added/removed/context), while `c
 **Files to create:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift`
 
-## - [ ] Phase 2: Build the classification function
+## - [x] Phase 2: Build the classification function
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -106,6 +106,8 @@ These re-diffed lines represent modifications made inside a moved block. They ne
 
 **Files to modify/create:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift` (add classification function)
+
+**Completed:** Added `classifyLines(originalDiff:effectiveResults:)` free function. Builds six lookup dictionaries (source/target moved lines, changed-in-move lines, and per-line MoveCandidate references). Re-diff hunk line numbers are mapped to absolute target file coordinates via `extendBlockRange`. `.changedInMove` is checked before `.moved` since they're mutually exclusive subsets of the target move range. Header lines are skipped (no classification case for metadata).
 
 ## - [ ] Phase 3: Derive `ClassifiedHunk` from classified lines
 
