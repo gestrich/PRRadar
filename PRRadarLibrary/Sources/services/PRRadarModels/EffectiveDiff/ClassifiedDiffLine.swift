@@ -74,6 +74,16 @@ public struct ClassifiedHunk: Codable, Sendable, Equatable {
     }
 }
 
+/// Extract lines classified as `.new` or `.changedInMove` across all hunks.
+///
+/// These are lines the PR author wrote — genuinely new additions and
+/// modifications inside moved blocks. Excludes verbatim moves, removals, and context.
+public func extractNewAndChangedInMoveLines(from hunks: [ClassifiedHunk]) -> [ClassifiedDiffLine] {
+    hunks.flatMap { hunk in
+        hunk.lines.filter { $0.classification == .new || $0.classification == .changedInMove }
+    }
+}
+
 /// Group a flat list of classified lines back into hunk-level containers.
 ///
 /// Uses the original diff's hunk structure to determine boundaries — each original hunk's

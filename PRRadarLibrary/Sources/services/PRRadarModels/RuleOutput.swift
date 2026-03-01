@@ -206,6 +206,23 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         case newCodeLinesOnly = "new_code_lines_only"
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        filePath = try container.decode(String.self, forKey: .filePath)
+        description = try container.decode(String.self, forKey: .description)
+        category = try container.decode(String.self, forKey: .category)
+        focusType = try container.decode(FocusType.self, forKey: .focusType)
+        content = try container.decode(String.self, forKey: .content)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+        documentationLink = try container.decodeIfPresent(String.self, forKey: .documentationLink)
+        relevantClaudeSkill = try container.decodeIfPresent(String.self, forKey: .relevantClaudeSkill)
+        ruleUrl = try container.decodeIfPresent(String.self, forKey: .ruleUrl)
+        appliesTo = try container.decodeIfPresent(AppliesTo.self, forKey: .appliesTo)
+        grep = try container.decodeIfPresent(GrepPatterns.self, forKey: .grep)
+        newCodeLinesOnly = try container.decodeIfPresent(Bool.self, forKey: .newCodeLinesOnly) ?? false
+    }
+
     // MARK: - File Parsing
 
     /// Load a rule from a markdown file with YAML frontmatter.

@@ -47,6 +47,19 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case ruleUrl = "rule_url"
         case newCodeLinesOnly = "new_code_lines_only"
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decode(String.self, forKey: .description)
+        category = try container.decode(String.self, forKey: .category)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+        content = try container.decode(String.self, forKey: .content)
+        documentationLink = try container.decodeIfPresent(String.self, forKey: .documentationLink)
+        relevantClaudeSkill = try container.decodeIfPresent(String.self, forKey: .relevantClaudeSkill)
+        ruleUrl = try container.decodeIfPresent(String.self, forKey: .ruleUrl)
+        newCodeLinesOnly = try container.decodeIfPresent(Bool.self, forKey: .newCodeLinesOnly) ?? false
+    }
 }
 
 /// An evaluation task pairing a rule with a focus area.

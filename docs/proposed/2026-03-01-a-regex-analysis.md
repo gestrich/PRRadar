@@ -62,7 +62,10 @@ Add a new `new_code_lines_only` boolean field to the rule frontmatter schema. Wh
 - `PRRadarLibrary/Sources/services/PRRadarModels/RuleOutput.swift` (ReviewRule struct and fromFile parser)
 - `PRRadarLibrary/Sources/services/PRRadarModels/RuleRequest.swift` (TaskRule struct)
 
-## - [ ] Phase 2: Implement "new code only" line filtering
+## - [x] Phase 2: Implement "new code only" line filtering
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added utility at Services layer (PRRadarModels); also fixed Phase 1 JSON decoding issue by adding custom `init(from:)` to `ReviewRule` and `TaskRule` for `newCodeLinesOnly` default
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
