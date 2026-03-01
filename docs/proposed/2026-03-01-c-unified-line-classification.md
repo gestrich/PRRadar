@@ -182,7 +182,7 @@ Replace the UI layer's independent move-detection lookup with the classified lin
 
 To make classified hunks available at the UI layer: added `Codable` conformance to `ClassifiedDiffLine` (with custom decoding that skips non-Codable `MoveCandidate`), `ClassifiedHunk`, and `DiffLineType`; persisted classified hunks to disk during acquisition (`classified-hunks.json`); loaded them in `SyncSnapshot`; and flowed them through `ReviewDetailView` → `DiffPhaseView` → `MovedLineLookup`. All 499 tests pass.
 
-## - [ ] Phase 6: Migrate `reconstructEffectiveDiff` to use classified lines
+## - [x] Phase 6: Migrate `reconstructEffectiveDiff` to use classified lines
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -197,6 +197,8 @@ The effective diff reconstruction (`reconstructEffectiveDiff()` / `filterMovedLi
 
 **Files to modify:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/DiffReconstruction.swift`
+
+**Completed:** Changed `reconstructEffectiveDiff` signature from `(originalDiff:effectiveResults:)` to `(originalDiff:classifiedHunks:)`. The function now filters lines by `ClassifiedDiffLine.classification` instead of building its own moved-line sets. Removed `filterMovedLines()`, `TaggedDL`, `classifyHunk()`, `HunkClassification`, `hunkLineRange()`, and `rangesOverlap()` — all replaced by classified line data. Pipeline reordered: `classifyLines()` and `groupIntoClassifiedHunks()` now run before `reconstructEffectiveDiff()`, which consumes their output. Tests updated to use a `classifyAndReconstruct` helper that mirrors the pipeline flow. All 476 tests pass (23 tests removed with the deleted functions).
 
 ## - [ ] Phase 7: Update the regex analysis plan
 

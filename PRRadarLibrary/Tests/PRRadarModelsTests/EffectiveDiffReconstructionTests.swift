@@ -72,247 +72,19 @@ private func makeEffectiveResult(
     EffectiveDiffResult(candidate: candidate, hunks: hunks, rawDiff: rawDiff)
 }
 
-// MARK: - Tests: hunkLineRange
-
-@Suite struct HunkLineRangeTests {
-
-    @Test func oldSideRange() {
-        let hunk = makeHunk("a.py", oldStart: 10, oldLength: 5, newStart: 20, newLength: 5)
-        let range = hunkLineRange(hunk, side: "old")
-        #expect(range.start == 10)
-        #expect(range.end == 14)
-    }
-
-    @Test func newSideRange() {
-        let hunk = makeHunk("a.py", oldStart: 10, oldLength: 5, newStart: 20, newLength: 5)
-        let range = hunkLineRange(hunk, side: "new")
-        #expect(range.start == 20)
-        #expect(range.end == 24)
-    }
-
-    @Test func zeroLengthOld() {
-        let hunk = makeHunk("a.py", oldStart: 10, oldLength: 0, newStart: 20, newLength: 3)
-        let range = hunkLineRange(hunk, side: "old")
-        #expect(range.start == 10)
-        #expect(range.end == 10)
-    }
-
-    @Test func singleLine() {
-        let hunk = makeHunk("a.py", oldStart: 5, oldLength: 1, newStart: 5, newLength: 1)
-        let range = hunkLineRange(hunk, side: "old")
-        #expect(range.start == 5)
-        #expect(range.end == 5)
-    }
-}
-
-// MARK: - Tests: rangesOverlap
-
-@Suite struct RangesOverlapTests {
-
-    @Test func identicalRanges() {
-        #expect(rangesOverlap(5, 10, 5, 10))
-    }
-
-    @Test func partialOverlap() {
-        #expect(rangesOverlap(5, 10, 8, 15))
-    }
-
-    @Test func containment() {
-        #expect(rangesOverlap(1, 20, 5, 10))
-    }
-
-    @Test func adjacentNoOverlap() {
-        #expect(!rangesOverlap(5, 10, 11, 15))
-    }
-
-    @Test func distantNoOverlap() {
-        #expect(!rangesOverlap(1, 5, 20, 30))
-    }
-
-    @Test func touchingBoundaries() {
-        #expect(rangesOverlap(5, 10, 10, 15))
-    }
-}
-
-// MARK: - Tests: classifyHunk
-
-@Suite struct ClassifyHunkTests {
-
-    private func setupMove() -> [EffectiveDiffResult] {
-        let candidate = makeCandidate(
-            sourceFile: "utils.py", targetFile: "helpers.py",
-            removedLines: [(5, "a"), (6, "b"), (7, "c"), (8, "d"), (9, "e"), (10, "f")],
-            addedLines: [(15, "a"), (16, "b"), (17, "c"), (18, "d"), (19, "e"), (20, "f")]
-        )
-        return [makeEffectiveResult(candidate)]
-    }
-
-    @Test func hunkOnRemovedSide() {
-        let results = setupMove()
-        let hunk = makeHunk("utils.py", oldStart: 5, oldLength: 6, newStart: 5, newLength: 0)
-        let classification = classifyHunk(hunk, effectiveResults: results)
-        if case .moveRemoved = classification {} else {
-            Issue.record("Expected moveRemoved")
-        }
-    }
-
-    @Test func hunkOnAddedSide() {
-        let results = setupMove()
-        let hunk = makeHunk("helpers.py", oldStart: 15, oldLength: 0, newStart: 15, newLength: 6)
-        let classification = classifyHunk(hunk, effectiveResults: results)
-        if case .moveAdded = classification {} else {
-            Issue.record("Expected moveAdded")
-        }
-    }
-
-    @Test func hunkInDifferentFile() {
-        let results = setupMove()
-        let hunk = makeHunk("other.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 3)
-        let classification = classifyHunk(hunk, effectiveResults: results)
-        #expect(classification == .unchanged)
-    }
-
-    @Test func hunkInSourceFileButNoOverlap() {
-        let results = setupMove()
-        let hunk = makeHunk("utils.py", oldStart: 50, oldLength: 3, newStart: 50, newLength: 3)
-        let classification = classifyHunk(hunk, effectiveResults: results)
-        #expect(classification == .unchanged)
-    }
-
-    @Test func hunkInTargetFileButNoOverlap() {
-        let results = setupMove()
-        let hunk = makeHunk("helpers.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 3)
-        let classification = classifyHunk(hunk, effectiveResults: results)
-        #expect(classification == .unchanged)
-    }
-
-    @Test func noEffectiveResults() {
-        let hunk = makeHunk("utils.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 3)
-        let classification = classifyHunk(hunk, effectiveResults: [])
-        #expect(classification == .unchanged)
-    }
-}
-
-// MARK: - Tests: filterMovedLines
-
-@Suite struct FilterMovedLinesTests {
-
-    @Test func removesAllMovedLinesFromPureDeletion() {
-        let hunk = makeHunk(
-            "utils.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0,
-            content: "@@ -5,3 +5,0 @@\n-aaa\n-bbb\n-ccc"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [5, 6, 7],
-            movedAddedLines: []
-        )
-        #expect(result.isEmpty)
-    }
-
-    @Test func removesAllMovedLinesFromPureAddition() {
-        let hunk = makeHunk(
-            "helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3,
-            content: "@@ -10,0 +10,3 @@\n+aaa\n+bbb\n+ccc"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [],
-            movedAddedLines: [10, 11, 12]
-        )
-        #expect(result.isEmpty)
-    }
-
-    @Test func keepsNonMovedRemovals() {
-        let hunk = makeHunk(
-            "utils.py", oldStart: 1, oldLength: 5, newStart: 1, newLength: 0,
-            content: "@@ -1,5 +1,0 @@\n-genuine1\n-genuine2\n-moved1\n-moved2\n-genuine3"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [3, 4],
-            movedAddedLines: []
-        )
-        #expect(result.count == 2)
-        #expect(result[0].content.contains("-genuine1"))
-        #expect(result[0].content.contains("-genuine2"))
-        #expect(result[0].oldStart == 1)
-        #expect(result[0].oldLength == 2)
-        #expect(result[1].content.contains("-genuine3"))
-        #expect(result[1].oldStart == 5)
-        #expect(result[1].oldLength == 1)
-    }
-
-    @Test func keepsNonMovedAdditions() {
-        let hunk = makeHunk(
-            "helpers.py", oldStart: 1, oldLength: 0, newStart: 1, newLength: 5,
-            content: "@@ -1,0 +1,5 @@\n+new1\n+new2\n+moved1\n+moved2\n+new3"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [],
-            movedAddedLines: [3, 4]
-        )
-        #expect(result.count == 2)
-        #expect(result[0].content.contains("+new1"))
-        #expect(result[0].content.contains("+new2"))
-        #expect(result[0].newStart == 1)
-        #expect(result[0].newLength == 2)
-        #expect(result[1].content.contains("+new3"))
-        #expect(result[1].newStart == 5)
-        #expect(result[1].newLength == 1)
-    }
-
-    @Test func preservesContextLines() {
-        let hunk = makeHunk(
-            "utils.py", oldStart: 1, oldLength: 4, newStart: 1, newLength: 2,
-            content: "@@ -1,4 +1,2 @@\n context_before\n-moved1\n-moved2\n context_after"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [2, 3],
-            movedAddedLines: []
-        )
-        #expect(result.isEmpty, "No changes remain after filtering moved lines")
-    }
-
-    @Test func handlesEmptyMovedSets() {
-        let hunk = makeHunk(
-            "a.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 2,
-            content: "@@ -1,2 +1,2 @@\n-old\n+new\n context"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [],
-            movedAddedLines: []
-        )
-        #expect(result.count == 1)
-        #expect(result[0].content.contains("-old"))
-        #expect(result[0].content.contains("+new"))
-    }
-
-    @Test func mixedMovedAndGenuineChanges() {
-        let hunk = makeHunk(
-            "file.py", oldStart: 1, oldLength: 4, newStart: 1, newLength: 4,
-            content: "@@ -1,4 +1,4 @@\n-removed_genuine\n-removed_moved\n+added_moved\n+added_genuine\n context1\n context2"
-        )
-        let result = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: [2],
-            movedAddedLines: [1]
-        )
-        // Split into 2 sub-hunks: genuine removal before the gap, genuine addition after
-        #expect(result.count == 2)
-        #expect(result[0].content.contains("-removed_genuine"))
-        #expect(!result[0].content.contains("removed_moved"))
-        #expect(result[1].content.contains("+added_genuine"))
-        #expect(!result[1].content.contains("added_moved"))
-    }
-}
-
 // MARK: - Tests: reconstructEffectiveDiff
 
 @Suite struct ReconstructEffectiveDiffTests {
+
+    /// Classify lines and group into hunks, then reconstruct — mirrors the pipeline flow.
+    private func classifyAndReconstruct(
+        originalDiff: GitDiff,
+        effectiveResults: [EffectiveDiffResult]
+    ) -> GitDiff {
+        let classified = classifyLines(originalDiff: originalDiff, effectiveResults: effectiveResults)
+        let hunks = groupIntoClassifiedHunks(originalDiff: originalDiff, classifiedLines: classified)
+        return reconstructEffectiveDiff(originalDiff: originalDiff, classifiedHunks: hunks)
+    }
 
     @Test func noMovesReturnsOriginal() {
         let diff = GitDiff(
@@ -323,7 +95,7 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: diff, effectiveResults: [])
+        let result = classifyAndReconstruct(originalDiff: diff, effectiveResults: [])
         #expect(result.hunks.count == 2)
     }
 
@@ -345,7 +117,7 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
         #expect(result.hunks.count == 0)
     }
 
@@ -369,7 +141,7 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
 
         let utilsHunks = result.hunks.filter { $0.filePath == "utils.py" }
         #expect(utilsHunks.count == 2, "Non-moved removals should produce 2 sub-hunks (split at moved lines)")
@@ -400,7 +172,7 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
 
         let handlerHunks = result.hunks.filter { $0.filePath == "handlers.py" }
         #expect(handlerHunks.count == 2, "Non-moved additions should produce 2 sub-hunks")
@@ -432,7 +204,7 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
         #expect(result.hunks.count == 2)
         let filePaths = result.hunks.map(\.filePath)
         #expect(filePaths.contains("c.py"))
@@ -468,14 +240,14 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [eff1, eff2])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [eff1, eff2])
         #expect(result.hunks.count == 1)
         #expect(result.hunks[0].filePath == "keep.py")
     }
 
     @Test func preservesCommitHash() {
         let original = GitDiff(rawContent: "", hunks: [], commitHash: "abc123")
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [])
         #expect(result.commitHash == "abc123")
     }
 
@@ -495,7 +267,7 @@ private func makeEffectiveResult(
             ],
             commitHash: ""
         )
-        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
 
         #expect(result.hunks.count == 2)
         #expect(result.hunks[0].oldStart == 1)

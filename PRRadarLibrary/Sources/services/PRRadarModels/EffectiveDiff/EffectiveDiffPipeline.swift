@@ -52,10 +52,6 @@ public func runEffectiveDiffPipeline(
         effectiveResults.append(result)
     }
 
-    let effectiveDiff = reconstructEffectiveDiff(
-        originalDiff: gitDiff,
-        effectiveResults: effectiveResults
-    )
     let report = buildMoveReport(effectiveResults)
 
     let classifiedLines = classifyLines(
@@ -65,6 +61,10 @@ public func runEffectiveDiffPipeline(
     let classifiedHunks = groupIntoClassifiedHunks(
         originalDiff: gitDiff,
         classifiedLines: classifiedLines
+    )
+    let effectiveDiff = reconstructEffectiveDiff(
+        originalDiff: gitDiff,
+        classifiedHunks: classifiedHunks
     )
 
     return EffectiveDiffPipelineResult(

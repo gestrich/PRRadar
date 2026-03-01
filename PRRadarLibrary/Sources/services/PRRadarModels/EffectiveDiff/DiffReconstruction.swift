@@ -99,186 +99,76 @@ func countChangedLinesInHunks(_ hunks: [Hunk]) -> Int {
     return count
 }
 
-func hunkLineRange(_ hunk: Hunk, side: String) -> (start: Int, end: Int) {
-    if side == "old" {
-        return (hunk.oldStart, hunk.oldStart + max(hunk.oldLength - 1, 0))
-    }
-    return (hunk.newStart, hunk.newStart + max(hunk.newLength - 1, 0))
-}
-
-func rangesOverlap(
-    _ aStart: Int, _ aEnd: Int,
-    _ bStart: Int, _ bEnd: Int
-) -> Bool {
-    aStart <= bEnd && bStart <= aEnd
-}
-
-// MARK: - Hunk Classification
-
-public enum HunkClassification: Equatable {
-    case moveRemoved(EffectiveDiffResult)
-    case moveAdded(EffectiveDiffResult)
-    case unchanged
-
-    public static func == (lhs: HunkClassification, rhs: HunkClassification) -> Bool {
-        switch (lhs, rhs) {
-        case (.unchanged, .unchanged):
-            return true
-        case let (.moveRemoved(a), .moveRemoved(b)):
-            return a == b
-        case let (.moveAdded(a), .moveAdded(b)):
-            return a == b
-        default:
-            return false
-        }
-    }
-}
-
-public func classifyHunk(
-    _ hunk: Hunk,
-    effectiveResults: [EffectiveDiffResult]
-) -> HunkClassification {
-    let (hunkOldStart, hunkOldEnd) = hunkLineRange(hunk, side: "old")
-    let (hunkNewStart, hunkNewEnd) = hunkLineRange(hunk, side: "new")
-
-    for result in effectiveResults {
-        let candidate = result.candidate
-        let srcStart = candidate.removedLines.first!.lineNumber
-        let srcEnd = candidate.removedLines.last!.lineNumber
-        let tgtStart = candidate.addedLines.first!.lineNumber
-        let tgtEnd = candidate.addedLines.last!.lineNumber
-
-        if hunk.filePath == candidate.sourceFile
-            && hunkOldStart > 0
-            && rangesOverlap(hunkOldStart, hunkOldEnd, srcStart, srcEnd) {
-            return .moveRemoved(result)
-        }
-
-        if hunk.filePath == candidate.targetFile
-            && hunkNewStart > 0
-            && rangesOverlap(hunkNewStart, hunkNewEnd, tgtStart, tgtEnd) {
-            return .moveAdded(result)
-        }
-    }
-
-    return .unchanged
-}
-
-// MARK: - Line-Level Filtering
-
-/// Filter moved lines from a hunk, returning sub-hunks that contain only non-moved changes.
-///
-/// Removed lines whose `oldLineNumber` is in `movedRemovedLines` are stripped (they were
-/// moved to another file, not deleted). Added lines whose `newLineNumber` is in
-/// `movedAddedLines` are stripped (they were moved from another file, not new).
-///
-/// The hunk is split at filtered-line boundaries so that surviving lines keep their
-/// correct line numbers.
-public func filterMovedLines(
-    from hunk: Hunk,
-    movedRemovedLines: Set<Int>,
-    movedAddedLines: Set<Int>
-) -> [Hunk] {
-    let allDiffLines = hunk.getDiffLines()
-
-    let fileHeaderLines = allDiffLines
-        .filter { $0.lineType == .header && !$0.rawLine.hasPrefix("@@") }
-        .map(\.rawLine)
-
-    let bodyLines = allDiffLines.filter { $0.lineType != .header }
-
-    // Tag each body line as kept or filtered
-    struct TaggedDL {
-        let dl: DiffLine
-        let kept: Bool
-    }
-
-    let tagged = bodyLines.map { dl -> TaggedDL in
-        let isMovedRemoval = dl.lineType == .removed
-            && dl.oldLineNumber.map { movedRemovedLines.contains($0) } == true
-        let isMovedAddition = dl.lineType == .added
-            && dl.newLineNumber.map { movedAddedLines.contains($0) } == true
-        return TaggedDL(dl: dl, kept: !isMovedRemoval && !isMovedAddition)
-    }
-
-    // Split into segments at filtered-line boundaries to preserve correct line numbers
-    var segments: [[DiffLine]] = []
-    var current: [DiffLine] = []
-
-    for item in tagged {
-        if item.kept {
-            current.append(item.dl)
-        } else {
-            if !current.isEmpty {
-                segments.append(current)
-                current = []
-            }
-        }
-    }
-    if !current.isEmpty {
-        segments.append(current)
-    }
-
-    return segments.compactMap { segment in
-        guard segment.contains(where: { $0.isChanged }) else { return nil }
-
-        let oldStart = segment.compactMap(\.oldLineNumber).min() ?? hunk.oldStart
-        let newStart = segment.compactMap(\.newLineNumber).min() ?? hunk.newStart
-        let oldLength = segment.filter { $0.lineType == .removed || $0.lineType == .context }.count
-        let newLength = segment.filter { $0.lineType == .added || $0.lineType == .context }.count
-
-        let header = "@@ -\(oldStart),\(oldLength) +\(newStart),\(newLength) @@"
-        let bodyRaw = segment.map(\.rawLine)
-        let content = (fileHeaderLines + [header] + bodyRaw).joined(separator: "\n")
-
-        return Hunk(
-            filePath: hunk.filePath,
-            content: content,
-            rawHeader: hunk.rawHeader,
-            oldStart: oldStart,
-            oldLength: oldLength,
-            newStart: newStart,
-            newLength: newLength,
-            renameFrom: hunk.renameFrom
-        )
-    }
-}
-
 // MARK: - Reconstruction
 
+/// Reconstruct the effective diff by filtering out moved lines using pre-computed classifications.
+///
+/// Lines classified as `.moved` or `.movedRemoval` are stripped. Remaining lines are split
+/// at filtered-line boundaries into sub-hunks that preserve correct line numbers. Only
+/// sub-hunks containing at least one changed line (added or removed) are kept.
 public func reconstructEffectiveDiff(
     originalDiff: GitDiff,
-    effectiveResults: [EffectiveDiffResult]
+    classifiedHunks: [ClassifiedHunk]
 ) -> GitDiff {
-    // Collect all moved line numbers per file from all move candidates
-    var sourceMovedLines: [String: Set<Int>] = [:]
-    var targetMovedLines: [String: Set<Int>] = [:]
-
-    for result in effectiveResults {
-        let candidate = result.candidate
-        sourceMovedLines[candidate.sourceFile, default: []]
-            .formUnion(candidate.removedLines.map(\.lineNumber))
-        targetMovedLines[candidate.targetFile, default: []]
-            .formUnion(candidate.addedLines.map(\.lineNumber))
-    }
-
     var survivingHunks: [Hunk] = []
 
-    for hunk in originalDiff.hunks {
-        let movedRemoved = sourceMovedLines[hunk.filePath] ?? []
-        let movedAdded = targetMovedLines[hunk.filePath] ?? []
+    for (originalHunk, classifiedHunk) in zip(originalDiff.hunks, classifiedHunks) {
+        let hasMovedLines = classifiedHunk.lines.contains {
+            $0.classification == .moved || $0.classification == .movedRemoval
+        }
 
-        if movedRemoved.isEmpty && movedAdded.isEmpty {
-            survivingHunks.append(hunk)
+        if !hasMovedLines {
+            survivingHunks.append(originalHunk)
             continue
         }
 
-        let filtered = filterMovedLines(
-            from: hunk,
-            movedRemovedLines: movedRemoved,
-            movedAddedLines: movedAdded
-        )
-        survivingHunks.append(contentsOf: filtered)
+        let fileHeaderLines = originalHunk.getDiffLines()
+            .filter { $0.lineType == .header && !$0.rawLine.hasPrefix("@@") }
+            .map(\.rawLine)
+
+        // Split into segments at moved-line boundaries
+        var segments: [[ClassifiedDiffLine]] = []
+        var current: [ClassifiedDiffLine] = []
+
+        for line in classifiedHunk.lines {
+            if line.classification != .moved && line.classification != .movedRemoval {
+                current.append(line)
+            } else {
+                if !current.isEmpty {
+                    segments.append(current)
+                    current = []
+                }
+            }
+        }
+        if !current.isEmpty {
+            segments.append(current)
+        }
+
+        for segment in segments {
+            guard segment.contains(where: { $0.lineType == .added || $0.lineType == .removed }) else {
+                continue
+            }
+
+            let oldStart = segment.compactMap(\.oldLineNumber).min() ?? originalHunk.oldStart
+            let newStart = segment.compactMap(\.newLineNumber).min() ?? originalHunk.newStart
+            let oldLength = segment.filter { $0.lineType == .removed || $0.lineType == .context }.count
+            let newLength = segment.filter { $0.lineType == .added || $0.lineType == .context }.count
+
+            let header = "@@ -\(oldStart),\(oldLength) +\(newStart),\(newLength) @@"
+            let bodyRaw = segment.map(\.rawLine)
+            let content = (fileHeaderLines + [header] + bodyRaw).joined(separator: "\n")
+
+            survivingHunks.append(Hunk(
+                filePath: originalHunk.filePath,
+                content: content,
+                rawHeader: originalHunk.rawHeader,
+                oldStart: oldStart,
+                oldLength: oldLength,
+                newStart: newStart,
+                newLength: newLength,
+                renameFrom: originalHunk.renameFrom
+            ))
+        }
     }
 
     return GitDiff(
