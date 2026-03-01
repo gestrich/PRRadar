@@ -377,16 +377,15 @@ public struct OctokitClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/vnd.github.comfort-fade-preview+json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
 
         let payload: [String: Any] = [
             "body": body,
             "commit_id": commitId,
             "path": path,
             "line": line,
-            "subject_type": "line"
+            "side": "RIGHT"
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
