@@ -155,7 +155,10 @@ public struct RuleLoaderService: Sendable {
             relevantClaudeSkill: rule.relevantClaudeSkill,
             ruleUrl: ruleUrl,
             appliesTo: rule.appliesTo,
-            grep: rule.grep
+            grep: rule.grep,
+            newCodeLinesOnly: rule.newCodeLinesOnly,
+            violationRegex: rule.violationRegex,
+            violationMessage: rule.violationMessage
         )
     }
 }

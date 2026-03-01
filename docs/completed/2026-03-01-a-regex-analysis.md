@@ -157,7 +157,10 @@ Route tasks with `violation_regex` rules to the regex service instead of the AI 
 - `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/AnalyzeSingleTaskUseCase.swift`
 - `PRRadarLibrary/Sources/services/PRRadarCLIService/AnalysisService.swift`
 
-## - [ ] Phase 6: Create test rule and verify end-to-end with test repo
+## - [x] Phase 6: Create test rule and verify end-to-end with test repo
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Found and fixed bug in `RuleLoaderService.ruleWithURL()` that dropped `newCodeLinesOnly`, `violationRegex`, and `violationMessage` fields during URL enrichment; created two test rules (`detect-force-unwrap`, `no-return-nil`) and verified full pipeline (analyze → report → comment) with $0.00 cost regex evaluation
 
 Verify the full pipeline works with a regex-only rule using the test repo at `/Users/bill/Developer/personal/PRRadar-TestRepo`.
 
@@ -179,7 +182,10 @@ Verify the full pipeline works with a regex-only rule using the test repo at `/U
 - Run `swift run PRRadarMacCLI report 1 --config test-repo` and verify the report picks up the violations
 - Run `swift run PRRadarMacCLI comment 1 --config test-repo` and verify comment generation works for regex violations
 
-## - [ ] Phase 7: Validation
+## - [x] Phase 7: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Arrange-Act-Assert pattern; 21 tests in 5 suites covering YAML parsing, regex matching, new-code-only filtering, focus area filtering, and pipeline routing; 524 total tests passing
 
 **Skills to read**: `/swift-testing`
 
