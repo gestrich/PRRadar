@@ -332,34 +332,10 @@ public struct OctokitClient: Sendable {
         number: Int,
         body: String
     ) async throws -> Issue.Comment {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/issues/\(number)/comments")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["body": body])
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OctokitClientError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200, 201:
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .formatted(Time.rfc3339DateFormatter)
-            return try decoder.decode(Issue.Comment.self, from: data)
-        case 401:
-            throw OctokitClientError.authenticationFailed
-        case 404:
-            throw OctokitClientError.notFound("Issue \(number) not found")
-        default:
-            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
-            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
-        }
+        try await postJSON(
+            path: "repos/\(owner)/\(repository)/issues/\(number)/comments",
+            payload: ["body": body]
+        )
     }
 
     @discardableResult
@@ -372,44 +348,17 @@ public struct OctokitClient: Sendable {
         line: Int,
         body: String
     ) async throws -> PullRequest.Comment {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)/comments")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.comfort-fade-preview+json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let payload: [String: Any] = [
-            "body": body,
-            "commit_id": commitId,
-            "path": path,
-            "line": line,
-            "side": "RIGHT"
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OctokitClientError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200, 201:
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .formatted(Time.rfc3339DateFormatter)
-            return try decoder.decode(PullRequest.Comment.self, from: data)
-        case 401:
-            throw OctokitClientError.authenticationFailed
-        case 404:
-            throw OctokitClientError.notFound("PR \(number) not found")
-        case 422:
-            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
-            throw OctokitClientError.requestFailed("Validation failed (422): \(errorBody)")
-        default:
-            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
-            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
-        }
+        try await postJSON(
+            path: "repos/\(owner)/\(repository)/pulls/\(number)/comments",
+            accept: "application/vnd.github.comfort-fade-preview+json",
+            payload: [
+                "body": body,
+                "commit_id": commitId,
+                "path": path,
+                "line": line,
+                "side": "RIGHT"
+            ]
+        )
     }
 
     public func issueComments(
@@ -569,6 +518,40 @@ public struct OctokitClient: Sendable {
     }
 
     // MARK: - Private
+
+    private func postJSON<T: Decodable>(
+        path: String,
+        accept: String = "application/vnd.github+json",
+        payload: [String: Any]
+    ) async throws -> T {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let url = URL(string: "\(baseURL)/\(path)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200, 201:
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(Time.rfc3339DateFormatter)
+            return try decoder.decode(T.self, from: data)
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound(path)
+        default:
+            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
+        }
+    }
 
     private func client() -> Octokit {
         let config: TokenConfiguration
