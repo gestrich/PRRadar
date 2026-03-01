@@ -48,9 +48,10 @@ Create a doc at `docs/ci-setup.md` explaining how to set up PRRadar CI in a repo
 - Known requirements: the workflow must exist on the default branch, `pull-requests: write` permission
 - Troubleshooting: Bearer auth requirement, comfort-fade preview header, rules-dir path
 
-## - [ ] Phase 2: Conditionally exclude MacApp target on Linux
+## - [x] Phase 2: Conditionally exclude MacApp target on Linux
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Used mutable array pattern with `#if os(macOS)` to conditionally include MacApp target, MacAppTests, and macOS-only dependencies (swift-markdown-ui, swift-markdown). All cross-platform targets remain unconditional.
 
 Update `PRRadarLibrary/Package.swift` to conditionally exclude MacApp-related targets on Linux, following the pattern from StackAnalytics:
 
