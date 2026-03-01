@@ -13,7 +13,7 @@ struct DiffLineData: Identifiable {
 }
 
 enum DiffLayout {
-    static let gutterWidth: CGFloat = 112
+    static let gutterWidth: CGFloat = 96
 }
 
 // MARK: - Moved Line Lookup
@@ -154,6 +154,17 @@ struct DiffLineRowView: View {
 
                 Color.clear
                     .frame(width: 4, height: 16)
+                    .overlay {
+                        if isMoved, let onMoveTapped {
+                            Button(action: onMoveTapped) {
+                                Image(systemName: "arrow.right.arrow.left")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.orange)
+                            }
+                            .buttonStyle(.plain)
+                            .help("View moved code")
+                        }
+                    }
 
                 Text(newLineNumber.map { String($0) } ?? "")
                     .font(.system(.caption2, design: .monospaced))
@@ -176,19 +187,6 @@ struct DiffLineRowView: View {
                     .buttonStyle(.plain)
                     .offset(x: 12)
                 }
-            }
-
-            if isMoved, let onMoveTapped {
-                Button(action: onMoveTapped) {
-                    Image(systemName: "arrow.right.arrow.left")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.orange)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 16)
-                .help("View moved code")
-            } else {
-                Color.clear.frame(width: 16)
             }
 
             HStack(spacing: 0) {
