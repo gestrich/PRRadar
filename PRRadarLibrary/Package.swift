@@ -15,6 +15,12 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
 ]
 
+#if !canImport(CryptoKit)
+dependencies.append(
+    .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0")
+)
+#endif
+
 var targets: [Target] = [
     // SDK Layer
     .target(
@@ -61,6 +67,13 @@ var targets: [Target] = [
     // Services Layer — Domain Models (Foundation-only, no other target deps)
     .target(
         name: "PRRadarModels",
+        dependencies: {
+            var deps: [Target.Dependency] = []
+            #if !canImport(CryptoKit)
+            deps.append(.product(name: "Crypto", package: "swift-crypto"))
+            #endif
+            return deps
+        }(),
         path: "Sources/services/PRRadarModels"
     ),
 
@@ -78,16 +91,22 @@ var targets: [Target] = [
     // Services Layer — CLI Execution
     .target(
         name: "PRRadarCLIService",
-        dependencies: [
-            .target(name: "ClaudeSDK"),
-            .target(name: "GitSDK"),
-            .target(name: "GitHubSDK"),
-            .target(name: "PRRadarConfigService"),
-            .target(name: "PRRadarModels"),
-            .target(name: "EnvironmentSDK"),
-            .product(name: "CLISDK", package: "SwiftCLI"),
-            .product(name: "OctoKit", package: "octokit.swift"),
-        ],
+        dependencies: {
+            var deps: [Target.Dependency] = [
+                .target(name: "ClaudeSDK"),
+                .target(name: "GitSDK"),
+                .target(name: "GitHubSDK"),
+                .target(name: "PRRadarConfigService"),
+                .target(name: "PRRadarModels"),
+                .target(name: "EnvironmentSDK"),
+                .product(name: "CLISDK", package: "SwiftCLI"),
+                .product(name: "OctoKit", package: "octokit.swift"),
+            ]
+            #if !canImport(CryptoKit)
+            deps.append(.product(name: "Crypto", package: "swift-crypto"))
+            #endif
+            return deps
+        }(),
         path: "Sources/services/PRRadarCLIService"
     ),
 
