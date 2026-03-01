@@ -110,7 +110,10 @@ Add a new `violation_regex` field to the rule frontmatter. When present, this re
 - `PRRadarLibrary/Sources/services/PRRadarModels/RuleOutput.swift`
 - `PRRadarLibrary/Sources/services/PRRadarModels/RuleRequest.swift`
 
-## - [ ] Phase 4: Implement regex-based evaluation service
+## - [x] Phase 4: Implement regex-based evaluation service
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Replaced `modelUsed: String` hack with `AnalysisMethod` enum (`.ai(model:costUsd:)` / `.regex(pattern:)`); cost moved into `.ai` case as method-specific data; `RegexAnalysisService` takes pattern as explicit parameter (caller routes, no defensive guard); all downstream consumers updated
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
