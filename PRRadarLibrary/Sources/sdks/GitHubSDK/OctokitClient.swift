@@ -519,6 +519,15 @@ public struct OctokitClient: Sendable {
 
     // MARK: - Private
 
+    /// Bypasses OctoKit's router for POST requests. This was needed because:
+    /// 1. OctoKit sends `Authorization: Basic <token>` which GitHub Actions' GITHUB_TOKEN
+    ///    rejects with 401. Bearer auth is required for installation tokens.
+    /// 2. OctoKit's router doesn't set `X-GitHub-Api-Version` or preview headers, so the
+    ///    review comment API rejects `line`/`subject_type` params with 422.
+    ///
+    /// The remaining read methods still use `client()` (OctoKit with Basic auth) and work
+    /// with PATs locally and in CI. If those break in CI, consider migrating them here too,
+    /// or replacing the OctoKit dependency entirely with direct URLSession calls.
     private func postJSON<T: Decodable>(
         path: String,
         accept: String = "application/vnd.github+json",
