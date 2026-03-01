@@ -82,15 +82,19 @@ Changes:
 2. **SettingsService**: Update `init()` to use `SecurityCLIKeychainStore` on macOS, `EnvironmentKeychainStore` on Linux.
 3. **Tests**: Add unit tests for `EnvironmentKeychainStore`.
 
-## - [ ] Phase 4: Fix SwiftCLI dependency for Linux
+## - [x] Phase 4: Verify SwiftCLI dependency works on Linux
 
-The custom SwiftCLI fork at `https://github.com/gestrich/SwiftCLI.git` has `platforms: [.macOS(.v15)]` which blocks Linux builds. Options to investigate:
+**Principles applied**: Investigation over assumption — verified SPM behavior rather than blindly modifying Package.swift
 
-1. Update the fork's Package.swift to remove or broaden platform constraints
-2. Check if SwiftCLI's macro system (`CLIMacrosSDK`) compiles on Linux
-3. If macros don't work on Linux, consider making the macro features conditional
+The custom SwiftCLI fork at `https://github.com/gestrich/SwiftCLI.git` has `platforms: [.macOS(.v15)]` which was hypothesized to block Linux builds. Investigation found:
 
-This phase may require changes in the SwiftCLI repo, not just PRRadar.
+1. **`platforms` does NOT block Linux** — SPM ignores Apple platform constraints on Linux. Every Swift package has Linux support by default; `platforms` only sets minimum deployment targets for Apple platforms.
+2. **No macOS-specific code** — All imports are cross-platform: `Foundation`, `Synchronization`, `SwiftSyntax`. No `AppKit`, `SwiftUI`, `Security`, or other macOS-only frameworks.
+3. **Macros are cross-platform** — `CLIMacrosSDK` uses `SwiftCompilerPlugin` and `SwiftSyntax`, both available on Linux.
+4. **`Mutex` (Synchronization)** — Requires macOS 15 on Apple platforms but is available on Linux with Swift 6.0+ (no version constraint).
+5. **Removing `platforms` entirely breaks macOS builds** — SPM defaults to macOS 10.13, which is below `SwiftCompilerPlugin`'s minimum of 10.15 and `Mutex`'s requirement of macOS 15.
+
+**Result**: No changes needed to SwiftCLI. The `platforms: [.macOS(.v15)]` constraint is correct and does not affect Linux builds.
 
 ## - [ ] Phase 5: Update workflow to use Linux runner
 
