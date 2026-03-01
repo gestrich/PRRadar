@@ -82,16 +82,14 @@ Currently `PRAcquisitionService` writes the full diff as the effective diff (lin
 - Handle errors gracefully: if the effective diff pipeline fails, fall back to the current behavior (full diff as effective diff with empty move report)
 - After implementation, run `swift run PRRadarMacCLI diff 1 --config test-repo` against the test repo and inspect the output `effective-diff-parsed.json` and `effective-diff-moves.json` to confirm they differ from the full diff
 
-**Files to modify:**
-- `PRRadarLibrary/Sources/services/PRRadarCLIService/PRAcquisitionService.swift`
+**Files modified:**
+- `PRRadarLibrary/Sources/services/PRRadarCLIService/PRAcquisitionService.swift` (pipeline call, `runEffectiveDiff` method)
+- `PRRadarLibrary/Sources/sdks/GitSDK/GitOperationsService.swift` (`getMergeBase`, `getFileContent` methods)
 
-**Key considerations:**
-- The `rediff` parameter type is `RediffFunction` — check `BlockExtension.swift` for the expected signature
-- Need to read file contents at both base and head commits for moved-code detection
-- This may require new methods on `GitOperationsService` to read file contents at specific commits (e.g., `git show <commit>:<path>`)
-- The pipeline might be slow for large diffs — consider logging progress and keeping the fallback path solid
+## - [x] Phase 3: Verify effective diff with test repo and MacApp
 
-## - [ ] Phase 3: Verify effective diff with test repo and MacApp
+**Skills used**: `swift-app-architecture:swift-swiftui`, `swift-app-architecture:swift-architecture`
+**Principles applied**: Verification against the test repo revealed two issues that were fixed in this phase: (1) the reconstruction algorithm dropped non-moved changes that shared a hunk with moved code — switched from hunk-level to line-level filtering; (2) the diff viewer had no visual indicator for moved lines — added orange arrow gutter icons that open the EffectiveDiffView pre-focused on the relevant move.
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -105,12 +103,31 @@ With the pipeline wired up, verify end-to-end using the test repo at `/Users/bil
 - Check that the move report section in the left panel populates correctly with source/target files, matched line counts, and scores
 - Fix any display or data-binding issues found
 
-**Files potentially affected:**
-- `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewViews/EffectiveDiffView.swift`
-- `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewDetailView.swift`
-- `PRRadarLibrary/Sources/apps/MacApp/Models/PRModel.swift`
+**Issues found and fixed:**
 
-## - [ ] Phase 4: Validation
+1. **Reconstruction dropped non-moved changes** — the original hunk-level approach classified entire hunks as move-removed or move-added, which lost legitimate changes sharing a hunk with moved code. Switched `DiffReconstruction` to line-level filtering using `MoveCandidate` line numbers, splitting hunks at boundaries to preserve correct line numbers. Also reduced `defaultContextLines` from 20 to 3 to avoid pulling unrelated code into re-diff regions.
+
+2. **No visual indicator for moved lines in the diff viewer** — added `MovedLineLookup` to cross-reference the `MoveReport` with individual diff lines. Lines that are part of a detected code move now show an orange arrow icon in the gutter. Tapping it opens the `EffectiveDiffView` sheet pre-focused on the relevant move via the `initialMove` parameter.
+
+3. **`diffNoIndex` was synchronous** — the rediff function used a manual `Process` spawn, inconsistent with the rest of the codebase. Replaced the synchronous free function `gitDiffNoIndex` with an async `GitOperationsService.diffNoIndex` method routed through `GitCLI.Diff(noIndex:noColor:)` via `CLIClient`.
+
+**Files modified:**
+- `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/DiffReconstruction.swift` (line-level filtering)
+- `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/BlockExtension.swift` (async rediff signature)
+- `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/EffectiveDiffPipeline.swift` (async pipeline)
+- `PRRadarLibrary/Sources/sdks/GitSDK/GitOperationsService.swift` (async `diffNoIndex`)
+- `PRRadarLibrary/Sources/apps/MacApp/UI/GitViews/RichDiffViews.swift` (moved line gutter indicators, `MovedLineLookup`)
+- `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewDetailView.swift` (pass move report, handle move taps)
+- `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewViews/EffectiveDiffView.swift` (`initialMove` navigation)
+- `PRRadarLibrary/Sources/apps/MacApp/UI/PhaseViews/DiffPhaseView.swift` (`onMoveTapped` callback)
+- `PRRadarLibrary/Tests/PRRadarModelsTests/EffectiveDiffReconstructionTests.swift` (line-level filtering tests)
+- `PRRadarLibrary/Tests/PRRadarModelsTests/EffectiveDiffRediffTests.swift` (async rediff tests)
+- `PRRadarLibrary/Tests/PRRadarModelsTests/EffectiveDiffEndToEndTests.swift` (async pipeline tests)
+
+## - [x] Phase 4: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Ran effective diff tests (141 tests in 24 suites) and full test suite (499 tests in 55 suites) — all passing.
 
 **Skills to read**: `/swift-testing`
 
@@ -120,3 +137,4 @@ With the pipeline wired up, verify end-to-end using the test repo at `/Users/bil
 - Build check: `cd PRRadarLibrary && swift build`
 - Run the CLI against the test repo to confirm end-to-end: `cd PRRadarLibrary && swift run PRRadarMacCLI diff 1 --config test-repo`
 - Verify effective diff output files contain real pipeline results (not just a copy of the full diff)
+- Verify that the analysis pipeline (`swift run PRRadarMacCLI analyze 1 --config test-repo`) still uses the full diff, not the effective diff, for focus area generation and evaluation
