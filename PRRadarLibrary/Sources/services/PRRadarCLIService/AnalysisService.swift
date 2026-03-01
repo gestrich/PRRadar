@@ -219,10 +219,14 @@ public struct AnalysisService: Sendable {
     }
 
     /// Run analysis for all tasks, writing results to the evaluations directory.
+    ///
+    /// Tasks with `violationRegex` are evaluated via `RegexAnalysisService` first (instant),
+    /// then AI tasks are evaluated sequentially via the Claude agent.
     public func runBatchAnalysis(
         tasks: [RuleRequest],
         evalsDir: String,
         repoPath: String,
+        classifiedHunks: [ClassifiedHunk] = [],
         onStart: ((Int, Int, RuleRequest) -> Void)? = nil,
         onResult: ((Int, Int, RuleOutcome) -> Void)? = nil,
         onPrompt: ((String, RuleRequest) -> Void)? = nil,
@@ -231,37 +235,53 @@ public struct AnalysisService: Sendable {
     ) async throws -> [RuleOutcome] {
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
 
-        var results: [RuleOutcome] = []
-        let total = tasks.count
+        let regexTasks = tasks.filter { $0.rule.isRegexOnly }
+        let aiTasks = tasks.filter { !$0.rule.isRegexOnly }
+        let orderedTasks = regexTasks + aiTasks
 
-        for (i, task) in tasks.enumerated() {
+        var results: [RuleOutcome] = []
+        let total = orderedTasks.count
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+        let regexService = RegexAnalysisService()
+
+        for (i, task) in orderedTasks.enumerated() {
             let index = i + 1
             onStart?(index, total, task)
 
             var result: RuleOutcome
-            do {
-                result = try await analyzeTask(
-                    task,
-                    repoPath: repoPath,
-                    transcriptDir: evalsDir,
-                    onPrompt: onPrompt,
-                    onAIText: onAIText,
-                    onAIToolUse: onAIToolUse
-                )
 
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            if let pattern = task.rule.violationRegex {
+                let focusedHunks = RegexAnalysisService.filterHunksForFocusArea(classifiedHunks, focusArea: task.focusArea)
+                result = regexService.analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
+
                 let data = try encoder.encode(result)
                 let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
                 try data.write(to: URL(fileURLWithPath: resultPath))
-            } catch {
-                result = .error(RuleError(
-                    taskId: task.taskId,
-                    ruleName: task.rule.name,
-                    filePath: task.focusArea.filePath,
-                    errorMessage: error.localizedDescription,
-                    analysisMethod: .ai(model: task.rule.model ?? Self.defaultModel, costUsd: 0)
-                ))
+            } else {
+                do {
+                    result = try await analyzeTask(
+                        task,
+                        repoPath: repoPath,
+                        transcriptDir: evalsDir,
+                        onPrompt: onPrompt,
+                        onAIText: onAIText,
+                        onAIToolUse: onAIToolUse
+                    )
+
+                    let data = try encoder.encode(result)
+                    let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
+                    try data.write(to: URL(fileURLWithPath: resultPath))
+                } catch {
+                    result = .error(RuleError(
+                        taskId: task.taskId,
+                        ruleName: task.rule.name,
+                        filePath: task.focusArea.filePath,
+                        errorMessage: error.localizedDescription,
+                        analysisMethod: .ai(model: task.rule.model ?? Self.defaultModel, costUsd: 0)
+                    ))
+                }
             }
 
             results.append(result)

@@ -5,6 +5,27 @@ public struct RegexAnalysisService: Sendable {
 
     public init() {}
 
+    /// Filter classified hunks to only include lines within a focus area's file and line range.
+    public static func filterHunksForFocusArea(
+        _ hunks: [ClassifiedHunk],
+        focusArea: FocusArea
+    ) -> [ClassifiedHunk] {
+        hunks.compactMap { hunk in
+            guard hunk.filePath == focusArea.filePath else { return nil }
+            let filteredLines = hunk.lines.filter { line in
+                guard let lineNum = line.newLineNumber ?? line.oldLineNumber else { return false }
+                return lineNum >= focusArea.startLine && lineNum <= focusArea.endLine
+            }
+            guard !filteredLines.isEmpty else { return nil }
+            return ClassifiedHunk(
+                filePath: hunk.filePath,
+                oldStart: hunk.oldStart,
+                newStart: hunk.newStart,
+                lines: filteredLines
+            )
+        }
+    }
+
     /// Evaluate a regex pattern against classified diff lines.
     ///
     /// When `newCodeLinesOnly` is set on the rule, only `.new` and `.changedInMove`

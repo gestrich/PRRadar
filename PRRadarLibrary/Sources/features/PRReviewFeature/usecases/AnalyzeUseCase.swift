@@ -219,12 +219,20 @@ public struct AnalyzeUseCase: Sendable {
             let singleTaskUseCase = AnalyzeSingleTaskUseCase(config: config)
             let startTime = Date()
 
+            let classifiedHunks: [ClassifiedHunk]? = (try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .diff,
+                filename: DataPathsService.classifiedHunksFilename, commitHash: commitHash
+            )) ?? []
+
             for (index, task) in tasksToEvaluate.enumerated() {
                 let globalIndex = cachedCount + index + 1
                 let fileName = (task.focusArea.filePath as NSString).lastPathComponent
                 continuation.yield(.log(text: "[\(globalIndex)/\(totalCount)] \(fileName) — \(task.rule.name)...\n"))
 
-                for try await event in singleTaskUseCase.execute(task: task, prNumber: prNumber, commitHash: commitHash) {
+                for try await event in singleTaskUseCase.execute(
+                    task: task, prNumber: prNumber, commitHash: commitHash,
+                    classifiedHunks: classifiedHunks
+                ) {
                     continuation.yield(.taskEvent(task: task, event: event))
                     if case .completed(let result) = event {
                         freshResults.append(result)
