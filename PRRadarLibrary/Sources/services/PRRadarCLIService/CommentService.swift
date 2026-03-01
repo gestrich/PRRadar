@@ -58,6 +58,7 @@ public struct CommentService: Sendable {
                 )
                 successful += 1
             } catch {
+                print("  Failed to post comment on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
                 failed += 1
             }
         }
