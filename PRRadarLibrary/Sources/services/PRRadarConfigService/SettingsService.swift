@@ -14,12 +14,20 @@ public final class SettingsService: Sendable {
             in: .userDomainMask
         ).first!.appendingPathComponent("PRRadar")
         self.settingsURL = appSupport.appendingPathComponent("settings.json")
-        self.keychain = SecurityCLIKeychainStore(identifier: "com.gestrich.PRRadar")
+        self.keychain = Self.platformKeychain()
     }
 
     public init(settingsURL: URL, keychain: KeychainStoring? = nil) {
         self.settingsURL = settingsURL
-        self.keychain = keychain ?? SecurityCLIKeychainStore(identifier: "com.gestrich.PRRadar")
+        self.keychain = keychain ?? Self.platformKeychain()
+    }
+
+    private static func platformKeychain() -> KeychainStoring {
+        #if os(macOS)
+        SecurityCLIKeychainStore(identifier: "com.gestrich.PRRadar")
+        #else
+        EnvironmentKeychainStore()
+        #endif
     }
 
     public func load() -> AppSettings {

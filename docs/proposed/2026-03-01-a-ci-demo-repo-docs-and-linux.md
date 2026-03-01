@@ -70,7 +70,19 @@ targets.append(.testTarget(name: "MacAppTests", ...))
 #endif
 ```
 
-## - [ ] Phase 3: Fix SwiftCLI dependency for Linux
+## - [x] Phase 3: Add platform guard for KeychainSDK with environment-backed Linux implementation
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Protocol-based abstraction — `KeychainStoring` protocol stays cross-platform, with platform-specific implementations selected at init time.
+
+`SecurityCLIKeychainStore` shells out to `/usr/bin/security` which doesn't exist on Linux. Rather than just no-oping, create an `EnvironmentKeychainStore` that backs the `KeychainStoring` protocol with environment variables. This way the credential resolution chain works on Linux: `SettingsService` reads from the environment store, which maps keychain key types to env var names (`*/github-token` → `GITHUB_TOKEN`, `*/anthropic-api-key` → `ANTHROPIC_API_KEY`).
+
+Changes:
+1. **KeychainSDK**: Wrap `SecurityCLIKeychainStore` in `#if os(macOS)`. Add `EnvironmentKeychainStore` (cross-platform) that reads from `ProcessInfo.processInfo.environment`. Write/remove operations throw (env vars are read-only). `allKeys()` returns keys for whichever env vars are set.
+2. **SettingsService**: Update `init()` to use `SecurityCLIKeychainStore` on macOS, `EnvironmentKeychainStore` on Linux.
+3. **Tests**: Add unit tests for `EnvironmentKeychainStore`.
+
+## - [ ] Phase 4: Fix SwiftCLI dependency for Linux
 
 The custom SwiftCLI fork at `https://github.com/gestrich/SwiftCLI.git` has `platforms: [.macOS(.v15)]` which blocks Linux builds. Options to investigate:
 
@@ -79,10 +91,6 @@ The custom SwiftCLI fork at `https://github.com/gestrich/SwiftCLI.git` has `plat
 3. If macros don't work on Linux, consider making the macro features conditional
 
 This phase may require changes in the SwiftCLI repo, not just PRRadar.
-
-## - [ ] Phase 4: Add platform guard for KeychainSDK
-
-`KeychainSDK/KeychainStoring.swift` shells out to `/usr/bin/security` which doesn't exist on Linux. Add a `#if os(macOS)` guard so that on Linux, keychain operations return nil/fail gracefully. In CI, credentials come from environment variables (`GITHUB_TOKEN`, `ANTHROPIC_API_KEY`), so keychain is never actually called.
 
 ## - [ ] Phase 5: Update workflow to use Linux runner
 
