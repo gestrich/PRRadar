@@ -67,7 +67,10 @@ Add `analysisMode` to `PRReviewRequest` and apply the filter in `AnalyzeUseCase`
 - `PRRadarLibrary/Sources/features/PRReviewFeature/models/PRReviewRequest.swift` (add `analysisMode` field)
 - `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/AnalyzeUseCase.swift` (filter tasks by mode)
 
-## - [ ] Phase 3: Add `--mode` CLI option to `AnalyzeCommand`
+## - [x] Phase 3: Add `--mode` CLI option to `AnalyzeCommand`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Used `ExpressibleByArgument` conformance in CLI target to keep ArgumentParser out of Services layer; set CLI-friendly raw values ("regex", "ai") on enum for automatic parsing
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

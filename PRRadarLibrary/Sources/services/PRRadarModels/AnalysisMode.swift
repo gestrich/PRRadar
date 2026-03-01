@@ -2,8 +2,8 @@ import Foundation
 
 public enum AnalysisMode: String, Sendable, CaseIterable {
     case all
-    case regexOnly
-    case aiOnly
+    case regexOnly = "regex"
+    case aiOnly = "ai"
 
     public func matches(_ task: RuleRequest) -> Bool {
         switch self {

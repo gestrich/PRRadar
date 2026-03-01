@@ -27,6 +27,9 @@ struct AnalyzeCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show full AI output including tool use events")
     var verbose: Bool = false
 
+    @Option(name: .long, help: "Analysis mode: regex, ai, or all (default: all)")
+    var mode: AnalysisMode = .all
+
     func run() async throws {
         let config = try resolveConfigFromOptions(options)
 
@@ -40,12 +43,18 @@ struct AnalyzeCommand: AsyncParsableCommand {
         let request = PRReviewRequest(
             prNumber: options.prNumber,
             filter: filter.isEmpty ? nil : filter,
-            commitHash: options.commit
+            commitHash: options.commit,
+            analysisMode: mode
         )
         let stream = useCase.execute(request: request)
 
         if !options.json {
-            print("Analyzing PR #\(options.prNumber)...")
+            let modeLabel = switch mode {
+            case .regexOnly: " (regex rules only)"
+            case .aiOnly: " (AI rules only)"
+            case .all: ""
+            }
+            print("Analyzing PR #\(options.prNumber)\(modeLabel)...")
         }
 
         var result: PRReviewResult?
@@ -130,4 +139,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             }
         }
     }
+
 }
+
+extension AnalysisMode: ExpressibleByArgument {}
