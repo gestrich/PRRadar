@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Phase 1: Diff Output Models
 
 /// A single code move detected by the effective diff algorithm.
-public struct MoveDetail: Codable, Sendable {
+public struct MoveDetail: Codable, Sendable, Equatable {
     public let sourceFile: String
     public let targetFile: String
     public let sourceLines: [Int]

@@ -9,6 +9,7 @@ struct ReviewDetailView: View {
     @State private var selectedNavPhase: NavigationPhase = .summary
     @State private var showEffectiveDiff = false
     @State private var showAIOutput = false
+    @State private var effectiveDiffInitialMove: MoveDetail?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -130,7 +131,12 @@ struct ReviewDetailView: View {
 
                 DiffPhaseView(
                     fullDiff: fullDiff,
-                    prModel: prModel
+                    prModel: prModel,
+                    moveReport: prModel.syncSnapshot?.moveReport,
+                    onMoveTapped: { move in
+                        effectiveDiffInitialMove = move
+                        showEffectiveDiff = true
+                    }
                 )
             }
             .overlay(alignment: .top) {
@@ -138,13 +144,16 @@ struct ReviewDetailView: View {
                     refreshingBanner
                 }
             }
-            .sheet(isPresented: $showEffectiveDiff) {
+            .sheet(isPresented: $showEffectiveDiff, onDismiss: {
+                effectiveDiffInitialMove = nil
+            }) {
                 if let effectiveDiff = prModel.syncSnapshot?.effectiveDiff {
                     EffectiveDiffView(
                         fullDiff: fullDiff,
                         effectiveDiff: effectiveDiff,
                         moveReport: prModel.syncSnapshot?.moveReport,
-                        prModel: prModel
+                        prModel: prModel,
+                        initialMove: effectiveDiffInitialMove
                     )
                     .frame(minWidth: 900, minHeight: 600)
                 }

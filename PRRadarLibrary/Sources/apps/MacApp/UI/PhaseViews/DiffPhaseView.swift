@@ -5,6 +5,8 @@ struct DiffPhaseView: View {
 
     let fullDiff: GitDiff
     var prModel: PRModel
+    var moveReport: MoveReport?
+    var onMoveTapped: ((MoveDetail) -> Void)?
 
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
@@ -191,7 +193,9 @@ struct DiffPhaseView: View {
             AnnotatedDiffContentView(
                 diff: filtered,
                 commentMapping: commentMapping(for: diff),
-                prModel: prModel
+                prModel: prModel,
+                movedLineLookup: MovedLineLookup(moveReport: moveReport),
+                onMoveTapped: onMoveTapped
             )
         }
         .sheet(isPresented: Binding(

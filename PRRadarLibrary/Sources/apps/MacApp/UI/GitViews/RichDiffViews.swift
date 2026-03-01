@@ -13,7 +13,59 @@ struct DiffLineData: Identifiable {
 }
 
 enum DiffLayout {
-    static let gutterWidth: CGFloat = 96
+    static let gutterWidth: CGFloat = 112
+}
+
+// MARK: - Moved Line Lookup
+
+struct MovedLineInfo {
+    let move: MoveDetail
+    let isSource: Bool
+}
+
+struct MovedLineLookup {
+    private let sourceRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)]
+    private let targetRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)]
+
+    static let empty = MovedLineLookup(moveReport: nil)
+
+    init(moveReport: MoveReport?) {
+        guard let report = moveReport else {
+            sourceRanges = []
+            targetRanges = []
+            return
+        }
+        var src: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)] = []
+        var tgt: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)] = []
+        for move in report.moves {
+            if move.sourceLines.count == 2 {
+                src.append((filePath: move.sourceFile, range: move.sourceLines[0]...move.sourceLines[1], move: move))
+            }
+            if move.targetLines.count == 2 {
+                tgt.append((filePath: move.targetFile, range: move.targetLines[0]...move.targetLines[1], move: move))
+            }
+        }
+        sourceRanges = src
+        targetRanges = tgt
+    }
+
+    func lookup(filePath: String, oldLine: Int?, newLine: Int?, lineType: DisplayDiffLineType) -> MovedLineInfo? {
+        switch lineType {
+        case .deletion:
+            guard let line = oldLine else { return nil }
+            for entry in sourceRanges where entry.filePath == filePath && entry.range.contains(line) {
+                return MovedLineInfo(move: entry.move, isSource: true)
+            }
+        case .addition:
+            guard let line = newLine else { return nil }
+            for entry in targetRanges where entry.filePath == filePath && entry.range.contains(line) {
+                return MovedLineInfo(move: entry.move, isSource: false)
+            }
+        case .context:
+            return nil
+        }
+        return nil
+    }
 }
 
 // MARK: - Inline Comment Card
@@ -61,7 +113,9 @@ struct DiffLineRowView: View {
     let newLineNumber: Int?
     let lineType: DisplayDiffLineType
     let searchQuery: String
+    var isMoved: Bool
     var onAddComment: (() -> Void)?
+    var onMoveTapped: (() -> Void)?
 
     init(
         lineContent: String,
@@ -69,14 +123,18 @@ struct DiffLineRowView: View {
         newLineNumber: Int?,
         lineType: DisplayDiffLineType,
         searchQuery: String = "",
-        onAddComment: (() -> Void)? = nil
+        isMoved: Bool = false,
+        onAddComment: (() -> Void)? = nil,
+        onMoveTapped: (() -> Void)? = nil
     ) {
         self.lineContent = lineContent
         self.oldLineNumber = oldLineNumber
         self.newLineNumber = newLineNumber
         self.lineType = lineType
         self.searchQuery = searchQuery
+        self.isMoved = isMoved
         self.onAddComment = onAddComment
+        self.onMoveTapped = onMoveTapped
     }
 
     @State private var isHovering = false
@@ -118,6 +176,19 @@ struct DiffLineRowView: View {
                     .buttonStyle(.plain)
                     .offset(x: 12)
                 }
+            }
+
+            if isMoved, let onMoveTapped {
+                Button(action: onMoveTapped) {
+                    Image(systemName: "arrow.right.arrow.left")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 16)
+                .help("View moved code")
+            } else {
+                Color.clear.frame(width: 16)
             }
 
             HStack(spacing: 0) {
@@ -278,6 +349,8 @@ struct AnnotatedHunkContentView: View {
     let commentsAtLine: [Int: [ReviewComment]]
     let searchQuery: String
     var prModel: PRModel
+    var movedLineLookup: MovedLineLookup = .empty
+    var onMoveTapped: ((MoveDetail) -> Void)?
 
     @State private var composingCommentLine: (filePath: String, lineNumber: Int)?
 
@@ -287,15 +360,23 @@ struct AnnotatedHunkContentView: View {
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(diffLineData) { line in
+                let moveInfo = movedLineLookup.lookup(
+                    filePath: hunk.filePath,
+                    oldLine: line.oldLine,
+                    newLine: line.newLine,
+                    lineType: line.lineType
+                )
                 DiffLineRowView(
                     lineContent: line.content,
                     oldLineNumber: line.oldLine,
                     newLineNumber: line.newLine,
                     lineType: line.lineType,
                     searchQuery: searchQuery,
+                    isMoved: moveInfo != nil,
                     onAddComment: line.newLine != nil ? {
                         composingCommentLine = (filePath: hunk.filePath, lineNumber: line.newLine!)
-                    } : nil
+                    } : nil,
+                    onMoveTapped: moveInfo.map { info in { onMoveTapped?(info.move) } }
                 )
 
                 if let newLine = line.newLine,
@@ -376,17 +457,23 @@ struct AnnotatedDiffContentView: View {
     let commentMapping: DiffCommentMapping
     let searchQuery: String
     var prModel: PRModel
+    var movedLineLookup: MovedLineLookup
+    var onMoveTapped: ((MoveDetail) -> Void)?
 
     init(
         diff: GitDiff,
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
-        prModel: PRModel
+        prModel: PRModel,
+        movedLineLookup: MovedLineLookup = .empty,
+        onMoveTapped: ((MoveDetail) -> Void)? = nil
     ) {
         self.diff = diff
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
         self.prModel = prModel
+        self.movedLineLookup = movedLineLookup
+        self.onMoveTapped = onMoveTapped
     }
 
     private var tasks: [RuleRequest] { prModel.preparation?.tasks ?? [] }
@@ -436,7 +523,9 @@ struct AnnotatedDiffContentView: View {
                             hunk: hunk,
                             commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
-                            prModel: prModel
+                            prModel: prModel,
+                            movedLineLookup: movedLineLookup,
+                            onMoveTapped: onMoveTapped
                         )
                     }
                 }

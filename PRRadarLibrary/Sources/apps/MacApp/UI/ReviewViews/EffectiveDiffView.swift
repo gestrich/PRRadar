@@ -7,6 +7,7 @@ struct EffectiveDiffView: View {
     let effectiveDiff: GitDiff
     let moveReport: MoveReport?
     var prModel: PRModel
+    var initialMove: MoveDetail?
 
     @State private var selectedTab = 1  // Default to effective diff
     @State private var selectedFile: String?
@@ -22,6 +23,11 @@ struct EffectiveDiffView: View {
                     .frame(minWidth: 200, idealWidth: 240, maxWidth: 280)
 
                 diffContent
+            }
+        }
+        .onAppear {
+            if let initialMove, let index = moveReport?.moves.firstIndex(of: initialMove) {
+                selectedMoveIndex = index
             }
         }
     }
