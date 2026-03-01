@@ -1,6 +1,6 @@
 import Foundation
 
-public let defaultContextLines = 20
+public let defaultContextLines = 3
 public let defaultTrimProximity = 3
 
 // MARK: - Data Structures

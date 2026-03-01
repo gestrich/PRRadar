@@ -144,7 +144,7 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
         let ranges = extendBlockRange(candidate)
         #expect(ranges.source.start == 25 - defaultContextLines)
         #expect(ranges.source.end == 27 + defaultContextLines)
-        #expect(ranges.target.start == 1) // clamped: 10 - 20 < 1
+        #expect(ranges.target.start == 10 - defaultContextLines)
         #expect(ranges.target.end == 12 + defaultContextLines)
     }
 

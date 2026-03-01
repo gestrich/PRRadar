@@ -193,6 +193,123 @@ private func makeEffectiveResult(
     }
 }
 
+// MARK: - Tests: filterMovedLines
+
+@Suite struct FilterMovedLinesTests {
+
+    @Test func removesAllMovedLinesFromPureDeletion() {
+        let hunk = makeHunk(
+            "utils.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0,
+            content: "@@ -5,3 +5,0 @@\n-aaa\n-bbb\n-ccc"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [5, 6, 7],
+            movedAddedLines: []
+        )
+        #expect(result.isEmpty)
+    }
+
+    @Test func removesAllMovedLinesFromPureAddition() {
+        let hunk = makeHunk(
+            "helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3,
+            content: "@@ -10,0 +10,3 @@\n+aaa\n+bbb\n+ccc"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [],
+            movedAddedLines: [10, 11, 12]
+        )
+        #expect(result.isEmpty)
+    }
+
+    @Test func keepsNonMovedRemovals() {
+        let hunk = makeHunk(
+            "utils.py", oldStart: 1, oldLength: 5, newStart: 1, newLength: 0,
+            content: "@@ -1,5 +1,0 @@\n-genuine1\n-genuine2\n-moved1\n-moved2\n-genuine3"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [3, 4],
+            movedAddedLines: []
+        )
+        #expect(result.count == 2)
+        #expect(result[0].content.contains("-genuine1"))
+        #expect(result[0].content.contains("-genuine2"))
+        #expect(result[0].oldStart == 1)
+        #expect(result[0].oldLength == 2)
+        #expect(result[1].content.contains("-genuine3"))
+        #expect(result[1].oldStart == 5)
+        #expect(result[1].oldLength == 1)
+    }
+
+    @Test func keepsNonMovedAdditions() {
+        let hunk = makeHunk(
+            "helpers.py", oldStart: 1, oldLength: 0, newStart: 1, newLength: 5,
+            content: "@@ -1,0 +1,5 @@\n+new1\n+new2\n+moved1\n+moved2\n+new3"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [],
+            movedAddedLines: [3, 4]
+        )
+        #expect(result.count == 2)
+        #expect(result[0].content.contains("+new1"))
+        #expect(result[0].content.contains("+new2"))
+        #expect(result[0].newStart == 1)
+        #expect(result[0].newLength == 2)
+        #expect(result[1].content.contains("+new3"))
+        #expect(result[1].newStart == 5)
+        #expect(result[1].newLength == 1)
+    }
+
+    @Test func preservesContextLines() {
+        let hunk = makeHunk(
+            "utils.py", oldStart: 1, oldLength: 4, newStart: 1, newLength: 2,
+            content: "@@ -1,4 +1,2 @@\n context_before\n-moved1\n-moved2\n context_after"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [2, 3],
+            movedAddedLines: []
+        )
+        #expect(result.isEmpty, "No changes remain after filtering moved lines")
+    }
+
+    @Test func handlesEmptyMovedSets() {
+        let hunk = makeHunk(
+            "a.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 2,
+            content: "@@ -1,2 +1,2 @@\n-old\n+new\n context"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [],
+            movedAddedLines: []
+        )
+        #expect(result.count == 1)
+        #expect(result[0].content.contains("-old"))
+        #expect(result[0].content.contains("+new"))
+    }
+
+    @Test func mixedMovedAndGenuineChanges() {
+        let hunk = makeHunk(
+            "file.py", oldStart: 1, oldLength: 4, newStart: 1, newLength: 4,
+            content: "@@ -1,4 +1,4 @@\n-removed_genuine\n-removed_moved\n+added_moved\n+added_genuine\n context1\n context2"
+        )
+        let result = filterMovedLines(
+            from: hunk,
+            movedRemovedLines: [2],
+            movedAddedLines: [1]
+        )
+        // Split into 2 sub-hunks: genuine removal before the gap, genuine addition after
+        #expect(result.count == 2)
+        #expect(result[0].content.contains("-removed_genuine"))
+        #expect(!result[0].content.contains("removed_moved"))
+        #expect(result[1].content.contains("+added_genuine"))
+        #expect(!result[1].content.contains("added_moved"))
+    }
+}
+
 // MARK: - Tests: reconstructEffectiveDiff
 
 @Suite struct ReconstructEffectiveDiffTests {
@@ -210,7 +327,7 @@ private func makeEffectiveResult(
         #expect(result.hunks.count == 2)
     }
 
-    @Test func pureMoveDropsBothSides() {
+    @Test func pureMoveFiltersAllMovedLines() {
         let candidate = makeCandidate(
             sourceFile: "utils.py", targetFile: "helpers.py",
             removedLines: [(5, "a"), (6, "b"), (7, "c")],
@@ -221,8 +338,10 @@ private func makeEffectiveResult(
         let original = GitDiff(
             rawContent: "",
             hunks: [
-                makeHunk("utils.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0),
-                makeHunk("helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3),
+                makeHunk("utils.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0,
+                         content: "@@ -5,3 +5,0 @@\n-a\n-b\n-c"),
+                makeHunk("helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3,
+                         content: "@@ -10,0 +10,3 @@\n+a\n+b\n+c"),
             ],
             commitHash: ""
         )
@@ -230,33 +349,67 @@ private func makeEffectiveResult(
         #expect(result.hunks.count == 0)
     }
 
-    @Test func moveWithEffectiveDiffReplacesAddedSide() {
+    @Test func movePreservesNonMovedChangesInSourceHunk() {
         let candidate = makeCandidate(
             sourceFile: "utils.py", targetFile: "helpers.py",
-            removedLines: [(5, "a"), (6, "b"), (7, "c")],
-            addedLines: [(10, "a"), (11, "b"), (12, "c")]
+            removedLines: [(3, "moved1"), (4, "moved2")],
+            addedLines: [(10, "moved1"), (11, "moved2")]
         )
-        let effectiveHunk = makeHunk(
-            "helpers.py",
-            oldStart: 1, oldLength: 1, newStart: 1, newLength: 1,
-            content: "@@ -1,1 +1,1 @@\n-def old_sig():\n+def new_sig():"
-        )
-        let effResult = makeEffectiveResult(candidate, hunks: [effectiveHunk])
+        let effResult = makeEffectiveResult(candidate, hunks: [])
 
         let original = GitDiff(
             rawContent: "",
             hunks: [
-                makeHunk("utils.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0),
-                makeHunk("helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3),
-                makeHunk("other.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 3),
+                makeHunk("utils.py", oldStart: 1, oldLength: 5, newStart: 1, newLength: 0,
+                         content: "@@ -1,5 +1,0 @@\n-genuine1\n-genuine2\n-moved1\n-moved2\n-genuine3"),
+                makeHunk("helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 2,
+                         content: "@@ -10,0 +10,2 @@\n+moved1\n+moved2"),
+                makeHunk("other.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 3,
+                         content: "@@ -1,2 +1,3 @@\n-old\n+new\n+extra\n context"),
             ],
             commitHash: ""
         )
         let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
-        #expect(result.hunks.count == 2)
-        #expect(result.hunks[0].filePath == "helpers.py")
-        #expect(result.hunks[0].content.contains("new_sig"))
-        #expect(result.hunks[1].filePath == "other.py")
+
+        let utilsHunks = result.hunks.filter { $0.filePath == "utils.py" }
+        #expect(utilsHunks.count == 2, "Non-moved removals should produce 2 sub-hunks (split at moved lines)")
+        let allContent = utilsHunks.map(\.content).joined(separator: "\n")
+        #expect(allContent.contains("-genuine1"))
+        #expect(allContent.contains("-genuine2"))
+        #expect(allContent.contains("-genuine3"))
+        #expect(!allContent.contains("moved"))
+
+        #expect(result.hunks.contains { $0.filePath == "other.py" })
+    }
+
+    @Test func movePreservesNewCodeInTargetHunk() {
+        let candidate = makeCandidate(
+            sourceFile: "utils.py", targetFile: "handlers.py",
+            removedLines: [(1, "calc"), (2, "total"), (3, "ret")],
+            addedLines: [(4, "calc"), (5, "total"), (6, "ret")]
+        )
+        let effResult = makeEffectiveResult(candidate, hunks: [])
+
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("utils.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0,
+                         content: "@@ -1,3 +1,0 @@\n-calc\n-total\n-ret"),
+                makeHunk("handlers.py", oldStart: 1, oldLength: 0, newStart: 1, newLength: 8,
+                         content: "@@ -1,0 +1,8 @@\n+new_func1\n+new_body1\n+end1\n+calc\n+total\n+ret\n+new_func2\n+new_body2"),
+            ],
+            commitHash: ""
+        )
+        let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
+
+        let handlerHunks = result.hunks.filter { $0.filePath == "handlers.py" }
+        #expect(handlerHunks.count == 2, "Non-moved additions should produce 2 sub-hunks")
+        let allContent = handlerHunks.map(\.content).joined(separator: "\n")
+        #expect(allContent.contains("+new_func1"))
+        #expect(allContent.contains("+new_func2"))
+        #expect(!allContent.contains("+calc"))
+        #expect(!allContent.contains("+total"))
+        #expect(!allContent.contains("+ret"))
     }
 
     @Test func preservesUnrelatedHunks() {
@@ -270,8 +423,10 @@ private func makeEffectiveResult(
         let original = GitDiff(
             rawContent: "",
             hunks: [
-                makeHunk("a.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0),
-                makeHunk("b.py", oldStart: 1, oldLength: 0, newStart: 1, newLength: 3),
+                makeHunk("a.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0,
+                         content: "@@ -1,3 +1,0 @@\n-x\n-y\n-z"),
+                makeHunk("b.py", oldStart: 1, oldLength: 0, newStart: 1, newLength: 3,
+                         content: "@@ -1,0 +1,3 @@\n+x\n+y\n+z"),
                 makeHunk("c.py", oldStart: 10, oldLength: 5, newStart: 10, newLength: 5),
                 makeHunk("d.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 2),
             ],
@@ -301,10 +456,14 @@ private func makeEffectiveResult(
         let original = GitDiff(
             rawContent: "",
             hunks: [
-                makeHunk("a.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0),
-                makeHunk("b.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3),
-                makeHunk("c.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0),
-                makeHunk("d.py", oldStart: 20, oldLength: 0, newStart: 20, newLength: 3),
+                makeHunk("a.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0,
+                         content: "@@ -1,3 +1,0 @@\n-x\n-y\n-z"),
+                makeHunk("b.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3,
+                         content: "@@ -10,0 +10,3 @@\n+x\n+y\n+z"),
+                makeHunk("c.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0,
+                         content: "@@ -5,3 +5,0 @@\n-p\n-q\n-r"),
+                makeHunk("d.py", oldStart: 20, oldLength: 0, newStart: 20, newLength: 3,
+                         content: "@@ -20,0 +20,3 @@\n+p\n+q\n+r"),
                 makeHunk("keep.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 2),
             ],
             commitHash: ""
@@ -320,29 +479,29 @@ private func makeEffectiveResult(
         #expect(result.commitHash == "abc123")
     }
 
-    @Test func noDuplicateEffectiveHunks() {
+    @Test func subHunksHaveCorrectLineNumbers() {
         let candidate = makeCandidate(
             sourceFile: "utils.py", targetFile: "helpers.py",
-            removedLines: [(5, "a"), (6, "b"), (7, "c"), (8, "d"), (9, "e")],
-            addedLines: [(10, "a"), (11, "b"), (12, "c"), (13, "d"), (14, "e")]
+            removedLines: [(3, "moved")],
+            addedLines: [(3, "moved")]
         )
-        let effectiveHunk = makeHunk(
-            "helpers.py", oldStart: 1, oldLength: 1, newStart: 1, newLength: 1,
-            content: "@@ -1,1 +1,1 @@\n-old\n+new"
-        )
-        let effResult = makeEffectiveResult(candidate, hunks: [effectiveHunk])
+        let effResult = makeEffectiveResult(candidate)
 
         let original = GitDiff(
             rawContent: "",
             hunks: [
-                makeHunk("helpers.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3),
-                makeHunk("helpers.py", oldStart: 13, oldLength: 0, newStart: 13, newLength: 2),
+                makeHunk("utils.py", oldStart: 1, oldLength: 5, newStart: 1, newLength: 0,
+                         content: "@@ -1,5 +1,0 @@\n-line1\n-line2\n-moved\n-line4\n-line5"),
             ],
             commitHash: ""
         )
         let result = reconstructEffectiveDiff(originalDiff: original, effectiveResults: [effResult])
-        #expect(result.hunks.count == 1)
-        #expect(result.hunks[0].content.contains("new"))
+
+        #expect(result.hunks.count == 2)
+        #expect(result.hunks[0].oldStart == 1)
+        #expect(result.hunks[0].oldLength == 2)
+        #expect(result.hunks[1].oldStart == 4)
+        #expect(result.hunks[1].oldLength == 2)
     }
 }
 
