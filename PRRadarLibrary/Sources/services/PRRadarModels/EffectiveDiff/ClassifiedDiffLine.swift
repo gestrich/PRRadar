@@ -38,6 +38,73 @@ public struct ClassifiedDiffLine: Sendable {
     }
 }
 
+// MARK: - ClassifiedHunk
+
+public struct ClassifiedHunk: Sendable {
+    public let filePath: String
+    public let oldStart: Int
+    public let newStart: Int
+    public let lines: [ClassifiedDiffLine]
+
+    public init(filePath: String, oldStart: Int, newStart: Int, lines: [ClassifiedDiffLine]) {
+        self.filePath = filePath
+        self.oldStart = oldStart
+        self.newStart = newStart
+        self.lines = lines
+    }
+
+    /// True when every non-context line is part of a move (no genuinely new or removed code).
+    public var isMoved: Bool {
+        let changedLines = lines.filter { $0.classification != .context }
+        guard !changedLines.isEmpty else { return false }
+        return changedLines.allSatisfy { $0.classification == .moved || $0.classification == .movedRemoval }
+    }
+
+    public var hasNewCode: Bool {
+        lines.contains { $0.classification == .new }
+    }
+
+    public var hasChangesInMove: Bool {
+        lines.contains { $0.classification == .changedInMove }
+    }
+
+    public var newCodeLines: [ClassifiedDiffLine] {
+        lines.filter { $0.classification == .new }
+    }
+
+    public var changedLines: [ClassifiedDiffLine] {
+        lines.filter { $0.classification == .new || $0.classification == .removed || $0.classification == .changedInMove }
+    }
+}
+
+/// Group a flat list of classified lines back into hunk-level containers.
+///
+/// Uses the original diff's hunk structure to determine boundaries — each original hunk's
+/// non-header line count determines how many classified lines belong to it.
+public func groupIntoClassifiedHunks(
+    originalDiff: GitDiff,
+    classifiedLines: [ClassifiedDiffLine]
+) -> [ClassifiedHunk] {
+    var result: [ClassifiedHunk] = []
+    var lineIndex = 0
+
+    for hunk in originalDiff.hunks {
+        let contentLineCount = hunk.getDiffLines().filter { $0.lineType != .header }.count
+        let endIndex = min(lineIndex + contentLineCount, classifiedLines.count)
+        let hunkLines = Array(classifiedLines[lineIndex..<endIndex])
+        lineIndex = endIndex
+
+        result.append(ClassifiedHunk(
+            filePath: hunk.filePath,
+            oldStart: hunk.oldStart,
+            newStart: hunk.newStart,
+            lines: hunkLines
+        ))
+    }
+
+    return result
+}
+
 // MARK: - Line Classification
 
 /// Classify every content line in the original diff using effective diff results.

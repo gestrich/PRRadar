@@ -109,7 +109,7 @@ These re-diffed lines represent modifications made inside a moved block. They ne
 
 **Completed:** Added `classifyLines(originalDiff:effectiveResults:)` free function. Builds six lookup dictionaries (source/target moved lines, changed-in-move lines, and per-line MoveCandidate references). Re-diff hunk line numbers are mapped to absolute target file coordinates via `extendBlockRange`. `.changedInMove` is checked before `.moved` since they're mutually exclusive subsets of the target move range. Header lines are skipped (no classification case for metadata).
 
-## - [ ] Phase 3: Derive `ClassifiedHunk` from classified lines
+## - [x] Phase 3: Derive `ClassifiedHunk` from classified lines
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -143,6 +143,8 @@ public struct ClassifiedHunk: Sendable {
 
 **Files to modify/create:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift` (add ClassifiedHunk)
+
+**Completed:** Added `ClassifiedHunk` struct and `groupIntoClassifiedHunks(originalDiff:classifiedLines:)` free function. Computed properties derive hunk-level classification from lines: `isMoved` checks that all non-context lines are `.moved` or `.movedRemoval`; `hasNewCode` and `hasChangesInMove` check for presence of `.new` and `.changedInMove` lines respectively; `changedLines` returns `.new`, `.removed`, and `.changedInMove` lines. The grouping function uses the original diff's hunk structure to determine boundaries — each original hunk's non-header line count determines how many classified lines belong to it, preserving a 1:1 correspondence.
 
 ## - [ ] Phase 4: Wire into the effective diff pipeline output
 
