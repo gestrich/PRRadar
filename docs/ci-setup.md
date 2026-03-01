@@ -192,3 +192,14 @@ The GitHub API for creating review comments requires:
 ### Runner requirements
 
 The workflow uses `ubuntu-latest` with Swift 6.2 installed via [`swift-actions/setup-swift@v3`](https://github.com/swift-actions/setup-swift). Linux runners are significantly cheaper than macOS runners. If you need macOS-specific features, change `runs-on` to `macos-26` and remove the Setup Swift step (macOS 26 runners include Swift 6.2).
+
+### Linux build errors
+
+If you pin to a specific PRRadar version and encounter Linux build errors, these are the issues that were resolved during Linux porting:
+
+- **`setup-swift` GPG verification failure** — Add `skip-verify-signature: true` to the Setup Swift step
+- **`CryptoKit` not available** — PRRadar uses `swift-crypto` as a fallback on Linux (fixed in the main branch)
+- **`FoundationNetworking` missing** — `URLSession`/`URLRequest` require `import FoundationNetworking` on Linux (fixed in the main branch)
+- **`CFAbsoluteTimeGetCurrent` not available** — CoreFoundation timing replaced with `Date().timeIntervalSinceReferenceDate` (fixed in the main branch)
+
+These are all resolved in the current main branch. If you encounter similar issues with a fork, ensure your Swift code uses cross-platform Foundation APIs rather than CoreFoundation or macOS-specific frameworks.

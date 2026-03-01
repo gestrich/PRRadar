@@ -107,11 +107,11 @@ Update `PRRadar-TestRepo/.github/workflows/pr-review.yml`:
 - Research what Linux runners have Swift 6.2 available (may need a custom Docker image or `swiftlang/swift:nightly` image)
 - Keep `macos-26` as a fallback option documented in case Linux doesn't work
 
-## - [ ] Phase 6: Fix remaining Linux compatibility issues and validate
+## - [x] Phase 6: Fix remaining Linux compatibility issues and validate
 
-### Progress so far
+**Principles applied**: Iterative fix-and-validate cycle against real CI; replaced platform-specific APIs with cross-platform Foundation equivalents
 
-Validation is partially complete. Local tests (546 tests) and MacApp build both pass on macOS. CI workflow triggers correctly on `ubuntu-latest` with `swift-actions/setup-swift@v3`. Multiple Linux build errors have been fixed iteratively:
+All Linux compatibility issues resolved and validated. The full pipeline (sync, prepare, analyze, comment) runs successfully on `ubuntu-latest` with Swift 6.2.
 
 | Issue | Fix | Committed |
 |-------|-----|-----------|
@@ -120,24 +120,6 @@ Validation is partially complete. Local tests (546 tests) and MacApp build both 
 | SwiftCLI `FileHandle.bytes.lines` not available | Replaced with cross-platform `asyncLines()` helper using `readabilityHandler` | gestrich/SwiftCLI `1e252a4` |
 | `CryptoKit` not available on Linux | Conditional import with `swift-crypto` fallback (`#if canImport(CryptoKit)`) | PRRadar `c060afb` |
 | `URLSession`/`URLRequest`/`URLResponse` require `FoundationNetworking` | Added `#if canImport(FoundationNetworking)` imports to `OctokitClient.swift` and `ImageDownloadService.swift` | PRRadar `227414d` |
+| `CFAbsoluteTimeGetCurrent` not available on Linux | Replaced with `Date().timeIntervalSinceReferenceDate` in `RegexAnalysisService.swift` | PRRadar `708fd98` |
 
-### Current blocker (run 22555129170)
-
-`CFAbsoluteTimeGetCurrent` is a CoreFoundation function not available on Linux. Used in:
-- `PRRadarCLIService/RegexAnalysisService.swift:39`
-- `PRRadarCLIService/RegexAnalysisService.swift:79`
-
-Fix: Replace with `Date().timeIntervalSinceReferenceDate` (Foundation, cross-platform, same epoch).
-
-### Test PR
-
-PR #9 in `gestrich/PRRadar-TestRepo` (`test-linux-runner` branch) — used for triggering CI validation.
-
-### Remaining work
-
-1. Fix `CFAbsoluteTimeGetCurrent` → `Date().timeIntervalSinceReferenceDate` in `RegexAnalysisService.swift`
-2. Push fix, re-trigger CI, watch for any additional errors
-3. Once all pipeline steps pass (sync, prepare, analyze, comment), verify review comments appear on the PR
-4. Run `swift test` locally one final time
-5. Update `docs/ci-setup.md` with any additional troubleshooting notes discovered
-6. Clean up test PR #9 in the test repo
+Validation: CI run 22555239821 — all steps passed. 546 local tests pass on macOS.
