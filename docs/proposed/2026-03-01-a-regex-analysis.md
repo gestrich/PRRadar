@@ -134,7 +134,10 @@ Create a `RegexAnalysisService` that evaluates rules using their `violation_rege
 **Files to create:**
 - `PRRadarLibrary/Sources/services/PRRadarCLIService/RegexAnalysisService.swift`
 
-## - [ ] Phase 5: Integrate regex evaluation into the analysis pipeline
+## - [x] Phase 5: Integrate regex evaluation into the analysis pipeline
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Routing lives in `AnalyzeSingleTaskUseCase` (Features layer); `AnalyzeUseCase` loads classified hunks once and delegates all tasks without knowledge of AI vs regex; `AnalysisService.runBatchAnalysis()` also supports regex via `classifiedHunks` parameter; `AnalysisCacheService` works unchanged (blob hash comparison is analysis-method agnostic)
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
