@@ -8,6 +8,11 @@
 ## Prerequisites
 
 - **`2026-03-01-b-effective-diff-pipeline.md`** — Wiring up the effective diff pipeline and verifying the MacApp view. Must be completed first so that "new code only" filtering has real effective diff data to work with.
+- **`2026-03-01-c-unified-line-classification.md`** — Unified per-line classification model. Must be completed first so that "new code only" filtering can use `ClassifiedDiffLine` instead of ad-hoc extraction from multiple sources.
+
+## Compatibility
+
+No backwards compatibility is needed for any data formats, APIs, or serialized outputs. This is all new functionality — existing models, YAML schemas, and JSON outputs can be changed freely without migration concerns.
 
 ## Background
 
@@ -27,26 +32,26 @@ The `/pr-radar-verify-work` skill can also be used to run the CLI against the te
 
 ### Key findings from codebase exploration
 
-1. **Rule YAML uses a custom parser**: `parseSimpleYAML()` in `RuleOutput.swift` handles frontmatter — supports top-level keys, one level of nesting, inline arrays, and list items. New fields like `violation_regex` and `new_code_only` can be added here.
+1. **Rule YAML uses a custom parser**: `parseSimpleYAML()` in `RuleOutput.swift` handles frontmatter — supports top-level keys, one level of nesting, inline arrays, and list items. New fields like `violation_regex` and `new_code_lines_only` can be added here.
 
 2. **Existing `grep` field filters applicability, not violations**: The `GrepPatterns` struct matches diff content to decide if a rule applies. The new `violation_regex` serves a different purpose — it's the actual analysis mechanism.
 
 3. **`DiffLine` already has `.added` type with line numbers**: `Hunk.getDiffLines()` returns `DiffLine` objects with `lineType: .added` and `newLineNumber`. This is the building block for "new code only" filtering.
 
-4. **The effective diff classification system distinguishes moved code**: `HunkClassification` has `.moveRemoved`, `.moveAdded`, and `.unchanged` cases. Lines in `.unchanged` hunks that are `.added` represent truly new code (not moved).
+4. **The unified line classification system distinguishes moved code**: `ClassifiedDiffLine` assigns each line a `LineClassification` (`.new`, `.moved`, `.changedInMove`, `.removed`, `.movedRemoval`, `.context`). Filtering for "new code only" is a single filter on classification rather than combining multiple systems.
 
 ## Phases
 
-## - [ ] Phase 1: Add `new_code_only` option to rule YAML schema
+## - [ ] Phase 1: Add `new_code_lines_only` option to rule YAML schema
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Add a new `new_code_only` boolean field to the rule frontmatter schema. When set to `true`, analysis (both AI and regex) should only consider truly new lines of code — not moved or modified lines.
+Add a new `new_code_lines_only` boolean field to the rule frontmatter schema. When set to `true`, analysis (both AI and regex) should only consider truly new lines of code — not moved or modified lines.
 
 **Tasks:**
-- Add `newCodeOnly: Bool` property to `ReviewRule` (default `false`)
-- Parse `new_code_only` from YAML frontmatter in `ReviewRule.fromFile()`
-- Add `newCodeOnly` to `ReviewRule.CodingKeys` for JSON serialization
+- Add `newCodeLinesOnly: Bool` property to `ReviewRule` (default `false`)
+- Parse `new_code_lines_only` from YAML frontmatter in `ReviewRule.fromFile()`
+- Add `newCodeLinesOnly` to `ReviewRule.CodingKeys` for JSON serialization
 - Propagate to `TaskRule` so it's available during evaluation
 - Add to `RuleRequest.from()` mapping
 
@@ -58,18 +63,20 @@ Add a new `new_code_only` boolean field to the rule frontmatter schema. When set
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Build the logic to extract only truly new lines from a diff, leveraging the effective diff system. "New code" means added lines (`.added` type) that are NOT part of a moved block.
+Build a utility to extract only truly new lines from the classified diff data. The unified classification model (`ClassifiedDiffLine`) already assigns each line a `LineClassification`, so "new code only" filtering is a simple filter operation.
+
+"New code lines" are lines classified as:
+- `.new` — genuinely new added lines not part of any move
+- `.changedInMove` — new lines added inside a moved block (e.g. a line inserted in the middle of a moved method)
 
 **Tasks:**
-- Add a method on `GitDiff` or as a service function: given a `GitDiff` (the effective diff), an original `GitDiff`, and the `[EffectiveDiffResult]` or `MoveReport`, return only the lines that are genuinely new additions
-- The simplest approach: use the effective diff (which already strips moved code). In the effective diff, any `.added` line in an `.unchanged` hunk is truly new. Lines in re-diffed move hunks represent modifications to moved code (not purely new)
-- Alternatively, compare added lines in the full diff against matched lines in the move report to identify which are genuinely new
-- Add a utility method like `Hunk.getNewCodeLines(effectiveDiffResults:)` or `GitDiff.extractNewCodeLines()` that returns only the genuinely new `DiffLine` entries
+- Add a utility function (e.g. `extractNewCodeLines(from: [ClassifiedHunk]) -> [ClassifiedDiffLine]`) in `PRRadarModels`
+- Filter classified lines where `classification == .new || classification == .changedInMove`
 - The result should be usable both for regex evaluation and for filtering AI evaluation scope
+- The `ClassifiedHunk.newCodeLines` and `ClassifiedHunk.hasNewCode` computed properties already exist and can be used directly — this utility just flattens across all hunks
 
 **Files to modify:**
-- `PRRadarLibrary/Sources/services/PRRadarModels/GitDiffModels/Hunk.swift` or new utility in `PRRadarModels/`
-- Possibly `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/DiffReconstruction.swift`
+- `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift` (add utility function)
 
 ## - [ ] Phase 3: Add `violation_regex` field to rule YAML schema
 
@@ -96,10 +103,10 @@ Create a `RegexAnalysisService` that evaluates rules using their `violation_rege
 
 **Tasks:**
 - Create `RegexAnalysisService` in `PRRadarCLIService/`
-- Method signature: `func analyzeTask(_ task: RuleRequest, newCodeOnly: Bool, effectiveDiffResults: ...?) -> RuleOutcome`
-- For each hunk in the focus area, get the relevant lines (all changed lines, or new-code-only lines from Phase 2)
-- Run `NSRegularExpression` with the `violation_regex` against each line
-- For each match, create a `Violation` with: score (configurable, default e.g. 5), comment (from rule description or a configurable message template), file path, and line number
+- Method signature: `func analyzeTask(_ task: RuleRequest, classifiedHunks: [ClassifiedHunk]) -> RuleOutcome`
+- When `newCodeLinesOnly` is true on the rule, filter to lines where `classification == .new || classification == .changedInMove` (using the Phase 2 utility or `ClassifiedHunk.newCodeLines`); otherwise use all changed lines (`ClassifiedHunk.changedLines`)
+- Run `NSRegularExpression` with the `violation_regex` against each line's `content`
+- For each match, create a `Violation` with: score (configurable, default e.g. 5), comment (from rule description or a configurable message template), file path (from `ClassifiedDiffLine.filePath`), and line number (from `ClassifiedDiffLine.newLineNumber` or `oldLineNumber`)
 - Return a `RuleResult` with `modelUsed: "regex"`, `durationMs` from timing, `costUsd: 0`
 
 **Files to create:**
@@ -113,7 +120,7 @@ Route tasks with `violation_regex` rules to the regex service instead of the AI 
 
 **Tasks:**
 - In `AnalyzeUseCase.swift`, before calling `AnalysisService`, check if the task's rule has a `violationRegex`
-- If yes, route to `RegexAnalysisService` instead of `AnalysisService`
+- If yes, route to `RegexAnalysisService` instead of `AnalysisService`, passing `classifiedHunks` from `EffectiveDiffPipelineResult`
 - The result should be written to the same evaluations directory in the same format
 - In `AnalyzeSingleTaskUseCase.swift`, add the same routing logic
 - In `AnalysisService.runBatchAnalysis()`, partition tasks into AI vs regex, run regex tasks first (instant), then AI tasks
@@ -134,7 +141,7 @@ Verify the full pipeline works with a regex-only rule using the test repo at `/U
   ---
   description: Avoid force unwrapping optionals
   category: safety
-  new_code_only: true
+  new_code_lines_only: true
   violation_regex: "![^=]"
   applies_to:
     file_patterns: ["*.swift"]
@@ -151,9 +158,9 @@ Verify the full pipeline works with a regex-only rule using the test repo at `/U
 **Skills to read**: `/swift-testing`
 
 **Tasks:**
-- Add unit tests for the new `ReviewRule` fields (`newCodeOnly`, `violationRegex`) — parsing from YAML, default values, serialization round-trip
-- Add unit tests for `RegexAnalysisService` — matching, no-match, multi-match, new-code-only filtering
-- Add unit tests for "new code only" line extraction logic
+- Add unit tests for the new `ReviewRule` fields (`newCodeLinesOnly`, `violationRegex`) — parsing from YAML, default values, serialization round-trip
+- Add unit tests for `RegexAnalysisService` — matching, no-match, multi-match, new-code-only filtering via `ClassifiedDiffLine` classification
+- Add unit tests for "new code only" line extraction (filtering `ClassifiedDiffLine` by `.new` and `.changedInMove`)
 - Add unit tests verifying the pipeline routing (regex vs AI) based on rule configuration
 - Run full test suite: `cd PRRadarLibrary && swift test`
 - Build check: `cd PRRadarLibrary && swift build`

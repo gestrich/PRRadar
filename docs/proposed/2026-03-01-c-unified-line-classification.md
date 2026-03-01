@@ -200,7 +200,7 @@ The effective diff reconstruction (`reconstructEffectiveDiff()` / `filterMovedLi
 
 **Completed:** Changed `reconstructEffectiveDiff` signature from `(originalDiff:effectiveResults:)` to `(originalDiff:classifiedHunks:)`. The function now filters lines by `ClassifiedDiffLine.classification` instead of building its own moved-line sets. Removed `filterMovedLines()`, `TaggedDL`, `classifyHunk()`, `HunkClassification`, `hunkLineRange()`, and `rangesOverlap()` — all replaced by classified line data. Pipeline reordered: `classifyLines()` and `groupIntoClassifiedHunks()` now run before `reconstructEffectiveDiff()`, which consumes their output. Tests updated to use a `classifyAndReconstruct` helper that mirrors the pipeline flow. All 476 tests pass (23 tests removed with the deleted functions).
 
-## - [ ] Phase 7: Update the regex analysis plan
+## - [x] Phase 7: Update the regex analysis plan
 
 Update `2026-03-01-a-regex-analysis.md` Phase 2 to reference the unified classification model. The "new code lines only" filtering becomes trivial: filter `ClassifiedDiffLine` where `classification == .new` (or `.new` and `.changedInMove` depending on desired behavior).
 
@@ -211,6 +211,8 @@ Update `2026-03-01-a-regex-analysis.md` Phase 2 to reference the unified classif
 
 **Files to modify:**
 - `docs/proposed/2026-03-01-a-regex-analysis.md`
+
+**Completed:** Updated the regex analysis plan to reference the unified classification model throughout. Added `2026-03-01-c-unified-line-classification.md` as a prerequisite. Key finding #4 updated from `HunkClassification` to `ClassifiedDiffLine`/`LineClassification`. Phase 2 rewritten: "new code only" filtering is now a single filter on `ClassifiedDiffLine.classification` (`.new` or `.changedInMove`) instead of pulling from two separate sources (effective diff + `EffectiveDiffResult.hunks`). Phase 4 method signature changed to accept `[ClassifiedHunk]` directly, using `ClassifiedHunk.newCodeLines` and `ClassifiedHunk.changedLines`. Phase 5 updated to pass `classifiedHunks` from `EffectiveDiffPipelineResult`. Phase 7 test descriptions updated to reference classification-based filtering.
 
 ## - [ ] Phase 8: Validation
 
