@@ -66,6 +66,7 @@ jobs:
         uses: swift-actions/setup-swift@v3
         with:
           swift-version: "6.2"
+          skip-verify-signature: true
 
       - name: Checkout repository
         uses: actions/checkout@v4
