@@ -1,0 +1,100 @@
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `swift-app-architecture:swift-architecture` | 4-layer architecture rules, helps understand which targets are needed for CLI vs GUI |
+
+## Background
+
+PRRadar now has a working CI workflow in `gestrich/PRRadar-TestRepo` that runs regex-based analysis on PRs and posts inline review comments. The workflow currently runs on `macos-26` runners, which are expensive. Since the CLI doesn't use SwiftUI or macOS-specific frameworks, it should be possible to build on Linux runners instead (significantly cheaper).
+
+This plan covers two things:
+1. Documenting how the test repo workflow works so others can set up PRRadar CI
+2. Investigating and implementing Linux runner support to reduce CI costs
+
+### Current State
+
+- **Test repo**: `gestrich/PRRadar-TestRepo` with `.github/workflows/pr-review.yml`
+- **Runner**: `macos-26` (required Swift 6.2, which macOS 15 runners don't have)
+- **Pipeline**: sync → prepare → analyze (regex only) → comment
+- **Secrets needed**: `ANTHROPIC_API_KEY` (for prepare/focus areas), `GITHUB_TOKEN` (auto-provided)
+- **Known issues fixed**: Bearer auth needed for GitHub Actions tokens, comfort-fade preview header needed for `line` param in review comment API
+
+### Linux Blocker Analysis
+
+Research on the codebase shows:
+- **No macOS imports** in CLI/services/features/SDKs (no SwiftUI, AppKit, Security)
+- **KeychainSDK** uses the `security` CLI tool (not the Security framework) — won't work on Linux but credentials come from env vars in CI anyway
+- **SwiftCLI dependency** (custom fork) has `platforms: [.macOS(.v15)]` — this is the main blocker
+- **OctoKit, swift-argument-parser** — both cross-platform
+- **CryptoKit** — available on Linux via swift-crypto
+- **MacApp target** — imports SwiftUI/MarkdownUI, must be excluded on Linux
+
+Reference for conditional compilation: `/Users/bill/Developer/work/swift/StackAnalytics/Package.swift` uses `#if os(macOS)` to conditionally include a SwiftUI target (lines 116-130).
+
+## Phases
+
+## - [ ] Phase 1: Write CI setup documentation
+
+Create a doc at `docs/ci-setup.md` explaining how to set up PRRadar CI in a repository. Cover:
+
+- Prerequisites (secrets: `ANTHROPIC_API_KEY`)
+- Workflow file structure (reference the test repo's `pr-review.yml`)
+- Configuration step (`config add` with `--repo-path`, `--rules-dir`, `--github-account`)
+- Pipeline steps: sync, prepare, analyze, comment
+- The `--mode regex` flag for cost-free analysis
+- Known requirements: the workflow must exist on the default branch, `pull-requests: write` permission
+- Troubleshooting: Bearer auth requirement, comfort-fade preview header, rules-dir path
+
+## - [ ] Phase 2: Conditionally exclude MacApp target on Linux
+
+**Skills to read**: `swift-app-architecture:swift-architecture`
+
+Update `PRRadarLibrary/Package.swift` to conditionally exclude MacApp-related targets on Linux, following the pattern from StackAnalytics:
+
+- Move `MacApp` target and `MacAppTests` into a `#if os(macOS)` block
+- The `MacApp` library product should also be conditional
+- Keep all other targets (PRRadarMacCLI, services, SDKs, features) unconditional
+- The `PRRadarModels` test target should remain unconditional
+
+Pattern to follow (from StackAnalytics):
+```swift
+var targets: [Target] = [ /* all cross-platform targets */ ]
+
+#if os(macOS)
+targets.append(.target(name: "MacApp", ...))
+targets.append(.testTarget(name: "MacAppTests", ...))
+#endif
+```
+
+## - [ ] Phase 3: Fix SwiftCLI dependency for Linux
+
+The custom SwiftCLI fork at `https://github.com/gestrich/SwiftCLI.git` has `platforms: [.macOS(.v15)]` which blocks Linux builds. Options to investigate:
+
+1. Update the fork's Package.swift to remove or broaden platform constraints
+2. Check if SwiftCLI's macro system (`CLIMacrosSDK`) compiles on Linux
+3. If macros don't work on Linux, consider making the macro features conditional
+
+This phase may require changes in the SwiftCLI repo, not just PRRadar.
+
+## - [ ] Phase 4: Add platform guard for KeychainSDK
+
+`KeychainSDK/KeychainStoring.swift` shells out to `/usr/bin/security` which doesn't exist on Linux. Add a `#if os(macOS)` guard so that on Linux, keychain operations return nil/fail gracefully. In CI, credentials come from environment variables (`GITHUB_TOKEN`, `ANTHROPIC_API_KEY`), so keychain is never actually called.
+
+## - [ ] Phase 5: Update workflow to use Linux runner
+
+Update `PRRadar-TestRepo/.github/workflows/pr-review.yml`:
+
+- Change `runs-on: macos-26` to `runs-on: ubuntu-latest` (or appropriate Swift 6.2 image)
+- May need to install Swift 6.2 on Linux (e.g., via `swift-actions/setup-swift` or a Docker image)
+- Research what Linux runners have Swift 6.2 available (may need a custom Docker image or `swiftlang/swift:nightly` image)
+- Keep `macos-26` as a fallback option documented in case Linux doesn't work
+
+## - [ ] Phase 6: Validation
+
+- Trigger the updated workflow on PR #8 in the test repo and verify:
+  - Build succeeds on Linux runner
+  - All pipeline steps pass (sync, prepare, analyze, comment)
+  - Inline review comments are posted to the PR
+- Run `swift test` locally to ensure conditional compilation didn't break anything
+- Verify MacApp still builds on macOS (`swift build` locally)
