@@ -15,15 +15,15 @@ public struct AnalyzeUseCase: Sendable {
 
     public func execute(request: PRReviewRequest) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
         if let filter = request.filter {
-            executeFiltered(prNumber: request.prNumber, filter: filter, commitHash: request.commitHash)
+            executeFiltered(prNumber: request.prNumber, filter: filter, analysisMode: request.analysisMode, commitHash: request.commitHash)
         } else {
-            executeFullRun(prNumber: request.prNumber, commitHash: request.commitHash)
+            executeFullRun(prNumber: request.prNumber, analysisMode: request.analysisMode, commitHash: request.commitHash)
         }
     }
 
     // MARK: - Full Run
 
-    private func executeFullRun(prNumber: Int, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
+    private func executeFullRun(prNumber: Int, analysisMode: AnalysisMode, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
@@ -33,7 +33,7 @@ public struct AnalyzeUseCase: Sendable {
 
                     let allTasks: [RuleRequest] = try PhaseOutputParser.parseAllPhaseFiles(
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
-                    ).sorted()
+                    ).sorted().filter { analysisMode.matches($0) }
 
                     let evalsDir = DataPathsService.phaseDirectory(
                         outputDir: config.resolvedOutputDir,
@@ -126,7 +126,7 @@ public struct AnalyzeUseCase: Sendable {
 
     // MARK: - Filtered Run
 
-    private func executeFiltered(prNumber: Int, filter: RuleFilter, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
+    private func executeFiltered(prNumber: Int, filter: RuleFilter, analysisMode: AnalysisMode, commitHash: String?) -> AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .analyze))
 
@@ -138,7 +138,7 @@ public struct AnalyzeUseCase: Sendable {
                         config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit
                     ).sorted()
 
-                    let filteredTasks = allTasks.filter { filter.matches($0) }
+                    let filteredTasks = allTasks.filter { filter.matches($0) && analysisMode.matches($0) }
 
                     if filteredTasks.isEmpty {
                         continuation.yield(.log(text: "No tasks match the filter criteria\n"))

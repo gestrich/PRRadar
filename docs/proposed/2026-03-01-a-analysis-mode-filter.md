@@ -48,7 +48,10 @@ public enum AnalysisMode: String, Sendable, CaseIterable {
 **Files to modify:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/RuleFilter.swift` (add enum to existing file)
 
-## - [ ] Phase 2: Thread `AnalysisMode` through the analysis pipeline
+## - [x] Phase 2: Thread `AnalysisMode` through the analysis pipeline
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added field with default value to preserve backward compatibility; filter applied at pipeline entry points so downstream code stays unchanged
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
