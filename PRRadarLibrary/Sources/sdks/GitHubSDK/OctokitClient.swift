@@ -337,8 +337,9 @@ public struct OctokitClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["body": body])
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -376,8 +377,9 @@ public struct OctokitClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
 
         let payload: [String: Any] = [
             "body": body,
