@@ -15,12 +15,6 @@ public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
     public let newLineNumber: Int?
     public let oldLineNumber: Int?
     public let filePath: String
-    public let moveCandidate: MoveCandidate?
-
-    enum CodingKeys: String, CodingKey {
-        case content, rawLine, lineType, classification
-        case newLineNumber, oldLineNumber, filePath
-    }
 
     public init(
         content: String,
@@ -29,8 +23,7 @@ public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
         classification: LineClassification,
         newLineNumber: Int?,
         oldLineNumber: Int?,
-        filePath: String,
-        moveCandidate: MoveCandidate?
+        filePath: String
     ) {
         self.content = content
         self.rawLine = rawLine
@@ -39,19 +32,6 @@ public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
         self.newLineNumber = newLineNumber
         self.oldLineNumber = oldLineNumber
         self.filePath = filePath
-        self.moveCandidate = moveCandidate
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        content = try container.decode(String.self, forKey: .content)
-        rawLine = try container.decode(String.self, forKey: .rawLine)
-        lineType = try container.decode(DiffLineType.self, forKey: .lineType)
-        classification = try container.decode(LineClassification.self, forKey: .classification)
-        newLineNumber = try container.decodeIfPresent(Int.self, forKey: .newLineNumber)
-        oldLineNumber = try container.decodeIfPresent(Int.self, forKey: .oldLineNumber)
-        filePath = try container.decode(String.self, forKey: .filePath)
-        moveCandidate = nil
     }
 }
 
@@ -138,27 +118,20 @@ public func classifyLines(
     originalDiff: GitDiff,
     effectiveResults: [EffectiveDiffResult]
 ) -> [ClassifiedDiffLine] {
-    // Build lookup sets from effective diff results (same data as reconstructEffectiveDiff)
+    // Build lookup sets from effective diff results
     var sourceMovedLines: [String: Set<Int>] = [:]
     var targetMovedLines: [String: Set<Int>] = [:]
-    var sourceLineCandidates: [String: [Int: MoveCandidate]] = [:]
-    var targetLineCandidates: [String: [Int: MoveCandidate]] = [:]
-
-    // Lines that changed within a moved block (from re-diff added lines)
     var changedInMoveLines: [String: Set<Int>] = [:]
-    var changedInMoveCandidates: [String: [Int: MoveCandidate]] = [:]
 
     for result in effectiveResults {
         let candidate = result.candidate
 
         for line in candidate.removedLines {
             sourceMovedLines[candidate.sourceFile, default: []].insert(line.lineNumber)
-            sourceLineCandidates[candidate.sourceFile, default: [:]][line.lineNumber] = candidate
         }
 
         for line in candidate.addedLines {
             targetMovedLines[candidate.targetFile, default: []].insert(line.lineNumber)
-            targetLineCandidates[candidate.targetFile, default: [:]][line.lineNumber] = candidate
         }
 
         // Extract added lines from re-diff hunks, mapping back to absolute target file coordinates
@@ -170,7 +143,6 @@ public func classifyLines(
                 if diffLine.lineType == .added, let relativeLineNum = diffLine.newLineNumber {
                     let absoluteLineNum = regionStart + relativeLineNum - 1
                     changedInMoveLines[candidate.targetFile, default: []].insert(absoluteLineNum)
-                    changedInMoveCandidates[candidate.targetFile, default: [:]][absoluteLineNum] = candidate
                 }
             }
         }
@@ -184,36 +156,29 @@ public func classifyLines(
             guard diffLine.lineType != .header else { continue }
 
             let classification: LineClassification
-            let moveCandidate: MoveCandidate?
 
             switch diffLine.lineType {
             case .removed:
                 if let oldNum = diffLine.oldLineNumber,
                    sourceMovedLines[hunk.filePath]?.contains(oldNum) == true {
                     classification = .movedRemoval
-                    moveCandidate = sourceLineCandidates[hunk.filePath]?[oldNum]
                 } else {
                     classification = .removed
-                    moveCandidate = nil
                 }
 
             case .added:
                 if let newNum = diffLine.newLineNumber,
                    changedInMoveLines[hunk.filePath]?.contains(newNum) == true {
                     classification = .changedInMove
-                    moveCandidate = changedInMoveCandidates[hunk.filePath]?[newNum]
                 } else if let newNum = diffLine.newLineNumber,
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
                     classification = .moved
-                    moveCandidate = targetLineCandidates[hunk.filePath]?[newNum]
                 } else {
                     classification = .new
-                    moveCandidate = nil
                 }
 
             case .context:
                 classification = .context
-                moveCandidate = nil
 
             case .header:
                 continue
@@ -226,8 +191,7 @@ public func classifyLines(
                 classification: classification,
                 newLineNumber: diffLine.newLineNumber,
                 oldLineNumber: diffLine.oldLineNumber,
-                filePath: hunk.filePath,
-                moveCandidate: moveCandidate
+                filePath: hunk.filePath
             ))
         }
     }

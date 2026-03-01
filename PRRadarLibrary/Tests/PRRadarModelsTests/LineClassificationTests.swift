@@ -121,7 +121,6 @@ private func makeEffectiveResult(
         #expect(classified.count == 2)
         #expect(classified[0].classification == .moved)
         #expect(classified[1].classification == .moved)
-        #expect(classified[0].moveCandidate == candidate)
     }
 
     @Test func addedLineFromRediffClassifiedAsChangedInMove() {
@@ -179,7 +178,6 @@ private func makeEffectiveResult(
         #expect(classified.count == 2)
         #expect(classified[0].classification == .movedRemoval)
         #expect(classified[1].classification == .movedRemoval)
-        #expect(classified[0].moveCandidate == candidate)
     }
 
     @Test func removedLineNotPartOfMoveClassifiedAsRemoved() {
@@ -326,8 +324,7 @@ private func makeEffectiveResult(
             classification: classification,
             newLineNumber: lineType == .added || lineType == .context ? 1 : nil,
             oldLineNumber: lineType == .removed || lineType == .context ? 1 : nil,
-            filePath: "test.py",
-            moveCandidate: nil
+            filePath: "test.py"
         )
     }
 
