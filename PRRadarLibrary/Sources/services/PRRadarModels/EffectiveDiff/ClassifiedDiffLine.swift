@@ -1,4 +1,4 @@
-public enum LineClassification: String, Codable, Sendable {
+public enum LineClassification: String, Codable, Sendable, Equatable {
     case new
     case moved
     case changedInMove
@@ -7,7 +7,7 @@ public enum LineClassification: String, Codable, Sendable {
     case context
 }
 
-public struct ClassifiedDiffLine: Sendable {
+public struct ClassifiedDiffLine: Sendable, Equatable {
     public let content: String
     public let rawLine: String
     public let lineType: DiffLineType
@@ -40,7 +40,7 @@ public struct ClassifiedDiffLine: Sendable {
 
 // MARK: - ClassifiedHunk
 
-public struct ClassifiedHunk: Sendable {
+public struct ClassifiedHunk: Sendable, Equatable {
     public let filePath: String
     public let oldStart: Int
     public let newStart: Int

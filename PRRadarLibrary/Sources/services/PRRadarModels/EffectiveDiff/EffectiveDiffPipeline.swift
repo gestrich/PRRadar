@@ -4,10 +4,19 @@ import Foundation
 public struct EffectiveDiffPipelineResult: Sendable, Equatable {
     public let effectiveDiff: GitDiff
     public let moveReport: EffectiveDiffMoveReport
+    public let classifiedLines: [ClassifiedDiffLine]
+    public let classifiedHunks: [ClassifiedHunk]
 
-    public init(effectiveDiff: GitDiff, moveReport: EffectiveDiffMoveReport) {
+    public init(
+        effectiveDiff: GitDiff,
+        moveReport: EffectiveDiffMoveReport,
+        classifiedLines: [ClassifiedDiffLine],
+        classifiedHunks: [ClassifiedHunk]
+    ) {
         self.effectiveDiff = effectiveDiff
         self.moveReport = moveReport
+        self.classifiedLines = classifiedLines
+        self.classifiedHunks = classifiedHunks
     }
 }
 
@@ -49,8 +58,19 @@ public func runEffectiveDiffPipeline(
     )
     let report = buildMoveReport(effectiveResults)
 
+    let classifiedLines = classifyLines(
+        originalDiff: gitDiff,
+        effectiveResults: effectiveResults
+    )
+    let classifiedHunks = groupIntoClassifiedHunks(
+        originalDiff: gitDiff,
+        classifiedLines: classifiedLines
+    )
+
     return EffectiveDiffPipelineResult(
         effectiveDiff: effectiveDiff,
-        moveReport: report
+        moveReport: report,
+        classifiedLines: classifiedLines,
+        classifiedHunks: classifiedHunks
     )
 }

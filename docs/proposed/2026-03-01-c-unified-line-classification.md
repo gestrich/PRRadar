@@ -146,7 +146,7 @@ public struct ClassifiedHunk: Sendable {
 
 **Completed:** Added `ClassifiedHunk` struct and `groupIntoClassifiedHunks(originalDiff:classifiedLines:)` free function. Computed properties derive hunk-level classification from lines: `isMoved` checks that all non-context lines are `.moved` or `.movedRemoval`; `hasNewCode` and `hasChangesInMove` check for presence of `.new` and `.changedInMove` lines respectively; `changedLines` returns `.new`, `.removed`, and `.changedInMove` lines. The grouping function uses the original diff's hunk structure to determine boundaries — each original hunk's non-header line count determines how many classified lines belong to it, preserving a 1:1 correspondence.
 
-## - [ ] Phase 4: Wire into the effective diff pipeline output
+## - [x] Phase 4: Wire into the effective diff pipeline output
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -159,6 +159,8 @@ Add classified lines/hunks to the pipeline result so consumers have access to th
 
 **Files to modify:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/EffectiveDiffPipeline.swift`
+
+**Completed:** Added both `classifiedLines: [ClassifiedDiffLine]` and `classifiedHunks: [ClassifiedHunk]` to `EffectiveDiffPipelineResult`. The pipeline calls `classifyLines()` then `groupIntoClassifiedHunks()` after reconstruction — purely additive, existing `effectiveDiff` and `moveReport` outputs are unchanged. Added `Equatable` conformance to `LineClassification`, `ClassifiedDiffLine`, and `ClassifiedHunk` to satisfy `EffectiveDiffPipelineResult`'s existing `Equatable` requirement. All 499 tests pass.
 
 ## - [ ] Phase 5: Migrate `MovedLineLookup` to use classified lines
 
