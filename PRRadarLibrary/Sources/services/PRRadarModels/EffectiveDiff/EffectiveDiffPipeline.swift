@@ -27,14 +27,14 @@ public func runEffectiveDiffPipeline(
     oldFiles: [String: String],
     newFiles: [String: String],
     rediff: RediffFunction
-) throws -> EffectiveDiffPipelineResult {
+) async throws -> EffectiveDiffPipelineResult {
     let (removed, added) = extractTaggedLines(from: gitDiff)
     let matches = findExactMatches(removedLines: removed, addedLines: added)
     let candidates = findMoveCandidates(matches: matches, allAddedLines: added)
 
     var effectiveResults: [EffectiveDiffResult] = []
     for candidate in candidates {
-        let result = try computeEffectiveDiffForCandidate(
+        let result = try await computeEffectiveDiffForCandidate(
             candidate,
             oldFiles: oldFiles,
             newFiles: newFiles,

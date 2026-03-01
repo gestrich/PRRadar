@@ -47,7 +47,7 @@ private func makeCandidate(
 }
 
 /// Git-based rediff for tests: writes temp files and calls `git diff --no-index`.
-private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String, _ newLabel: String) throws -> String {
+private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String, _ newLabel: String) async throws -> String {
     let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: tmpDir) }
@@ -190,44 +190,44 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
 
 @Suite struct RediffRegionsTests {
 
-    @Test func identicalRegionsProduceEmptyDiff() throws {
+    @Test func identicalRegionsProduceEmptyDiff() async throws {
         let text = "line1\nline2\nline3\n"
-        let result = try gitRediff(text, text, "a.py", "b.py")
+        let result = try await gitRediff(text, text, "a.py", "b.py")
         #expect(result == "")
     }
 
-    @Test func differentRegionsProduceDiff() throws {
+    @Test func differentRegionsProduceDiff() async throws {
         let old = "line1\nline2\nline3\n"
         let new = "line1\nchanged\nline3\n"
-        let result = try gitRediff(old, new, "old.py", "new.py")
+        let result = try await gitRediff(old, new, "old.py", "new.py")
         #expect(result.contains("-line2"))
         #expect(result.contains("+changed"))
     }
 
-    @Test func filePathsAreRelabeled() throws {
+    @Test func filePathsAreRelabeled() async throws {
         let old = "line1\n"
         let new = "line2\n"
-        let result = try gitRediff(old, new, "utils.py", "helpers.py")
+        let result = try await gitRediff(old, new, "utils.py", "helpers.py")
         #expect(result.contains("a/utils.py"))
         #expect(result.contains("b/helpers.py"))
     }
 
-    @Test func addedLinesAppearInDiff() throws {
+    @Test func addedLinesAppearInDiff() async throws {
         let old = "line1\nline2\n"
         let new = "line1\nnew_line\nline2\n"
-        let result = try gitRediff(old, new, "a.py", "b.py")
+        let result = try await gitRediff(old, new, "a.py", "b.py")
         #expect(result.contains("+new_line"))
     }
 
-    @Test func removedLinesAppearInDiff() throws {
+    @Test func removedLinesAppearInDiff() async throws {
         let old = "line1\nold_line\nline2\n"
         let new = "line1\nline2\n"
-        let result = try gitRediff(old, new, "a.py", "b.py")
+        let result = try await gitRediff(old, new, "a.py", "b.py")
         #expect(result.contains("-old_line"))
     }
 
-    @Test func emptyInputs() throws {
-        let result = try gitRediff("", "", "a.py", "b.py")
+    @Test func emptyInputs() async throws {
+        let result = try await gitRediff("", "", "a.py", "b.py")
         #expect(result == "")
     }
 }
@@ -326,7 +326,7 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
 
 @Suite struct ComputeEffectiveDiffForCandidateTests {
 
-    @Test func pureMoveProducesEmptyHunks() throws {
+    @Test func pureMoveProducesEmptyHunks() async throws {
         let oldContent = "line1\nline2\nline3\nline4\nline5\n"
         let newContent = "line1\nline2\nline3\nline4\nline5\n"
 
@@ -336,7 +336,7 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
             addedLines: [(1, "line1"), (2, "line2"), (3, "line3"), (4, "line4"), (5, "line5")]
         )
 
-        let result = try computeEffectiveDiffForCandidate(
+        let result = try await computeEffectiveDiffForCandidate(
             candidate,
             oldFiles: ["old.py": oldContent],
             newFiles: ["new.py": newContent],
@@ -347,7 +347,7 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
         #expect(result.rawDiff == "")
     }
 
-    @Test func moveWithChangeProducesDiff() throws {
+    @Test func moveWithChangeProducesDiff() async throws {
         let oldContent = "def calc_total(items):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
         let newContent = "def calculate_total(items, tax=0):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
 
@@ -357,7 +357,7 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
             addedLines: [(2, "    total = 0"), (3, "    for item in items:"), (4, "        total += item.price"), (5, "    return total")]
         )
 
-        let result = try computeEffectiveDiffForCandidate(
+        let result = try await computeEffectiveDiffForCandidate(
             candidate,
             oldFiles: ["utils.py": oldContent],
             newFiles: ["helpers.py": newContent],
@@ -370,14 +370,14 @@ private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String,
         #expect(hunkContent.contains("calculate_total"))
     }
 
-    @Test func resultReferencesOriginalCandidate() throws {
+    @Test func resultReferencesOriginalCandidate() async throws {
         let content = "line1\nline2\nline3\n"
         let candidate = makeCandidate(
             sourceFile: "a.py", targetFile: "b.py",
             removedLines: [(1, "line1"), (2, "line2"), (3, "line3")],
             addedLines: [(1, "line1"), (2, "line2"), (3, "line3")]
         )
-        let result = try computeEffectiveDiffForCandidate(
+        let result = try await computeEffectiveDiffForCandidate(
             candidate,
             oldFiles: ["a.py": content],
             newFiles: ["b.py": content],

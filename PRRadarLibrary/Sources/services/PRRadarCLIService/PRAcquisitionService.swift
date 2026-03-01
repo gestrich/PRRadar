@@ -314,11 +314,11 @@ public struct PRAcquisitionService: Sendable {
                 newFiles[filePath] = try? await gitOps.getFileContent(commit: headCommit, filePath: filePath, repoPath: repoPath)
             }
 
-            let result = try runEffectiveDiffPipeline(
+            let result = try await runEffectiveDiffPipeline(
                 gitDiff: gitDiff,
                 oldFiles: oldFiles,
                 newFiles: newFiles,
-                rediff: gitDiffNoIndex
+                rediff: gitOps.diffNoIndex
             )
 
             let effectiveDiffJSON = try JSONEncoder.prettyPrinted.encode(result.effectiveDiff)

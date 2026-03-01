@@ -9,7 +9,7 @@ private func loadFixture(_ name: String) throws -> String {
     return try String(contentsOf: url, encoding: .utf8)
 }
 
-private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String, _ newLabel: String) throws -> String {
+private func gitRediff(_ oldText: String, _ newText: String, _ oldLabel: String, _ newLabel: String) async throws -> String {
     let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: tmpDir) }
@@ -45,8 +45,8 @@ private func runPipeline(
     diffText: String,
     oldFiles: [String: String],
     newFiles: [String: String]
-) throws -> (effectiveDiff: GitDiff, report: EffectiveDiffMoveReport) {
-    let result = try runEffectiveDiffPipeline(
+) async throws -> (effectiveDiff: GitDiff, report: EffectiveDiffMoveReport) {
+    let result = try await runEffectiveDiffPipeline(
         gitDiff: GitDiff.fromDiffContent(diffText, commitHash: ""),
         oldFiles: oldFiles,
         newFiles: newFiles,
@@ -73,7 +73,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 1: Pure move, no changes
 
-    @Test func pureMoveProducesEmptyEffectiveDiff() throws {
+    @Test func pureMoveProducesEmptyEffectiveDiff() async throws {
         let diffText = try loadFixture("pure_move.diff")
         let oldFiles = [
             "utils.py": "def calculate_total(items):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
@@ -82,7 +82,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "helpers.py": "def calculate_total(items):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(effectiveDiff.hunks.count == 0, "Pure move should produce no effective hunks")
         #expect(report.movesDetected == 1)
@@ -92,7 +92,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 2: Move with signature change
 
-    @Test func moveWithSignatureChangeShowsOnlySignature() throws {
+    @Test func moveWithSignatureChangeShowsOnlySignature() async throws {
         let diffText = try loadFixture("move_with_signature_change.diff")
         let oldFiles = [
             "utils.py": "def calc_total(items):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
@@ -101,7 +101,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "helpers.py": "def calculate_total(items, tax=0):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected == 1)
         #expect(report.totalLinesEffectivelyChanged > 0)
@@ -114,7 +114,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 3: Move with interior gap
 
-    @Test func moveWithInteriorGapShowsOnlyChangedLine() throws {
+    @Test func moveWithInteriorGapShowsOnlyChangedLine() async throws {
         let diffText = try loadFixture("move_with_interior_gap.diff")
         let oldFiles = [
             "services.py": "def process_order(order):\n    validate(order)\n    total = sum(order.items)\n    tax = total * 0.08\n    order.total = total + tax\n    order.save()\n    return order\n"
@@ -123,7 +123,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "handlers.py": "def process_order(order):\n    validate(order)\n    total = sum(order.line_items)\n    tax = total * 0.08\n    order.total = total + tax\n    order.save()\n    return order\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected == 1)
         #expect(report.totalLinesEffectivelyChanged > 0)
@@ -136,7 +136,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 4: Move with added comments
 
-    @Test func moveWithAddedCommentsShowsOnlyDocstring() throws {
+    @Test func moveWithAddedCommentsShowsOnlyDocstring() async throws {
         let diffText = try loadFixture("move_with_added_comments.diff")
         let oldFiles = [
             "utils.py": "def validate(order):\n    if not order.items:\n        raise ValueError()\n    return True\n"
@@ -145,7 +145,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "helpers.py": "def validate(order):\n    \"\"\"Validate order has items.\"\"\"\n    if not order.items:\n        raise ValueError()\n    return True\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected == 1)
         #expect(report.totalLinesEffectivelyChanged > 0)
@@ -157,7 +157,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 5: Same-file method swap
 
-    @Test func sameFileSwapProducesNoExtraHunks() throws {
+    @Test func sameFileSwapProducesNoExtraHunks() async throws {
         let diffText = try loadFixture("same_file_swap.diff")
         let oldFiles = [
             "services.py": "def method_a():\n    return \"a\"\n\ndef method_b():\n    return \"b\"\n"
@@ -166,14 +166,14 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "services.py": "def method_b():\n    return \"b\"\n\ndef method_a():\n    return \"a\"\n"
         ]
 
-        let (effectiveDiff, _) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, _) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(effectiveDiff.hunks.count <= 1)
     }
 
     // Fixture 6: Same-file swap with change
 
-    @Test func sameFileSwapWithChangeShowsRealChange() throws {
+    @Test func sameFileSwapWithChangeShowsRealChange() async throws {
         let diffText = try loadFixture("same_file_swap_with_change.diff")
         let oldFiles = [
             "services.py": "def method_a():\n    return \"a\"\n\ndef method_b():\n    return \"b\"\n"
@@ -182,7 +182,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "services.py": "def method_b():\n    return \"b\"\n\ndef method_a():\n    return \"a_modified\"\n"
         ]
 
-        let (effectiveDiff, _) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, _) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         let changed = getChangedLines(effectiveDiff)
         #expect(changed.contains { $0.contains("a_modified") }, "Should contain the modified return value")
@@ -190,7 +190,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 7: Move with multiple interior gaps
 
-    @Test func moveWithMultipleGapsShowsAllChanges() throws {
+    @Test func moveWithMultipleGapsShowsAllChanges() async throws {
         let diffText = try loadFixture("move_with_multiple_gaps.diff")
         let oldFiles = [
             "processor.py": "def process(data):\n    step1(data)\n    x = transform(data)\n    validate(x)\n    y = compute(x)\n    log(y)\n    z = finalize(y)\n    if z.ready:\n        emit(z)\n    cleanup()\n"
@@ -199,7 +199,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "handler.py": "def process(data):\n    step1(data)\n    x = transform_v2(data)\n    validate(x)\n    y = compute(x)\n    log(y)\n    z = finalize(y)\n    if z.ready:\n        emit_async(z)\n    cleanup()\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected == 1)
         #expect(report.totalLinesEffectivelyChanged > 0)
@@ -213,7 +213,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 8: Partial move
 
-    @Test func partialMovePreservesNonMovedChanges() throws {
+    @Test func partialMovePreservesNonMovedChanges() async throws {
         let diffText = try loadFixture("partial_move.diff")
         let oldFiles = [
             "big_module.py": "def func_a():\n    return \"a1\"\n    return \"a2\"\n    return \"a3\"\n\ndef func_b():\n    return \"b1\"\n    return \"b2\"\n    return \"b3\"\n\ndef func_c():\n    return \"c1\"\n    return \"c2\"\n    return \"c3\"\n\ndef func_d():\n    return \"d1\"\n"
@@ -223,7 +223,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "small_module.py": "def func_a():\n    return \"a1\"\n    return \"a2\"\n    return \"a3\"\n\ndef func_b():\n    return \"b1\"\n    return \"b2\"\n    return \"b3\"\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected > 0, "Should detect at least one move")
 
@@ -234,7 +234,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 9: Move with indentation change
 
-    @Test func moveWithIndentationChangeDetected() throws {
+    @Test func moveWithIndentationChangeDetected() async throws {
         let diffText = try loadFixture("move_with_indentation.diff")
         let oldFiles = [
             "utils.py": "def save(data):\n    db.insert(data)\n    return True\n"
@@ -243,7 +243,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "models.py": "class DataManager:\n    def save(self, data):\n        db.insert(data)\n        return True\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         if report.movesDetected > 0 {
             let changed = getChangedLines(effectiveDiff)
@@ -255,7 +255,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 10: Small block not a move
 
-    @Test func smallBlockNotClassifiedAsMove() throws {
+    @Test func smallBlockNotClassifiedAsMove() async throws {
         let diffText = try loadFixture("small_block_not_a_move.diff")
         let oldFiles = [
             "file_a.py": "def do_something():\n    x = compute()\n    return None\n    log(\"done\")\n    finish()\n"
@@ -265,7 +265,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "file_b.py": "def do_other():\n    y = prepare()\n    return None\n    process(y)\n    cleanup()\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected == 0, "Single generic line should not be a move")
         #expect(effectiveDiff.hunks.count > 0, "Original hunks should survive")
@@ -276,7 +276,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 11: Move adjacent to new code
 
-    @Test func moveAdjacentToNewCodePreservesNewCode() throws {
+    @Test func moveAdjacentToNewCodePreservesNewCode() async throws {
         let diffText = try loadFixture("move_adjacent_to_new_code.diff")
         let oldFiles = [
             "utils.py": "def calculate_total(items):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n"
@@ -285,7 +285,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "handlers.py": "def brand_new_function():\n    do_new_stuff()\n    return \"new\"\n\ndef calculate_total(items):\n    total = 0\n    for item in items:\n        total += item.price\n    return total\n\ndef another_new_function():\n    do_other_stuff()\n    return \"other\"\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(report.movesDetected == 1, "calculate_total should be detected as move")
 
@@ -299,7 +299,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 12: Move with whitespace-only changes
 
-    @Test func whitespaceOnlyMoveIsPure() throws {
+    @Test func whitespaceOnlyMoveIsPure() async throws {
         let diffText = try loadFixture("move_whitespace_only.diff")
         let oldFiles = [
             "utils.py": "def process(data):\n    step1(data)\n    step2(data)\n    step3(data)\n    return data\n"
@@ -308,7 +308,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "helpers.py": "def process(data):\n    step1(data)\n    step2(data)\n    step3(data)\n    return data\n"
         ]
 
-        let (effectiveDiff, report) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, report) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         #expect(effectiveDiff.hunks.count == 0, "Pure move should produce no effective hunks")
         #expect(report.movesDetected == 1)
@@ -317,7 +317,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
 
     // Fixture 13: Large file reorganization
 
-    @Test func largeReorgIsolatesOnlyRealChange() throws {
+    @Test func largeReorgIsolatesOnlyRealChange() async throws {
         let diffText = try loadFixture("large_reorg.diff")
         let oldFiles = [
             "services.py": "def method_one():\n    return \"one_a\"\n    return \"one_b\"\n    return \"one_c\"\n\ndef method_two():\n    return \"two_a\"\n    return \"two_b\"\n    return \"two_c\"\n\ndef method_three():\n    return \"three_a\"\n    return \"three_b\"\n    return \"three_c\"\n\ndef method_four():\n    return \"four_a\"\n    return \"four_b\"\n    return \"four_c\"\n\ndef method_five():\n    return \"five_a\"\n    return \"five_b\"\n    return \"five_c\"\n"
@@ -326,7 +326,7 @@ private func getChangedLines(_ diff: GitDiff) -> [String] {
             "services.py": "def method_five():\n    return \"five_a\"\n    return \"five_b_changed\"\n    return \"five_c\"\n\ndef method_four():\n    return \"four_a\"\n    return \"four_b\"\n    return \"four_c\"\n\ndef method_three():\n    return \"three_a\"\n    return \"three_b\"\n    return \"three_c\"\n\ndef method_two():\n    return \"two_a\"\n    return \"two_b\"\n    return \"two_c\"\n\ndef method_one():\n    return \"one_a\"\n    return \"one_b\"\n    return \"one_c\"\n"
         ]
 
-        let (effectiveDiff, _) = try runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
+        let (effectiveDiff, _) = try await runPipeline(diffText: diffText, oldFiles: oldFiles, newFiles: newFiles)
 
         let changed = getChangedLines(effectiveDiff)
         #expect(changed.contains { $0.contains("five_b_changed") }, "The real change to method_five should survive")

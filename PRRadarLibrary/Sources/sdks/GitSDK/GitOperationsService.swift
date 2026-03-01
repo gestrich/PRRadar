@@ -182,42 +182,32 @@ public struct GitOperationsService: Sendable {
         )
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-}
 
-// MARK: - Synchronous Git Operations
+    /// Runs `git diff --no-index` on two text strings, returning a unified diff with relabeled paths.
+    public func diffNoIndex(oldText: String, newText: String, oldLabel: String, newLabel: String) async throws -> String {
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
 
-/// Runs `git diff --no-index` on two text strings, returning a unified diff with relabeled paths.
-///
-/// This is synchronous because `git diff --no-index` operates on temp files outside any repository,
-/// and callers (e.g. `RediffFunction`) require a synchronous interface.
-public func gitDiffNoIndex(oldText: String, newText: String, oldLabel: String, newLabel: String) throws -> String {
-    let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let oldPath = tmpDir.appendingPathComponent("old.txt")
+        let newPath = tmpDir.appendingPathComponent("new.txt")
+        try oldText.write(to: oldPath, atomically: true, encoding: .utf8)
+        try newText.write(to: newPath, atomically: true, encoding: .utf8)
 
-    let oldPath = tmpDir.appendingPathComponent("old.txt")
-    let newPath = tmpDir.appendingPathComponent("new.txt")
-    try oldText.write(to: oldPath, atomically: true, encoding: .utf8)
-    try newText.write(to: newPath, atomically: true, encoding: .utf8)
+        // git diff --no-index returns exit code 1 when differences exist, so use executeForResult
+        let result = try await client.executeForResult(
+            GitCLI.Diff(noIndex: true, noColor: true, args: [oldPath.path, newPath.path]),
+            printCommand: false
+        )
 
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-    process.arguments = ["diff", "--no-index", "--no-color", oldPath.path, newPath.path]
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    process.standardError = Pipe()
-    try process.run()
-    process.waitUntilExit()
+        var raw = result.stdout
+        if raw.isEmpty { return "" }
 
-    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-    var raw = String(data: data, encoding: .utf8) ?? ""
+        let oldRel = String(oldPath.path.dropFirst())
+        let newRel = String(newPath.path.dropFirst())
+        raw = raw.replacingOccurrences(of: "a/\(oldRel)", with: "a/\(oldLabel)")
+        raw = raw.replacingOccurrences(of: "b/\(newRel)", with: "b/\(newLabel)")
 
-    if raw.isEmpty { return "" }
-
-    let oldRel = String(oldPath.path.dropFirst())
-    let newRel = String(newPath.path.dropFirst())
-    raw = raw.replacingOccurrences(of: "a/\(oldRel)", with: "a/\(oldLabel)")
-    raw = raw.replacingOccurrences(of: "b/\(newRel)", with: "b/\(newLabel)")
-
-    return raw
+        return raw
+    }
 }

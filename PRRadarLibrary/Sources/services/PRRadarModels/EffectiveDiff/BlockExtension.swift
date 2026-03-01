@@ -25,7 +25,7 @@ public typealias RediffFunction = @Sendable (
     _ newText: String,
     _ oldLabel: String,
     _ newLabel: String
-) throws -> String
+) async throws -> String
 
 // MARK: - Functions
 
@@ -92,7 +92,7 @@ public func computeEffectiveDiffForCandidate(
     contextLines: Int = defaultContextLines,
     trimProximity: Int = defaultTrimProximity,
     rediff: RediffFunction
-) throws -> EffectiveDiffResult {
+) async throws -> EffectiveDiffResult {
     let ranges = extendBlockRange(candidate, contextLines: contextLines)
 
     let oldContent = oldFiles[candidate.sourceFile] ?? ""
@@ -101,7 +101,7 @@ public func computeEffectiveDiffForCandidate(
     let oldRegion = extractLineRange(from: oldContent, start: ranges.source.start, end: ranges.source.end)
     let newRegion = extractLineRange(from: newContent, start: ranges.target.start, end: ranges.target.end)
 
-    let rawDiff = try rediff(oldRegion, newRegion, candidate.sourceFile, candidate.targetFile)
+    let rawDiff = try await rediff(oldRegion, newRegion, candidate.sourceFile, candidate.targetFile)
 
     guard !rawDiff.isEmpty else {
         return EffectiveDiffResult(candidate: candidate, hunks: [], rawDiff: "")
