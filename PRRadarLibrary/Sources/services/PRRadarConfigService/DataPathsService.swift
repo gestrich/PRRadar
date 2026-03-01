@@ -73,6 +73,7 @@ public enum DataPathsService {
     public static let effectiveDiffParsedJSONFilename = "effective-diff-parsed.json"
     public static let effectiveDiffParsedMarkdownFilename = "effective-diff-parsed.md"
     public static let effectiveDiffMovesFilename = "effective-diff-moves.json"
+    public static let classifiedHunksFilename = "classified-hunks.json"
 
     // MARK: - Prepare Phase Filenames
     public static let allRulesFilename = "all-rules.json"

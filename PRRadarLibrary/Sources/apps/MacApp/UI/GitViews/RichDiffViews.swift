@@ -24,45 +24,72 @@ struct MovedLineInfo {
 }
 
 struct MovedLineLookup {
-    private let sourceRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)]
-    private let targetRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)]
+    private struct LineKey: Hashable {
+        let filePath: String
+        let lineNumber: Int
+        let side: Side
+        enum Side { case old, new }
+    }
 
-    static let empty = MovedLineLookup(moveReport: nil)
+    private let classifiedByLine: [LineKey: LineClassification]
+    private let moveDetailRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail, isSource: Bool)]
 
-    init(moveReport: MoveReport?) {
-        guard let report = moveReport else {
-            sourceRanges = []
-            targetRanges = []
-            return
-        }
-        var src: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)] = []
-        var tgt: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail)] = []
-        for move in report.moves {
-            if move.sourceLines.count == 2 {
-                src.append((filePath: move.sourceFile, range: move.sourceLines[0]...move.sourceLines[1], move: move))
+    static let empty = MovedLineLookup(classifiedHunks: nil, moveReport: nil)
+
+    init(classifiedHunks: [ClassifiedHunk]?, moveReport: MoveReport?) {
+        var lineMap: [LineKey: LineClassification] = [:]
+        if let hunks = classifiedHunks {
+            for hunk in hunks {
+                for line in hunk.lines {
+                    if let oldNum = line.oldLineNumber {
+                        lineMap[LineKey(filePath: line.filePath, lineNumber: oldNum, side: .old)] = line.classification
+                    }
+                    if let newNum = line.newLineNumber {
+                        lineMap[LineKey(filePath: line.filePath, lineNumber: newNum, side: .new)] = line.classification
+                    }
+                }
             }
-            if move.targetLines.count == 2 {
-                tgt.append((filePath: move.targetFile, range: move.targetLines[0]...move.targetLines[1], move: move))
+        }
+        classifiedByLine = lineMap
+
+        var ranges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail, isSource: Bool)] = []
+        if let report = moveReport {
+            for move in report.moves {
+                if move.sourceLines.count == 2 {
+                    ranges.append((filePath: move.sourceFile, range: move.sourceLines[0]...move.sourceLines[1], move: move, isSource: true))
+                }
+                if move.targetLines.count == 2 {
+                    ranges.append((filePath: move.targetFile, range: move.targetLines[0]...move.targetLines[1], move: move, isSource: false))
+                }
             }
         }
-        sourceRanges = src
-        targetRanges = tgt
+        moveDetailRanges = ranges
     }
 
     func lookup(filePath: String, oldLine: Int?, newLine: Int?, lineType: DisplayDiffLineType) -> MovedLineInfo? {
         switch lineType {
         case .deletion:
             guard let line = oldLine else { return nil }
-            for entry in sourceRanges where entry.filePath == filePath && entry.range.contains(line) {
-                return MovedLineInfo(move: entry.move, isSource: true)
-            }
+            let key = LineKey(filePath: filePath, lineNumber: line, side: .old)
+            guard let classification = classifiedByLine[key],
+                  classification == .movedRemoval else { return nil }
+            return findMoveDetail(filePath: filePath, lineNumber: line, isSource: true)
+
         case .addition:
             guard let line = newLine else { return nil }
-            for entry in targetRanges where entry.filePath == filePath && entry.range.contains(line) {
-                return MovedLineInfo(move: entry.move, isSource: false)
-            }
+            let key = LineKey(filePath: filePath, lineNumber: line, side: .new)
+            guard let classification = classifiedByLine[key],
+                  classification == .moved || classification == .changedInMove else { return nil }
+            return findMoveDetail(filePath: filePath, lineNumber: line, isSource: false)
+
         case .context:
             return nil
+        }
+    }
+
+    private func findMoveDetail(filePath: String, lineNumber: Int, isSource: Bool) -> MovedLineInfo? {
+        for entry in moveDetailRanges where entry.filePath == filePath && entry.isSource == isSource && entry.range.contains(lineNumber) {
+            return MovedLineInfo(move: entry.move, isSource: isSource)
         }
         return nil
     }

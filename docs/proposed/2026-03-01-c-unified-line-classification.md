@@ -162,7 +162,7 @@ Add classified lines/hunks to the pipeline result so consumers have access to th
 
 **Completed:** Added both `classifiedLines: [ClassifiedDiffLine]` and `classifiedHunks: [ClassifiedHunk]` to `EffectiveDiffPipelineResult`. The pipeline calls `classifyLines()` then `groupIntoClassifiedHunks()` after reconstruction — purely additive, existing `effectiveDiff` and `moveReport` outputs are unchanged. Added `Equatable` conformance to `LineClassification`, `ClassifiedDiffLine`, and `ClassifiedHunk` to satisfy `EffectiveDiffPipelineResult`'s existing `Equatable` requirement. All 499 tests pass.
 
-## - [ ] Phase 5: Migrate `MovedLineLookup` to use classified lines
+## - [x] Phase 5: Migrate `MovedLineLookup` to use classified lines
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -177,6 +177,10 @@ Replace the UI layer's independent move-detection lookup with the classified lin
 **Files to modify:**
 - `PRRadarLibrary/Sources/apps/MacApp/UI/GitViews/RichDiffViews.swift`
 - Possibly other MacApp view files that consume `MovedLineLookup`
+
+**Completed:** Refactored `MovedLineLookup` to build its primary lookup from `[ClassifiedHunk]` instead of `MoveReport`. The struct now indexes every classified line by file path, line number, and side (old/new) into a hash map for O(1) lookup. Line move status is determined by `LineClassification` (`.movedRemoval`, `.moved`, `.changedInMove`) rather than range-based checks. `MoveReport` is still used as a secondary data source to provide `MoveDetail` for the "view moved code" navigation handler.
+
+To make classified hunks available at the UI layer: added `Codable` conformance to `ClassifiedDiffLine` (with custom decoding that skips non-Codable `MoveCandidate`), `ClassifiedHunk`, and `DiffLineType`; persisted classified hunks to disk during acquisition (`classified-hunks.json`); loaded them in `SyncSnapshot`; and flowed them through `ReviewDetailView` → `DiffPhaseView` → `MovedLineLookup`. All 499 tests pass.
 
 ## - [ ] Phase 6: Migrate `reconstructEffectiveDiff` to use classified lines
 

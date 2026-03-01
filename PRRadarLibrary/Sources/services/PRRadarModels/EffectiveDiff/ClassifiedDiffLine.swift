@@ -7,7 +7,7 @@ public enum LineClassification: String, Codable, Sendable, Equatable {
     case context
 }
 
-public struct ClassifiedDiffLine: Sendable, Equatable {
+public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
     public let content: String
     public let rawLine: String
     public let lineType: DiffLineType
@@ -16,6 +16,11 @@ public struct ClassifiedDiffLine: Sendable, Equatable {
     public let oldLineNumber: Int?
     public let filePath: String
     public let moveCandidate: MoveCandidate?
+
+    enum CodingKeys: String, CodingKey {
+        case content, rawLine, lineType, classification
+        case newLineNumber, oldLineNumber, filePath
+    }
 
     public init(
         content: String,
@@ -36,11 +41,23 @@ public struct ClassifiedDiffLine: Sendable, Equatable {
         self.filePath = filePath
         self.moveCandidate = moveCandidate
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        content = try container.decode(String.self, forKey: .content)
+        rawLine = try container.decode(String.self, forKey: .rawLine)
+        lineType = try container.decode(DiffLineType.self, forKey: .lineType)
+        classification = try container.decode(LineClassification.self, forKey: .classification)
+        newLineNumber = try container.decodeIfPresent(Int.self, forKey: .newLineNumber)
+        oldLineNumber = try container.decodeIfPresent(Int.self, forKey: .oldLineNumber)
+        filePath = try container.decode(String.self, forKey: .filePath)
+        moveCandidate = nil
+    }
 }
 
 // MARK: - ClassifiedHunk
 
-public struct ClassifiedHunk: Sendable, Equatable {
+public struct ClassifiedHunk: Codable, Sendable, Equatable {
     public let filePath: String
     public let oldStart: Int
     public let newStart: Int

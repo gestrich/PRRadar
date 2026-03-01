@@ -8,6 +8,7 @@ public struct SyncSnapshot: Sendable {
     public let fullDiff: GitDiff?
     public let effectiveDiff: GitDiff?
     public let moveReport: MoveReport?
+    public let classifiedHunks: [ClassifiedHunk]?
     public let commentCount: Int
     public let reviewCount: Int
     public let reviewCommentCount: Int
@@ -18,6 +19,7 @@ public struct SyncSnapshot: Sendable {
         fullDiff: GitDiff?,
         effectiveDiff: GitDiff?,
         moveReport: MoveReport?,
+        classifiedHunks: [ClassifiedHunk]? = nil,
         commentCount: Int = 0,
         reviewCount: Int = 0,
         reviewCommentCount: Int = 0,
@@ -27,6 +29,7 @@ public struct SyncSnapshot: Sendable {
         self.fullDiff = fullDiff
         self.effectiveDiff = effectiveDiff
         self.moveReport = moveReport
+        self.classifiedHunks = classifiedHunks
         self.commentCount = commentCount
         self.reviewCount = reviewCount
         self.reviewCommentCount = reviewCommentCount
@@ -65,6 +68,10 @@ public struct SyncPRUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
         )
 
+        let classifiedHunks: [ClassifiedHunk]? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.classifiedHunksFilename, commitHash: resolvedCommit
+        )
+
         // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .metadata, filename: DataPathsService.ghCommentsFilename
@@ -75,6 +82,7 @@ public struct SyncPRUseCase: Sendable {
             fullDiff: fullDiff,
             effectiveDiff: effectiveDiff,
             moveReport: moveReport,
+            classifiedHunks: classifiedHunks,
             commentCount: comments?.comments.count ?? 0,
             reviewCount: comments?.reviews.count ?? 0,
             reviewCommentCount: comments?.reviewComments.count ?? 0,

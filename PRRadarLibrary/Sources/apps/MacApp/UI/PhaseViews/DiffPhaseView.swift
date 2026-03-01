@@ -5,6 +5,7 @@ struct DiffPhaseView: View {
 
     let fullDiff: GitDiff
     var prModel: PRModel
+    var classifiedHunks: [ClassifiedHunk]?
     var moveReport: MoveReport?
     var onMoveTapped: ((MoveDetail) -> Void)?
 
@@ -194,7 +195,7 @@ struct DiffPhaseView: View {
                 diff: filtered,
                 commentMapping: commentMapping(for: diff),
                 prModel: prModel,
-                movedLineLookup: MovedLineLookup(moveReport: moveReport),
+                movedLineLookup: MovedLineLookup(classifiedHunks: classifiedHunks, moveReport: moveReport),
                 onMoveTapped: onMoveTapped
             )
         }

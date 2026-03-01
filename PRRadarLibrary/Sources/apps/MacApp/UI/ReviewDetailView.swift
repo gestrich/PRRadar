@@ -132,6 +132,7 @@ struct ReviewDetailView: View {
                 DiffPhaseView(
                     fullDiff: fullDiff,
                     prModel: prModel,
+                    classifiedHunks: prModel.syncSnapshot?.classifiedHunks,
                     moveReport: prModel.syncSnapshot?.moveReport,
                     onMoveTapped: { move in
                         effectiveDiffInitialMove = move

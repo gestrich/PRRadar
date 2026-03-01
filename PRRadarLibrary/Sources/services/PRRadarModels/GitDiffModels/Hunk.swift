@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - DiffLine
 
-public enum DiffLineType: String, Sendable {
+public enum DiffLineType: String, Codable, Sendable {
     case added
     case removed
     case context
