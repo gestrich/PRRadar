@@ -84,7 +84,10 @@ Build a utility to extract only truly new lines from the classified diff data. T
 **Files to modify:**
 - `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift` (add utility function)
 
-## - [ ] Phase 3: Add `violation_regex` field to rule YAML schema
+## - [x] Phase 3: Add `violation_regex` field to rule YAML schema
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added fields at Services layer (PRRadarModels) with propagation through TaskRule; reused existing `parseSimpleYAML()` for frontmatter parsing with no parser changes needed
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

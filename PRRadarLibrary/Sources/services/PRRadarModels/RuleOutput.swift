@@ -159,6 +159,12 @@ public struct ReviewRule: Codable, Sendable, Equatable {
     public let appliesTo: AppliesTo?
     public let grep: GrepPatterns?
     public let newCodeLinesOnly: Bool
+    public let violationRegex: String?
+    public let violationMessage: String?
+
+    public var isRegexOnly: Bool {
+        violationRegex != nil
+    }
 
     public init(
         name: String,
@@ -173,7 +179,9 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         ruleUrl: String? = nil,
         appliesTo: AppliesTo? = nil,
         grep: GrepPatterns? = nil,
-        newCodeLinesOnly: Bool = false
+        newCodeLinesOnly: Bool = false,
+        violationRegex: String? = nil,
+        violationMessage: String? = nil
     ) {
         self.name = name
         self.filePath = filePath
@@ -188,6 +196,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         self.appliesTo = appliesTo
         self.grep = grep
         self.newCodeLinesOnly = newCodeLinesOnly
+        self.violationRegex = violationRegex
+        self.violationMessage = violationMessage
     }
 
     enum CodingKeys: String, CodingKey {
@@ -204,6 +214,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         case appliesTo = "applies_to"
         case grep
         case newCodeLinesOnly = "new_code_lines_only"
+        case violationRegex = "violation_regex"
+        case violationMessage = "violation_message"
     }
 
     public init(from decoder: Decoder) throws {
@@ -221,6 +233,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         appliesTo = try container.decodeIfPresent(AppliesTo.self, forKey: .appliesTo)
         grep = try container.decodeIfPresent(GrepPatterns.self, forKey: .grep)
         newCodeLinesOnly = try container.decodeIfPresent(Bool.self, forKey: .newCodeLinesOnly) ?? false
+        violationRegex = try container.decodeIfPresent(String.self, forKey: .violationRegex)
+        violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
     }
 
     // MARK: - File Parsing
@@ -269,6 +283,9 @@ public struct ReviewRule: Codable, Sendable, Equatable {
             newCodeLinesOnly = false
         }
 
+        let violationRegex = frontmatter["violation_regex"] as? String
+        let violationMessage = frontmatter["violation_message"] as? String
+
         return ReviewRule(
             name: url.deletingPathExtension().lastPathComponent,
             filePath: url.path,
@@ -281,7 +298,9 @@ public struct ReviewRule: Codable, Sendable, Equatable {
             relevantClaudeSkill: frontmatter["relevantClaudeSkill"] as? String,
             appliesTo: appliesTo,
             grep: grep,
-            newCodeLinesOnly: newCodeLinesOnly
+            newCodeLinesOnly: newCodeLinesOnly,
+            violationRegex: violationRegex,
+            violationMessage: violationMessage
         )
     }
 

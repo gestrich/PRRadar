@@ -13,6 +13,12 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let relevantClaudeSkill: String?
     public let ruleUrl: String?
     public let newCodeLinesOnly: Bool
+    public let violationRegex: String?
+    public let violationMessage: String?
+
+    public var isRegexOnly: Bool {
+        violationRegex != nil
+    }
 
     public init(
         name: String,
@@ -23,7 +29,9 @@ public struct TaskRule: Codable, Sendable, Equatable {
         documentationLink: String? = nil,
         relevantClaudeSkill: String? = nil,
         ruleUrl: String? = nil,
-        newCodeLinesOnly: Bool = false
+        newCodeLinesOnly: Bool = false,
+        violationRegex: String? = nil,
+        violationMessage: String? = nil
     ) {
         self.name = name
         self.description = description
@@ -34,6 +42,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         self.relevantClaudeSkill = relevantClaudeSkill
         self.ruleUrl = ruleUrl
         self.newCodeLinesOnly = newCodeLinesOnly
+        self.violationRegex = violationRegex
+        self.violationMessage = violationMessage
     }
 
     enum CodingKeys: String, CodingKey {
@@ -46,6 +56,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case relevantClaudeSkill = "relevant_claude_skill"
         case ruleUrl = "rule_url"
         case newCodeLinesOnly = "new_code_lines_only"
+        case violationRegex = "violation_regex"
+        case violationMessage = "violation_message"
     }
 
     public init(from decoder: Decoder) throws {
@@ -59,6 +71,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         relevantClaudeSkill = try container.decodeIfPresent(String.self, forKey: .relevantClaudeSkill)
         ruleUrl = try container.decodeIfPresent(String.self, forKey: .ruleUrl)
         newCodeLinesOnly = try container.decodeIfPresent(Bool.self, forKey: .newCodeLinesOnly) ?? false
+        violationRegex = try container.decodeIfPresent(String.self, forKey: .violationRegex)
+        violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
     }
 }
 
@@ -112,7 +126,9 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
             documentationLink: rule.documentationLink,
             relevantClaudeSkill: rule.relevantClaudeSkill,
             ruleUrl: rule.ruleUrl,
-            newCodeLinesOnly: rule.newCodeLinesOnly
+            newCodeLinesOnly: rule.newCodeLinesOnly,
+            violationRegex: rule.violationRegex,
+            violationMessage: rule.violationMessage
         )
         return RuleRequest(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
     }
