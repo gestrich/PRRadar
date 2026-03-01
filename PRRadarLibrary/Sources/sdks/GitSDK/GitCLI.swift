@@ -45,6 +45,11 @@ public struct GitCLI {
     }
 
     @CLICommand
+    public struct MergeBase {
+        @Positional public var commits: [String]
+    }
+
+    @CLICommand
     public struct Remote {
         @Positional public var args: [String]
     }

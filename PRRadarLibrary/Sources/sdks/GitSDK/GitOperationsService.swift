@@ -154,6 +154,18 @@ public struct GitOperationsService: Sendable {
         )
     }
 
+    public func getMergeBase(commit1: String, commit2: String, repoPath: String) async throws -> String {
+        guard try await isGitRepository(path: repoPath) else {
+            throw GitOperationsError.notARepository("Not a git repository: \(repoPath)")
+        }
+
+        return try await client.execute(
+            GitCLI.MergeBase(commits: [commit1, commit2]),
+            workingDirectory: repoPath,
+            printCommand: false
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     public func getRemoteURL(path: String) async throws -> String {
         try await client.execute(
             GitCLI.Remote(args: ["get-url", "origin"]),
@@ -170,4 +182,42 @@ public struct GitOperationsService: Sendable {
         )
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+}
+
+// MARK: - Synchronous Git Operations
+
+/// Runs `git diff --no-index` on two text strings, returning a unified diff with relabeled paths.
+///
+/// This is synchronous because `git diff --no-index` operates on temp files outside any repository,
+/// and callers (e.g. `RediffFunction`) require a synchronous interface.
+public func gitDiffNoIndex(oldText: String, newText: String, oldLabel: String, newLabel: String) throws -> String {
+    let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+    let oldPath = tmpDir.appendingPathComponent("old.txt")
+    let newPath = tmpDir.appendingPathComponent("new.txt")
+    try oldText.write(to: oldPath, atomically: true, encoding: .utf8)
+    try newText.write(to: newPath, atomically: true, encoding: .utf8)
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+    process.arguments = ["diff", "--no-index", "--no-color", oldPath.path, newPath.path]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = Pipe()
+    try process.run()
+    process.waitUntilExit()
+
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    var raw = String(data: data, encoding: .utf8) ?? ""
+
+    if raw.isEmpty { return "" }
+
+    let oldRel = String(oldPath.path.dropFirst())
+    let newRel = String(newPath.path.dropFirst())
+    raw = raw.replacingOccurrences(of: "a/\(oldRel)", with: "a/\(oldLabel)")
+    raw = raw.replacingOccurrences(of: "b/\(newRel)", with: "b/\(newLabel)")
+
+    return raw
 }

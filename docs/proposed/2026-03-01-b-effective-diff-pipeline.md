@@ -63,7 +63,10 @@ Before wiring up the real effective diff, fix `PrepareUseCase` so it always uses
 **Files to modify:**
 - `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/PrepareUseCase.swift`
 
-## - [ ] Phase 2: Wire up effective diff pipeline in PRAcquisitionService
+## - [x] Phase 2: Wire up effective diff pipeline in PRAcquisitionService
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: SDK layer gets `MergeBase` command and `getMergeBase()` method (single git operation, stateless). Service layer orchestrates pipeline call with graceful fallback. Rediff function implemented as file-level helper matching test pattern.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
