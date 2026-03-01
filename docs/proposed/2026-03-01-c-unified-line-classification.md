@@ -214,7 +214,7 @@ Update `2026-03-01-a-regex-analysis.md` Phase 2 to reference the unified classif
 
 **Completed:** Updated the regex analysis plan to reference the unified classification model throughout. Added `2026-03-01-c-unified-line-classification.md` as a prerequisite. Key finding #4 updated from `HunkClassification` to `ClassifiedDiffLine`/`LineClassification`. Phase 2 rewritten: "new code only" filtering is now a single filter on `ClassifiedDiffLine.classification` (`.new` or `.changedInMove`) instead of pulling from two separate sources (effective diff + `EffectiveDiffResult.hunks`). Phase 4 method signature changed to accept `[ClassifiedHunk]` directly, using `ClassifiedHunk.newCodeLines` and `ClassifiedHunk.changedLines`. Phase 5 updated to pass `classifiedHunks` from `EffectiveDiffPipelineResult`. Phase 7 test descriptions updated to reference classification-based filtering.
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -233,3 +233,12 @@ Update `2026-03-01-a-regex-analysis.md` Phase 2 to reference the unified classif
 - Run full test suite: `cd PRRadarLibrary && swift test`
 - Build check: `cd PRRadarLibrary && swift build`
 - End-to-end check: `cd PRRadarLibrary && swift run PRRadarMacCLI diff 1 --config test-repo`
+
+**Completed:** Added `LineClassificationTests.swift` with 27 tests across 5 suites:
+- `ClassifyLinesTests` (10 tests): covers all 6 classification cases (`.new`, `.moved`, `.changedInMove`, `.movedRemoval`, `.removed`, `.context`), header skipping, line number/file path preservation, and mixed moved-and-new lines in the same hunk.
+- `ClassifiedHunkPropertiesTests` (9 tests): covers `isMoved`, `hasNewCode`, `hasChangesInMove`, `newCodeLines`, and `changedLines` computed properties including edge cases (all-context hunks, mixed classifications).
+- `GroupIntoClassifiedHunksTests` (2 tests): verifies correct grouping and hunk start numbers.
+- `MovedMethodWithInteriorChangeTests` (2 tests): verifies a large method moved with an inserted line (`cache(result)`) classified as `.changedInMove`, and a method moved with a modified signature classified as `.changedInMove`. Key insight: re-diff hunk line numbers must account for `extendBlockRange` region offset (`absoluteLineNum = regionStart + relativeLineNum - 1`).
+- `ClassificationReconstructionEquivalenceTests` (4 tests): verifies reconstruction produces correct results when driven by classified lines — no moves preserves all hunks, pure move produces empty diff, non-moved code and adjacent new code survive.
+
+All 503 tests pass (27 new). Release build succeeds. End-to-end CLI check (`sync 1 --config PRRadar-TestRepo`) produces correct output.
