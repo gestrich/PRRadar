@@ -596,12 +596,12 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    private func runFilteredAnalysis(filter: RuleFilter) async {
+    private func runFilteredAnalysis(filter: RuleFilter, analysisMode: AnalysisMode = .all) async {
         inProgressAnalysis = detail?.analysis ?? PRReviewResult(streaming: preparation?.tasks ?? [])
         for key in evaluations.keys { evaluations[key]?.accumulator = nil }
 
         let useCase = AnalyzeUseCase(config: config)
-        let request = PRReviewRequest(prNumber: prNumber, filter: filter, commitHash: currentCommitHash)
+        let request = PRReviewRequest(prNumber: prNumber, filter: filter, commitHash: currentCommitHash, analysisMode: analysisMode)
 
         do {
             for try await progress in useCase.execute(request: request) {
@@ -651,9 +651,9 @@ final class PRModel: Identifiable, Hashable {
         }
     }
 
-    func startSelectiveAnalysis(filter: RuleFilter) {
+    func startSelectiveAnalysis(filter: RuleFilter, analysisMode: AnalysisMode = .all) {
         guard let tasks = preparation?.tasks, !tasks.isEmpty else { return }
-        let matchingTasks = tasks.filter { filter.matches($0) }
+        let matchingTasks = tasks.filter { filter.matches($0) && analysisMode.matches($0) }
         guard !matchingTasks.isEmpty else { return }
 
         if matchingTasks.count == 1, let task = matchingTasks.first {
@@ -662,7 +662,7 @@ final class PRModel: Identifiable, Hashable {
             }
         } else {
             Task {
-                await runFilteredAnalysis(filter: filter)
+                await runFilteredAnalysis(filter: filter, analysisMode: analysisMode)
             }
         }
     }

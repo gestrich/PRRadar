@@ -92,7 +92,10 @@ swift run PRRadarMacCLI analyze 1 --config test-repo           # default: all
 **Files to modify:**
 - `PRRadarLibrary/Sources/apps/MacCLI/Commands/AnalyzeCommand.swift`
 
-## - [ ] Phase 4: Add analysis mode options to MacApp UI
+## - [x] Phase 4: Add analysis mode options to MacApp UI
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Added analysisMode parameter with default value to preserve existing call sites; mode filtering applied at entry point (startSelectiveAnalysis) so downstream code stays unchanged
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 

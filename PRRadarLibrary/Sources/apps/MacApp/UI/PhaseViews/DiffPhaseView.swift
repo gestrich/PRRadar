@@ -282,6 +282,18 @@ struct DiffPhaseView: View {
                 Label("Run All Rules", systemImage: "play.fill")
             }
 
+            Button {
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .regexOnly)
+            } label: {
+                Label("Run All Regex Rules", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+
+            Button {
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .aiOnly)
+            } label: {
+                Label("Run All AI Rules", systemImage: "brain")
+            }
+
             if rules.count > 1 {
                 Menu("Run Rule\u{2026}") {
                     ForEach(rules, id: \.self) { rule in
@@ -304,6 +316,18 @@ struct DiffPhaseView: View {
                 prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file))
             } label: {
                 Label("Run All Rules", systemImage: "play.fill")
+            }
+
+            Button {
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .regexOnly)
+            } label: {
+                Label("Run All Regex Rules", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+
+            Button {
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .aiOnly)
+            } label: {
+                Label("Run All AI Rules", systemImage: "brain")
             }
 
             if rules.count > 1 {
