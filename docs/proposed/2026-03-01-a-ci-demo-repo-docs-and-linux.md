@@ -34,7 +34,9 @@ Reference for conditional compilation: `/Users/bill/Developer/work/swift/StackAn
 
 ## Phases
 
-## - [ ] Phase 1: Write CI setup documentation
+## - [x] Phase 1: Write CI setup documentation
+
+**Principles applied**: Documentation mirrors the actual test repo workflow; includes troubleshooting for known issues (Bearer auth, comfort-fade header)
 
 Create a doc at `docs/ci-setup.md` explaining how to set up PRRadar CI in a repository. Cover:
 
