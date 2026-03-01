@@ -37,7 +37,7 @@ public struct PrepareUseCase: Sendable {
                     continuation.yield(.log(text: "Generating focus areas...\n"))
 
                     let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-                    guard let fullDiff = diffSnapshot.effectiveDiff ?? diffSnapshot.fullDiff else {
+                    guard let fullDiff = diffSnapshot.fullDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
                         return
