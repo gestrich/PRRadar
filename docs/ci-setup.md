@@ -57,11 +57,16 @@ permissions:
 
 jobs:
   review:
-    runs-on: macos-26
+    runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.2"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -185,4 +190,4 @@ The GitHub API for creating review comments requires:
 
 ### Runner requirements
 
-The workflow requires Swift 6.2+. Currently `macos-26` runners are used. Linux runner support is planned.
+The workflow uses `ubuntu-latest` with Swift 6.2 installed via [`swift-actions/setup-swift@v3`](https://github.com/swift-actions/setup-swift). Linux runners are significantly cheaper than macOS runners. If you need macOS-specific features, change `runs-on` to `macos-26` and remove the Setup Swift step (macOS 26 runners include Swift 6.2).

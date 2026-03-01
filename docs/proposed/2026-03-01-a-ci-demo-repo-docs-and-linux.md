@@ -96,7 +96,9 @@ The custom SwiftCLI fork at `https://github.com/gestrich/SwiftCLI.git` has `plat
 
 **Result**: No changes needed to SwiftCLI. The `platforms: [.macOS(.v15)]` constraint is correct and does not affect Linux builds.
 
-## - [ ] Phase 5: Update workflow to use Linux runner
+## - [x] Phase 5: Update workflow to use Linux runner
+
+**Principles applied**: Used `swift-actions/setup-swift@v3` for Swift installation on Ubuntu; updated both the test repo workflow and CI setup documentation to reflect Linux runner usage with macOS fallback documented
 
 Update `PRRadar-TestRepo/.github/workflows/pr-review.yml`:
 
