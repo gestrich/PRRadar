@@ -166,16 +166,16 @@ struct CommentApprovalView: View {
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
 
-            if let cost = comment.costUsd {
+            if let method = comment.analysisMethod {
                 HStack(spacing: 4) {
-                    Text("Cost:")
-                        .foregroundStyle(.secondary)
-                    Text(String(format: "$%.4f", cost))
-                    if let model = comment.modelUsed {
+                    if method.costUsd > 0 {
+                        Text("Cost:")
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "$%.4f", method.costUsd))
                         Text("·")
                             .foregroundStyle(.secondary)
-                        Text(displayName(forModelId: model))
                     }
+                    Text(method.displayName)
                 }
                 .font(.caption)
             }

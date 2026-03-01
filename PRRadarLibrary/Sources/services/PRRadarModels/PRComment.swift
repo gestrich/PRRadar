@@ -14,8 +14,9 @@ public struct PRComment: Sendable, Identifiable {
     public let documentationLink: String?
     public let relevantClaudeSkill: String?
     public let ruleUrl: String?
-    public let costUsd: Double?
-    public let modelUsed: String?
+    public let analysisMethod: AnalysisMethod?
+
+    public var costUsd: Double? { analysisMethod?.costUsd }
 
     public init(
         id: String,
@@ -27,8 +28,7 @@ public struct PRComment: Sendable, Identifiable {
         documentationLink: String? = nil,
         relevantClaudeSkill: String? = nil,
         ruleUrl: String? = nil,
-        costUsd: Double? = nil,
-        modelUsed: String? = nil
+        analysisMethod: AnalysisMethod? = nil
     ) {
         self.id = id
         self.ruleName = ruleName
@@ -39,8 +39,7 @@ public struct PRComment: Sendable, Identifiable {
         self.documentationLink = documentationLink
         self.relevantClaudeSkill = relevantClaudeSkill
         self.ruleUrl = ruleUrl
-        self.costUsd = costUsd
-        self.modelUsed = modelUsed
+        self.analysisMethod = analysisMethod
     }
 
     /// Creates a comment from an individual violation and its parent result metadata.
@@ -60,8 +59,7 @@ public struct PRComment: Sendable, Identifiable {
             documentationLink: task?.rule.documentationLink,
             relevantClaudeSkill: task?.rule.relevantClaudeSkill,
             ruleUrl: task?.rule.ruleUrl,
-            costUsd: result.costUsd,
-            modelUsed: result.modelUsed
+            analysisMethod: result.analysisMethod
         )
     }
 
@@ -87,11 +85,11 @@ public struct PRComment: Sendable, Identifiable {
         }
 
         var metaParts: [String] = []
-        if let cost = costUsd {
-            metaParts.append(String(format: "cost $%.4f", cost))
-        }
-        if let model = modelUsed {
-            metaParts.append(displayName(forModelId: model))
+        if let method = analysisMethod {
+            if method.costUsd > 0 {
+                metaParts.append(String(format: "cost $%.4f", method.costUsd))
+            }
+            metaParts.append(method.displayName)
         }
         let metaStr = metaParts.isEmpty ? "" : " (\(metaParts.joined(separator: " · ")))"
         lines.append("")

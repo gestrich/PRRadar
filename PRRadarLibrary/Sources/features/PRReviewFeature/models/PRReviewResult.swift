@@ -76,7 +76,7 @@ public struct PRReviewResult: Sendable {
     }
 
     public var modelsUsed: [String] {
-        Array(Set(taskEvaluations.outcomes.map(\.modelUsed))).sorted()
+        Array(Set(taskEvaluations.outcomes.map(\.analysisMethod.displayName))).sorted()
     }
 
     public var comments: [PRComment] {

@@ -20,28 +20,27 @@ public struct RuleResult: Codable, Sendable {
     public let taskId: String
     public let ruleName: String
     public let filePath: String
-    public let modelUsed: String
+    public let analysisMethod: AnalysisMethod
     public let durationMs: Int
-    public let costUsd: Double?
     public let violations: [Violation]
 
     public var violatesRule: Bool { !violations.isEmpty }
+
+    public var costUsd: Double { analysisMethod.costUsd }
 
     public init(
         taskId: String,
         ruleName: String,
         filePath: String,
-        modelUsed: String,
+        analysisMethod: AnalysisMethod,
         durationMs: Int,
-        costUsd: Double?,
         violations: [Violation]
     ) {
         self.taskId = taskId
         self.ruleName = ruleName
         self.filePath = filePath
-        self.modelUsed = modelUsed
+        self.analysisMethod = analysisMethod
         self.durationMs = durationMs
-        self.costUsd = costUsd
         self.violations = violations
     }
 }

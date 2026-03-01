@@ -5,14 +5,14 @@ import Testing
 @Suite("PRReviewResult modelsUsed")
 struct PRReviewResultModelsUsedTests {
 
-    @Test("Returns distinct sorted model IDs from evaluations")
+    @Test("Returns distinct sorted display names from evaluations")
     func distinctSortedModels() {
         // Arrange
         let result = PRReviewResult(
             taskEvaluations: [
-                makeTaskEvaluation(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
-                makeTaskEvaluation(taskId: "t2", modelUsed: "claude-haiku-4-5-20251001"),
-                makeTaskEvaluation(taskId: "t3", modelUsed: "claude-sonnet-4-20250514"),
+                makeTaskEvaluation(taskId: "t1", analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.01)),
+                makeTaskEvaluation(taskId: "t2", analysisMethod: .ai(model: "claude-haiku-4-5-20251001", costUsd: 0.001)),
+                makeTaskEvaluation(taskId: "t3", analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.01)),
             ],
             summary: makeSummary(totalTasks: 3, violationsFound: 1)
         )
@@ -21,7 +21,7 @@ struct PRReviewResultModelsUsedTests {
         let models = result.modelsUsed
 
         // Assert
-        #expect(models == ["claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"])
+        #expect(models == ["Haiku 4.5", "Sonnet 4"])
     }
 
     @Test("Returns empty array when no evaluations")
@@ -44,8 +44,8 @@ struct PRReviewResultModelsUsedTests {
         // Arrange
         let result = PRReviewResult(
             taskEvaluations: [
-                makeTaskEvaluation(taskId: "t1", modelUsed: "claude-sonnet-4-20250514"),
-                makeTaskEvaluation(taskId: "t2", modelUsed: "claude-sonnet-4-20250514"),
+                makeTaskEvaluation(taskId: "t1", analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.01)),
+                makeTaskEvaluation(taskId: "t2", analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.01)),
             ],
             summary: makeSummary(totalTasks: 2, violationsFound: 0)
         )
@@ -54,12 +54,12 @@ struct PRReviewResultModelsUsedTests {
         let models = result.modelsUsed
 
         // Assert
-        #expect(models == ["claude-sonnet-4-20250514"])
+        #expect(models == ["Sonnet 4"])
     }
 
     // MARK: - Helpers
 
-    private func makeTaskEvaluation(taskId: String, modelUsed: String) -> TaskEvaluation {
+    private func makeTaskEvaluation(taskId: String, analysisMethod: AnalysisMethod) -> TaskEvaluation {
         let rule = TaskRule(
             name: "test-rule",
             description: "A test rule",
@@ -85,9 +85,8 @@ struct PRReviewResultModelsUsedTests {
             taskId: taskId,
             ruleName: "test-rule",
             filePath: "test.swift",
-            modelUsed: modelUsed,
+            analysisMethod: analysisMethod,
             durationMs: 1000,
-            costUsd: 0.001,
             violations: []
         ))
         return TaskEvaluation(request: request, phase: .analyze, outcome: outcome)

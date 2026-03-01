@@ -200,9 +200,8 @@ public struct AnalysisService: Sendable {
                 taskId: task.taskId,
                 ruleName: task.rule.name,
                 filePath: task.focusArea.filePath,
-                modelUsed: model,
+                analysisMethod: .ai(model: model, costUsd: agentResult.costUsd),
                 durationMs: agentResult.durationMs,
-                costUsd: agentResult.costUsd,
                 violations: violations
             )
         } else {
@@ -210,9 +209,8 @@ public struct AnalysisService: Sendable {
                 taskId: task.taskId,
                 ruleName: task.rule.name,
                 filePath: task.focusArea.filePath,
-                modelUsed: model,
+                analysisMethod: .ai(model: model, costUsd: agentResult.costUsd),
                 durationMs: agentResult.durationMs,
-                costUsd: agentResult.costUsd,
                 violations: []
             )
         }
@@ -262,7 +260,7 @@ public struct AnalysisService: Sendable {
                     ruleName: task.rule.name,
                     filePath: task.focusArea.filePath,
                     errorMessage: error.localizedDescription,
-                    modelUsed: task.rule.model ?? Self.defaultModel
+                    analysisMethod: .ai(model: task.rule.model ?? Self.defaultModel, costUsd: 0)
                 ))
             }
 

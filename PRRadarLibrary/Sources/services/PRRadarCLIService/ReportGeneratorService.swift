@@ -90,7 +90,7 @@ public struct ReportGeneratorService: Sendable {
 
             guard let result = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
             totalTasks += 1
-            modelSet.insert(result.modelUsed)
+            modelSet.insert(result.analysisMethod.displayName)
 
             if let cost = result.costUsd {
                 totalCost += cost

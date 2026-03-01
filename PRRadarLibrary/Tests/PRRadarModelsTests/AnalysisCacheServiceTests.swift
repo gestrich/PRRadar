@@ -52,9 +52,8 @@ struct AnalysisCacheServiceTests {
             taskId: taskId,
             ruleName: "rule-\(taskId)",
             filePath: "file.swift",
-            modelUsed: "claude-sonnet-4-20250514",
+            analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.10),
             durationMs: 1000,
-            costUsd: 0.10,
             violations: violations
         ))
     }

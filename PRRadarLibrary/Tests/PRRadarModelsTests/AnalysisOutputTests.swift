@@ -14,9 +14,8 @@ struct PRReviewResultTests {
             "taskId": "task-1",
             "ruleName": "error-handling",
             "filePath": "src/api/handler.py",
-            "modelUsed": "claude-sonnet-4-20250514",
+            "analysisMethod": {"type": "ai", "model": "claude-sonnet-4-20250514", "costUsd": 0.003},
             "durationMs": 1000,
-            "costUsd": 0.003,
             "violations": [
                 {
                     "score": 7,
@@ -44,7 +43,7 @@ struct PRReviewResultTests {
             "taskId": "task-1",
             "ruleName": "naming",
             "filePath": "src/utils.py",
-            "modelUsed": "claude-sonnet-4-20250514",
+            "analysisMethod": {"type": "ai", "model": "claude-sonnet-4-20250514", "costUsd": 0.001},
             "durationMs": 1000,
             "violations": []
         }
@@ -62,7 +61,7 @@ struct PRReviewResultTests {
             "taskId": "task-1",
             "ruleName": "naming",
             "filePath": "config.py",
-            "modelUsed": "claude-sonnet-4-20250514",
+            "analysisMethod": {"type": "ai", "model": "claude-sonnet-4-20250514", "costUsd": 0.001},
             "durationMs": 1000,
             "violations": [
                 {
@@ -89,9 +88,8 @@ struct PRReviewResultTests {
                 "taskId": "error-handling-method-handler_py-process-10-25",
                 "ruleName": "error-handling",
                 "filePath": "src/handler.py",
-                "modelUsed": "claude-sonnet-4-20250514",
+                "analysisMethod": {"type": "ai", "model": "claude-sonnet-4-20250514", "costUsd": 0.0045},
                 "durationMs": 3420,
-                "costUsd": 0.0045,
                 "violations": [
                     {
                         "score": 8,
@@ -111,7 +109,7 @@ struct PRReviewResultTests {
         #expect(result.success?.violatesRule == true)
         #expect(result.success?.violations[0].score == 8)
         #expect(result.success?.violations[0].lineNumber == 15)
-        #expect(result.modelUsed == "claude-sonnet-4-20250514")
+        #expect(result.analysisMethod == .ai(model: "claude-sonnet-4-20250514", costUsd: 0.0045))
         #expect(result.durationMs == 3420)
         #expect(result.costUsd == 0.0045)
     }
@@ -127,7 +125,7 @@ struct PRReviewResultTests {
                 "ruleName": "test-rule",
                 "filePath": "src/app.swift",
                 "errorMessage": "No response from Claude Agent for 120 seconds",
-                "modelUsed": "claude-sonnet-4-20250514"
+                "analysisMethod": {"type": "ai", "model": "claude-sonnet-4-20250514", "costUsd": 0}
             }
         }
         """.data(using: .utf8)!
@@ -150,7 +148,8 @@ struct PRReviewResultTests {
     func ruleEvaluationResultRoundTrip() throws {
         let original: RuleOutcome = .success(RuleResult(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
-            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.001,
+            analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.001),
+            durationMs: 1000,
             violations: [Violation(score: 5, comment: "Issue", filePath: "f.py", lineNumber: 1)]
         ))
 
@@ -166,7 +165,7 @@ struct PRReviewResultTests {
     func ruleEvaluationResultErrorRoundTrip() throws {
         let original: RuleOutcome = .error(RuleError(
             taskId: "t1", ruleName: "r1", filePath: "f.py",
-            errorMessage: "Timeout", modelUsed: "claude-sonnet-4-20250514"
+            errorMessage: "Timeout", analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0)
         ))
 
         let encoded = try JSONEncoder().encode(original)
@@ -242,7 +241,8 @@ struct PRReviewResultTests {
     func multipleViolationsProduceMultipleComments() throws {
         let result = RuleResult(
             taskId: "t1", ruleName: "nullability", filePath: "Cell.m",
-            modelUsed: "claude-sonnet-4-20250514", durationMs: 2000, costUsd: 0.01,
+            analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.01),
+            durationMs: 2000,
             violations: [
                 Violation(score: 7, comment: "Nullable param at line 21", filePath: "Cell.m", lineNumber: 21),
                 Violation(score: 6, comment: "Nullable param at line 48", filePath: "Cell.m", lineNumber: 48),
@@ -262,7 +262,8 @@ struct PRReviewResultTests {
     func emptyViolationsArray() throws {
         let result = RuleResult(
             taskId: "t1", ruleName: "naming", filePath: "utils.py",
-            modelUsed: "claude-sonnet-4-20250514", durationMs: 1000, costUsd: 0.002,
+            analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.002),
+            durationMs: 1000,
             violations: []
         )
         #expect(result.violatesRule == false)

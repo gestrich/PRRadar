@@ -1,20 +1,19 @@
 import Testing
 @testable import PRRadarModels
 
-@Suite("PRComment modelUsed threading")
-struct PRCommentModelUsedTests {
+@Suite("PRComment analysisMethod threading")
+struct PRCommentAnalysisMethodTests {
 
-    @Test("from(violation:) copies modelUsed from RuleResult")
-    func fromCopiesModelUsed() {
+    @Test("from(violation:) copies analysisMethod from RuleResult")
+    func fromCopiesAnalysisMethod() {
         // Arrange
         let violation = Violation(score: 7, comment: "Issue found", filePath: "src/app.swift", lineNumber: 10)
         let result = RuleResult(
             taskId: "task-1",
             ruleName: "test-rule",
             filePath: "src/app.swift",
-            modelUsed: "claude-sonnet-4-20250514",
+            analysisMethod: .ai(model: "claude-sonnet-4-20250514", costUsd: 0.003),
             durationMs: 1000,
-            costUsd: 0.003,
             violations: [violation]
         )
 
@@ -22,20 +21,19 @@ struct PRCommentModelUsedTests {
         let comment = PRComment.from(violation: violation, result: result, task: nil, index: 0)
 
         // Assert
-        #expect(comment.modelUsed == "claude-sonnet-4-20250514")
+        #expect(comment.analysisMethod == .ai(model: "claude-sonnet-4-20250514", costUsd: 0.003))
     }
 
-    @Test("from(violation:) copies costUsd alongside modelUsed")
-    func fromCopiesCostAndModel() {
+    @Test("from(violation:) carries costUsd through analysisMethod")
+    func fromCarriesCostThroughAnalysisMethod() {
         // Arrange
         let violation = Violation(score: 5, comment: "Naming violation", filePath: "src/utils.swift", lineNumber: 42)
         let result = RuleResult(
             taskId: "task-2",
             ruleName: "naming-rule",
             filePath: "src/utils.swift",
-            modelUsed: "claude-haiku-4-5-20251001",
+            analysisMethod: .ai(model: "claude-haiku-4-5-20251001", costUsd: 0.001),
             durationMs: 500,
-            costUsd: 0.001,
             violations: [violation]
         )
 
@@ -44,6 +42,6 @@ struct PRCommentModelUsedTests {
 
         // Assert
         #expect(comment.costUsd == 0.001)
-        #expect(comment.modelUsed == "claude-haiku-4-5-20251001")
+        #expect(comment.analysisMethod == .ai(model: "claude-haiku-4-5-20251001", costUsd: 0.001))
     }
 }

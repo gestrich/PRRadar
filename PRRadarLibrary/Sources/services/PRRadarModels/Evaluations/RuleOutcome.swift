@@ -28,10 +28,10 @@ public enum RuleOutcome: Codable, Sendable {
         }
     }
 
-    public var modelUsed: String {
+    public var analysisMethod: AnalysisMethod {
         switch self {
-        case .success(let s): s.modelUsed
-        case .error(let e): e.modelUsed
+        case .success(let s): s.analysisMethod
+        case .error(let e): e.analysisMethod
         }
     }
 

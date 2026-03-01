@@ -6,19 +6,19 @@ public struct RuleError: Codable, Sendable {
     public let ruleName: String
     public let filePath: String
     public let errorMessage: String
-    public let modelUsed: String
+    public let analysisMethod: AnalysisMethod
 
     public init(
         taskId: String,
         ruleName: String,
         filePath: String,
         errorMessage: String,
-        modelUsed: String
+        analysisMethod: AnalysisMethod
     ) {
         self.taskId = taskId
         self.ruleName = ruleName
         self.filePath = filePath
         self.errorMessage = errorMessage
-        self.modelUsed = modelUsed
+        self.analysisMethod = analysisMethod
     }
 }
