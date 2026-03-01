@@ -12,6 +12,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let documentationLink: String?
     public let relevantClaudeSkill: String?
     public let ruleUrl: String?
+    public let newCodeLinesOnly: Bool
 
     public init(
         name: String,
@@ -21,7 +22,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         content: String,
         documentationLink: String? = nil,
         relevantClaudeSkill: String? = nil,
-        ruleUrl: String? = nil
+        ruleUrl: String? = nil,
+        newCodeLinesOnly: Bool = false
     ) {
         self.name = name
         self.description = description
@@ -31,6 +33,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         self.documentationLink = documentationLink
         self.relevantClaudeSkill = relevantClaudeSkill
         self.ruleUrl = ruleUrl
+        self.newCodeLinesOnly = newCodeLinesOnly
     }
 
     enum CodingKeys: String, CodingKey {
@@ -42,6 +45,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case documentationLink = "documentation_link"
         case relevantClaudeSkill = "relevant_claude_skill"
         case ruleUrl = "rule_url"
+        case newCodeLinesOnly = "new_code_lines_only"
     }
 }
 
@@ -94,7 +98,8 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
             content: rule.content,
             documentationLink: rule.documentationLink,
             relevantClaudeSkill: rule.relevantClaudeSkill,
-            ruleUrl: rule.ruleUrl
+            ruleUrl: rule.ruleUrl,
+            newCodeLinesOnly: rule.newCodeLinesOnly
         )
         return RuleRequest(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
     }

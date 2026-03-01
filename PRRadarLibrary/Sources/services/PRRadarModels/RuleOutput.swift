@@ -158,6 +158,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
     public let ruleUrl: String?
     public let appliesTo: AppliesTo?
     public let grep: GrepPatterns?
+    public let newCodeLinesOnly: Bool
 
     public init(
         name: String,
@@ -171,7 +172,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         relevantClaudeSkill: String? = nil,
         ruleUrl: String? = nil,
         appliesTo: AppliesTo? = nil,
-        grep: GrepPatterns? = nil
+        grep: GrepPatterns? = nil,
+        newCodeLinesOnly: Bool = false
     ) {
         self.name = name
         self.filePath = filePath
@@ -185,6 +187,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         self.ruleUrl = ruleUrl
         self.appliesTo = appliesTo
         self.grep = grep
+        self.newCodeLinesOnly = newCodeLinesOnly
     }
 
     enum CodingKeys: String, CodingKey {
@@ -200,6 +203,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         case ruleUrl = "rule_url"
         case appliesTo = "applies_to"
         case grep
+        case newCodeLinesOnly = "new_code_lines_only"
     }
 
     // MARK: - File Parsing
@@ -241,6 +245,13 @@ public struct ReviewRule: Codable, Sendable, Equatable {
             grep = nil
         }
 
+        let newCodeLinesOnly: Bool
+        if let val = frontmatter["new_code_lines_only"] as? String {
+            newCodeLinesOnly = val.lowercased() == "true"
+        } else {
+            newCodeLinesOnly = false
+        }
+
         return ReviewRule(
             name: url.deletingPathExtension().lastPathComponent,
             filePath: url.path,
@@ -252,7 +263,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
             documentationLink: frontmatter["documentation_link"] as? String,
             relevantClaudeSkill: frontmatter["relevantClaudeSkill"] as? String,
             appliesTo: appliesTo,
-            grep: grep
+            grep: grep,
+            newCodeLinesOnly: newCodeLinesOnly
         )
     }
 

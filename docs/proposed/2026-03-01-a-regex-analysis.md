@@ -42,7 +42,10 @@ The `/pr-radar-verify-work` skill can also be used to run the CLI against the te
 
 ## Phases
 
-## - [ ] Phase 1: Add `new_code_lines_only` option to rule YAML schema
+## - [x] Phase 1: Add `new_code_lines_only` option to rule YAML schema
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added field at Services layer (PRRadarModels) with propagation through TaskRule; default `false` preserves backwards compatibility
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
