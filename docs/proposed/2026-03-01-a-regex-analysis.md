@@ -1,0 +1,160 @@
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/swift-app-architecture:swift-architecture` | 4-layer architecture rules, placement guidance, dependency rules |
+| `/swift-testing` | Test style guide and conventions |
+
+## Prerequisites
+
+- **`2026-03-01-b-effective-diff-pipeline.md`** — Wiring up the effective diff pipeline and verifying the MacApp view. Must be completed first so that "new code only" filtering has real effective diff data to work with.
+
+## Background
+
+PRRadar currently evaluates rules exclusively through AI (Claude Agent SDK). Bill wants to support **regex-based rule evaluation** as a lightweight, no-AI alternative. This would allow rules to define a `violation_regex` in their YAML frontmatter — when that regex matches, a violation is produced without any AI call.
+
+A key foundational requirement is the ability to restrict analysis to **only new code** (not moved or modified lines). The effective diff pipeline (covered in the prerequisite plan) provides the data needed to distinguish truly new code from moved code.
+
+### Test repo
+
+A test repository is available at `/Users/bill/Developer/personal/PRRadar-TestRepo` with the CLI config `test-repo`. Use this to verify changes against real PR diffs throughout implementation:
+```bash
+cd PRRadarLibrary
+swift run PRRadarMacCLI diff 1 --config test-repo
+swift run PRRadarMacCLI analyze 1 --config test-repo
+```
+The `/pr-radar-verify-work` skill can also be used to run the CLI against the test repo.
+
+### Key findings from codebase exploration
+
+1. **Rule YAML uses a custom parser**: `parseSimpleYAML()` in `RuleOutput.swift` handles frontmatter — supports top-level keys, one level of nesting, inline arrays, and list items. New fields like `violation_regex` and `new_code_only` can be added here.
+
+2. **Existing `grep` field filters applicability, not violations**: The `GrepPatterns` struct matches diff content to decide if a rule applies. The new `violation_regex` serves a different purpose — it's the actual analysis mechanism.
+
+3. **`DiffLine` already has `.added` type with line numbers**: `Hunk.getDiffLines()` returns `DiffLine` objects with `lineType: .added` and `newLineNumber`. This is the building block for "new code only" filtering.
+
+4. **The effective diff classification system distinguishes moved code**: `HunkClassification` has `.moveRemoved`, `.moveAdded`, and `.unchanged` cases. Lines in `.unchanged` hunks that are `.added` represent truly new code (not moved).
+
+## Phases
+
+## - [ ] Phase 1: Add `new_code_only` option to rule YAML schema
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Add a new `new_code_only` boolean field to the rule frontmatter schema. When set to `true`, analysis (both AI and regex) should only consider truly new lines of code — not moved or modified lines.
+
+**Tasks:**
+- Add `newCodeOnly: Bool` property to `ReviewRule` (default `false`)
+- Parse `new_code_only` from YAML frontmatter in `ReviewRule.fromFile()`
+- Add `newCodeOnly` to `ReviewRule.CodingKeys` for JSON serialization
+- Propagate to `TaskRule` so it's available during evaluation
+- Add to `RuleRequest.from()` mapping
+
+**Files to modify:**
+- `PRRadarLibrary/Sources/services/PRRadarModels/RuleOutput.swift` (ReviewRule struct and fromFile parser)
+- `PRRadarLibrary/Sources/services/PRRadarModels/RuleRequest.swift` (TaskRule struct)
+
+## - [ ] Phase 2: Implement "new code only" line filtering
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Build the logic to extract only truly new lines from a diff, leveraging the effective diff system. "New code" means added lines (`.added` type) that are NOT part of a moved block.
+
+**Tasks:**
+- Add a method on `GitDiff` or as a service function: given a `GitDiff` (the effective diff), an original `GitDiff`, and the `[EffectiveDiffResult]` or `MoveReport`, return only the lines that are genuinely new additions
+- The simplest approach: use the effective diff (which already strips moved code). In the effective diff, any `.added` line in an `.unchanged` hunk is truly new. Lines in re-diffed move hunks represent modifications to moved code (not purely new)
+- Alternatively, compare added lines in the full diff against matched lines in the move report to identify which are genuinely new
+- Add a utility method like `Hunk.getNewCodeLines(effectiveDiffResults:)` or `GitDiff.extractNewCodeLines()` that returns only the genuinely new `DiffLine` entries
+- The result should be usable both for regex evaluation and for filtering AI evaluation scope
+
+**Files to modify:**
+- `PRRadarLibrary/Sources/services/PRRadarModels/GitDiffModels/Hunk.swift` or new utility in `PRRadarModels/`
+- Possibly `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/DiffReconstruction.swift`
+
+## - [ ] Phase 3: Add `violation_regex` field to rule YAML schema
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Add a new `violation_regex` field to the rule frontmatter. When present, this regex is used for the actual rule evaluation instead of AI. A match means a violation.
+
+**Tasks:**
+- Add `violationRegex: String?` property to `ReviewRule`
+- Parse `violation_regex` from YAML frontmatter in `ReviewRule.fromFile()`
+- Add to `CodingKeys` for JSON serialization
+- Propagate to `TaskRule` so it's available during evaluation
+- Add a computed property like `isRegexOnly: Bool` that returns `true` when `violationRegex` is non-nil (these rules don't need AI)
+
+**Files to modify:**
+- `PRRadarLibrary/Sources/services/PRRadarModels/RuleOutput.swift`
+- `PRRadarLibrary/Sources/services/PRRadarModels/RuleRequest.swift`
+
+## - [ ] Phase 4: Implement regex-based evaluation service
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Create a `RegexAnalysisService` that evaluates rules using their `violation_regex` against diff content. Produces the same `RuleOutcome` output as `AnalysisService`.
+
+**Tasks:**
+- Create `RegexAnalysisService` in `PRRadarCLIService/`
+- Method signature: `func analyzeTask(_ task: RuleRequest, newCodeOnly: Bool, effectiveDiffResults: ...?) -> RuleOutcome`
+- For each hunk in the focus area, get the relevant lines (all changed lines, or new-code-only lines from Phase 2)
+- Run `NSRegularExpression` with the `violation_regex` against each line
+- For each match, create a `Violation` with: score (configurable, default e.g. 5), comment (from rule description or a configurable message template), file path, and line number
+- Return a `RuleResult` with `modelUsed: "regex"`, `durationMs` from timing, `costUsd: 0`
+
+**Files to create:**
+- `PRRadarLibrary/Sources/services/PRRadarCLIService/RegexAnalysisService.swift`
+
+## - [ ] Phase 5: Integrate regex evaluation into the analysis pipeline
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Route tasks with `violation_regex` rules to the regex service instead of the AI service.
+
+**Tasks:**
+- In `AnalyzeUseCase.swift`, before calling `AnalysisService`, check if the task's rule has a `violationRegex`
+- If yes, route to `RegexAnalysisService` instead of `AnalysisService`
+- The result should be written to the same evaluations directory in the same format
+- In `AnalyzeSingleTaskUseCase.swift`, add the same routing logic
+- In `AnalysisService.runBatchAnalysis()`, partition tasks into AI vs regex, run regex tasks first (instant), then AI tasks
+- Ensure cached evaluation logic in `AnalysisCacheService` works the same for regex results
+
+**Files to modify:**
+- `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/AnalyzeUseCase.swift`
+- `PRRadarLibrary/Sources/features/PRReviewFeature/usecases/AnalyzeSingleTaskUseCase.swift`
+- `PRRadarLibrary/Sources/services/PRRadarCLIService/AnalysisService.swift`
+
+## - [ ] Phase 6: Create test rule and verify end-to-end with test repo
+
+Verify the full pipeline works with a regex-only rule using the test repo at `/Users/bill/Developer/personal/PRRadar-TestRepo`.
+
+**Tasks:**
+- Create a test rule in the test repo's rules directory, e.g. `detect-force-unwrap.md`:
+  ```yaml
+  ---
+  description: Avoid force unwrapping optionals
+  category: safety
+  new_code_only: true
+  violation_regex: "![^=]"
+  applies_to:
+    file_patterns: ["*.swift"]
+  ---
+  Force unwrapping can cause crashes. Use optional binding or nil coalescing instead.
+  ```
+- Run the full pipeline against the test repo: `cd PRRadarLibrary && swift run PRRadarMacCLI analyze 1 --config test-repo`
+- Verify regex violations appear in the evaluation output JSON
+- Run `swift run PRRadarMacCLI report 1 --config test-repo` and verify the report picks up the violations
+- Run `swift run PRRadarMacCLI comment 1 --config test-repo` and verify comment generation works for regex violations
+
+## - [ ] Phase 7: Validation
+
+**Skills to read**: `/swift-testing`
+
+**Tasks:**
+- Add unit tests for the new `ReviewRule` fields (`newCodeOnly`, `violationRegex`) — parsing from YAML, default values, serialization round-trip
+- Add unit tests for `RegexAnalysisService` — matching, no-match, multi-match, new-code-only filtering
+- Add unit tests for "new code only" line extraction logic
+- Add unit tests verifying the pipeline routing (regex vs AI) based on rule configuration
+- Run full test suite: `cd PRRadarLibrary && swift test`
+- Build check: `cd PRRadarLibrary && swift build`
+- Final end-to-end check against the test repo: `cd PRRadarLibrary && swift run PRRadarMacCLI analyze 1 --config test-repo`
