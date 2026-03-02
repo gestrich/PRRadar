@@ -264,7 +264,10 @@ Add a diff source picker to the Mac app's configuration UI so users can toggle b
 - Wire through `SyncPRUseCase` and `PrepareUseCase` to pass `GitHistoryProvider` to services
 - Add diff source picker to Mac app configuration view
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Arrange-Act-Assert pattern with `// Arrange`, `// Act`, `// Assert` comments; `MockGitHistoryProvider` with call tracking for verifying delegation; factory tests verify correct concrete type returned; SyncPRUseCase audit replaced silent `?? "main"` / `?? "HEAD"` defaults with guard/throw
 
 **Skills to read**: `/swift-testing`
 

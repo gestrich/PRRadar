@@ -140,14 +140,18 @@ public struct SyncPRUseCase: Sendable {
                     }
 
                     let prMetadata = try await gitHub.getPullRequest(number: prNumber)
+                    guard let baseBranch = prMetadata.baseRefName,
+                          let headBranch = prMetadata.headRefName else {
+                        throw PRAcquisitionService.AcquisitionError.missingHeadCommitSHA
+                    }
                     let historyProvider = GitHubServiceFactory.createHistoryProvider(
                         diffSource: config.diffSource,
                         gitHub: gitHub,
                         gitOps: gitOps,
                         repoPath: config.repoPath,
                         prNumber: prNumber,
-                        baseBranch: prMetadata.baseRefName ?? "main",
-                        headBranch: prMetadata.headRefName ?? "HEAD"
+                        baseBranch: baseBranch,
+                        headBranch: headBranch
                     )
                     let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps, historyProvider: historyProvider)
                     let authorCache = AuthorCacheService()
