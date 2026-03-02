@@ -126,6 +126,26 @@ private struct ReviewCommentResponse: Codable {
     }
 }
 
+public struct CompareResult: Sendable {
+    public let mergeBaseCommitSHA: String
+}
+
+private struct CompareResponse: Codable {
+    let mergeBaseCommit: MergeBaseCommit
+
+    struct MergeBaseCommit: Codable {
+        let sha: String
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case mergeBaseCommit = "merge_base_commit"
+    }
+}
+
+private struct ContentsMetadata: Codable {
+    let sha: String
+}
+
 public struct ReviewCommentData: Sendable {
     public let id: Int
     public let body: String
@@ -314,6 +334,112 @@ public struct OctokitClient: Sendable {
             throw OctokitClientError.authenticationFailed
         case 404:
             throw OctokitClientError.notFound("Pull request \(number) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    // MARK: - Git History Operations
+
+    public func getFileContent(
+        owner: String,
+        repository: String,
+        path: String,
+        ref: String
+    ) async throws -> String {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/contents/\(encodedPath)?ref=\(ref)")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3.raw", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            guard let content = String(data: data, encoding: .utf8) else {
+                throw OctokitClientError.invalidResponse
+            }
+            return content
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("File \(path) at ref \(ref) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    public func compareCommits(
+        owner: String,
+        repository: String,
+        base: String,
+        head: String
+    ) async throws -> CompareResult {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let strippedBase = base.hasPrefix("origin/") ? String(base.dropFirst("origin/".count)) : base
+        let strippedHead = head.hasPrefix("origin/") ? String(head.dropFirst("origin/".count)) : head
+        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/compare/\(strippedBase)...\(strippedHead)")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            let compareResponse = try decoder.decode(CompareResponse.self, from: data)
+            return CompareResult(mergeBaseCommitSHA: compareResponse.mergeBaseCommit.sha)
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("Compare \(strippedBase)...\(strippedHead) not found")
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    public func getFileSHA(
+        owner: String,
+        repository: String,
+        path: String,
+        ref: String
+    ) async throws -> String {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/contents/\(encodedPath)?ref=\(ref)")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            let metadata = try decoder.decode(ContentsMetadata.self, from: data)
+            return metadata.sha
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound("File \(path) at ref \(ref) not found")
         case 403:
             throw OctokitClientError.rateLimitExceeded
         default:

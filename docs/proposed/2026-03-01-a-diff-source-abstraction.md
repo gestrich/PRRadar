@@ -98,7 +98,10 @@ Note: the protocol drops `repoPath` from method signatures — each implementati
 - Create `LocalGitHistoryProvider` struct wrapping `GitOperationsService` (delegates to existing methods, captures `repoPath`)
 - Confirm the protocol compiles and the local implementation passes type checking
 
-## - [ ] Phase 2: Add GitHub API Endpoints to `OctokitClient`
+## - [x] Phase 2: Add GitHub API Endpoints to `OctokitClient`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: SDK-level methods are stateless single-operation wrappers; no business logic; follows existing OctokitClient patterns (direct URLSession with Bearer auth, standard error handling)
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
