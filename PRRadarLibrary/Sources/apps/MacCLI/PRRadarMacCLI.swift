@@ -43,9 +43,14 @@ struct CLIOptions: ParsableArguments {
     @Option(name: .long, help: "Commit hash to target (defaults to latest)")
     var commit: String?
 
+    @Option(name: .long, help: "Diff source: 'git' (local git history) or 'github-api' (GitHub REST API)")
+    var diffSource: DiffSource?
+
     @Flag(name: .long, help: "Output results as JSON")
     var json: Bool = false
 }
+
+extension DiffSource: ExpressibleByArgument {}
 
 enum CLIError: Error, CustomStringConvertible {
     case missingRepoPath
@@ -77,7 +82,8 @@ func resolveAgentScriptPath() -> String {
 func resolveConfig(
     configName: String?,
     repoPath: String?,
-    outputDir: String?
+    outputDir: String?,
+    diffSource: DiffSource? = nil
 ) throws -> RepositoryConfiguration {
     let settings = LoadSettingsUseCase(settingsService: SettingsService()).execute()
     let targetConfigName = configName ?? settings.configurations.first(where: { $0.isDefault })?.name
@@ -93,7 +99,8 @@ func resolveConfig(
         agentScriptPath: resolveAgentScriptPath(),
         outputDir: settings.outputDir,
         repoPathOverride: repoPath,
-        outputDirOverride: outputDir
+        outputDirOverride: outputDir,
+        diffSourceOverride: diffSource
     )
 }
 
@@ -101,7 +108,8 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> RepositoryConfigu
     try resolveConfig(
         configName: options.config,
         repoPath: options.repoPath,
-        outputDir: options.outputDir
+        outputDir: options.outputDir,
+        diffSource: options.diffSource
     )
 }
 

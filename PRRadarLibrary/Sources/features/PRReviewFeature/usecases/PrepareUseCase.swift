@@ -121,9 +121,22 @@ public struct PrepareUseCase: Sendable {
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
                     // Create tasks
-                    let resolvedProvider: GitHistoryProvider = historyProvider ?? LocalGitHistoryProvider(gitOps: gitOps, repoPath: self.config.repoPath)
+                    let resolvedProvider: GitHistoryProvider
+                    if let historyProvider {
+                        resolvedProvider = historyProvider
+                    } else {
+                        let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
+                        resolvedProvider = GitHubServiceFactory.createHistoryProvider(
+                            diffSource: config.diffSource,
+                            gitHub: gitHub,
+                            gitOps: gitOps,
+                            repoPath: config.repoPath,
+                            prNumber: prNumber,
+                            baseBranch: "",
+                            headBranch: ""
+                        )
+                    }
 
-                    // Fetch the PR ref so git objects are available locally for blob hash lookups
                     if resolvedProvider is LocalGitHistoryProvider {
                         try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: self.config.repoPath)
                     }

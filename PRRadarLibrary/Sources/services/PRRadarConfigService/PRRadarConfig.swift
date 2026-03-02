@@ -9,6 +9,7 @@ public struct RepositoryConfiguration: Sendable {
     public let rulesDir: String
     public let agentScriptPath: String
     public let githubAccount: String
+    public let diffSource: DiffSource
 
     public init(
         id: UUID = UUID(),
@@ -17,7 +18,8 @@ public struct RepositoryConfiguration: Sendable {
         outputDir: String,
         rulesDir: String,
         agentScriptPath: String,
-        githubAccount: String
+        githubAccount: String,
+        diffSource: DiffSource = .git
     ) {
         self.id = id
         self.name = name
@@ -26,9 +28,10 @@ public struct RepositoryConfiguration: Sendable {
         self.rulesDir = rulesDir
         self.agentScriptPath = agentScriptPath
         self.githubAccount = githubAccount
+        self.diffSource = diffSource
     }
 
-    public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, outputDir: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil) {
+    public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, outputDir: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil, diffSourceOverride: DiffSource? = nil) {
         self.id = json.id
         self.name = json.name
         self.repoPath = repoPathOverride ?? json.repoPath
@@ -36,6 +39,7 @@ public struct RepositoryConfiguration: Sendable {
         self.rulesDir = json.rulesDir
         self.agentScriptPath = agentScriptPath
         self.githubAccount = json.githubAccount
+        self.diffSource = diffSourceOverride ?? json.diffSource
     }
 
     public static var defaultRulesDir: String {

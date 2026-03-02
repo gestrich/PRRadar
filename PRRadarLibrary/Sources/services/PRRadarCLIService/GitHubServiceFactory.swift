@@ -38,6 +38,23 @@ public struct GitHubServiceFactory: Sendable {
         return (gitHub, gitOps)
     }
 
+    public static func createHistoryProvider(
+        diffSource: DiffSource,
+        gitHub: GitHubService,
+        gitOps: GitOperationsService,
+        repoPath: String,
+        prNumber: Int,
+        baseBranch: String,
+        headBranch: String
+    ) -> GitHistoryProvider {
+        switch diffSource {
+        case .git:
+            return LocalGitHistoryProvider(gitOps: gitOps, repoPath: repoPath, baseBranch: baseBranch, headBranch: headBranch)
+        case .githubAPI:
+            return GitHubAPIHistoryProvider(gitHub: gitHub, prNumber: prNumber)
+        }
+    }
+
     public static func createGitOps() -> GitOperationsService {
         GitOperationsService(client: CLIClient())
     }

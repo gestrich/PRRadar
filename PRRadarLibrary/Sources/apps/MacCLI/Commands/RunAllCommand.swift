@@ -40,6 +40,9 @@ struct RunAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "PR state filter (open, draft, closed, merged, all). Default: all")
     var state: String?
 
+    @Option(name: .long, help: "Diff source: 'git' (local git history) or 'github-api' (GitHub REST API)")
+    var diffSource: DiffSource?
+
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
 
@@ -52,7 +55,8 @@ struct RunAllCommand: AsyncParsableCommand {
         let prRadarConfig = try resolveConfig(
             configName: config,
             repoPath: repoPath,
-            outputDir: outputDir
+            outputDir: outputDir,
+            diffSource: diffSource
         )
         let useCase = RunAllUseCase(config: prRadarConfig)
 

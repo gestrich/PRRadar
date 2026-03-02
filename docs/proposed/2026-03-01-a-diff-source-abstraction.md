@@ -202,7 +202,10 @@ Currently calls `gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/
 - Update `PrepareUseCase` to skip `fetchBranch` when using GitHub API source
 - Keep rules repo blob hashes on concrete `GitOperationsService` (always local)
 
-## - [ ] Phase 5: Add `--diff-source` CLI Flag and Factory Wiring
+## - [x] Phase 5: Add `--diff-source` CLI Flag and Factory Wiring
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: DiffSource enum in Services layer (PRRadarConfigService) since it's a shared config type; factory method on GitHubServiceFactory keeps provider construction centralized; both SyncPRUseCase and PrepareUseCase use the factory consistently; CLI override pattern matches existing repoPath/outputDir override approach; backward-compatible JSON decoding defaults to `.git`
 
 Add a CLI option to select the diff source and wire it through configuration to the use cases.
 
@@ -272,6 +275,7 @@ Add a diff source picker to the Mac app's configuration UI so users can toggle b
 - Test that `DiffSource` enum parses correctly from CLI strings
 - Test `TaskCreatorService` works with a mock `GitHistoryProvider`
 - Test `PRAcquisitionService.runEffectiveDiff` works with a mock `GitHistoryProvider`
+- Audit `SyncPRUseCase` fallback defaults for `baseRefName`/`headRefName` — these should always be present from the GitHub API; replace defensive `?? "main"` / `?? "HEAD"` with a thrown error if nil
 
 ### Build Verification
 

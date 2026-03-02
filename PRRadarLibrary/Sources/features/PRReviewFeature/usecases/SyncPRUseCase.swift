@@ -140,9 +140,12 @@ public struct SyncPRUseCase: Sendable {
                     }
 
                     let prMetadata = try await gitHub.getPullRequest(number: prNumber)
-                    let historyProvider = LocalGitHistoryProvider(
+                    let historyProvider = GitHubServiceFactory.createHistoryProvider(
+                        diffSource: config.diffSource,
+                        gitHub: gitHub,
                         gitOps: gitOps,
                         repoPath: config.repoPath,
+                        prNumber: prNumber,
                         baseBranch: prMetadata.baseRefName ?? "main",
                         headBranch: prMetadata.headRefName ?? "HEAD"
                     )

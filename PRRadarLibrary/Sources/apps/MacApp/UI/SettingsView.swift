@@ -311,6 +311,11 @@ private struct ConfigurationDetailView: View {
                     Text(config.githubAccount)
                         .foregroundStyle(.secondary)
                 }
+
+                LabeledContent("Diff Source") {
+                    Text(config.diffSource.displayName)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section {
@@ -368,6 +373,15 @@ private struct ConfigurationEditSheet: View {
                     }
                     .labelsHidden()
                 }
+            }
+
+            LabeledContent("Diff Source") {
+                Picker("", selection: $config.diffSource) {
+                    ForEach(DiffSource.allCases, id: \.self) { source in
+                        Text(source.displayName).tag(source)
+                    }
+                }
+                .labelsHidden()
             }
 
             HStack {
