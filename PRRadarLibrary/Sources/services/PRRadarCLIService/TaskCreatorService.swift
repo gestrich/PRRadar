@@ -16,10 +16,12 @@ import PRRadarModels
 public struct TaskCreatorService: Sendable {
     private let ruleLoader: RuleLoaderService
     private let gitOps: GitOperationsService
+    private let historyProvider: GitHistoryProvider
 
-    public init(ruleLoader: RuleLoaderService, gitOps: GitOperationsService) {
+    public init(ruleLoader: RuleLoaderService, gitOps: GitOperationsService, historyProvider: GitHistoryProvider) {
         self.ruleLoader = ruleLoader
         self.gitOps = gitOps
+        self.historyProvider = historyProvider
     }
 
     /// Create evaluation tasks by pairing rules with focus areas.
@@ -27,11 +29,10 @@ public struct TaskCreatorService: Sendable {
     /// - Parameters:
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate (both method and file level)
-    ///   - repoPath: Path to the git repository (for blob hash lookups)
     ///   - commit: The commit hash for source file blob lookups
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], repoPath: String, commit: String, rulesDir: String? = nil) async throws -> [RuleRequest] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], commit: String, rulesDir: String? = nil) async throws -> [RuleRequest] {
         var blobHashCache: [String: String] = [:]
         var ruleBlobHashCache: [String: String] = [:]
         var tasks: [RuleRequest] = []
@@ -46,8 +47,8 @@ public struct TaskCreatorService: Sendable {
                 let filePath = focusArea.filePath
                 if blobHashCache[filePath] == nil {
                     do {
-                        blobHashCache[filePath] = try await gitOps.getBlobHash(
-                            commit: commit, filePath: filePath, repoPath: repoPath
+                        blobHashCache[filePath] = try await historyProvider.getBlobHash(
+                            commit: commit, filePath: filePath
                         )
                     } catch {
                         blobHashCache[filePath] = "\(commit):\(filePath)"
@@ -73,7 +74,6 @@ public struct TaskCreatorService: Sendable {
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate
     ///   - outputDir: The prepare phase directory (e.g., `<base>/<pr_number>/analysis/<commit>/prepare/`)
-    ///   - repoPath: Path to the git repository (for blob hash lookups)
     ///   - commit: The commit hash for source file blob lookups
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of created evaluation tasks
@@ -81,11 +81,10 @@ public struct TaskCreatorService: Sendable {
         rules: [ReviewRule],
         focusAreas: [FocusArea],
         outputDir: String,
-        repoPath: String,
         commit: String,
         rulesDir: String? = nil
     ) async throws -> [RuleRequest] {
-        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, repoPath: repoPath, commit: commit, rulesDir: rulesDir)
+        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, commit: commit, rulesDir: rulesDir)
 
         let tasksDir = "\(outputDir)/\(DataPathsService.prepareTasksSubdir)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)

@@ -133,8 +133,6 @@ Extend `OctokitClient` in the **SDK layer** (`GitHubSDK`) with the GitHub REST A
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: Stateless Sendable struct at Services layer; thin wrapper methods on GitHubService follow existing delegation pattern; removed `ensureRefAvailable` from protocol — ref fetching is a local-only concern, not part of the abstraction
 
-**Skills to read**: `/swift-app-architecture:swift-architecture`
-
 Create a `GitHubAPIHistoryProvider` in `PRRadarCLIService` that conforms to `GitHistoryProvider` and delegates to `GitHubService` / `OctokitClient`.
 
 ```swift
@@ -165,7 +163,10 @@ public struct GitHubAPIHistoryProvider: GitHistoryProvider {
 - Wire to `GitHubService` (add thin wrapper methods on `GitHubService` if needed)
 - Handle error mapping (GitHub API errors → `GitHistoryProvider` errors)
 
-## - [ ] Phase 4: Refactor Consumers to Use `GitHistoryProvider`
+## - [x] Phase 4: Refactor Consumers to Use `GitHistoryProvider`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Services accept protocol, not concrete types; `repoPath` removed from method signatures where provider captures it; `PrepareUseCase` uses optional provider parameter for forward compatibility with Phase 5 factory wiring; `fetchBranch` conditional on `is LocalGitHistoryProvider` check; rule blob hashes remain on concrete `GitOperationsService` (always local)
 
 Refactor the three call sites that depend on git history to accept `GitHistoryProvider` instead of `GitOperationsService`:
 
@@ -247,12 +248,18 @@ public static func createHistoryProvider(
 - `SyncPRUseCase` and `PrepareUseCase` use the factory to get the right provider
 - Default to `.git` when flag is not specified (preserves existing behavior)
 
+### Mac App Setting
+
+Add a diff source picker to the Mac app's configuration UI so users can toggle between `git` and `github-api` for debugging. Store the selection in `RepositoryConfiguration` alongside the CLI flag so both entry points share the same setting.
+
 **Tasks:**
 - Define `DiffSource` enum in `PRRadarModels` or `PRRadarConfigService`
 - Add `--diff-source` to `CLIOptions`
+- Add `diffSource` field to `RepositoryConfiguration` (persisted, defaults to `.git`)
 - Update `resolveConfigFromOptions` to pass diff source through
 - Update `GitHubServiceFactory` with `createHistoryProvider()`
 - Wire through `SyncPRUseCase` and `PrepareUseCase` to pass `GitHistoryProvider` to services
+- Add diff source picker to Mac app configuration view
 
 ## - [ ] Phase 6: Validation
 

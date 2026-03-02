@@ -31,11 +31,13 @@ public struct PRAcquisitionService: Sendable {
 
     private let gitHub: GitHubService
     private let gitOps: GitOperationsService
+    private let historyProvider: GitHistoryProvider
     private let imageDownload: ImageDownloadService
 
-    public init(gitHub: GitHubService, gitOps: GitOperationsService, imageDownload: ImageDownloadService = ImageDownloadService()) {
+    public init(gitHub: GitHubService, gitOps: GitOperationsService, historyProvider: GitHistoryProvider, imageDownload: ImageDownloadService = ImageDownloadService()) {
         self.gitHub = gitHub
         self.gitOps = gitOps
+        self.historyProvider = historyProvider
         self.imageDownload = imageDownload
     }
 
@@ -90,11 +92,10 @@ public struct PRAcquisitionService: Sendable {
     /// - Diff artifacts → `analysis/<commit>/diff/`
     public func acquire(
         prNumber: Int,
-        repoPath: String,
         outputDir: String,
         authorCache: AuthorCacheService? = nil
     ) async throws -> AcquisitionResult {
-        // --- Fetch all data from GitHub ---
+        // --- Fetch all data ---
 
         let repository: GitHubRepository
         do {
@@ -103,18 +104,18 @@ public struct PRAcquisitionService: Sendable {
             throw AcquisitionError.fetchRepositoryFailed(underlying: error)
         }
 
-        let rawDiff: String
-        do {
-            rawDiff = try await gitHub.getPRDiff(number: prNumber)
-        } catch {
-            throw AcquisitionError.fetchDiffFailed(underlying: error)
-        }
-
         var pullRequest: GitHubPullRequest
         do {
             pullRequest = try await gitHub.getPullRequest(number: prNumber)
         } catch {
             throw AcquisitionError.fetchMetadataFailed(underlying: error)
+        }
+
+        let rawDiff: String
+        do {
+            rawDiff = try await historyProvider.getRawDiff()
+        } catch {
+            throw AcquisitionError.fetchDiffFailed(underlying: error)
         }
 
         let comments = try await refreshComments(
@@ -195,7 +196,6 @@ public struct PRAcquisitionService: Sendable {
 
         let (effectiveDiffJSON, effectiveMD, movesJSON, classifiedHunksJSON) = try await runEffectiveDiff(
             gitDiff: gitDiff,
-            repoPath: repoPath,
             baseRefName: baseRefName,
             headCommit: fullCommitHash,
             fallbackDiffJSON: parsedDiffJSON,
@@ -295,24 +295,22 @@ public struct PRAcquisitionService: Sendable {
     /// Falls back to the full diff on any error.
     private func runEffectiveDiff(
         gitDiff: GitDiff,
-        repoPath: String,
         baseRefName: String,
         headCommit: String,
         fallbackDiffJSON: Data,
         fallbackMD: String
     ) async throws -> (diffJSON: Data, diffMD: String, movesJSON: Data, classifiedHunksJSON: Data) {
         do {
-            let mergeBase = try await gitOps.getMergeBase(
+            let mergeBase = try await historyProvider.getMergeBase(
                 commit1: "origin/\(baseRefName)",
-                commit2: headCommit,
-                repoPath: repoPath
+                commit2: headCommit
             )
 
             var oldFiles: [String: String] = [:]
             var newFiles: [String: String] = [:]
             for filePath in gitDiff.uniqueFiles {
-                oldFiles[filePath] = try? await gitOps.getFileContent(commit: mergeBase, filePath: filePath, repoPath: repoPath)
-                newFiles[filePath] = try? await gitOps.getFileContent(commit: headCommit, filePath: filePath, repoPath: repoPath)
+                oldFiles[filePath] = try? await historyProvider.getFileContent(commit: mergeBase, filePath: filePath)
+                newFiles[filePath] = try? await historyProvider.getFileContent(commit: headCommit, filePath: filePath)
             }
 
             let result = try await runEffectiveDiffPipeline(

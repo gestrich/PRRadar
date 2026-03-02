@@ -25,7 +25,8 @@ public struct FetchReviewCommentsUseCase: Sendable {
             let (gitHub, gitOps) = try await GitHubServiceFactory.create(
                 repoPath: config.repoPath, githubAccount: config.githubAccount
             )
-            let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
+            let historyProvider = LocalGitHistoryProvider(gitOps: gitOps, repoPath: config.repoPath)
+            let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps, historyProvider: historyProvider)
             _ = try await acquisition.refreshComments(
                 prNumber: prNumber,
                 outputDir: config.resolvedOutputDir,

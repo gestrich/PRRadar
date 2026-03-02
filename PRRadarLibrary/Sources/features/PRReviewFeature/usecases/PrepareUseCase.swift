@@ -25,7 +25,7 @@ public struct PrepareUseCase: Sendable {
         self.config = config
     }
 
-    public func execute(prNumber: Int, rulesDir: String, commitHash: String? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
+    public func execute(prNumber: Int, rulesDir: String, commitHash: String? = nil, historyProvider: GitHistoryProvider? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .prepare))
 
@@ -121,10 +121,14 @@ public struct PrepareUseCase: Sendable {
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
                     // Create tasks
-                    // Fetch the PR ref so git objects are available locally for blob hash lookups
-                    try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: self.config.repoPath)
+                    let resolvedProvider: GitHistoryProvider = historyProvider ?? LocalGitHistoryProvider(gitOps: gitOps, repoPath: self.config.repoPath)
 
-                    let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps)
+                    // Fetch the PR ref so git objects are available locally for blob hash lookups
+                    if resolvedProvider is LocalGitHistoryProvider {
+                        try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: self.config.repoPath)
+                    }
+
+                    let taskCreator = TaskCreatorService(ruleLoader: ruleLoader, gitOps: gitOps, historyProvider: resolvedProvider)
                     let prepareDir = DataPathsService.phaseDirectory(
                         outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
@@ -135,7 +139,6 @@ public struct PrepareUseCase: Sendable {
                         rules: allRules,
                         focusAreas: allFocusAreas,
                         outputDir: prepareDir,
-                        repoPath: self.config.repoPath,
                         commit: fullDiff.commitHash,
                         rulesDir: rulesDir
                     )

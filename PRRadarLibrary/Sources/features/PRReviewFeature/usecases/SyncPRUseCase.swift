@@ -139,14 +139,20 @@ public struct SyncPRUseCase: Sendable {
                         }
                     }
 
-                    let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps)
+                    let prMetadata = try await gitHub.getPullRequest(number: prNumber)
+                    let historyProvider = LocalGitHistoryProvider(
+                        gitOps: gitOps,
+                        repoPath: config.repoPath,
+                        baseBranch: prMetadata.baseRefName ?? "main",
+                        headBranch: prMetadata.headRefName ?? "HEAD"
+                    )
+                    let acquisition = PRAcquisitionService(gitHub: gitHub, gitOps: gitOps, historyProvider: historyProvider)
                     let authorCache = AuthorCacheService()
 
                     continuation.yield(.log(text: "Fetching PR #\(prNumber) from GitHub...\n"))
 
                     let result = try await acquisition.acquire(
                         prNumber: prNumber,
-                        repoPath: config.repoPath,
                         outputDir: config.resolvedOutputDir,
                         authorCache: authorCache
                     )
