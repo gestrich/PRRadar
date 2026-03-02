@@ -284,6 +284,7 @@ public struct DiffLine: Sendable {
     }
 
     /// Extract changed content from diff text (handles both raw and annotated formats).
+    /// Preserves the `+`/`-` prefix so grep patterns like `^\+.*@import` can match.
     public static func extractChangedContent(from diffText: String) -> String {
         var changedLines: [String] = []
         var inHunkBody = false
@@ -292,20 +293,21 @@ public struct DiffLine: Sendable {
             if line.hasPrefix("@@") {
                 inHunkBody = true
             } else if inHunkBody {
-                // Raw format
+                // Raw format: preserve the +/- prefix
                 if line.hasPrefix("+") && !line.hasPrefix("+++") {
-                    changedLines.append(String(line.dropFirst()))
+                    changedLines.append(line)
                 } else if line.hasPrefix("-") && !line.hasPrefix("---") {
-                    changedLines.append(String(line.dropFirst()))
+                    changedLines.append(line)
                 }
                 // Annotated format: "123: +code" or "   -: -code"
+                // Extract from the +/- marker onwards to preserve the prefix
                 else if line.contains(": +") {
                     if let idx = line.range(of: ": +") {
-                        changedLines.append(String(line[idx.upperBound...]))
+                        changedLines.append("+" + String(line[idx.upperBound...]))
                     }
                 } else if line.contains(": -") && line.trimmingCharacters(in: .whitespaces).hasPrefix("-:") {
                     if let idx = line.range(of: ": -") {
-                        changedLines.append(String(line[idx.upperBound...]))
+                        changedLines.append("-" + String(line[idx.upperBound...]))
                     }
                 }
             }

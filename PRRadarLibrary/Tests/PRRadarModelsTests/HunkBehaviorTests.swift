@@ -129,7 +129,7 @@ struct HunkBehaviorTests {
 
     // MARK: - extractChangedContent (static)
 
-    @Test("extractChangedContent handles raw diff format")
+    @Test("extractChangedContent handles raw diff format preserving +/- prefix")
     func extractChangedContentRaw() {
         let diffText = """
         @@ -1,3 +1,4 @@
@@ -140,13 +140,13 @@ struct HunkBehaviorTests {
         """
 
         let changed = Hunk.extractChangedContent(from: diffText)
-        #expect(changed.contains("removed"))
-        #expect(changed.contains("added"))
-        #expect(changed.contains("new"))
+        #expect(changed.contains("-removed"))
+        #expect(changed.contains("+added"))
+        #expect(changed.contains("+new"))
         #expect(!changed.contains("context"))
     }
 
-    @Test("extractChangedContent handles annotated diff format")
+    @Test("extractChangedContent handles annotated diff format preserving +/- prefix")
     func extractChangedContentAnnotated() {
         let diffText = """
         @@ -1,3 +1,4 @@
@@ -156,8 +156,8 @@ struct HunkBehaviorTests {
         """
 
         let changed = Hunk.extractChangedContent(from: diffText)
-        #expect(changed.contains("added"))
-        #expect(changed.contains("removed"))
+        #expect(changed.contains("+added"))
+        #expect(changed.contains("-removed"))
         #expect(!changed.contains("context"))
     }
 
