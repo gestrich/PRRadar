@@ -176,7 +176,7 @@ public struct OctokitClient: Sendable {
     // MARK: - Pull Request Operations
 
     public func pullRequest(owner: String, repository: String, number: Int) async throws -> PullRequest {
-        try await client().pullRequest(owner: owner, repository: repository, number: number)
+        try await getJSON(path: "repos/\(owner)/\(repository)/pulls/\(number)")
     }
 
     public func listPullRequests(
@@ -188,15 +188,14 @@ public struct OctokitClient: Sendable {
         page: String? = nil,
         perPage: String? = nil
     ) async throws -> [PullRequest] {
-        try await client().pullRequests(
-            owner: owner,
-            repository: repository,
-            state: state,
-            sort: sort,
-            page: page,
-            perPage: perPage,
-            direction: direction
-        )
+        var queryItems = [
+            URLQueryItem(name: "state", value: state.rawValue),
+            URLQueryItem(name: "sort", value: sort.rawValue),
+            URLQueryItem(name: "direction", value: direction.rawValue),
+        ]
+        if let page { queryItems.append(URLQueryItem(name: "page", value: page)) }
+        if let perPage { queryItems.append(URLQueryItem(name: "per_page", value: perPage)) }
+        return try await getJSON(path: "repos/\(owner)/\(repository)/pulls", queryItems: queryItems)
     }
 
     /// Fetches the list of files changed in a pull request.
@@ -450,7 +449,7 @@ public struct OctokitClient: Sendable {
     // MARK: - Repository Operations
 
     public func repository(owner: String, name: String) async throws -> OctoKit.Repository {
-        try await client().repository(owner: owner, name: name)
+        try await getJSON(path: "repos/\(owner)/\(name)")
     }
 
     // MARK: - Comment Operations
@@ -495,7 +494,7 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> [Issue.Comment] {
-        try await client().issueComments(owner: owner, repository: repository, number: number)
+        try await getJSON(path: "repos/\(owner)/\(repository)/issues/\(number)/comments")
     }
 
     public func listReviews(
@@ -503,7 +502,7 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> [Review] {
-        try await client().reviews(owner: owner, repository: repository, pullRequestNumber: number)
+        try await getJSON(path: "repos/\(owner)/\(repository)/pulls/\(number)/reviews")
     }
 
     public func getPullRequestHeadSHA(
@@ -643,20 +642,50 @@ public struct OctokitClient: Sendable {
     // MARK: - User Operations
 
     public func getUser(login: String) async throws -> OctoKit.User {
-        try await client().user(name: login)
+        try await getJSON(path: "users/\(login)")
     }
 
     // MARK: - Private
 
-    /// Bypasses OctoKit's router for POST requests. This was needed because:
-    /// 1. OctoKit sends `Authorization: Basic <token>` which GitHub Actions' GITHUB_TOKEN
-    ///    rejects with 401. Bearer auth is required for installation tokens.
-    /// 2. OctoKit's router doesn't set `X-GitHub-Api-Version` or preview headers, so the
-    ///    review comment API rejects `line`/`subject_type` params with 422.
-    ///
-    /// The remaining read methods still use `client()` (OctoKit with Basic auth) and work
-    /// with PATs locally and in CI. If those break in CI, consider migrating them here too,
-    /// or replacing the OctoKit dependency entirely with direct URLSession calls.
+    /// All API calls use Bearer auth via direct URLSession requests. OctoKit's router
+    /// sends `Authorization: Basic <token>` which GitHub Actions' GITHUB_TOKEN rejects
+    /// on private repos (returns 404). Bearer auth works with both PATs and installation tokens.
+    private func getJSON<T: Decodable>(
+        path: String,
+        accept: String = "application/vnd.github+json",
+        queryItems: [URLQueryItem] = []
+    ) async throws -> T {
+        let baseURL = apiEndpoint ?? "https://api.github.com"
+        var components = URLComponents(string: "\(baseURL)/\(path)")!
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(Time.rfc3339DateFormatter)
+            return try decoder.decode(T.self, from: data)
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound(path)
+        case 403:
+            throw OctokitClientError.rateLimitExceeded
+        default:
+            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
+        }
+    }
+
     private func postJSON<T: Decodable>(
         path: String,
         accept: String = "application/vnd.github+json",
@@ -691,13 +720,4 @@ public struct OctokitClient: Sendable {
         }
     }
 
-    private func client() -> Octokit {
-        let config: TokenConfiguration
-        if let apiEndpoint {
-            config = TokenConfiguration(token, url: apiEndpoint)
-        } else {
-            config = TokenConfiguration(token)
-        }
-        return Octokit(config)
-    }
 }
