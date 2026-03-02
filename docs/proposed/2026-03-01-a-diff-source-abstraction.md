@@ -303,7 +303,10 @@ swift run PRRadarMacCLI analyze 1 --config test-repo --diff-source github-api
 
 Verify that both diff sources produce the same (or equivalent) output for the test repo PR.
 
-## - [ ] Phase 7: End-to-End CI Validation with PRRadar-TestRepo
+## - [x] Phase 7: End-to-End CI Validation with PRRadar-TestRepo
+
+**Skills used**: none (CI/workflow task)
+**Principles applied**: Shallow clone (`fetch-depth: 1`) proves GitHub API source works without git history; test PR with intentional violations (force-unwrap, unsafe division) confirmed 4 review comments posted correctly; PRRadar main pushed to remote first since CI checks out from `gestrich/PRRadar`
 
 Validate the full GitHub API diff source in CI by updating the test repo workflow, creating a PR with violations, and confirming comments are posted.
 
