@@ -10,8 +10,4 @@ public protocol GitHistoryProvider: Sendable {
 
     /// Get the blob hash of a file at a specific commit (for caching).
     func getBlobHash(commit: String, filePath: String) async throws -> String
-
-    /// Ensure the given ref is available for subsequent operations.
-    /// For git CLI, this fetches the ref. For GitHub API, this is a no-op.
-    func ensureRefAvailable(remote: String, ref: String) async throws
 }

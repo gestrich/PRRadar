@@ -202,6 +202,20 @@ public struct GitHubService: Sendable {
         )
     }
 
+    // MARK: - Git History Operations
+
+    public func getFileContent(path: String, ref: String) async throws -> String {
+        try await octokitClient.getFileContent(owner: owner, repository: repo, path: path, ref: ref)
+    }
+
+    public func compareCommits(base: String, head: String) async throws -> CompareResult {
+        try await octokitClient.compareCommits(owner: owner, repository: repo, base: base, head: head)
+    }
+
+    public func getFileSHA(path: String, ref: String) async throws -> String {
+        try await octokitClient.getFileSHA(owner: owner, repository: repo, path: path, ref: ref)
+    }
+
     // MARK: - Author Name Resolution
 
     public func resolveAuthorNames(logins: Set<String>, cache: AuthorCacheService) async throws -> [String: String] {

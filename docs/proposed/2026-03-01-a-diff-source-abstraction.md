@@ -84,10 +84,6 @@ public protocol GitHistoryProvider: Sendable {
 
     /// Get the blob hash of a file at a specific commit (for caching).
     func getBlobHash(commit: String, filePath: String) async throws -> String
-
-    /// Ensure the given ref is available for subsequent operations.
-    /// For git CLI, this fetches the ref. For GitHub API, this is a no-op.
-    func ensureRefAvailable(remote: String, ref: String) async throws
 }
 ```
 
@@ -132,7 +128,10 @@ Extend `OctokitClient` in the **SDK layer** (`GitHubSDK`) with the GitHub REST A
 - URL-encode file paths in all three methods
 - Keep these as SDK-level concerns — no business logic
 
-## - [ ] Phase 3: Create `GitHubAPIHistoryProvider`
+## - [x] Phase 3: Create `GitHubAPIHistoryProvider`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Stateless Sendable struct at Services layer; thin wrapper methods on GitHubService follow existing delegation pattern; removed `ensureRefAvailable` from protocol — ref fetching is a local-only concern, not part of the abstraction
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -141,23 +140,22 @@ Create a `GitHubAPIHistoryProvider` in `PRRadarCLIService` that conforms to `Git
 ```swift
 public struct GitHubAPIHistoryProvider: GitHistoryProvider {
     private let gitHub: GitHubService
-    private let baseRef: String   // e.g., "main"
-    private let headRef: String   // e.g., PR head SHA
+    private let prNumber: Int
+
+    public func getRawDiff() async throws -> String {
+        // Delegate to gitHub.getPRDiff(number:)
+    }
 
     public func getFileContent(commit: String, filePath: String) async throws -> String {
         // Delegate to gitHub.getFileContent(path:ref:)
     }
 
     public func getMergeBase(commit1: String, commit2: String) async throws -> String {
-        // Delegate to gitHub.compareCommits(base:head:) → merge_base_commit.sha
+        // Delegate to gitHub.compareCommits(base:head:) → mergeBaseCommitSHA
     }
 
     public func getBlobHash(commit: String, filePath: String) async throws -> String {
-        // Delegate to gitHub.getTreeEntry(commitSHA:filePath:) → sha
-    }
-
-    public func ensureRefAvailable(remote: String, ref: String) async throws {
-        // No-op — GitHub API doesn't need local refs
+        // Delegate to gitHub.getFileSHA(path:ref:)
     }
 }
 ```
@@ -192,15 +190,15 @@ Currently calls `gitOps.getBlobHash(...)` (lines 49, 145) and `gitOps.isGitRepos
 
 Currently calls `gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head")` (line 125).
 
-- Replace with `historyProvider.ensureRefAvailable(remote: "origin", ref: "pull/\(prNumber)/head")`
-- The local implementation fetches; the GitHub API implementation is a no-op
+- Keep `gitOps.fetchBranch()` call on `GitOperationsService` directly — ref fetching is a local-only concern, not part of the `GitHistoryProvider` abstraction
+- When using GitHub API source, skip the fetch (check diff source or wrap in a conditional)
 
 **Tasks:**
 - Update `PRAcquisitionService` init to accept `GitHistoryProvider`
 - Replace `gitHub.getPRDiff(number:)` with `historyProvider.getRawDiff()` in `acquire()`
 - Update `runEffectiveDiff` to use `historyProvider.getMergeBase(...)` and `historyProvider.getFileContent(...)`
 - Update `TaskCreatorService` to use `GitHistoryProvider` for source file blob hashes
-- Update `PrepareUseCase` to use `historyProvider.ensureRefAvailable()`
+- Update `PrepareUseCase` to skip `fetchBranch` when using GitHub API source
 - Keep rules repo blob hashes on concrete `GitOperationsService` (always local)
 
 ## - [ ] Phase 5: Add `--diff-source` CLI Flag and Factory Wiring

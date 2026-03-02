@@ -30,8 +30,4 @@ public struct LocalGitHistoryProvider: GitHistoryProvider {
     public func getBlobHash(commit: String, filePath: String) async throws -> String {
         try await gitOps.getBlobHash(commit: commit, filePath: filePath, repoPath: repoPath)
     }
-
-    public func ensureRefAvailable(remote: String, ref: String) async throws {
-        try await gitOps.fetchBranch(remote: remote, branch: ref, repoPath: repoPath)
-    }
 }
