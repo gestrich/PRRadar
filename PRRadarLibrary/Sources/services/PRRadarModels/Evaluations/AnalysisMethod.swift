@@ -3,11 +3,13 @@ import Foundation
 public enum AnalysisMethod: Sendable, Equatable, Hashable {
     case ai(model: String, costUsd: Double)
     case regex(pattern: String)
+    case script(path: String)
 
     public var displayName: String {
         switch self {
         case .ai(let model, _): PRRadarModels.displayName(forModelId: model)
         case .regex: "Regex"
+        case .script: "Script"
         }
     }
 
@@ -15,6 +17,7 @@ public enum AnalysisMethod: Sendable, Equatable, Hashable {
         switch self {
         case .ai(_, let cost): cost
         case .regex: 0
+        case .script: 0
         }
     }
 }
@@ -28,6 +31,7 @@ extension AnalysisMethod: Codable {
         case model
         case costUsd
         case pattern
+        case path
     }
 
     public init(from decoder: Decoder) throws {
@@ -41,6 +45,9 @@ extension AnalysisMethod: Codable {
         case "regex":
             let pattern = try container.decode(String.self, forKey: .pattern)
             self = .regex(pattern: pattern)
+        case "script":
+            let path = try container.decode(String.self, forKey: .path)
+            self = .script(path: path)
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: container,
@@ -59,6 +66,9 @@ extension AnalysisMethod: Codable {
         case .regex(let pattern):
             try container.encode("regex", forKey: .type)
             try container.encode(pattern, forKey: .pattern)
+        case .script(let path):
+            try container.encode("script", forKey: .type)
+            try container.encode(path, forKey: .path)
         }
     }
 }

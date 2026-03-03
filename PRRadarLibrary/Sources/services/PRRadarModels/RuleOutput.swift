@@ -144,6 +144,17 @@ public struct GrepPatterns: Codable, Sendable, Equatable {
     }
 }
 
+public enum RuleParsingError: Error, LocalizedError {
+    case mutuallyExclusiveFields(ruleName: String, field1: String, field2: String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .mutuallyExclusiveFields(let ruleName, let field1, let field2):
+            "Rule '\(ruleName)': '\(field1)' and '\(field2)' cannot both be set"
+        }
+    }
+}
+
 /// A review rule loaded from a markdown file with YAML frontmatter or from JSON.
 public struct ReviewRule: Codable, Sendable, Equatable {
     public let name: String
@@ -161,8 +172,10 @@ public struct ReviewRule: Codable, Sendable, Equatable {
     public let newCodeLinesOnly: Bool
     public let violationRegex: String?
     public let violationMessage: String?
+    public let violationScript: String?
 
     public var analysisType: RuleAnalysisType {
+        if violationScript != nil { return .script }
         if violationRegex != nil { return .regex }
         return .ai
     }
@@ -182,7 +195,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         grep: GrepPatterns? = nil,
         newCodeLinesOnly: Bool = false,
         violationRegex: String? = nil,
-        violationMessage: String? = nil
+        violationMessage: String? = nil,
+        violationScript: String? = nil
     ) {
         self.name = name
         self.filePath = filePath
@@ -199,6 +213,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         self.newCodeLinesOnly = newCodeLinesOnly
         self.violationRegex = violationRegex
         self.violationMessage = violationMessage
+        self.violationScript = violationScript
     }
 
     enum CodingKeys: String, CodingKey {
@@ -217,6 +232,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         case newCodeLinesOnly = "new_code_lines_only"
         case violationRegex = "violation_regex"
         case violationMessage = "violation_message"
+        case violationScript = "violation_script"
     }
 
     public init(from decoder: Decoder) throws {
@@ -236,6 +252,7 @@ public struct ReviewRule: Codable, Sendable, Equatable {
         newCodeLinesOnly = try container.decodeIfPresent(Bool.self, forKey: .newCodeLinesOnly) ?? false
         violationRegex = try container.decodeIfPresent(String.self, forKey: .violationRegex)
         violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
+        violationScript = try container.decodeIfPresent(String.self, forKey: .violationScript)
     }
 
     // MARK: - File Parsing
@@ -286,6 +303,15 @@ public struct ReviewRule: Codable, Sendable, Equatable {
 
         let violationRegex = frontmatter["violation_regex"] as? String
         let violationMessage = frontmatter["violation_message"] as? String
+        let violationScript = frontmatter["violation_script"] as? String
+
+        if violationScript != nil && violationRegex != nil {
+            throw RuleParsingError.mutuallyExclusiveFields(
+                ruleName: url.deletingPathExtension().lastPathComponent,
+                field1: "violation_script",
+                field2: "violation_regex"
+            )
+        }
 
         return ReviewRule(
             name: url.deletingPathExtension().lastPathComponent,
@@ -301,7 +327,8 @@ public struct ReviewRule: Codable, Sendable, Equatable {
             grep: grep,
             newCodeLinesOnly: newCodeLinesOnly,
             violationRegex: violationRegex,
-            violationMessage: violationMessage
+            violationMessage: violationMessage,
+            violationScript: violationScript
         )
     }
 

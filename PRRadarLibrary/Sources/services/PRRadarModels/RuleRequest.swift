@@ -15,8 +15,10 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let newCodeLinesOnly: Bool
     public let violationRegex: String?
     public let violationMessage: String?
+    public let violationScript: String?
 
     public var analysisType: RuleAnalysisType {
+        if violationScript != nil { return .script }
         if violationRegex != nil { return .regex }
         return .ai
     }
@@ -32,7 +34,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         ruleUrl: String? = nil,
         newCodeLinesOnly: Bool = false,
         violationRegex: String? = nil,
-        violationMessage: String? = nil
+        violationMessage: String? = nil,
+        violationScript: String? = nil
     ) {
         self.name = name
         self.description = description
@@ -45,6 +48,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         self.newCodeLinesOnly = newCodeLinesOnly
         self.violationRegex = violationRegex
         self.violationMessage = violationMessage
+        self.violationScript = violationScript
     }
 
     enum CodingKeys: String, CodingKey {
@@ -59,6 +63,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case newCodeLinesOnly = "new_code_lines_only"
         case violationRegex = "violation_regex"
         case violationMessage = "violation_message"
+        case violationScript = "violation_script"
     }
 
     public init(from decoder: Decoder) throws {
@@ -74,6 +79,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         newCodeLinesOnly = try container.decodeIfPresent(Bool.self, forKey: .newCodeLinesOnly) ?? false
         violationRegex = try container.decodeIfPresent(String.self, forKey: .violationRegex)
         violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
+        violationScript = try container.decodeIfPresent(String.self, forKey: .violationScript)
     }
 }
 
@@ -129,7 +135,8 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
             ruleUrl: rule.ruleUrl,
             newCodeLinesOnly: rule.newCodeLinesOnly,
             violationRegex: rule.violationRegex,
-            violationMessage: rule.violationMessage
+            violationMessage: rule.violationMessage,
+            violationScript: rule.violationScript
         )
         return RuleRequest(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
     }

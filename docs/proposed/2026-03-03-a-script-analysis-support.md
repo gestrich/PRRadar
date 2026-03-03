@@ -159,7 +159,10 @@ Replace the implicit `isRegexOnly: Bool` pattern with a proper enum.
 
 8. **Update CLI argument parsing** for `--mode` flag to accept `"script"` alongside `"regex"` and `"ai"`.
 
-## - [ ] Phase 2: Add script fields to models and YAML parsing
+## - [x] Phase 2: Add script fields to models and YAML parsing
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `violationScript` field at the models layer following existing patterns; `RuleParsingError` for validation; `AnalysisMethod.script(path:)` with Codable using type discriminator pattern
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
