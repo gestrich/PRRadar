@@ -8,7 +8,7 @@ public struct SyncSnapshot: Sendable {
     public let fullDiff: GitDiff?
     public let effectiveDiff: GitDiff?
     public let moveReport: MoveReport?
-    public let classifiedHunks: [ClassifiedHunk]?
+    public let classifiedHunks: [ClassifiedHunk]
     public let commentCount: Int
     public let reviewCount: Int
     public let reviewCommentCount: Int
@@ -19,7 +19,7 @@ public struct SyncSnapshot: Sendable {
         fullDiff: GitDiff?,
         effectiveDiff: GitDiff?,
         moveReport: MoveReport?,
-        classifiedHunks: [ClassifiedHunk]? = nil,
+        classifiedHunks: [ClassifiedHunk] = [],
         commentCount: Int = 0,
         reviewCount: Int = 0,
         reviewCommentCount: Int = 0,
@@ -68,9 +68,9 @@ public struct SyncPRUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
         )
 
-        let classifiedHunks: [ClassifiedHunk]? = try? PhaseOutputParser.parsePhaseOutput(
+        let classifiedHunks: [ClassifiedHunk] = (try? PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.classifiedHunksFilename, commitHash: resolvedCommit
-        )
+        )) ?? []
 
         // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(

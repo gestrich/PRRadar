@@ -29,10 +29,11 @@ public struct TaskCreatorService: Sendable {
     /// - Parameters:
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate (both method and file level)
+    ///   - classifiedHunks: Classified diff lines for grep pattern matching
     ///   - commit: The commit hash for source file blob lookups
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], commit: String, rulesDir: String? = nil) async throws -> [RuleRequest] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], classifiedHunks: [ClassifiedHunk], commit: String, rulesDir: String? = nil) async throws -> [RuleRequest] {
         var blobHashCache: [String: String] = [:]
         var ruleBlobHashCache: [String: String] = [:]
         var tasks: [RuleRequest] = []
@@ -40,7 +41,7 @@ public struct TaskCreatorService: Sendable {
         let rulesRepoInfo = await resolveRulesRepoInfo(rulesDir: rulesDir)
 
         for focusArea in focusAreas {
-            let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea, classifiedHunks: [])
+            let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea, classifiedHunks: classifiedHunks)
             for rule in applicableRules {
                 guard rule.focusType == focusArea.focusType else { continue }
 
@@ -80,11 +81,12 @@ public struct TaskCreatorService: Sendable {
     public func createAndWriteTasks(
         rules: [ReviewRule],
         focusAreas: [FocusArea],
+        classifiedHunks: [ClassifiedHunk],
         outputDir: String,
         commit: String,
         rulesDir: String? = nil
     ) async throws -> [RuleRequest] {
-        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, commit: commit, rulesDir: rulesDir)
+        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, classifiedHunks: classifiedHunks, commit: commit, rulesDir: rulesDir)
 
         let tasksDir = "\(outputDir)/\(DataPathsService.prepareTasksSubdir)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)

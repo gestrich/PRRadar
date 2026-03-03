@@ -96,7 +96,10 @@ Implementation:
 
 The grep patterns now run against clean source code. Context lines and moved code are excluded by classification.
 
-## - [ ] Phase 3: Thread classified hunks through `TaskCreatorService`
+## - [x] Phase 3: Thread classified hunks through `TaskCreatorService`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Threaded classified hunks from feature layer through service layer; made `SyncSnapshot.classifiedHunks` non-optional since sync always produces the file; updated tests to pass required parameter
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

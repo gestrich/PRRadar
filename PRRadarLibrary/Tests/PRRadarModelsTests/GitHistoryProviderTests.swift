@@ -179,7 +179,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         let tasks = try await service.createTasks(
-            rules: [rule], focusAreas: [focusArea], commit: "abc123"
+            rules: [rule], focusAreas: [focusArea], classifiedHunks: [], commit: "abc123"
         )
 
         // Assert
@@ -204,7 +204,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         let tasks = try await service.createTasks(
-            rules: [rule], focusAreas: [focusArea], commit: "abc123"
+            rules: [rule], focusAreas: [focusArea], classifiedHunks: [], commit: "abc123"
         )
 
         // Assert
@@ -236,7 +236,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         _ = try await service.createTasks(
-            rules: [rule], focusAreas: [focus1, focus2], commit: "abc123"
+            rules: [rule], focusAreas: [focus1, focus2], classifiedHunks: [], commit: "abc123"
         )
 
         // Assert — getBlobHash called only once for the same file
@@ -259,7 +259,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         let tasks = try await service.createTasks(
-            rules: [rule], focusAreas: [focus1, focus2], commit: "abc123"
+            rules: [rule], focusAreas: [focus1, focus2], classifiedHunks: [], commit: "abc123"
         )
 
         // Assert
