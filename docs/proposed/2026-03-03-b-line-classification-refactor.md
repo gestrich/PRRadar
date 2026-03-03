@@ -291,9 +291,10 @@ With `AnnotatedDiff` threaded through, migrate consumers from the old `LineClass
 
 5. **`AnnotatedDiff` tests**: Verify that `SyncPRUseCase.parseOutput()` correctly assembles an `AnnotatedDiff` from disk, and that services/views can read its fields.
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
 
-**Skills to read**: `/swift-testing`
+**Skills used**: `/swift-testing`
+**Principles applied**: Validated full pipeline end-to-end — 573 tests pass, all targets build clean, sample analysis produces correct results
 
 1. Run full test suite: `cd PRRadarLibrary && swift test`
 2. Run build: `cd PRRadarLibrary && swift build`
