@@ -252,7 +252,10 @@ With `AnnotatedDiff` threaded through, migrate consumers from the old `LineClass
 
 5. **`RuleLoaderService`**: Update comment to reference new model.
 
-## - [ ] Phase 6: Remove old `LineClassification` enum
+## - [x] Phase 6: Remove old `LineClassification` enum
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Removed old enum and backward-compat initializer cleanly; all consumers already migrated in Phase 5; test assertions updated to two-axis model; `largeMethodMovedWithOneLineAdded` now correctly asserts `.added` (not `.changed`) for insertions inside moved blocks — demonstrating the disambiguation this refactor enables
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
