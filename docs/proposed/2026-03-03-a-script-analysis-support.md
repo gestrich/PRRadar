@@ -26,11 +26,9 @@ Since we're going from 2 to 3 analysis types, this is the right time to refactor
 
 1. Script runs on the file → produces violations (line number + message)
 2. PRRadar post-filters violations against changed lines based on `newCodeLinesOnly`:
-   - `newCodeLinesOnly: true` → only keep violations on `.new` lines (genuinely new code, not moved or modified)
-   - `newCodeLinesOnly: false` → keep violations on all changed lines (`.new`, `.removed`, `.changedInMove`)
+   - `newCodeLinesOnly: true` → only keep violations on lines with `changeKind == .added` (genuinely new code, including new insertions inside moved blocks)
+   - `newCodeLinesOnly: false` → keep violations on all changed lines (`changeKind != .unchanged`)
 3. Violations on untouched lines are discarded
-
-**Note on `.changedInMove`:** Lines classified as `.changedInMove` include both modified lines within a moved block AND genuinely new insertions inside a moved block (the effective diff algorithm can't distinguish them). Since these are technically "changed" lines — the user touched existing moved code — they belong in the `newCodeLinesOnly: false` bucket. When `newCodeLinesOnly: true`, only strictly `.new` lines qualify. This is a cross-cutting correction that also applies to the existing `RegexAnalysisService` (which currently includes `.changedInMove` when `newCodeLinesOnly` is true).
 
 **"You touched it, you own it" philosophy.** If a line was modified and the script flags it, the violation stands — even if the flagged issue predates the change. This matches how linter CI integrations work industry-wide (SwiftLint, ESLint, etc.) and avoids character-level diff complexity. The `newCodeLinesOnly` flag already provides the knob to tune sensitivity.
 
@@ -85,9 +83,9 @@ A rule cannot have both `violation_script` and `violation_regex` set.
 
 **Script execution is per-file, not per-focus-area.** Since scripts analyze the whole file and PRRadar post-filters, running the same script on the same file for multiple focus areas would be redundant. `ScriptAnalysisService` should deduplicate: run the script once per unique (script, file) pair, cache the raw violations, then post-filter per task's focus area and `newCodeLinesOnly` setting.
 
-### Related Plan
+### Prerequisite
 
-The line classification refactor (2026-03-03-b) replaces `LineClassification` with a two-axis model (`ChangeKind` + `inMovedBlock: Bool`). These plans are independent — this plan can be implemented before or after that refactor. If the classification refactor lands first, the `newCodeLinesOnly` filter logic in `ScriptAnalysisService` and `RegexAnalysisService` should use `changeKind == .added` instead of checking `.new`. If this plan lands first, use the current `.new` classification and update when the refactor arrives.
+The line classification refactor (2026-03-03-b) has been completed. `LineClassification` has been replaced with a two-axis model (`ChangeKind` + `inMovedBlock: Bool`). The `newCodeLinesOnly` filter logic in `ScriptAnalysisService` should use `changeKind == .added` (as `RegexAnalysisService` already does). Services accept `AnnotatedDiff` (which bundles `classifiedHunks`, `fullDiff`, `effectiveDiff`, and `moveReport`) rather than separate `classifiedHunks` parameters.
 
 ## Phases
 
@@ -182,7 +180,7 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
      - `true` → line numbers from lines with `changeKind == .added` (genuinely new code, including new insertions inside moved blocks)
      - `false` → line numbers from lines with `changeKind != .unchanged` (all added, changed, and removed lines)
    - Drop any script violations whose `lineNumber` is not in the relevant set
-   - This is where "you touched it, you own it" is enforced — when `newCodeLinesOnly` is false, violations on any changed line (including `.changedInMove`) pass through
+   - This is where "you touched it, you own it" is enforced — when `newCodeLinesOnly` is false, violations on any changed line (`changeKind != .unchanged`) pass through
 
 3. **Deduplication**: Since scripts analyze the whole file, running the same script on the same file for two different focus areas is redundant.
    - In `runBatchScriptAnalysis` (or within `AnalysisService`), group script tasks by `(scriptPath, filePath)`
@@ -197,7 +195,7 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
 
 1. **Update `AnalysisService.runBatchAnalysis`** `.script` case:
    - Replace the placeholder error with actual `ScriptAnalysisService` call
-   - Pass `repoPath` and `classifiedHunks`
+   - Pass `repoPath` and `annotatedDiff`
    - Write result JSON to evals directory (same file naming pattern)
 
 2. **Task ordering**: Group tasks as regex → script → AI. Both regex and script are local/instant relative to AI, so they run first for fast feedback.
