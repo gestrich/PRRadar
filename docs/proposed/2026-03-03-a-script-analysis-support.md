@@ -36,26 +36,34 @@ Since we're going from 2 to 3 analysis types, this is the right time to refactor
 
 Invocation:
 ```bash
-./scripts/check-import-order.sh path/to/file.swift
+./scripts/check-import-order.sh path/to/file.swift 15 30
 ```
 
-The script receives exactly one argument: the file path (relative to repo root, matching how paths appear in diffs). The working directory is set to the repo root, so the script can access any repo file.
+The script receives three positional arguments:
+1. **File path** — relative to repo root (matching how paths appear in diffs)
+2. **Start line** — first line of the focus area (integer)
+3. **End line** — last line of the focus area (integer)
 
-Output (stdout, one violation per line, tab-delimited):
+The working directory is set to the repo root, so the script can access any repo file. Scripts may use the line range to scope their analysis (e.g., only check imports in that region) or ignore it entirely and analyze the whole file — PRRadar post-filters violations against changed lines regardless.
+
+Output (stdout, one violation per line, tab-delimited, 3 or 4 columns):
 ```
-15	5	Import @import ZModule should come before @import BModule
-23	3	Import @import YModule should come before @import XModule
+15	8	5	Import @import ZModule should come before @import BModule
+23	1	3
 ```
 
-Format: `LINE_NUMBER<TAB>SCORE<TAB>COMMENT`
+Format: `LINE_NUMBER<TAB>CHARACTER_POSITION<TAB>SCORE[<TAB>COMMENT]`
 
-- `LINE_NUMBER`: Line number in the file where the violation occurs
-- `SCORE`: Severity 1-10 (same scale as AI/regex violations)
-- `COMMENT`: Human-readable description for the GitHub PR comment
+- `LINE_NUMBER`: Line number in the file where the violation occurs (required, must be a positive integer)
+- `CHARACTER_POSITION`: Column/character offset within the line (required, must be a non-negative integer; use `0` or `1` if not meaningful)
+- `SCORE`: Severity 1-10 (required, same scale as AI/regex violations)
+- `COMMENT`: Human-readable description for the GitHub PR comment (optional — if omitted, falls back to `rule.violationMessage ?? rule.description`, same as regex analysis)
 
 Exit codes:
 - 0 = success (read violations from stdout; empty stdout = no violations)
 - Non-zero = error (capture stderr as error message, produce `RuleError`)
+
+**Strict parsing**: Every non-empty stdout line must have exactly 3 or 4 tab-delimited columns. If any line fails validation (wrong column count, non-integer line number, non-integer character position, non-integer or out-of-range score), parsing throws an error for the entire script result — no partial results. This catches misconfigured scripts early rather than silently dropping violations.
 
 This contract is trivially implementable in any language — a bash script, a python one-liner, or an existing linter wrapped with `awk`.
 
@@ -81,8 +89,6 @@ Detection logic (order of precedence):
 
 A rule cannot have both `violation_script` and `violation_regex` set.
 
-**Script execution is per-file, not per-focus-area.** Since scripts analyze the whole file and PRRadar post-filters, running the same script on the same file for multiple focus areas would be redundant. `ScriptAnalysisService` should deduplicate: run the script once per unique (script, file) pair, cache the raw violations, then post-filter per task's focus area and `newCodeLinesOnly` setting.
-
 ### Prerequisite
 
 The line classification refactor (2026-03-03-b) has been completed. `LineClassification` has been replaced with a two-axis model (`ChangeKind` + `inMovedBlock: Bool`). The `newCodeLinesOnly` filter logic in `ScriptAnalysisService` should use `changeKind == .added` (as `RegexAnalysisService` already does). Services accept `AnnotatedDiff` (which bundles `classifiedHunks`, `fullDiff`, `effectiveDiff`, and `moveReport`) rather than separate `classifiedHunks` parameters.
@@ -101,38 +107,54 @@ Replace the implicit `isRegexOnly: Bool` pattern with a proper enum.
    ```swift
    public enum RuleAnalysisType: Sendable, Equatable {
        case ai
-       case regex(pattern: String)
-       case script(path: String)
+       case regex
+       case script
    }
    ```
-   Make it `Codable` with a `type` discriminator (same pattern as `AnalysisMethod`).
+   Pure discriminator — no associated values. Execution details (`violationRegex`, `violationScript`, `model`, etc.) stay on the rule where they're already stored. Make it `Codable` with a `type` discriminator (same pattern as `AnalysisMethod`).
 
 2. **Add computed `analysisType` to `ReviewRule` and `TaskRule`** replacing `isRegexOnly`:
    ```swift
    public var analysisType: RuleAnalysisType {
-       if let script = violationScript { return .script(path: script) }
-       if let regex = violationRegex { return .regex(pattern: regex) }
+       if violationScript != nil { return .script }
+       if violationRegex != nil { return .regex }
        return .ai
    }
    ```
-   Keep `isRegexOnly` temporarily as a deprecated computed property that delegates to `analysisType` to avoid a big-bang migration. Remove it once all callers are updated.
+   Remove `isRegexOnly` — all callers are updated in this phase.
 
-3. **Refactor `AnalysisMode`** to use `RuleAnalysisType` pattern matching instead of `isRegexOnly`:
+3. **Add `relevantLines(newCodeLinesOnly:)` and `relevantLineNumbers(newCodeLinesOnly:)` to `ClassifiedHunk`**:
+   ```swift
+   public func relevantLines(newCodeLinesOnly: Bool) -> [ClassifiedDiffLine] {
+       newCodeLinesOnly ? newCodeLines : changedLines
+   }
+
+   public func relevantLineNumbers(newCodeLinesOnly: Bool) -> Set<Int> {
+       Set(relevantLines(newCodeLinesOnly: newCodeLinesOnly)
+           .compactMap { $0.newLineNumber ?? $0.oldLineNumber })
+   }
+   ```
+   `relevantLines` is used by `RegexAnalysisService` (replaces its inline filter). `relevantLineNumbers` is used by `ScriptAnalysisService` (post-filter by line number).
+
+4. **Refactor `RegexAnalysisService`** to use `hunk.relevantLines(newCodeLinesOnly:)` instead of the inline `newCodeLinesOnly` branching logic.
+
+5. **Refactor `AnalysisMode`** to use `RuleAnalysisType` instead of `isRegexOnly`:
    - Add `.scriptOnly = "script"` case
-   - Update `matches(_:)` to switch on `task.rule.analysisType`
+   - Update `matches(_:)` to compare against `task.rule.analysisType`
 
 ### Services layer (`PRRadarCLIService`)
 
-4. **Refactor `AnalysisService.runBatchAnalysis`** dispatch:
+6. **Refactor `AnalysisService.runBatchAnalysis`** dispatch:
    - Replace `if let pattern = task.rule.violationRegex` with a `switch task.rule.analysisType`
+   - Read `violationRegex`/`violationScript` from the rule as needed in each case
    - Group tasks by analysis type: regex first (instant), scripts next (fast), AI last (expensive)
    - For now, the `.script` case can throw a "not yet implemented" error
 
-5. **Remove `isRegexOnly` references** — update all remaining callers to use `analysisType`.
+7. **Remove `isRegexOnly` references** — update all remaining callers to use `analysisType`.
 
 ### Apps layer
 
-6. **Update CLI argument parsing** for `--mode` flag to accept `"script"` alongside `"regex"` and `"ai"`.
+8. **Update CLI argument parsing** for `--mode` flag to accept `"script"` alongside `"regex"` and `"ai"`.
 
 ## - [ ] Phase 2: Add script fields to models and YAML parsing
 
@@ -165,29 +187,28 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
    - Verify script exists and is executable
    - Launch script as a `Process`:
      - Executable: the resolved script path
-     - Arguments: `[task.focusArea.filePath]` (relative path to the file)
+     - Arguments: `[task.focusArea.filePath, "\(task.focusArea.startLine)", "\(task.focusArea.endLine)"]`
      - Working directory: `repoPath`
      - Stdout pipe: capture output
      - Stderr pipe: capture errors
    - Wait for process completion with a timeout (default 30 seconds)
-   - On exit code 0: parse stdout as tab-delimited violations (one per line: `LINE\tSCORE\tCOMMENT`), produce raw `[Violation]` list
+   - On exit code 0: parse stdout as tab-delimited violations (one per line: `LINE\tCHAR\tSCORE` or `LINE\tCHAR\tSCORE\tCOMMENT`), produce raw `[Violation]` list
    - On non-zero exit: return `RuleError` with stderr content
    - Return `RuleResult` with `.script(path:)` analysis method
 
 2. **Post-filter violations against changed lines**:
    - Get the classified hunks for this task's focus area (same `ClassifiedHunk.filterForFocusArea` used by regex)
-   - Build a set of "relevant line numbers" based on `newCodeLinesOnly`:
-     - `true` → line numbers from lines with `changeKind == .added` (genuinely new code, including new insertions inside moved blocks)
-     - `false` → line numbers from lines with `changeKind != .unchanged` (all added, changed, and removed lines)
+   - Use `hunk.relevantLineNumbers(newCodeLinesOnly: task.rule.newCodeLinesOnly)` to build the set of line numbers to keep (added in Phase 1)
    - Drop any script violations whose `lineNumber` is not in the relevant set
-   - This is where "you touched it, you own it" is enforced — when `newCodeLinesOnly` is false, violations on any changed line (`changeKind != .unchanged`) pass through
 
-3. **Deduplication**: Since scripts analyze the whole file, running the same script on the same file for two different focus areas is redundant.
-   - In `runBatchScriptAnalysis` (or within `AnalysisService`), group script tasks by `(scriptPath, filePath)`
-   - Run the script once per unique pair, cache the raw violations
-   - For each task in the group, post-filter the cached violations against that task's focus area and `newCodeLinesOnly` setting
-
-4. **TSV parsing**: Parse each non-empty stdout line as `LINE_NUMBER<TAB>SCORE<TAB>COMMENT`. Lines that don't match this format should be skipped with a warning (not a hard error) — scripts may emit debug output.
+3. **TSV parsing — strict mode**: Parse each non-empty stdout line as `LINE_NUMBER<TAB>CHARACTER_POSITION<TAB>SCORE[<TAB>COMMENT]`.
+   - Every non-empty line must have exactly 3 or 4 tab-delimited columns
+   - `LINE_NUMBER` must be a positive integer
+   - `CHARACTER_POSITION` must be a non-negative integer
+   - `SCORE` must be an integer 1-10
+   - `COMMENT` (4th column) is optional; if absent, use `rule.violationMessage ?? rule.description`
+   - If any line fails validation, throw a `RuleError` for the entire script result — no partial results, no silent skipping
+   - Empty lines are skipped (trailing newline is common)
 
 ## - [ ] Phase 4: Wire script analysis into the pipeline
 
@@ -213,28 +234,39 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
    - `analysisType` computed property on `ReviewRule` for all three cases
    - Precedence: script wins over regex when both set (though Phase 2 adds validation to prevent this)
 
-2. **`AnalysisMode` tests**:
+2. **`ClassifiedHunk.relevantLines/relevantLineNumbers` tests**:
+   - `newCodeLinesOnly: true` → only `changeKind == .added` lines
+   - `newCodeLinesOnly: false` → all lines with `changeKind != .unchanged`
+   - `relevantLineNumbers` returns correct `Set<Int>` for each mode
+
+3. **`AnalysisMode` tests**:
    - `.scriptOnly` filtering
    - `.all` still matches script tasks
 
-3. **YAML parsing tests**:
+4. **YAML parsing tests**:
    - Rule with `violation_script` field
    - Validation error when both `violation_script` and `violation_regex` are set
 
-4. **`ScriptAnalysisService` tests**:
-   - Happy path: script that outputs valid TSV violations → violations returned
+5. **`ScriptAnalysisService` tests**:
+   - Happy path: 3-column output (`LINE\tCHAR\tSCORE`) → violations use `rule.violationMessage ?? rule.description` as comment
+   - Happy path: 4-column output (`LINE\tCHAR\tSCORE\tCOMMENT`) → violations use script-provided comment
+   - Mixed 3 and 4 column lines in same output → each violation gets correct comment source
    - No violations: script outputs empty stdout → empty violations array
    - Script error: non-zero exit code → `RuleError`
-   - Malformed TSV lines: skipped gracefully
+   - **Strict parsing errors** (each should throw `RuleError`, not return partial results):
+     - Wrong column count (1, 2, or 5+ columns)
+     - Non-integer line number
+     - Non-integer character position
+     - Non-integer score
+     - Score out of range (0, 11, -1)
    - Post-filtering: script reports violations on lines 10, 15, 20; only line 15 is a changed line → only line 15 violation survives
    - `newCodeLinesOnly: true` filtering: verify only `changeKind == .added` lines pass; `.changed`, `.removed`, `.unchanged` are excluded
    - `newCodeLinesOnly: false` filtering: verify all lines with `changeKind != .unchanged` pass
-   - Deduplication: two tasks with same script+file → script runs once, each task gets its own filtered result
    - Script not found / not executable: descriptive error
 
-5. **`AnalysisMethod.script` codable tests**: Round-trip encoding/decoding.
+6. **`AnalysisMethod.script` codable tests**: Round-trip encoding/decoding.
 
-6. **Integration: `AnalysisService` dispatch tests**: Verify script tasks route to `ScriptAnalysisService`.
+7. **Integration: `AnalysisService` dispatch tests**: Verify script tasks route to `ScriptAnalysisService`.
 
 ## - [ ] Phase 6: Validation
 
