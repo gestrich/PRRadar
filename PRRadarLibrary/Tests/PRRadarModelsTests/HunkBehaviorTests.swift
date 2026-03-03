@@ -117,50 +117,6 @@ struct HunkBehaviorTests {
         #expect(changed.allSatisfy { $0.isChanged })
     }
 
-    @Test("getChangedContent returns concatenated changed text")
-    func getChangedContent() {
-        let hunk = Self.sampleHunk
-        let text = hunk.getChangedContent()
-        #expect(text.contains("let old = 1"))
-        #expect(text.contains("let new = 2"))
-        #expect(text.contains("let extra = 3"))
-        #expect(!text.contains("context"))
-    }
-
-    // MARK: - extractChangedContent (static)
-
-    @Test("extractChangedContent handles raw diff format preserving +/- prefix")
-    func extractChangedContentRaw() {
-        let diffText = """
-        @@ -1,3 +1,4 @@
-         context
-        -removed
-        +added
-        +new
-        """
-
-        let changed = Hunk.extractChangedContent(from: diffText)
-        #expect(changed.contains("-removed"))
-        #expect(changed.contains("+added"))
-        #expect(changed.contains("+new"))
-        #expect(!changed.contains("context"))
-    }
-
-    @Test("extractChangedContent handles annotated diff format preserving +/- prefix")
-    func extractChangedContentAnnotated() {
-        let diffText = """
-        @@ -1,3 +1,4 @@
-          10:  context
-           -: -removed
-          11: +added
-        """
-
-        let changed = Hunk.extractChangedContent(from: diffText)
-        #expect(changed.contains("+added"))
-        #expect(changed.contains("-removed"))
-        #expect(!changed.contains("context"))
-    }
-
     // MARK: - fromHunkData
 
     @Test("fromHunkData returns nil for empty file path")

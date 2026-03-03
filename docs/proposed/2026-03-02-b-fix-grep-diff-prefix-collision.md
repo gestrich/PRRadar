@@ -162,7 +162,10 @@ Check if `extractChangedContent` has any remaining callers. If not, remove it.
 
 Check if `getFocusedContent` has any remaining callers. If not, remove it. (`getContextAroundLine` may still be needed.)
 
-## - [ ] Phase 6: Update tests
+## - [x] Phase 6: Update tests
+
+**Skills used**: `swift-testing`
+**Principles applied**: Removed obsolete tests for deleted methods; added regression tests proving the original ObjC prefix collision bug is fixed; verified moved/context line exclusion
 
 **Skills to read**: `swift-testing`
 

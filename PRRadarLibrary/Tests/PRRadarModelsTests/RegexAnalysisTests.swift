@@ -493,6 +493,182 @@ struct ClassifiedHunkFocusAreaFilteringTests {
     }
 }
 
+// MARK: - Grep Filtering with Classified Hunks
+
+@Suite("Grep filtering uses clean source content from classified hunks")
+struct GrepFilteringClassifiedHunkTests {
+
+    private func makeRule(
+        name: String = "test-rule",
+        grepAny: [String]? = nil,
+        grepAll: [String]? = nil,
+        appliesTo: AppliesTo? = nil
+    ) -> ReviewRule {
+        ReviewRule(
+            name: name,
+            filePath: "/rules/\(name).md",
+            description: "Test rule",
+            category: "test",
+            content: "Rule body",
+            appliesTo: appliesTo,
+            grep: GrepPatterns(all: grepAll, any: grepAny)
+        )
+    }
+
+    @Test("ObjC method pattern matches clean source without diff prefix collision")
+    func objcMethodPatternMatchesCleanSource() {
+        // Arrange
+        let rule = makeRule(
+            name: "nullability",
+            grepAny: ["^[+-]\\s*\\("],
+            appliesTo: AppliesTo(filePatterns: ["*.h"])
+        )
+        let hunks = [makeClassifiedHunk(filePath: "Header.h", lines: [
+            makeClassifiedLine(
+                content: "- (UITabBarItem *)foo;",
+                classification: .new,
+                filePath: "Header.h",
+                newLineNumber: 70
+            ),
+        ])]
+        let focusArea = FocusArea(
+            focusId: "Header.h", filePath: "Header.h",
+            startLine: 1, endLine: 100,
+            description: "test", hunkIndex: 0, hunkContent: ""
+        )
+
+        // Act
+        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let changedContent = focusedHunks
+            .flatMap { $0.changedLines }
+            .map { $0.content }
+            .joined(separator: "\n")
+
+        // Assert
+        #expect(rule.matchesDiffContent(changedContent))
+    }
+
+    @Test("ObjC class method pattern matches clean source")
+    func objcClassMethodPatternMatchesCleanSource() {
+        // Arrange
+        let rule = makeRule(grepAny: ["^[+-]\\s*\\("])
+        let hunks = [makeClassifiedHunk(filePath: "Header.h", lines: [
+            makeClassifiedLine(
+                content: "+ (instancetype)sharedInstance;",
+                classification: .new,
+                filePath: "Header.h",
+                newLineNumber: 10
+            ),
+        ])]
+        let focusArea = FocusArea(
+            focusId: "Header.h", filePath: "Header.h",
+            startLine: 1, endLine: 100,
+            description: "test", hunkIndex: 0, hunkContent: ""
+        )
+
+        // Act
+        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let changedContent = focusedHunks
+            .flatMap { $0.changedLines }
+            .map { $0.content }
+            .joined(separator: "\n")
+
+        // Assert
+        #expect(rule.matchesDiffContent(changedContent))
+    }
+
+    @Test("@import pattern matches added import line")
+    func importPatternMatchesAddedLine() {
+        // Arrange
+        let rule = makeRule(grepAny: ["@import"])
+        let hunks = [makeClassifiedHunk(lines: [
+            makeClassifiedLine(
+                content: "@import UIKit;",
+                classification: .new,
+                newLineNumber: 1
+            ),
+        ])]
+        let focusArea = FocusArea(
+            focusId: "Calculator.swift", filePath: "Calculator.swift",
+            startLine: 1, endLine: 100,
+            description: "test", hunkIndex: 0, hunkContent: ""
+        )
+
+        // Act
+        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let changedContent = focusedHunks
+            .flatMap { $0.changedLines }
+            .map { $0.content }
+            .joined(separator: "\n")
+
+        // Assert
+        #expect(rule.matchesDiffContent(changedContent))
+    }
+
+    @Test("moved lines are excluded from grep matching")
+    func movedLinesExcluded() {
+        // Arrange
+        let rule = makeRule(grepAny: ["@import"])
+        let hunks = [makeClassifiedHunk(lines: [
+            makeClassifiedLine(
+                content: "@import UIKit;",
+                classification: .moved,
+                newLineNumber: 1
+            ),
+            makeClassifiedLine(
+                content: "@import Foundation;",
+                classification: .movedRemoval,
+                lineType: .removed,
+                oldLineNumber: 5
+            ),
+        ])]
+        let focusArea = FocusArea(
+            focusId: "Calculator.swift", filePath: "Calculator.swift",
+            startLine: 1, endLine: 100,
+            description: "test", hunkIndex: 0, hunkContent: ""
+        )
+
+        // Act
+        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let changedContent = focusedHunks
+            .flatMap { $0.changedLines }
+            .map { $0.content }
+            .joined(separator: "\n")
+
+        // Assert
+        #expect(!rule.matchesDiffContent(changedContent))
+    }
+
+    @Test("context lines are excluded from grep matching")
+    func contextLinesExcluded() {
+        // Arrange
+        let rule = makeRule(grepAny: ["@import"])
+        let hunks = [makeClassifiedHunk(lines: [
+            makeClassifiedLine(
+                content: "@import UIKit;",
+                classification: .context,
+                lineType: .context,
+                newLineNumber: 1
+            ),
+        ])]
+        let focusArea = FocusArea(
+            focusId: "Calculator.swift", filePath: "Calculator.swift",
+            startLine: 1, endLine: 100,
+            description: "test", hunkIndex: 0, hunkContent: ""
+        )
+
+        // Act
+        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let changedContent = focusedHunks
+            .flatMap { $0.changedLines }
+            .map { $0.content }
+            .joined(separator: "\n")
+
+        // Assert
+        #expect(!rule.matchesDiffContent(changedContent))
+    }
+}
+
 // MARK: - Pipeline Routing Tests
 
 @Suite("Pipeline routing based on rule configuration")
