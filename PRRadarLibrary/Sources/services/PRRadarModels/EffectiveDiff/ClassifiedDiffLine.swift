@@ -5,20 +5,10 @@ public enum ChangeKind: String, Codable, Sendable, Equatable {
     case unchanged
 }
 
-public enum LineClassification: String, Codable, Sendable, Equatable {
-    case new
-    case moved
-    case changedInMove
-    case removed
-    case movedRemoval
-    case context
-}
-
 public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
     public let content: String
     public let rawLine: String
     public let lineType: DiffLineType
-    public let classification: LineClassification
     public let changeKind: ChangeKind
     public let inMovedBlock: Bool
     public let newLineNumber: Int?
@@ -29,7 +19,6 @@ public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
         content: String,
         rawLine: String,
         lineType: DiffLineType,
-        classification: LineClassification,
         changeKind: ChangeKind,
         inMovedBlock: Bool,
         newLineNumber: Int?,
@@ -39,52 +28,11 @@ public struct ClassifiedDiffLine: Codable, Sendable, Equatable {
         self.content = content
         self.rawLine = rawLine
         self.lineType = lineType
-        self.classification = classification
         self.changeKind = changeKind
         self.inMovedBlock = inMovedBlock
         self.newLineNumber = newLineNumber
         self.oldLineNumber = oldLineNumber
         self.filePath = filePath
-    }
-
-    /// Backward-compatible initializer that derives changeKind/inMovedBlock from the old classification.
-    public init(
-        content: String,
-        rawLine: String,
-        lineType: DiffLineType,
-        classification: LineClassification,
-        newLineNumber: Int?,
-        oldLineNumber: Int?,
-        filePath: String
-    ) {
-        self.content = content
-        self.rawLine = rawLine
-        self.lineType = lineType
-        self.classification = classification
-        self.newLineNumber = newLineNumber
-        self.oldLineNumber = oldLineNumber
-        self.filePath = filePath
-
-        switch classification {
-        case .new:
-            self.changeKind = .added
-            self.inMovedBlock = false
-        case .moved:
-            self.changeKind = .unchanged
-            self.inMovedBlock = true
-        case .changedInMove:
-            self.changeKind = .changed
-            self.inMovedBlock = true
-        case .removed:
-            self.changeKind = .removed
-            self.inMovedBlock = false
-        case .movedRemoval:
-            self.changeKind = .unchanged
-            self.inMovedBlock = true
-        case .context:
-            self.changeKind = .unchanged
-            self.inMovedBlock = false
-        }
     }
 }
 
@@ -229,7 +177,6 @@ public func classifyLines(
         for diffLine in hunk.getDiffLines() {
             guard diffLine.lineType != .header else { continue }
 
-            let classification: LineClassification
             let changeKind: ChangeKind
             let inMovedBlock: Bool
 
@@ -237,11 +184,9 @@ public func classifyLines(
             case .removed:
                 if let oldNum = diffLine.oldLineNumber,
                    sourceMovedLines[hunk.filePath]?.contains(oldNum) == true {
-                    classification = .movedRemoval
                     inMovedBlock = true
                     changeKind = changedSourceLines[hunk.filePath]?[oldNum] ?? .unchanged
                 } else {
-                    classification = .removed
                     changeKind = .removed
                     inMovedBlock = false
                 }
@@ -249,27 +194,22 @@ public func classifyLines(
             case .added:
                 if let newNum = diffLine.newLineNumber,
                    addedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    classification = .changedInMove
                     changeKind = .added
                     inMovedBlock = true
                 } else if let newNum = diffLine.newLineNumber,
                           changedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    classification = .changedInMove
                     changeKind = .changed
                     inMovedBlock = true
                 } else if let newNum = diffLine.newLineNumber,
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
-                    classification = .moved
                     changeKind = .unchanged
                     inMovedBlock = true
                 } else {
-                    classification = .new
                     changeKind = .added
                     inMovedBlock = false
                 }
 
             case .context:
-                classification = .context
                 changeKind = .unchanged
                 inMovedBlock = false
 
@@ -281,7 +221,6 @@ public func classifyLines(
                 content: diffLine.content,
                 rawLine: diffLine.rawLine,
                 lineType: diffLine.lineType,
-                classification: classification,
                 changeKind: changeKind,
                 inMovedBlock: inMovedBlock,
                 newLineNumber: diffLine.newLineNumber,

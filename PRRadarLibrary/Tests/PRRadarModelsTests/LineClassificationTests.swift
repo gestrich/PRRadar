@@ -94,8 +94,8 @@ private func makeEffectiveResult(
 
         // Assert
         #expect(classified.count == 2)
-        #expect(classified[0].classification == .new)
-        #expect(classified[1].classification == .new)
+        #expect(classified[0].changeKind == .added)
+        #expect(classified[1].changeKind == .added)
         #expect(classified[0].content == "brand_new_line")
     }
 
@@ -121,8 +121,8 @@ private func makeEffectiveResult(
 
         // Assert
         #expect(classified.count == 2)
-        #expect(classified[0].classification == .moved)
-        #expect(classified[1].classification == .moved)
+        #expect(classified[0].changeKind == .unchanged && classified[0].inMovedBlock)
+        #expect(classified[1].changeKind == .unchanged && classified[1].inMovedBlock)
     }
 
     @Test func addedLineFromRediffClassifiedAsChangedInMove() {
@@ -150,9 +150,9 @@ private func makeEffectiveResult(
         let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
 
         // Assert
-        let changedInMove = classified.filter { $0.classification == .changedInMove }
+        let changedInMove = classified.filter { $0.changeKind == .changed && $0.inMovedBlock }
         #expect(!changedInMove.isEmpty, "Re-diffed added line should be .changedInMove")
-        let moved = classified.filter { $0.classification == .moved }
+        let moved = classified.filter { $0.changeKind == .unchanged && $0.inMovedBlock }
         #expect(!moved.isEmpty, "Unchanged moved lines should be .moved")
     }
 
@@ -178,8 +178,8 @@ private func makeEffectiveResult(
 
         // Assert
         #expect(classified.count == 2)
-        #expect(classified[0].classification == .movedRemoval)
-        #expect(classified[1].classification == .movedRemoval)
+        #expect(classified[0].inMovedBlock)
+        #expect(classified[1].inMovedBlock)
     }
 
     @Test func removedLineNotPartOfMoveClassifiedAsRemoved() {
@@ -198,8 +198,8 @@ private func makeEffectiveResult(
 
         // Assert
         #expect(classified.count == 2)
-        #expect(classified[0].classification == .removed)
-        #expect(classified[1].classification == .removed)
+        #expect(classified[0].changeKind == .removed)
+        #expect(classified[1].changeKind == .removed)
     }
 
     @Test func contextLineClassifiedAsContext() {
@@ -217,7 +217,7 @@ private func makeEffectiveResult(
         let classified = classifyLines(originalDiff: original, effectiveResults: [])
 
         // Assert
-        let contexts = classified.filter { $0.classification == .context }
+        let contexts = classified.filter { $0.changeKind == .unchanged }
         #expect(contexts.count == 2)
         #expect(contexts[0].content == "context_line")
         #expect(contexts[1].content == "more_context")
@@ -257,9 +257,9 @@ private func makeEffectiveResult(
         let classified = classifyLines(originalDiff: original, effectiveResults: [])
 
         // Assert
-        let removed = classified.first { $0.classification == .removed }
+        let removed = classified.first { $0.changeKind == .removed }
         #expect(removed?.oldLineNumber == 10)
-        let added = classified.first { $0.classification == .new }
+        let added = classified.first { $0.changeKind == .added }
         #expect(added?.newLineNumber == 20)
     }
 
@@ -302,11 +302,11 @@ private func makeEffectiveResult(
         let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
 
         // Assert
-        #expect(classified[0].classification == .new, "Line before move should be .new")
-        #expect(classified[1].classification == .new, "Line before move should be .new")
-        #expect(classified[2].classification == .moved, "Moved line should be .moved")
-        #expect(classified[3].classification == .moved, "Moved line should be .moved")
-        #expect(classified[4].classification == .new, "Line after move should be .new")
+        #expect(classified[0].changeKind == .added, "Line before move should be .new")
+        #expect(classified[1].changeKind == .added, "Line before move should be .new")
+        #expect(classified[2].changeKind == .unchanged && classified[2].inMovedBlock, "Moved line should be .moved")
+        #expect(classified[3].changeKind == .unchanged && classified[3].inMovedBlock, "Moved line should be .moved")
+        #expect(classified[4].changeKind == .added, "Line after move should be .new")
     }
 }
 
@@ -315,7 +315,8 @@ private func makeEffectiveResult(
 @Suite struct ClassifiedHunkPropertiesTests {
 
     private func makeLine(
-        _ classification: LineClassification,
+        changeKind: ChangeKind,
+        inMovedBlock: Bool = false,
         lineType: DiffLineType = .added,
         content: String = "code"
     ) -> ClassifiedDiffLine {
@@ -323,7 +324,8 @@ private func makeEffectiveResult(
             content: content,
             rawLine: lineType == .added ? "+\(content)" : lineType == .removed ? "-\(content)" : " \(content)",
             lineType: lineType,
-            classification: classification,
+            changeKind: changeKind,
+            inMovedBlock: inMovedBlock,
             newLineNumber: lineType == .added || lineType == .context ? 1 : nil,
             oldLineNumber: lineType == .removed || lineType == .context ? 1 : nil,
             filePath: "test.py"
@@ -333,10 +335,10 @@ private func makeEffectiveResult(
     @Test func isMovedTrueWhenAllNonContextLinesAreMoved() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.context, lineType: .context),
-            makeLine(.moved, lineType: .added),
-            makeLine(.movedRemoval, lineType: .removed),
-            makeLine(.context, lineType: .context),
+            makeLine(changeKind: .unchanged, lineType: .context),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .removed),
+            makeLine(changeKind: .unchanged, lineType: .context),
         ])
 
         // Act & Assert
@@ -346,8 +348,8 @@ private func makeEffectiveResult(
     @Test func isMovedFalseWhenNewCodePresent() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.moved, lineType: .added),
-            makeLine(.new, lineType: .added),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added),
+            makeLine(changeKind: .added, lineType: .added),
         ])
 
         // Act & Assert
@@ -357,7 +359,7 @@ private func makeEffectiveResult(
     @Test func isMovedFalseWhenAllContext() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.context, lineType: .context),
+            makeLine(changeKind: .unchanged, lineType: .context),
         ])
 
         // Act & Assert
@@ -367,8 +369,8 @@ private func makeEffectiveResult(
     @Test func hasNewCodeDetectsNewLines() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.context, lineType: .context),
-            makeLine(.new, lineType: .added),
+            makeLine(changeKind: .unchanged, lineType: .context),
+            makeLine(changeKind: .added, lineType: .added),
         ])
 
         // Act & Assert
@@ -378,8 +380,8 @@ private func makeEffectiveResult(
     @Test func hasNewCodeFalseWhenNoNewLines() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.moved, lineType: .added),
-            makeLine(.context, lineType: .context),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added),
+            makeLine(changeKind: .unchanged, lineType: .context),
         ])
 
         // Act & Assert
@@ -389,8 +391,8 @@ private func makeEffectiveResult(
     @Test func hasChangesInMoveDetectsChangedInMoveLines() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.moved, lineType: .added),
-            makeLine(.changedInMove, lineType: .added),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added),
+            makeLine(changeKind: .changed, inMovedBlock: true, lineType: .added),
         ])
 
         // Act & Assert
@@ -400,8 +402,8 @@ private func makeEffectiveResult(
     @Test func hasChangesInMoveFalseWhenNone() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.moved, lineType: .added),
-            makeLine(.new, lineType: .added),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added),
+            makeLine(changeKind: .added, lineType: .added),
         ])
 
         // Act & Assert
@@ -411,10 +413,10 @@ private func makeEffectiveResult(
     @Test func newCodeLinesReturnsOnlyNew() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.new, lineType: .added, content: "genuinely_new"),
-            makeLine(.moved, lineType: .added, content: "just_moved"),
-            makeLine(.new, lineType: .added, content: "also_new"),
-            makeLine(.context, lineType: .context, content: "ctx"),
+            makeLine(changeKind: .added, lineType: .added, content: "genuinely_new"),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added, content: "just_moved"),
+            makeLine(changeKind: .added, lineType: .added, content: "also_new"),
+            makeLine(changeKind: .unchanged, lineType: .context, content: "ctx"),
         ])
 
         // Act
@@ -429,12 +431,12 @@ private func makeEffectiveResult(
     @Test func changedLinesReturnsNewRemovedAndChangedInMove() {
         // Arrange
         let hunk = ClassifiedHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
-            makeLine(.new, lineType: .added, content: "new_line"),
-            makeLine(.removed, lineType: .removed, content: "deleted_line"),
-            makeLine(.changedInMove, lineType: .added, content: "changed_in_move"),
-            makeLine(.moved, lineType: .added, content: "just_moved"),
-            makeLine(.movedRemoval, lineType: .removed, content: "source_of_move"),
-            makeLine(.context, lineType: .context, content: "ctx"),
+            makeLine(changeKind: .added, lineType: .added, content: "new_line"),
+            makeLine(changeKind: .removed, lineType: .removed, content: "deleted_line"),
+            makeLine(changeKind: .changed, inMovedBlock: true, lineType: .added, content: "changed_in_move"),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .added, content: "just_moved"),
+            makeLine(changeKind: .unchanged, inMovedBlock: true, lineType: .removed, content: "source_of_move"),
+            makeLine(changeKind: .unchanged, lineType: .context, content: "ctx"),
         ])
 
         // Act
@@ -551,19 +553,19 @@ private func makeEffectiveResult(
         // Assert: source-side lines should all be .movedRemoval
         let sourceLines = classified.filter { $0.filePath == "old.py" }
         #expect(sourceLines.count == 5)
-        #expect(sourceLines.allSatisfy { $0.classification == .movedRemoval })
+        #expect(sourceLines.allSatisfy { $0.inMovedBlock })
 
         // Assert: target-side classification
         let targetLines = classified.filter { $0.filePath == "new.py" }
         #expect(targetLines.count == 6)
 
-        // "cache(result)" at newLineNumber 13 should be .changedInMove
-        let changedInMove = targetLines.filter { $0.classification == .changedInMove }
-        #expect(!changedInMove.isEmpty, "The added line inside the moved block should be .changedInMove")
-        #expect(changedInMove.contains { $0.content == "    cache(result)" })
+        // "cache(result)" at newLineNumber 13 is a new insertion inside a moved block
+        let addedInMove = targetLines.filter { $0.changeKind == .added && $0.inMovedBlock }
+        #expect(!addedInMove.isEmpty, "The inserted line inside the moved block should be .added + inMovedBlock")
+        #expect(addedInMove.contains { $0.content == "    cache(result)" })
 
         // The 5 matched lines should be .moved
-        let moved = targetLines.filter { $0.classification == .moved }
+        let moved = targetLines.filter { $0.changeKind == .unchanged && $0.inMovedBlock }
         #expect(moved.count == 5, "Five original matched lines should be .moved")
     }
 
@@ -609,11 +611,11 @@ private func makeEffectiveResult(
 
         // Assert
         let targetLines = classified.filter { $0.filePath == "helpers.py" }
-        let changedInMove = targetLines.filter { $0.classification == .changedInMove }
+        let changedInMove = targetLines.filter { $0.changeKind == .changed && $0.inMovedBlock }
         #expect(changedInMove.count >= 1)
         #expect(changedInMove.contains { $0.content == "def calculate(x, tax=0):" })
 
-        let moved = targetLines.filter { $0.classification == .moved }
+        let moved = targetLines.filter { $0.changeKind == .unchanged && $0.inMovedBlock }
         #expect(moved.count == 3)
     }
 }

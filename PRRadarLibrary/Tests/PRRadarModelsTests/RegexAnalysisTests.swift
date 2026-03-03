@@ -7,7 +7,8 @@ import Testing
 
 private func makeClassifiedLine(
     content: String,
-    classification: LineClassification,
+    changeKind: ChangeKind,
+    inMovedBlock: Bool = false,
     lineType: DiffLineType = .added,
     filePath: String = "Calculator.swift",
     newLineNumber: Int? = nil,
@@ -17,7 +18,8 @@ private func makeClassifiedLine(
         content: content,
         rawLine: lineType == .added ? "+\(content)" : lineType == .removed ? "-\(content)" : " \(content)",
         lineType: lineType,
-        classification: classification,
+        changeKind: changeKind,
+        inMovedBlock: inMovedBlock,
         newLineNumber: newLineNumber ?? (lineType == .added ? 1 : nil),
         oldLineNumber: oldLineNumber ?? (lineType == .removed ? 1 : nil),
         filePath: filePath
@@ -212,7 +214,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "guard b != 0 else { return nil }", classification: .new, newLineNumber: 20),
+            makeClassifiedLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
         ])]
 
         // Act
@@ -235,7 +237,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "force_unwrap!")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "let x = Optional.some(42)", classification: .new, newLineNumber: 5),
+            makeClassifiedLine(content: "let x = Optional.some(42)", changeKind: .added, newLineNumber: 5),
         ])]
 
         // Act
@@ -257,10 +259,10 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "guard a != 0 else { return nil }", classification: .new, newLineNumber: 20),
-            makeClassifiedLine(content: "return 1.0 / Double(a)", classification: .new, newLineNumber: 21),
-            makeClassifiedLine(content: "guard b != 0 else { return nil }", classification: .new, newLineNumber: 25),
-            makeClassifiedLine(content: "guard c != 0 else { return nil }", classification: .new, newLineNumber: 30),
+            makeClassifiedLine(content: "guard a != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
+            makeClassifiedLine(content: "return 1.0 / Double(a)", changeKind: .added, newLineNumber: 21),
+            makeClassifiedLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 25),
+            makeClassifiedLine(content: "guard c != 0 else { return nil }", changeKind: .added, newLineNumber: 30),
         ])]
 
         // Act
@@ -282,7 +284,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil", violationMessage: "Custom message")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "return nil", classification: .new, newLineNumber: 1),
+            makeClassifiedLine(content: "return nil", changeKind: .added, newLineNumber: 1),
         ])]
 
         // Act
@@ -303,7 +305,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "return nil", classification: .new, newLineNumber: 1),
+            makeClassifiedLine(content: "return nil", changeKind: .added, newLineNumber: 1),
         ])]
 
         // Act
@@ -324,7 +326,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "return nil", classification: .new, newLineNumber: 1),
+            makeClassifiedLine(content: "return nil", changeKind: .added, newLineNumber: 1),
         ])]
 
         // Act
@@ -391,11 +393,11 @@ struct RegexNewCodeOnlyTests {
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "// TODO: new task", classification: .new, newLineNumber: 10),
-            makeClassifiedLine(content: "// TODO: moved task", classification: .moved, newLineNumber: 11),
-            makeClassifiedLine(content: "// TODO: changed in move", classification: .changedInMove, newLineNumber: 12),
-            makeClassifiedLine(content: "// TODO: context", classification: .context, lineType: .context, newLineNumber: 13),
-            makeClassifiedLine(content: "// TODO: removed", classification: .removed, lineType: .removed, oldLineNumber: 5),
+            makeClassifiedLine(content: "// TODO: new task", changeKind: .added, newLineNumber: 10),
+            makeClassifiedLine(content: "// TODO: moved task", changeKind: .unchanged, inMovedBlock: true, newLineNumber: 11),
+            makeClassifiedLine(content: "// TODO: changed in move", changeKind: .changed, inMovedBlock: true, newLineNumber: 12),
+            makeClassifiedLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
+            makeClassifiedLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
         ])]
 
         // Act
@@ -418,11 +420,11 @@ struct RegexNewCodeOnlyTests {
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: false)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "// TODO: new", classification: .new, newLineNumber: 10),
-            makeClassifiedLine(content: "// TODO: removed", classification: .removed, lineType: .removed, oldLineNumber: 5),
-            makeClassifiedLine(content: "// TODO: changed", classification: .changedInMove, newLineNumber: 12),
-            makeClassifiedLine(content: "// TODO: moved", classification: .moved, newLineNumber: 11),
-            makeClassifiedLine(content: "// TODO: context", classification: .context, lineType: .context, newLineNumber: 13),
+            makeClassifiedLine(content: "// TODO: new", changeKind: .added, newLineNumber: 10),
+            makeClassifiedLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+            makeClassifiedLine(content: "// TODO: changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 12),
+            makeClassifiedLine(content: "// TODO: moved", changeKind: .unchanged, inMovedBlock: true, newLineNumber: 11),
+            makeClassifiedLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
         ])]
 
         // Act
@@ -447,12 +449,12 @@ struct ClassifiedHunkFocusAreaFilteringTests {
         // Arrange
         let hunks = [
             makeClassifiedHunk(filePath: "A.swift", lines: [
-                makeClassifiedLine(content: "line1", classification: .new, filePath: "A.swift", newLineNumber: 5),
-                makeClassifiedLine(content: "line2", classification: .new, filePath: "A.swift", newLineNumber: 15),
-                makeClassifiedLine(content: "line3", classification: .new, filePath: "A.swift", newLineNumber: 25),
+                makeClassifiedLine(content: "line1", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
+                makeClassifiedLine(content: "line2", changeKind: .added, filePath: "A.swift", newLineNumber: 15),
+                makeClassifiedLine(content: "line3", changeKind: .added, filePath: "A.swift", newLineNumber: 25),
             ]),
             makeClassifiedHunk(filePath: "B.swift", lines: [
-                makeClassifiedLine(content: "other", classification: .new, filePath: "B.swift", newLineNumber: 10),
+                makeClassifiedLine(content: "other", changeKind: .added, filePath: "B.swift", newLineNumber: 10),
             ]),
         ]
         let focusArea = FocusArea(
@@ -475,7 +477,7 @@ struct ClassifiedHunkFocusAreaFilteringTests {
         // Arrange
         let hunks = [
             makeClassifiedHunk(filePath: "A.swift", lines: [
-                makeClassifiedLine(content: "code", classification: .new, filePath: "A.swift", newLineNumber: 5),
+                makeClassifiedLine(content: "code", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
             ]),
         ]
         let focusArea = FocusArea(
@@ -525,7 +527,7 @@ struct GrepFilteringClassifiedHunkTests {
         let hunks = [makeClassifiedHunk(filePath: "Header.h", lines: [
             makeClassifiedLine(
                 content: "- (UITabBarItem *)foo;",
-                classification: .new,
+                changeKind: .added,
                 filePath: "Header.h",
                 newLineNumber: 70
             ),
@@ -554,7 +556,7 @@ struct GrepFilteringClassifiedHunkTests {
         let hunks = [makeClassifiedHunk(filePath: "Header.h", lines: [
             makeClassifiedLine(
                 content: "+ (instancetype)sharedInstance;",
-                classification: .new,
+                changeKind: .added,
                 filePath: "Header.h",
                 newLineNumber: 10
             ),
@@ -583,7 +585,7 @@ struct GrepFilteringClassifiedHunkTests {
         let hunks = [makeClassifiedHunk(lines: [
             makeClassifiedLine(
                 content: "@import UIKit;",
-                classification: .new,
+                changeKind: .added,
                 newLineNumber: 1
             ),
         ])]
@@ -611,12 +613,12 @@ struct GrepFilteringClassifiedHunkTests {
         let hunks = [makeClassifiedHunk(lines: [
             makeClassifiedLine(
                 content: "@import UIKit;",
-                classification: .moved,
+                changeKind: .unchanged, inMovedBlock: true,
                 newLineNumber: 1
             ),
             makeClassifiedLine(
                 content: "@import Foundation;",
-                classification: .movedRemoval,
+                changeKind: .unchanged, inMovedBlock: true,
                 lineType: .removed,
                 oldLineNumber: 5
             ),
@@ -645,7 +647,7 @@ struct GrepFilteringClassifiedHunkTests {
         let hunks = [makeClassifiedHunk(lines: [
             makeClassifiedLine(
                 content: "@import UIKit;",
-                classification: .context,
+                changeKind: .unchanged,
                 lineType: .context,
                 newLineNumber: 1
             ),
