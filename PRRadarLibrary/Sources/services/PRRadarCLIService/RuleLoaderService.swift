@@ -86,15 +86,25 @@ public struct RuleLoaderService: Sendable {
 
     /// Filter rules applicable to a focus area.
     ///
-    /// Checks both file pattern matching and grep pattern matching against
-    /// the focused content (lines within the focus area bounds).
-    public func filterRulesForFocusArea(_ allRules: [ReviewRule], focusArea: FocusArea) -> [ReviewRule] {
-        allRules.filter { rule in
+    /// Grep patterns run against clean source content from classified lines
+    /// (no diff prefix), eliminating the ObjC `+`/`-` prefix collision.
+    /// Only genuinely changed lines (`.new`, `.removed`, `.changedInMove`)
+    /// are included — moved and context lines are excluded.
+    public func filterRulesForFocusArea(
+        _ allRules: [ReviewRule],
+        focusArea: FocusArea,
+        classifiedHunks: [ClassifiedHunk]
+    ) -> [ReviewRule] {
+        let focusedHunks = ClassifiedHunk.filterForFocusArea(classifiedHunks, focusArea: focusArea)
+        let changedContent = focusedHunks
+            .flatMap { $0.changedLines }
+            .map { $0.content }
+            .joined(separator: "\n")
+
+        return allRules.filter { rule in
             guard rule.appliesToFile(focusArea.filePath) else { return false }
 
             if let grep = rule.grep, grep.hasPatterns {
-                let focusedContent = focusArea.getFocusedContent()
-                let changedContent = Hunk.extractChangedContent(from: focusedContent)
                 guard rule.matchesDiffContent(changedContent) else { return false }
             }
 

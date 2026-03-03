@@ -40,7 +40,7 @@ public struct TaskCreatorService: Sendable {
         let rulesRepoInfo = await resolveRulesRepoInfo(rulesDir: rulesDir)
 
         for focusArea in focusAreas {
-            let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea)
+            let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea, classifiedHunks: [])
             for rule in applicableRules {
                 guard rule.focusType == focusArea.focusType else { continue }
 

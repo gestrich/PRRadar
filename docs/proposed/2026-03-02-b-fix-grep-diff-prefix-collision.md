@@ -69,7 +69,10 @@ Logic is identical to `RegexAnalysisService.filterHunksForFocusArea` — filter 
 
 Update `RegexAnalysisService.filterHunksForFocusArea` to delegate to `ClassifiedHunk.filterForFocusArea` (or remove it and update callers to call the model method directly).
 
-## - [ ] Phase 2: Update `filterRulesForFocusArea` to use classified hunks
+## - [x] Phase 2: Update `filterRulesForFocusArea` to use classified hunks
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Service method accepts model types directly; grep patterns now run against clean source content from `ClassifiedHunk.changedLines`
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
