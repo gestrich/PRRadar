@@ -1,0 +1,250 @@
+# Script Analysis Support
+
+## Relevant Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/swift-app-architecture:swift-architecture` | 4-layer architecture rules (placement, dependency rules) |
+| `/swift-testing` | Test style guide and conventions |
+
+## Background
+
+PRRadar currently supports two analysis methods for evaluating PR code against rules:
+
+1. **AI analysis** — Sends a prompt to Claude via the agent SDK. Determined implicitly when `violationRegex` is not set.
+2. **Regex analysis** — Matches a regex pattern against diff lines. Determined implicitly when `violationRegex` is set on the rule.
+
+The dispatch logic in `AnalysisService.runBatchAnalysis` uses `isRegexOnly` (a bool computed from `violationRegex != nil`) to route between these two paths. `AnalysisMode` offers filtering (`all`, `regex`, `ai`).
+
+Bill wants to add a **third analysis type: scripts**. A rule's YAML frontmatter would specify a script path (relative to the repo). The script runs against a file and outputs violations — just like a linter. PRRadar then post-filters those violations against the PR's changed lines. Example use case: checking that `@import` statements are in sorted order.
+
+Since we're going from 2 to 3 analysis types, this is the right time to refactor the implicit type detection (`isRegexOnly` bool) into a proper abstraction. The goal: the script type should feel like a first-class peer to AI and regex, not a bolt-on hack.
+
+### Key Design Decisions
+
+**Scripts are linters, not diff-aware tools.** A script receives a file path, runs its check against the file on disk, and outputs violations. It knows nothing about the diff, changed lines, or PR context. PRRadar handles all the diff-awareness:
+
+1. Script runs on the file → produces violations (line number + message)
+2. PRRadar post-filters violations against changed lines based on `newCodeLinesOnly`:
+   - `newCodeLinesOnly: true` → only keep violations on `.new` lines (genuinely new code, not moved or modified)
+   - `newCodeLinesOnly: false` → keep violations on all changed lines (`.new`, `.removed`, `.changedInMove`)
+3. Violations on untouched lines are discarded
+
+**Note on `.changedInMove`:** Lines classified as `.changedInMove` include both modified lines within a moved block AND genuinely new insertions inside a moved block (the effective diff algorithm can't distinguish them). Since these are technically "changed" lines — the user touched existing moved code — they belong in the `newCodeLinesOnly: false` bucket. When `newCodeLinesOnly: true`, only strictly `.new` lines qualify. This is a cross-cutting correction that also applies to the existing `RegexAnalysisService` (which currently includes `.changedInMove` when `newCodeLinesOnly` is true).
+
+**"You touched it, you own it" philosophy.** If a line was modified and the script flags it, the violation stands — even if the flagged issue predates the change. This matches how linter CI integrations work industry-wide (SwiftLint, ESLint, etc.) and avoids character-level diff complexity. The `newCodeLinesOnly` flag already provides the knob to tune sensitivity.
+
+**Script I/O — minimal contract:**
+
+Invocation:
+```bash
+./scripts/check-import-order.sh path/to/file.swift
+```
+
+The script receives exactly one argument: the file path (relative to repo root, matching how paths appear in diffs). The working directory is set to the repo root, so the script can access any repo file.
+
+Output (stdout, one violation per line, tab-delimited):
+```
+15	5	Import @import ZModule should come before @import BModule
+23	3	Import @import YModule should come before @import XModule
+```
+
+Format: `LINE_NUMBER<TAB>SCORE<TAB>COMMENT`
+
+- `LINE_NUMBER`: Line number in the file where the violation occurs
+- `SCORE`: Severity 1-10 (same scale as AI/regex violations)
+- `COMMENT`: Human-readable description for the GitHub PR comment
+
+Exit codes:
+- 0 = success (read violations from stdout; empty stdout = no violations)
+- Non-zero = error (capture stderr as error message, produce `RuleError`)
+
+This contract is trivially implementable in any language — a bash script, a python one-liner, or an existing linter wrapped with `awk`.
+
+**Rule YAML format** — new field `violation_script`:
+```yaml
+---
+description: Imports must be alphabetically ordered
+category: style
+focus_type: file
+applies_to:
+  file_patterns: ["*.swift", "*.m"]
+grep:
+  any: ["@import", "import "]
+new_code_lines_only: true
+violation_script: scripts/check-import-order.sh
+---
+```
+
+Detection logic (order of precedence):
+1. `violation_script` set → script analysis
+2. `violation_regex` set → regex analysis
+3. Neither → AI analysis
+
+A rule cannot have both `violation_script` and `violation_regex` set.
+
+**Script execution is per-file, not per-focus-area.** Since scripts analyze the whole file and PRRadar post-filters, running the same script on the same file for multiple focus areas would be redundant. `ScriptAnalysisService` should deduplicate: run the script once per unique (script, file) pair, cache the raw violations, then post-filter per task's focus area and `newCodeLinesOnly` setting.
+
+### Related Plan
+
+The line classification refactor (2026-03-03-b) replaces `LineClassification` with a two-axis model (`ChangeKind` + `inMovedBlock: Bool`). These plans are independent — this plan can be implemented before or after that refactor. If the classification refactor lands first, the `newCodeLinesOnly` filter logic in `ScriptAnalysisService` and `RegexAnalysisService` should use `changeKind == .added` instead of checking `.new`. If this plan lands first, use the current `.new` classification and update when the refactor arrives.
+
+## Phases
+
+## - [ ] Phase 1: Introduce `RuleAnalysisType` enum and refactor dispatch
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Replace the implicit `isRegexOnly: Bool` pattern with a proper enum.
+
+### Models layer (`PRRadarModels`)
+
+1. **Create `RuleAnalysisType` enum** in a new file `PRRadarModels/Evaluations/RuleAnalysisType.swift`:
+   ```swift
+   public enum RuleAnalysisType: Sendable, Equatable {
+       case ai
+       case regex(pattern: String)
+       case script(path: String)
+   }
+   ```
+   Make it `Codable` with a `type` discriminator (same pattern as `AnalysisMethod`).
+
+2. **Add computed `analysisType` to `ReviewRule` and `TaskRule`** replacing `isRegexOnly`:
+   ```swift
+   public var analysisType: RuleAnalysisType {
+       if let script = violationScript { return .script(path: script) }
+       if let regex = violationRegex { return .regex(pattern: regex) }
+       return .ai
+   }
+   ```
+   Keep `isRegexOnly` temporarily as a deprecated computed property that delegates to `analysisType` to avoid a big-bang migration. Remove it once all callers are updated.
+
+3. **Refactor `AnalysisMode`** to use `RuleAnalysisType` pattern matching instead of `isRegexOnly`:
+   - Add `.scriptOnly = "script"` case
+   - Update `matches(_:)` to switch on `task.rule.analysisType`
+
+### Services layer (`PRRadarCLIService`)
+
+4. **Refactor `AnalysisService.runBatchAnalysis`** dispatch:
+   - Replace `if let pattern = task.rule.violationRegex` with a `switch task.rule.analysisType`
+   - Group tasks by analysis type: regex first (instant), scripts next (fast), AI last (expensive)
+   - For now, the `.script` case can throw a "not yet implemented" error
+
+5. **Remove `isRegexOnly` references** — update all remaining callers to use `analysisType`.
+
+### Apps layer
+
+6. **Update CLI argument parsing** for `--mode` flag to accept `"script"` alongside `"regex"` and `"ai"`.
+
+## - [ ] Phase 2: Add script fields to models and YAML parsing
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+1. **Add `violationScript: String?` field** to `ReviewRule`:
+   - Add to the stored properties, `CodingKeys`, `init(from:)` decoder, and `init(...)` parameter list
+   - Add to YAML frontmatter parsing in `fromFile(_:)`
+
+2. **Add `violationScript: String?` field** to `TaskRule`:
+   - Same changes: stored property, `CodingKeys`, `init(from:)`, `init(...)`
+
+3. **Add `AnalysisMethod.script(path: String)` case**:
+   - Update `displayName` to return `"Script"`
+   - Update `costUsd` to return `0`
+   - Update `Codable` conformance with `"script"` type discriminator
+
+4. **Validation in `ReviewRule.fromFile`**: If both `violationScript` and `violationRegex` are set, throw a parsing error.
+
+5. **Add example rule** in `docs/rule-examples/import-order-script.md` showing the `violation_script` YAML format.
+
+## - [ ] Phase 3: Implement `ScriptAnalysisService`
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysisService`.
+
+1. **Implement `analyzeTask` method**:
+   - Resolve script path: `repoPath + "/" + scriptRelativePath`
+   - Verify script exists and is executable
+   - Launch script as a `Process`:
+     - Executable: the resolved script path
+     - Arguments: `[task.focusArea.filePath]` (relative path to the file)
+     - Working directory: `repoPath`
+     - Stdout pipe: capture output
+     - Stderr pipe: capture errors
+   - Wait for process completion with a timeout (default 30 seconds)
+   - On exit code 0: parse stdout as tab-delimited violations (one per line: `LINE\tSCORE\tCOMMENT`), produce raw `[Violation]` list
+   - On non-zero exit: return `RuleError` with stderr content
+   - Return `RuleResult` with `.script(path:)` analysis method
+
+2. **Post-filter violations against changed lines**:
+   - Get the classified hunks for this task's focus area (same `ClassifiedHunk.filterForFocusArea` used by regex)
+   - Build a set of "relevant line numbers" based on `newCodeLinesOnly`:
+     - `true` → line numbers from lines with `changeKind == .added` (genuinely new code, including new insertions inside moved blocks)
+     - `false` → line numbers from lines with `changeKind != .unchanged` (all added, changed, and removed lines)
+   - Drop any script violations whose `lineNumber` is not in the relevant set
+   - This is where "you touched it, you own it" is enforced — when `newCodeLinesOnly` is false, violations on any changed line (including `.changedInMove`) pass through
+
+3. **Deduplication**: Since scripts analyze the whole file, running the same script on the same file for two different focus areas is redundant.
+   - In `runBatchScriptAnalysis` (or within `AnalysisService`), group script tasks by `(scriptPath, filePath)`
+   - Run the script once per unique pair, cache the raw violations
+   - For each task in the group, post-filter the cached violations against that task's focus area and `newCodeLinesOnly` setting
+
+4. **TSV parsing**: Parse each non-empty stdout line as `LINE_NUMBER<TAB>SCORE<TAB>COMMENT`. Lines that don't match this format should be skipped with a warning (not a hard error) — scripts may emit debug output.
+
+## - [ ] Phase 4: Wire script analysis into the pipeline
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+1. **Update `AnalysisService.runBatchAnalysis`** `.script` case:
+   - Replace the placeholder error with actual `ScriptAnalysisService` call
+   - Pass `repoPath` and `classifiedHunks`
+   - Write result JSON to evals directory (same file naming pattern)
+
+2. **Task ordering**: Group tasks as regex → script → AI. Both regex and script are local/instant relative to AI, so they run first for fast feedback.
+
+3. **Error handling**: Wrap script execution errors (file not found, not executable, timeout, malformed output) into `RuleError` with descriptive messages.
+
+4. **Verify end-to-end flow**: The prepare → analyze pipeline should work with a script rule. The rule YAML `violation_script` field gets parsed into `ReviewRule`, carried through to `TaskRule` in `RuleRequest`, and dispatched to `ScriptAnalysisService` during analysis.
+
+## - [ ] Phase 5: Tests
+
+**Skills to read**: `/swift-testing`
+
+1. **`RuleAnalysisType` tests**:
+   - Codable round-trip for each case
+   - `analysisType` computed property on `ReviewRule` for all three cases
+   - Precedence: script wins over regex when both set (though Phase 2 adds validation to prevent this)
+
+2. **`AnalysisMode` tests**:
+   - `.scriptOnly` filtering
+   - `.all` still matches script tasks
+
+3. **YAML parsing tests**:
+   - Rule with `violation_script` field
+   - Validation error when both `violation_script` and `violation_regex` are set
+
+4. **`ScriptAnalysisService` tests**:
+   - Happy path: script that outputs valid TSV violations → violations returned
+   - No violations: script outputs empty stdout → empty violations array
+   - Script error: non-zero exit code → `RuleError`
+   - Malformed TSV lines: skipped gracefully
+   - Post-filtering: script reports violations on lines 10, 15, 20; only line 15 is a changed line → only line 15 violation survives
+   - `newCodeLinesOnly: true` filtering: verify only `changeKind == .added` lines pass; `.changed`, `.removed`, `.unchanged` are excluded
+   - `newCodeLinesOnly: false` filtering: verify all lines with `changeKind != .unchanged` pass
+   - Deduplication: two tasks with same script+file → script runs once, each task gets its own filtered result
+   - Script not found / not executable: descriptive error
+
+5. **`AnalysisMethod.script` codable tests**: Round-trip encoding/decoding.
+
+6. **Integration: `AnalysisService` dispatch tests**: Verify script tasks route to `ScriptAnalysisService`.
+
+## - [ ] Phase 6: Validation
+
+**Skills to read**: `/swift-testing`
+
+1. Run full test suite: `cd PRRadarLibrary && swift test`
+2. Run build: `cd PRRadarLibrary && swift build`
+3. Create a test script in the test repo (`/Users/bill/Developer/personal/PRRadar-TestRepo`) and a rule that references it
+4. Run the pipeline end-to-end: `swift run PRRadarMacCLI analyze 1 --config test-repo --mode script`
+5. Verify script violations appear in the output and result JSON
+6. Verify violations on untouched lines are filtered out

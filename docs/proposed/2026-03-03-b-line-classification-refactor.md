@@ -120,29 +120,107 @@ The script analysis plan (2026-03-03-a) Phase 1 includes a `newCodeLinesOnly` fi
 
 5. **Update `classifyLines()`** to read pre-computed `result.rediffAnalysis` instead of re-parsing hunks.
 
-## - [ ] Phase 2: Enrich `DiffLine` with `ChangeKind`
+## - [ ] Phase 2: Create `AnnotatedDiff` model
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-`RediffAnalysis` stores lookup sets (`Set<Int>`, `[Int: ChangeKind]`) that are disconnected from the actual lines. The `ChangeKind` should live on the line itself — when the pipeline produces a re-diff, each line should already carry its classification.
+Currently, diff-related data (`fullDiff`, `effectiveDiff`, `moveReport`, `classifiedHunks`) is bundled at the feature layer inside `SyncSnapshot` but flows as **separate arguments** through services and views. There is no services-layer model that keeps all diff data together, which forces every consumer to accept `classifiedHunks` (and often `moveReport`) as extra parameters alongside the diff itself.
 
-1. **Add `changeKind: ChangeKind?` to `DiffLine`** (defaults to `nil`). Regular diff parsing leaves this nil; only the effective diff pipeline populates it.
+1. **Create `AnnotatedDiff` struct** in `PRRadarModels/GitDiffModels/AnnotatedDiff.swift`:
+   ```swift
+   public struct AnnotatedDiff: Codable, Sendable {
+       public let fullDiff: GitDiff
+       public let effectiveDiff: GitDiff?
+       public let moveReport: MoveReport?
+       public let classifiedHunks: [ClassifiedHunk]
+   }
+   ```
+   This lives in the services layer (`PRRadarModels`) so all layers — services, features, apps — can depend on it.
 
-2. **Update `computeEffectiveDiffForCandidate`** to annotate re-diff `DiffLine`s with their `ChangeKind` at creation time. After parsing and trimming the re-diff hunks, walk each hunk's lines and set `changeKind` using the same insertion-vs-modification logic currently in `analyzeRediffHunks`. Also map line numbers to absolute coordinates at this point.
+   `commitHash` is already on `fullDiff.commitHash` and comes for free — no need for a separate field.
 
-3. **Replace `RediffAnalysis` with annotated `DiffLine`s on `EffectiveDiffResult`**. The result already carries `hunks: [Hunk]` — once those hunks' `DiffLine`s carry `ChangeKind`, the separate `RediffAnalysis` struct becomes redundant. Remove `rediffAnalysis` from `EffectiveDiffResult` and remove the `RediffAnalysis` struct and `analyzeRediffHunks` function.
+2. **Update `SyncSnapshot`** to hold an `AnnotatedDiff?` instead of four separate fields. Add **backward-compatible computed properties** so existing callers continue to compile during the migration:
+   ```swift
+   public struct SyncSnapshot: Sendable {
+       public let annotatedDiff: AnnotatedDiff?
+       // ... other PR metadata fields (files, commentCount, etc.)
 
-4. **Update `classifyLines()`** to build its lookup sets from the annotated `DiffLine`s on each result's hunks, iterating `result.hunks.flatMap { $0.getDiffLines() }` and reading `diffLine.changeKind` directly.
+       // Backward-compat bridges (removed in Phase 4)
+       public var fullDiff: GitDiff? { annotatedDiff?.fullDiff }
+       public var effectiveDiff: GitDiff? { annotatedDiff?.effectiveDiff }
+       public var moveReport: MoveReport? { annotatedDiff?.moveReport }
+       public var classifiedHunks: [ClassifiedHunk] { annotatedDiff?.classifiedHunks ?? [] }
+   }
+   ```
 
-**Note:** `Hunk` stores content as a raw string and re-parses with `getDiffLines()`. To carry annotations, either (a) add a stored `annotatedLines: [DiffLine]?` field to `Hunk` that `getDiffLines()` returns when present, or (b) store annotated lines separately on `EffectiveDiffResult`. Option (a) is cleaner since it keeps the line data with the hunk.
+3. **Update `SyncPRUseCase.parseOutput()`** to assemble an `AnnotatedDiff` from the individual JSON files on disk (`diff-parsed.json`, `effective-diff-parsed.json`, `effective-diff-moves.json`, `classified-hunks.json`) and pass it to the `SyncSnapshot` initializer.
 
-## - [ ] Phase 3: Migrate all consumers to the new model
+4. **Update `EffectiveDiffPipelineResult`** to produce an `AnnotatedDiff`. The pipeline already computes all four pieces — wrap them in `AnnotatedDiff` at the end of `runEffectiveDiffPipeline()`.
+
+## - [ ] Phase 3: Thread `AnnotatedDiff` through services
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-1. **`ClassifiedDiffLine` helpers** — update computed properties:
+Update service method signatures to accept `AnnotatedDiff` instead of a separate `classifiedHunks` parameter. Update each method's callers in the same step so the code compiles after each change.
+
+1. **`TaskCreatorService.createTasks()`** and **`createAndWriteTasks()`**:
+   - Replace `classifiedHunks: [ClassifiedHunk]` and `commit: String` with `annotatedDiff: AnnotatedDiff`
+   - Inside: read `annotatedDiff.classifiedHunks` and `annotatedDiff.fullDiff.commitHash`
+   - Update caller in `PrepareUseCase` (line 151): pass `diffSnapshot.annotatedDiff!` instead of separate `classifiedHunks:` and `commit:` args
+
+2. **`RuleLoaderService.filterRulesForFocusArea()`**:
+   - Replace `classifiedHunks: [ClassifiedHunk]` with `annotatedDiff: AnnotatedDiff`
+   - Inside: read `annotatedDiff.classifiedHunks`
+   - Update caller in `TaskCreatorService` (already updated above)
+
+3. **`AnalysisService.runBatchAnalysis()`**:
+   - Replace `classifiedHunks: [ClassifiedHunk]` with `annotatedDiff: AnnotatedDiff`
+   - Inside: read `annotatedDiff.classifiedHunks`
+   - Note: this method is currently only called from CLI commands — update those callers
+
+4. **`AnalyzeSingleTaskUseCase.execute()`**:
+   - Replace `classifiedHunks: [ClassifiedHunk]?` with `annotatedDiff: AnnotatedDiff?`
+   - Replace `loadClassifiedHunks()` with a `loadAnnotatedDiff()` helper that reads all four JSON files (same pattern as `SyncPRUseCase.parseOutput()`)
+   - Inside: read `annotatedDiff.classifiedHunks` when filtering for regex tasks
+   - Update caller in `AnalyzeUseCase.runEvaluations()` (line 232): load `AnnotatedDiff` once before the loop and pass it through
+
+5. **`AnalyzeUseCase.runEvaluations()`**:
+   - Replace `classifiedHunks` loading (line 222) with `AnnotatedDiff` loading
+   - Pass the loaded `AnnotatedDiff` to `AnalyzeSingleTaskUseCase.execute()` and `AnalysisService.runBatchAnalysis()`
+
+## - [ ] Phase 4: Thread `AnnotatedDiff` through views and remove shims
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+1. **`DiffPhaseView`**:
+   - Replace `fullDiff: GitDiff`, `classifiedHunks: [ClassifiedHunk]?`, `moveReport: MoveReport?` with `annotatedDiff: AnnotatedDiff`
+   - Inside: read `annotatedDiff.fullDiff`, pass `annotatedDiff` to `MovedLineLookup`
+   - Update caller in `ReviewDetailView` (line 132)
+
+2. **`ReviewDetailView`**:
+   - Pass `prModel.syncSnapshot!.annotatedDiff!` to `DiffPhaseView`
+   - Pass `annotatedDiff` to `EffectiveDiffView` instead of three separate props
+
+3. **`EffectiveDiffView`**:
+   - Replace `fullDiff: GitDiff`, `effectiveDiff: GitDiff`, `moveReport: MoveReport?` with `annotatedDiff: AnnotatedDiff`
+   - Inside: read the individual fields from `annotatedDiff`
+
+4. **`MovedLineLookup`**:
+   - Replace `init(classifiedHunks: [ClassifiedHunk]?, moveReport: MoveReport?)` with `init(annotatedDiff: AnnotatedDiff?)`
+   - Inside: read `annotatedDiff?.classifiedHunks` and `annotatedDiff?.moveReport`
+   - Update `MovedLineLookup.empty` to use `init(annotatedDiff: nil)`
+
+5. **Remove backward-compat computed properties** from `SyncSnapshot` (`fullDiff`, `effectiveDiff`, `moveReport`, `classifiedHunks`). All callers now use `annotatedDiff` directly. Fix any remaining compile errors.
+
+## - [ ] Phase 5: Migrate classification consumers to `changeKind`/`inMovedBlock`
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+With `AnnotatedDiff` threaded through, migrate consumers from the old `LineClassification` enum to the new two-axis fields. These consumers now access classification data via `annotatedDiff.classifiedHunks`.
+
+1. **`ClassifiedHunk` helpers** — update computed properties:
    - `changedLines` → `lines.filter { $0.changeKind != .unchanged }`
-   - `newCodeLines` → `lines.filter { $0.changeKind == .added }` (this naturally includes new insertions inside moved blocks)
+   - `newCodeLines` → `lines.filter { $0.changeKind == .added }` (naturally includes new insertions inside moved blocks)
    - `isMoved` → `lines.filter { $0.changeKind != .unchanged }.isEmpty && lines.contains { $0.inMovedBlock }` (all non-context lines are verbatim moves)
    - `hasNewCode` → `lines.contains { $0.changeKind == .added }`
    - `hasChangesInMove` → `lines.contains { $0.changeKind == .changed && $0.inMovedBlock }`
@@ -153,27 +231,26 @@ The script analysis plan (2026-03-03-a) Phase 1 includes a `newCodeLinesOnly` fi
 
 3. **`DiffReconstruction.reconstructEffectiveDiff`**:
    - Currently strips `.moved` and `.movedRemoval` → change to strip `inMovedBlock && changeKind == .unchanged`
-   - This is semantically identical for the verbatim-moved case
-   - Lines that are `inMovedBlock: true` but `changeKind: .changed` or `.added` or `.removed` survive the reconstruction — they represent actual content changes within the moved block
+   - Lines that are `inMovedBlock: true` but `changeKind: .changed` or `.added` or `.removed` survive — they represent actual content changes within the moved block
 
-4. **`RichDiffViews.MovedLineLookup`**:
+4. **`MovedLineLookup`**:
    - Deletion side: check `inMovedBlock == true` (replaces `classification == .movedRemoval`)
    - Addition side: check `inMovedBlock == true` (replaces `classification == .moved || classification == .changedInMove`)
    - The UI can now optionally distinguish `.changed` from `.added` within moved blocks for richer coloring
 
 5. **`RuleLoaderService`**: Update comment to reference new model.
 
-## - [ ] Phase 4: Remove old `LineClassification` enum
+## - [ ] Phase 6: Remove old `LineClassification` enum
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
 1. **Remove `classification: LineClassification` field** from `ClassifiedDiffLine`
 2. **Remove `LineClassification` enum** entirely
-3. **Remove the temporary compatibility code** added in Phase 1
+3. **Remove the backward-compatible initializer** added in Phase 1
 4. **Update `ClassifiedDiffLine.init`** to only accept `changeKind` and `inMovedBlock`
 5. **Verify all `Codable` serialization** works with the new fields — intermediate JSON files (classified hunks) will use the new format
 
-## - [ ] Phase 5: Update tests
+## - [ ] Phase 7: Update tests
 
 **Skills to read**: `/swift-testing`
 
@@ -194,7 +271,9 @@ The script analysis plan (2026-03-03-a) Phase 1 includes a `newCodeLinesOnly` fi
 
 4. **`DiffReconstruction` tests**: Verify that lines with `(.changed, true)` and `(.added, true)` survive reconstruction while `(.unchanged, true)` are stripped.
 
-## - [ ] Phase 6: Validation
+5. **`AnnotatedDiff` tests**: Verify that `SyncPRUseCase.parseOutput()` correctly assembles an `AnnotatedDiff` from disk, and that services/views can read its fields.
+
+## - [ ] Phase 8: Validation
 
 **Skills to read**: `/swift-testing`
 
