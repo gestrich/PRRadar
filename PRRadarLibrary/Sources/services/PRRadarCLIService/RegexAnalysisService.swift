@@ -7,9 +7,8 @@ public struct RegexAnalysisService: Sendable {
 
     /// Evaluate a regex pattern against classified diff lines.
     ///
-    /// When `newCodeLinesOnly` is set on the rule, only `.new` and `.changedInMove`
-    /// lines are checked. Otherwise all changed lines (new, removed, changedInMove)
-    /// are checked.
+    /// When `newCodeLinesOnly` is set, only lines with `changeKind == .added` are checked.
+    /// Otherwise all changed lines (`changeKind != .unchanged`) are checked.
     public func analyzeTask(
         _ task: RuleRequest,
         pattern: String,
@@ -33,7 +32,7 @@ public struct RegexAnalysisService: Sendable {
         let linesToCheck: [ClassifiedDiffLine]
         if task.rule.newCodeLinesOnly {
             linesToCheck = classifiedHunks.flatMap { $0.lines.filter {
-                $0.classification == .new || $0.classification == .changedInMove
+                $0.changeKind == .added
             }}
         } else {
             linesToCheck = classifiedHunks.flatMap { $0.changedLines }

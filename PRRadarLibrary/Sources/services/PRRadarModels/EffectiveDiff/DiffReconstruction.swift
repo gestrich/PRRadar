@@ -101,11 +101,13 @@ func countChangedLinesInHunks(_ hunks: [Hunk]) -> Int {
 
 // MARK: - Reconstruction
 
-/// Reconstruct the effective diff by filtering out moved lines using pre-computed classifications.
+/// Reconstruct the effective diff by filtering out verbatim moved lines.
 ///
-/// Lines classified as `.moved` or `.movedRemoval` are stripped. Remaining lines are split
-/// at filtered-line boundaries into sub-hunks that preserve correct line numbers. Only
-/// sub-hunks containing at least one changed line (added or removed) are kept.
+/// Lines with `inMovedBlock == true` and `changeKind == .unchanged` are stripped.
+/// Lines that are `inMovedBlock: true` but have `changeKind` of `.changed`, `.added`,
+/// or `.removed` survive — they represent actual content changes within the moved block.
+/// Remaining lines are split at filtered-line boundaries into sub-hunks that preserve
+/// correct line numbers. Only sub-hunks containing at least one changed line are kept.
 public func reconstructEffectiveDiff(
     originalDiff: GitDiff,
     classifiedHunks: [ClassifiedHunk]
@@ -114,7 +116,7 @@ public func reconstructEffectiveDiff(
 
     for (originalHunk, classifiedHunk) in zip(originalDiff.hunks, classifiedHunks) {
         let hasMovedLines = classifiedHunk.lines.contains {
-            $0.classification == .moved || $0.classification == .movedRemoval
+            $0.inMovedBlock && $0.changeKind == .unchanged
         }
 
         if !hasMovedLines {
@@ -131,7 +133,7 @@ public func reconstructEffectiveDiff(
         var current: [ClassifiedDiffLine] = []
 
         for line in classifiedHunk.lines {
-            if line.classification != .moved && line.classification != .movedRemoval {
+            if !(line.inMovedBlock && line.changeKind == .unchanged) {
                 current.append(line)
             } else {
                 if !current.isEmpty {

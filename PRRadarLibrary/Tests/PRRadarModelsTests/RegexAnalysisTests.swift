@@ -384,7 +384,7 @@ struct RegexAnalysisServiceTests {
 @Suite("RegexAnalysisService new code only filtering")
 struct RegexNewCodeOnlyTests {
 
-    @Test("newCodeLinesOnly checks only .new and .changedInMove lines")
+    @Test("newCodeLinesOnly checks only added lines (changeKind == .added)")
     func newCodeLinesOnlyFiltering() {
         // Arrange
         let service = RegexAnalysisService()
@@ -401,12 +401,11 @@ struct RegexNewCodeOnlyTests {
         // Act
         let result = service.analyzeTask(task, pattern: "TODO", classifiedHunks: hunks)
 
-        // Assert
+        // Assert — only .new (changeKind == .added) passes; .changedInMove (changeKind == .changed) is excluded
         if case .success(let r) = result {
-            #expect(r.violations.count == 2)
+            #expect(r.violations.count == 1)
             let lineNumbers = r.violations.compactMap(\.lineNumber)
             #expect(lineNumbers.contains(10))
-            #expect(lineNumbers.contains(12))
         } else {
             Issue.record("Expected success, got \(result)")
         }

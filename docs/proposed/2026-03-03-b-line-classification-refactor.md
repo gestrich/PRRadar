@@ -221,7 +221,10 @@ Update service method signatures to accept `AnnotatedDiff` instead of a separate
 
 5. **Remove backward-compat computed properties** from `SyncSnapshot` (`fullDiff`, `effectiveDiff`, `moveReport`, `classifiedHunks`). All callers now use `annotatedDiff` directly. Fix any remaining compile errors.
 
-## - [ ] Phase 5: Migrate classification consumers to `changeKind`/`inMovedBlock`
+## - [x] Phase 5: Migrate classification consumers to `changeKind`/`inMovedBlock`
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: All consumers now use `changeKind`/`inMovedBlock` instead of `LineClassification`; `newCodeLinesOnly` correctly filters to `changeKind == .added` only (excludes modifications in moves); `DiffReconstruction` preserves content changes within moved blocks; `MovedLineLookup` simplified to `Bool` map keyed on `inMovedBlock`
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

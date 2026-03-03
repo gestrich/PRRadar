@@ -88,8 +88,8 @@ public struct RuleLoaderService: Sendable {
     ///
     /// Grep patterns run against clean source content from classified lines
     /// (no diff prefix), eliminating the ObjC `+`/`-` prefix collision.
-    /// Only genuinely changed lines (`.new`, `.removed`, `.changedInMove`)
-    /// are included — moved and context lines are excluded.
+    /// Only genuinely changed lines (`changeKind != .unchanged`) are included —
+    /// verbatim moves and context lines are excluded.
     public func filterRulesForFocusArea(
         _ allRules: [ReviewRule],
         focusArea: FocusArea,

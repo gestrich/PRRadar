@@ -105,25 +105,25 @@ public struct ClassifiedHunk: Codable, Sendable, Equatable {
 
     /// True when every non-context line is part of a move (no genuinely new or removed code).
     public var isMoved: Bool {
-        let changedLines = lines.filter { $0.classification != .context }
-        guard !changedLines.isEmpty else { return false }
-        return changedLines.allSatisfy { $0.classification == .moved || $0.classification == .movedRemoval }
+        let nonContext = lines.filter { $0.lineType != .context }
+        guard !nonContext.isEmpty else { return false }
+        return nonContext.allSatisfy { $0.inMovedBlock && $0.changeKind == .unchanged }
     }
 
     public var hasNewCode: Bool {
-        lines.contains { $0.classification == .new }
+        lines.contains { $0.changeKind == .added }
     }
 
     public var hasChangesInMove: Bool {
-        lines.contains { $0.classification == .changedInMove }
+        lines.contains { $0.changeKind == .changed && $0.inMovedBlock }
     }
 
     public var newCodeLines: [ClassifiedDiffLine] {
-        lines.filter { $0.classification == .new }
+        lines.filter { $0.changeKind == .added }
     }
 
     public var changedLines: [ClassifiedDiffLine] {
-        lines.filter { $0.classification == .new || $0.classification == .removed || $0.classification == .changedInMove }
+        lines.filter { $0.changeKind != .unchanged }
     }
 
     /// Filter classified hunks to only include lines within a focus area's file and line range.
@@ -148,13 +148,13 @@ public struct ClassifiedHunk: Codable, Sendable, Equatable {
     }
 }
 
-/// Extract lines classified as `.new` or `.changedInMove` across all hunks.
+/// Extract lines with `changeKind` of `.added` or `.changed` across all hunks.
 ///
 /// These are lines the PR author wrote — genuinely new additions and
 /// modifications inside moved blocks. Excludes verbatim moves, removals, and context.
 public func extractNewAndChangedInMoveLines(from hunks: [ClassifiedHunk]) -> [ClassifiedDiffLine] {
     hunks.flatMap { hunk in
-        hunk.lines.filter { $0.classification == .new || $0.classification == .changedInMove }
+        hunk.lines.filter { $0.changeKind == .added || $0.changeKind == .changed }
     }
 }
 

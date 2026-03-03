@@ -31,26 +31,26 @@ struct MovedLineLookup {
         enum Side { case old, new }
     }
 
-    private let classifiedByLine: [LineKey: LineClassification]
+    private let movedByLine: [LineKey: Bool]
     private let moveDetailRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail, isSource: Bool)]
 
     static let empty = MovedLineLookup(annotatedDiff: nil)
 
     init(annotatedDiff: AnnotatedDiff?) {
-        var lineMap: [LineKey: LineClassification] = [:]
+        var lineMap: [LineKey: Bool] = [:]
         if let hunks = annotatedDiff?.classifiedHunks {
             for hunk in hunks {
-                for line in hunk.lines {
+                for line in hunk.lines where line.inMovedBlock {
                     if let oldNum = line.oldLineNumber {
-                        lineMap[LineKey(filePath: line.filePath, lineNumber: oldNum, side: .old)] = line.classification
+                        lineMap[LineKey(filePath: line.filePath, lineNumber: oldNum, side: .old)] = true
                     }
                     if let newNum = line.newLineNumber {
-                        lineMap[LineKey(filePath: line.filePath, lineNumber: newNum, side: .new)] = line.classification
+                        lineMap[LineKey(filePath: line.filePath, lineNumber: newNum, side: .new)] = true
                     }
                 }
             }
         }
-        classifiedByLine = lineMap
+        movedByLine = lineMap
 
         var ranges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail, isSource: Bool)] = []
         if let report = annotatedDiff?.moveReport {
@@ -71,15 +71,13 @@ struct MovedLineLookup {
         case .deletion:
             guard let line = oldLine else { return nil }
             let key = LineKey(filePath: filePath, lineNumber: line, side: .old)
-            guard let classification = classifiedByLine[key],
-                  classification == .movedRemoval else { return nil }
+            guard movedByLine[key] == true else { return nil }
             return findMoveDetail(filePath: filePath, lineNumber: line, isSource: true)
 
         case .addition:
             guard let line = newLine else { return nil }
             let key = LineKey(filePath: filePath, lineNumber: line, side: .new)
-            guard let classification = classifiedByLine[key],
-                  classification == .moved || classification == .changedInMove else { return nil }
+            guard movedByLine[key] == true else { return nil }
             return findMoveDetail(filePath: filePath, lineNumber: line, isSource: false)
 
         case .context:
