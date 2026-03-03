@@ -69,7 +69,9 @@ private func makeEffectiveResult(
     hunks: [Hunk] = [],
     rawDiff: String = ""
 ) -> EffectiveDiffResult {
-    EffectiveDiffResult(candidate: candidate, hunks: hunks, rawDiff: rawDiff)
+    let ranges = extendBlockRange(candidate)
+    let analysis = analyzeRediffHunks(hunks: hunks, sourceRegionStart: ranges.source.start, targetRegionStart: ranges.target.start)
+    return EffectiveDiffResult(candidate: candidate, hunks: hunks, rawDiff: rawDiff, rediffAnalysis: analysis)
 }
 
 // MARK: - Tests: classifyLines

@@ -9,12 +9,79 @@ public struct EffectiveDiffResult: Sendable, Equatable {
     public let candidate: MoveCandidate
     public let hunks: [Hunk]
     public let rawDiff: String
+    public let rediffAnalysis: RediffAnalysis
 
-    public init(candidate: MoveCandidate, hunks: [Hunk], rawDiff: String) {
+    public init(candidate: MoveCandidate, hunks: [Hunk], rawDiff: String, rediffAnalysis: RediffAnalysis = RediffAnalysis()) {
         self.candidate = candidate
         self.hunks = hunks
         self.rawDiff = rawDiff
+        self.rediffAnalysis = rediffAnalysis
     }
+}
+
+/// Analysis of re-diff hunks: which lines within a move are insertions, modifications, or deletions.
+public struct RediffAnalysis: Sendable, Equatable {
+    /// Target-side lines that are new insertions inside the moved block (absolute coordinates).
+    public let addedInMoveLines: Set<Int>
+    /// Target-side lines that are modifications of existing source content (absolute coordinates).
+    public let changedInMoveLines: Set<Int>
+    /// Source-side lines that were modified or deleted at the destination (absolute coordinates → change kind).
+    public let changedSourceLines: [Int: ChangeKind]
+
+    public init(addedInMoveLines: Set<Int> = [], changedInMoveLines: Set<Int> = [], changedSourceLines: [Int: ChangeKind] = [:]) {
+        self.addedInMoveLines = addedInMoveLines
+        self.changedInMoveLines = changedInMoveLines
+        self.changedSourceLines = changedSourceLines
+    }
+}
+
+/// Analyze re-diff hunks to classify which lines within a move are insertions, modifications, or deletions.
+///
+/// For each hunk, uses the ratio of removed-to-added lines to determine:
+/// - **Target side**: Pure insertion hunks (no `-` lines) → all `+` lines are `.added`.
+///   Mixed hunks → first `min(removedCount, addedCount)` `+` lines are `.changed`, surplus are `.added`.
+/// - **Source side**: `-` lines in hunks with `+` lines → `.changed`; in hunks without → `.removed`.
+func analyzeRediffHunks(hunks: [Hunk], sourceRegionStart: Int, targetRegionStart: Int) -> RediffAnalysis {
+    var addedInMove: Set<Int> = []
+    var changedInMove: Set<Int> = []
+    var changedSource: [Int: ChangeKind] = [:]
+
+    for hunk in hunks {
+        let diffLines = hunk.getDiffLines().filter { $0.lineType != .header }
+        let removedCount = diffLines.filter { $0.lineType == .removed }.count
+        let addedCount = diffLines.filter { $0.lineType == .added }.count
+
+        if removedCount == 0 {
+            for diffLine in diffLines where diffLine.lineType == .added {
+                if let relativeLineNum = diffLine.newLineNumber {
+                    addedInMove.insert(targetRegionStart + relativeLineNum - 1)
+                }
+            }
+        } else {
+            let modificationLimit = min(removedCount, addedCount)
+            var addedSoFar = 0
+            for diffLine in diffLines where diffLine.lineType == .added {
+                if let relativeLineNum = diffLine.newLineNumber {
+                    let absoluteLineNum = targetRegionStart + relativeLineNum - 1
+                    if addedSoFar < modificationLimit {
+                        changedInMove.insert(absoluteLineNum)
+                    } else {
+                        addedInMove.insert(absoluteLineNum)
+                    }
+                    addedSoFar += 1
+                }
+            }
+        }
+
+        for diffLine in diffLines where diffLine.lineType == .removed {
+            if let relativeOldLineNum = diffLine.oldLineNumber {
+                let absoluteLineNum = sourceRegionStart + relativeOldLineNum - 1
+                changedSource[absoluteLineNum] = addedCount > 0 ? .changed : .removed
+            }
+        }
+    }
+
+    return RediffAnalysis(addedInMoveLines: addedInMove, changedInMoveLines: changedInMove, changedSourceLines: changedSource)
 }
 
 /// A function that re-diffs two text regions and returns raw unified diff output.
@@ -120,9 +187,16 @@ public func computeEffectiveDiffForCandidate(
         proximity: trimProximity
     )
 
+    let analysis = analyzeRediffHunks(
+        hunks: trimmed,
+        sourceRegionStart: ranges.source.start,
+        targetRegionStart: ranges.target.start
+    )
+
     return EffectiveDiffResult(
         candidate: candidate,
         hunks: trimmed,
-        rawDiff: rawDiff
+        rawDiff: rawDiff,
+        rediffAnalysis: analysis
     )
 }
