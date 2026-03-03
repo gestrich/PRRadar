@@ -24,7 +24,7 @@ public struct MoveDetail: Codable, Sendable, Equatable {
 }
 
 /// Move detection report parsed from effective-diff-moves.json.
-public struct MoveReport: Codable, Sendable {
+public struct MoveReport: Codable, Sendable, Equatable {
     public let movesDetected: Int
     public let totalLinesMoved: Int
     public let totalLinesEffectivelyChanged: Int

@@ -4,32 +4,29 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct SyncSnapshot: Sendable {
+    public let annotatedDiff: AnnotatedDiff?
     public let files: [String]
-    public let fullDiff: GitDiff?
-    public let effectiveDiff: GitDiff?
-    public let moveReport: MoveReport?
-    public let classifiedHunks: [ClassifiedHunk]
     public let commentCount: Int
     public let reviewCount: Int
     public let reviewCommentCount: Int
     public let commitHash: String?
 
+    // Backward-compat bridges (removed in Phase 4)
+    public var fullDiff: GitDiff? { annotatedDiff?.fullDiff }
+    public var effectiveDiff: GitDiff? { annotatedDiff?.effectiveDiff }
+    public var moveReport: MoveReport? { annotatedDiff?.moveReport }
+    public var classifiedHunks: [ClassifiedHunk] { annotatedDiff?.classifiedHunks ?? [] }
+
     public init(
+        annotatedDiff: AnnotatedDiff? = nil,
         files: [String],
-        fullDiff: GitDiff?,
-        effectiveDiff: GitDiff?,
-        moveReport: MoveReport?,
-        classifiedHunks: [ClassifiedHunk] = [],
         commentCount: Int = 0,
         reviewCount: Int = 0,
         reviewCommentCount: Int = 0,
         commitHash: String? = nil
     ) {
+        self.annotatedDiff = annotatedDiff
         self.files = files
-        self.fullDiff = fullDiff
-        self.effectiveDiff = effectiveDiff
-        self.moveReport = moveReport
-        self.classifiedHunks = classifiedHunks
         self.commentCount = commentCount
         self.reviewCount = reviewCount
         self.reviewCommentCount = reviewCommentCount
@@ -60,17 +57,24 @@ public struct SyncPRUseCase: Sendable {
             config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.diffParsedJSONFilename, commitHash: resolvedCommit
         )
 
-        let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: resolvedCommit
-        )
+        let annotatedDiff: AnnotatedDiff? = fullDiff.map { fullDiff in
+            let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: resolvedCommit
+            )
+            let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
+            )
+            let classifiedHunks: [ClassifiedHunk] = (try? PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.classifiedHunksFilename, commitHash: resolvedCommit
+            )) ?? []
 
-        let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
-        )
-
-        let classifiedHunks: [ClassifiedHunk] = (try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.classifiedHunksFilename, commitHash: resolvedCommit
-        )) ?? []
+            return AnnotatedDiff(
+                fullDiff: fullDiff,
+                effectiveDiff: effectiveDiff,
+                moveReport: moveReport,
+                classifiedHunks: classifiedHunks
+            )
+        }
 
         // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
@@ -78,11 +82,8 @@ public struct SyncPRUseCase: Sendable {
         )
 
         return SyncSnapshot(
+            annotatedDiff: annotatedDiff,
             files: files,
-            fullDiff: fullDiff,
-            effectiveDiff: effectiveDiff,
-            moveReport: moveReport,
-            classifiedHunks: classifiedHunks,
             commentCount: comments?.comments.count ?? 0,
             reviewCount: comments?.reviews.count ?? 0,
             reviewCommentCount: comments?.reviewComments.count ?? 0,
