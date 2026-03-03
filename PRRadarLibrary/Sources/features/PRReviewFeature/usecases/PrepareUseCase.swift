@@ -151,9 +151,8 @@ public struct PrepareUseCase: Sendable {
                     let tasks = try await taskCreator.createAndWriteTasks(
                         rules: allRules,
                         focusAreas: allFocusAreas,
-                        classifiedHunks: diffSnapshot.classifiedHunks,
+                        annotatedDiff: diffSnapshot.annotatedDiff!,
                         outputDir: prepareDir,
-                        commit: fullDiff.commitHash,
                         rulesDir: rulesDir
                     )
 

@@ -29,11 +29,11 @@ public struct TaskCreatorService: Sendable {
     /// - Parameters:
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate (both method and file level)
-    ///   - classifiedHunks: Classified diff lines for grep pattern matching
-    ///   - commit: The commit hash for source file blob lookups
+    ///   - annotatedDiff: Bundled diff data (classified hunks for grep matching, commit hash for blob lookups)
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], classifiedHunks: [ClassifiedHunk], commit: String, rulesDir: String? = nil) async throws -> [RuleRequest] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], annotatedDiff: AnnotatedDiff, rulesDir: String? = nil) async throws -> [RuleRequest] {
+        let commit = annotatedDiff.fullDiff.commitHash
         var blobHashCache: [String: String] = [:]
         var ruleBlobHashCache: [String: String] = [:]
         var tasks: [RuleRequest] = []
@@ -41,7 +41,7 @@ public struct TaskCreatorService: Sendable {
         let rulesRepoInfo = await resolveRulesRepoInfo(rulesDir: rulesDir)
 
         for focusArea in focusAreas {
-            let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea, classifiedHunks: classifiedHunks)
+            let applicableRules = ruleLoader.filterRulesForFocusArea(rules, focusArea: focusArea, annotatedDiff: annotatedDiff)
             for rule in applicableRules {
                 guard rule.focusType == focusArea.focusType else { continue }
 
@@ -74,19 +74,18 @@ public struct TaskCreatorService: Sendable {
     /// - Parameters:
     ///   - rules: All loaded review rules
     ///   - focusAreas: Focus areas to evaluate
+    ///   - annotatedDiff: Bundled diff data (classified hunks for grep matching, commit hash for blob lookups)
     ///   - outputDir: The prepare phase directory (e.g., `<base>/<pr_number>/analysis/<commit>/prepare/`)
-    ///   - commit: The commit hash for source file blob lookups
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of created evaluation tasks
     public func createAndWriteTasks(
         rules: [ReviewRule],
         focusAreas: [FocusArea],
-        classifiedHunks: [ClassifiedHunk],
+        annotatedDiff: AnnotatedDiff,
         outputDir: String,
-        commit: String,
         rulesDir: String? = nil
     ) async throws -> [RuleRequest] {
-        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, classifiedHunks: classifiedHunks, commit: commit, rulesDir: rulesDir)
+        let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, annotatedDiff: annotatedDiff, rulesDir: rulesDir)
 
         let tasksDir = "\(outputDir)/\(DataPathsService.prepareTasksSubdir)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)

@@ -226,7 +226,7 @@ public struct AnalysisService: Sendable {
         tasks: [RuleRequest],
         evalsDir: String,
         repoPath: String,
-        classifiedHunks: [ClassifiedHunk] = [],
+        annotatedDiff: AnnotatedDiff? = nil,
         onStart: ((Int, Int, RuleRequest) -> Void)? = nil,
         onResult: ((Int, Int, RuleOutcome) -> Void)? = nil,
         onPrompt: ((String, RuleRequest) -> Void)? = nil,
@@ -245,6 +245,7 @@ public struct AnalysisService: Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
         let regexService = RegexAnalysisService()
+        let classifiedHunks = annotatedDiff?.classifiedHunks ?? []
 
         for (i, task) in orderedTasks.enumerated() {
             let index = i + 1

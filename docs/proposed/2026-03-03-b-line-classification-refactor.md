@@ -160,7 +160,10 @@ Currently, diff-related data (`fullDiff`, `effectiveDiff`, `moveReport`, `classi
 
 4. **Update `EffectiveDiffPipelineResult`** to produce an `AnnotatedDiff`. The pipeline already computes all four pieces — wrap them in `AnnotatedDiff` at the end of `runEffectiveDiffPipeline()`.
 
-## - [ ] Phase 3: Thread `AnnotatedDiff` through services
+## - [x] Phase 3: Thread `AnnotatedDiff` through services
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Consolidated 4-file AnnotatedDiff loading into `PhaseOutputParser.loadAnnotatedDiff()` (services layer) to eliminate duplication between use cases; services accept `AnnotatedDiff` instead of separate `classifiedHunks`/`commit` params
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

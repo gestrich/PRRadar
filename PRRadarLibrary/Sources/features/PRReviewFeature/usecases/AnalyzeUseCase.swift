@@ -219,10 +219,7 @@ public struct AnalyzeUseCase: Sendable {
             let singleTaskUseCase = AnalyzeSingleTaskUseCase(config: config)
             let startTime = Date()
 
-            let classifiedHunks: [ClassifiedHunk]? = (try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .diff,
-                filename: DataPathsService.classifiedHunksFilename, commitHash: commitHash
-            )) ?? []
+            let annotatedDiff = PhaseOutputParser.loadAnnotatedDiff(config: config, prNumber: prNumber, commitHash: commitHash)
 
             for (index, task) in tasksToEvaluate.enumerated() {
                 let globalIndex = cachedCount + index + 1
@@ -231,7 +228,7 @@ public struct AnalyzeUseCase: Sendable {
 
                 for try await event in singleTaskUseCase.execute(
                     task: task, prNumber: prNumber, commitHash: commitHash,
-                    classifiedHunks: classifiedHunks
+                    annotatedDiff: annotatedDiff
                 ) {
                     continuation.yield(.taskEvent(task: task, event: event))
                     if case .completed(let result) = event {

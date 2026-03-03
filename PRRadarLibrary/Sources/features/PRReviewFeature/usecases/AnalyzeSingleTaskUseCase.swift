@@ -16,13 +16,13 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
     /// Execute a single analysis task.
     ///
     /// Routes to `RegexAnalysisService` or `AnalysisService` based on whether the
-    /// task's rule has a `violationRegex`. Callers that already have classified hunks
-    /// loaded can pass them to avoid a redundant disk read.
+    /// task's rule has a `violationRegex`. Callers that already have an `AnnotatedDiff`
+    /// loaded can pass it to avoid a redundant disk read.
     public func execute(
         task: RuleRequest,
         prNumber: Int,
         commitHash: String? = nil,
-        classifiedHunks: [ClassifiedHunk]? = nil
+        annotatedDiff: AnnotatedDiff? = nil
     ) -> AsyncThrowingStream<TaskProgress, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -41,9 +41,10 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
                     let result: RuleOutcome
 
                     if let pattern = task.rule.violationRegex {
-                        let hunks = classifiedHunks ?? Self.loadClassifiedHunks(
+                        let resolvedDiff = annotatedDiff ?? PhaseOutputParser.loadAnnotatedDiff(
                             config: config, prNumber: prNumber, commitHash: resolvedCommit
                         )
+                        let hunks = resolvedDiff?.classifiedHunks ?? []
                         let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
                         result = RegexAnalysisService().analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
                     } else {
@@ -94,16 +95,4 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
         }
     }
 
-    // MARK: - Private
-
-    private static func loadClassifiedHunks(
-        config: RepositoryConfiguration,
-        prNumber: Int,
-        commitHash: String?
-    ) -> [ClassifiedHunk] {
-        (try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.classifiedHunksFilename, commitHash: commitHash
-        )) ?? []
-    }
 }

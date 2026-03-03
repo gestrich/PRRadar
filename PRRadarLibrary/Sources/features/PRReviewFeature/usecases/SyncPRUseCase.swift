@@ -53,28 +53,7 @@ public struct SyncPRUseCase: Sendable {
             commitHash: resolvedCommit
         )
 
-        let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.diffParsedJSONFilename, commitHash: resolvedCommit
-        )
-
-        let annotatedDiff: AnnotatedDiff? = fullDiff.map { fullDiff in
-            let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: resolvedCommit
-            )
-            let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
-            )
-            let classifiedHunks: [ClassifiedHunk] = (try? PhaseOutputParser.parsePhaseOutput(
-                config: config, prNumber: prNumber, phase: .diff, filename: DataPathsService.classifiedHunksFilename, commitHash: resolvedCommit
-            )) ?? []
-
-            return AnnotatedDiff(
-                fullDiff: fullDiff,
-                effectiveDiff: effectiveDiff,
-                moveReport: moveReport,
-                classifiedHunks: classifiedHunks
-            )
-        }
+        let annotatedDiff = PhaseOutputParser.loadAnnotatedDiff(config: config, prNumber: prNumber, commitHash: resolvedCommit)
 
         // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
