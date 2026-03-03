@@ -278,41 +278,4 @@ public struct DiffLine: Sendable {
         getDiffLines().filter { $0.isChanged }
     }
 
-    /// Get the text content of changed lines only (for grep pattern matching).
-    public func getChangedContent() -> String {
-        getChangedLines().map(\.content).joined(separator: "\n")
-    }
-
-    /// Extract changed content from diff text (handles both raw and annotated formats).
-    /// Preserves the `+`/`-` prefix so grep patterns like `^\+.*@import` can match.
-    public static func extractChangedContent(from diffText: String) -> String {
-        var changedLines: [String] = []
-        var inHunkBody = false
-
-        for line in diffText.components(separatedBy: "\n") {
-            if line.hasPrefix("@@") {
-                inHunkBody = true
-            } else if inHunkBody {
-                // Raw format: preserve the +/- prefix
-                if line.hasPrefix("+") && !line.hasPrefix("+++") {
-                    changedLines.append(line)
-                } else if line.hasPrefix("-") && !line.hasPrefix("---") {
-                    changedLines.append(line)
-                }
-                // Annotated format: "123: +code" or "   -: -code"
-                // Extract from the +/- marker onwards to preserve the prefix
-                else if line.contains(": +") {
-                    if let idx = line.range(of: ": +") {
-                        changedLines.append("+" + String(line[idx.upperBound...]))
-                    }
-                } else if line.contains(": -") && line.trimmingCharacters(in: .whitespaces).hasPrefix("-:") {
-                    if let idx = line.range(of: ": -") {
-                        changedLines.append("-" + String(line[idx.upperBound...]))
-                    }
-                }
-            }
-        }
-
-        return changedLines.joined(separator: "\n")
-    }
 }
