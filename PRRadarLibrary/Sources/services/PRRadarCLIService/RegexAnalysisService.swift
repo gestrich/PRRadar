@@ -29,13 +29,8 @@ public struct RegexAnalysisService: Sendable {
             ))
         }
 
-        let linesToCheck: [ClassifiedDiffLine]
-        if task.rule.newCodeLinesOnly {
-            linesToCheck = classifiedHunks.flatMap { $0.lines.filter {
-                $0.changeKind == .added
-            }}
-        } else {
-            linesToCheck = classifiedHunks.flatMap { $0.changedLines }
+        let linesToCheck = classifiedHunks.flatMap {
+            $0.relevantLines(newCodeLinesOnly: task.rule.newCodeLinesOnly)
         }
 
         let comment = task.rule.violationMessage ?? task.rule.description

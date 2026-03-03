@@ -162,8 +162,9 @@ public struct ReviewRule: Codable, Sendable, Equatable {
     public let violationRegex: String?
     public let violationMessage: String?
 
-    public var isRegexOnly: Bool {
-        violationRegex != nil
+    public var analysisType: RuleAnalysisType {
+        if violationRegex != nil { return .regex }
+        return .ai
     }
 
     public init(

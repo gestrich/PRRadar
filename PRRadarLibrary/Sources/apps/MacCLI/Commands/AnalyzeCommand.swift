@@ -27,7 +27,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show full AI output including tool use events")
     var verbose: Bool = false
 
-    @Option(name: .long, help: "Analysis mode: regex, ai, or all (default: all)")
+    @Option(name: .long, help: "Analysis mode: regex, script, ai, or all (default: all)")
     var mode: AnalysisMode = .all
 
     func run() async throws {
@@ -51,6 +51,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
         if !options.json {
             let modeLabel = switch mode {
             case .regexOnly: " (regex rules only)"
+            case .scriptOnly: " (script rules only)"
             case .aiOnly: " (AI rules only)"
             case .all: ""
             }

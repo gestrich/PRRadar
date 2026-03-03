@@ -95,7 +95,10 @@ The line classification refactor (2026-03-03-b) has been completed. `LineClassif
 
 ## Phases
 
-## - [ ] Phase 1: Introduce `RuleAnalysisType` enum and refactor dispatch
+## - [x] Phase 1: Introduce `RuleAnalysisType` enum and refactor dispatch
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Pure discriminator enum (no associated values) at models layer; computed `analysisType` replaces boolean `isRegexOnly`; shared `relevantLines`/`relevantLineNumbers` helpers on `ClassifiedHunk` to DRY filtering logic across regex and future script services
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

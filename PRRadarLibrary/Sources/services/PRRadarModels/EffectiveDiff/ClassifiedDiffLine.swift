@@ -74,6 +74,15 @@ public struct ClassifiedHunk: Codable, Sendable, Equatable {
         lines.filter { $0.changeKind != .unchanged }
     }
 
+    public func relevantLines(newCodeLinesOnly: Bool) -> [ClassifiedDiffLine] {
+        newCodeLinesOnly ? newCodeLines : changedLines
+    }
+
+    public func relevantLineNumbers(newCodeLinesOnly: Bool) -> Set<Int> {
+        Set(relevantLines(newCodeLinesOnly: newCodeLinesOnly)
+            .compactMap { $0.newLineNumber ?? $0.oldLineNumber })
+    }
+
     /// Filter classified hunks to only include lines within a focus area's file and line range.
     public static func filterForFocusArea(
         _ hunks: [ClassifiedHunk],

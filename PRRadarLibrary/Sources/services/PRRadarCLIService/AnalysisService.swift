@@ -235,9 +235,10 @@ public struct AnalysisService: Sendable {
     ) async throws -> [RuleOutcome] {
         try FileManager.default.createDirectory(atPath: evalsDir, withIntermediateDirectories: true)
 
-        let regexTasks = tasks.filter { $0.rule.isRegexOnly }
-        let aiTasks = tasks.filter { !$0.rule.isRegexOnly }
-        let orderedTasks = regexTasks + aiTasks
+        let regexTasks = tasks.filter { $0.rule.analysisType == .regex }
+        let scriptTasks = tasks.filter { $0.rule.analysisType == .script }
+        let aiTasks = tasks.filter { $0.rule.analysisType == .ai }
+        let orderedTasks = regexTasks + scriptTasks + aiTasks
 
         var results: [RuleOutcome] = []
         let total = orderedTasks.count
@@ -253,14 +254,35 @@ public struct AnalysisService: Sendable {
 
             var result: RuleOutcome
 
-            if let pattern = task.rule.violationRegex {
+            switch task.rule.analysisType {
+            case .regex:
+                guard let pattern = task.rule.violationRegex else {
+                    result = .error(RuleError(
+                        taskId: task.taskId,
+                        ruleName: task.rule.name,
+                        filePath: task.focusArea.filePath,
+                        errorMessage: "Regex rule missing violationRegex pattern",
+                        analysisMethod: .regex(pattern: "")
+                    ))
+                    break
+                }
                 let focusedHunks = ClassifiedHunk.filterForFocusArea(classifiedHunks, focusArea: task.focusArea)
                 result = regexService.analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
 
                 let data = try encoder.encode(result)
                 let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
                 try data.write(to: URL(fileURLWithPath: resultPath))
-            } else {
+
+            case .script:
+                result = .error(RuleError(
+                    taskId: task.taskId,
+                    ruleName: task.rule.name,
+                    filePath: task.focusArea.filePath,
+                    errorMessage: "Script analysis not yet implemented",
+                    analysisMethod: .regex(pattern: "")
+                ))
+
+            case .ai:
                 do {
                     result = try await analyzeTask(
                         task,

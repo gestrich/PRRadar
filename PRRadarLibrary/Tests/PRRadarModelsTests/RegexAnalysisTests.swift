@@ -94,7 +94,7 @@ struct ReviewRuleRegexParsingTests {
 
         // Assert
         #expect(rule.violationRegex == "return nil")
-        #expect(rule.isRegexOnly == true)
+        #expect(rule.analysisType == .regex)
 
         try FileManager.default.removeItem(at: tmpDir)
     }
@@ -171,7 +171,7 @@ struct ReviewRuleRegexParsingTests {
         // Assert
         #expect(rule.newCodeLinesOnly == false)
         #expect(rule.violationRegex == nil)
-        #expect(rule.isRegexOnly == false)
+        #expect(rule.analysisType == .ai)
 
         try FileManager.default.removeItem(at: tmpDir)
     }
@@ -198,7 +198,7 @@ struct ReviewRuleRegexParsingTests {
         #expect(decoded.violationRegex == "return nil")
         #expect(decoded.violationMessage == "Don't return nil")
         #expect(decoded.newCodeLinesOnly == true)
-        #expect(decoded.isRegexOnly == true)
+        #expect(decoded.analysisType == .regex)
     }
 }
 
@@ -698,26 +698,26 @@ struct GrepFilteringClassifiedHunkTests {
 @Suite("Pipeline routing based on rule configuration")
 struct PipelineRoutingTests {
 
-    @Test("TaskRule.isRegexOnly is true when violationRegex is set")
-    func isRegexOnlyTrue() {
+    @Test("TaskRule.analysisType is .regex when violationRegex is set")
+    func analysisTypeRegex() {
         // Arrange
         let rule = TaskRule(name: "r", description: "d", category: "c", content: "b", violationRegex: "pattern")
 
         // Assert
-        #expect(rule.isRegexOnly == true)
+        #expect(rule.analysisType == .regex)
     }
 
-    @Test("TaskRule.isRegexOnly is false when violationRegex is nil")
-    func isRegexOnlyFalse() {
+    @Test("TaskRule.analysisType is .ai when violationRegex is nil")
+    func analysisTypeAI() {
         // Arrange
         let rule = TaskRule(name: "r", description: "d", category: "c", content: "b")
 
         // Assert
-        #expect(rule.isRegexOnly == false)
+        #expect(rule.analysisType == .ai)
     }
 
-    @Test("ReviewRule.isRegexOnly matches TaskRule after RuleRequest.from()")
-    func isRegexOnlyPropagates() {
+    @Test("ReviewRule.analysisType matches TaskRule after RuleRequest.from()")
+    func analysisTypePropagates() {
         // Arrange
         let reviewRule = ReviewRule(
             name: "test",
@@ -737,7 +737,7 @@ struct PipelineRoutingTests {
         let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc")
 
         // Assert
-        #expect(request.rule.isRegexOnly == true)
+        #expect(request.rule.analysisType == .regex)
         #expect(request.rule.violationRegex == "pattern")
     }
 

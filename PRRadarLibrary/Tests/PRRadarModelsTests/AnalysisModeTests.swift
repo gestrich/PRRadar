@@ -172,6 +172,7 @@ struct AnalysisModeTests {
     func rawValues() {
         #expect(AnalysisMode.all.rawValue == "all")
         #expect(AnalysisMode.regexOnly.rawValue == "regex")
+        #expect(AnalysisMode.scriptOnly.rawValue == "script")
         #expect(AnalysisMode.aiOnly.rawValue == "ai")
     }
 
@@ -179,6 +180,7 @@ struct AnalysisModeTests {
     func initFromRawValue() {
         #expect(AnalysisMode(rawValue: "all") == .all)
         #expect(AnalysisMode(rawValue: "regex") == .regexOnly)
+        #expect(AnalysisMode(rawValue: "script") == .scriptOnly)
         #expect(AnalysisMode(rawValue: "ai") == .aiOnly)
         #expect(AnalysisMode(rawValue: "invalid") == nil)
     }
