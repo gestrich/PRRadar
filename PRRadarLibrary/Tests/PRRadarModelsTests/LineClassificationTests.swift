@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PRRadarModels
 
@@ -617,6 +618,186 @@ private func makeEffectiveResult(
 
         let moved = targetLines.filter { $0.changeKind == .unchanged && $0.inMovedBlock }
         #expect(moved.count == 3)
+    }
+
+    @Test func sourceLineModifiedAtDestinationClassifiedAsChanged() {
+        // Arrange: 3-line block moved, line 2 modified at destination
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [(1, "line_a"), (2, "line_b"), (3, "line_c")],
+            addedLines: [(10, "line_a"), (11, "line_b_modified"), (12, "line_c")]
+        )
+        // sourceRegionStart = max(1, 1-3) = 1
+        // relativeOldLineNum = 2, absoluteLineNum = 1 + 2 - 1 = 2
+        let rediffHunk = makeHunk(
+            "new.py", oldStart: 2, oldLength: 1, newStart: 2, newLength: 1,
+            content: "@@ -2,1 +2,1 @@\n-line_b\n+line_b_modified"
+        )
+        let effResult = makeEffectiveResult(candidate, hunks: [rediffHunk])
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("old.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0,
+                         content: "@@ -1,3 +1,0 @@\n-line_a\n-line_b\n-line_c"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert: source line 2 should be (.changed, true) — modified at destination
+        let sourceLines = classified.filter { $0.filePath == "old.py" }
+        #expect(sourceLines.count == 3)
+        let changedSource = sourceLines.filter { $0.changeKind == .changed && $0.inMovedBlock }
+        #expect(changedSource.count == 1)
+        #expect(changedSource[0].oldLineNumber == 2)
+
+        let verbatim = sourceLines.filter { $0.changeKind == .unchanged && $0.inMovedBlock }
+        #expect(verbatim.count == 2)
+    }
+
+    @Test func sourceLineDeletedFromMoveClassifiedAsRemoved() {
+        // Arrange: 3-line block moved, line 2 deleted at destination
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [(1, "line_a"), (2, "line_b"), (3, "line_c")],
+            addedLines: [(10, "line_a"), (11, "line_c")]
+        )
+        // Re-diff: source line 2 removed with no replacement (addedCount == 0)
+        // sourceRegionStart = max(1, 1-3) = 1
+        // relativeOldLineNum = 2, absoluteLineNum = 1 + 2 - 1 = 2
+        let rediffHunk = makeHunk(
+            "new.py", oldStart: 2, oldLength: 1, newStart: 2, newLength: 0,
+            content: "@@ -2,1 +2,0 @@\n-line_b"
+        )
+        let effResult = makeEffectiveResult(candidate, hunks: [rediffHunk])
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("old.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0,
+                         content: "@@ -1,3 +1,0 @@\n-line_a\n-line_b\n-line_c"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert: source line 2 should be (.removed, true) — deleted from moved block
+        let sourceLines = classified.filter { $0.filePath == "old.py" }
+        #expect(sourceLines.count == 3)
+        let deletedFromMove = sourceLines.filter { $0.changeKind == .removed && $0.inMovedBlock }
+        #expect(deletedFromMove.count == 1)
+        #expect(deletedFromMove[0].oldLineNumber == 2)
+
+        let verbatim = sourceLines.filter { $0.changeKind == .unchanged && $0.inMovedBlock }
+        #expect(verbatim.count == 2)
+    }
+
+    @Test func verbatimMovedLinesAreUnchangedOnBothSides() {
+        // Arrange: pure 3-line move, no modifications
+        let candidate = makeCandidate(
+            sourceFile: "a.py", targetFile: "b.py",
+            removedLines: [(5, "func_a"), (6, "body"), (7, "end")],
+            addedLines: [(20, "func_a"), (21, "body"), (22, "end")]
+        )
+        let effResult = makeEffectiveResult(candidate)
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("a.py", oldStart: 5, oldLength: 3, newStart: 5, newLength: 0,
+                         content: "@@ -5,3 +5,0 @@\n-func_a\n-body\n-end"),
+                makeHunk("b.py", oldStart: 20, oldLength: 0, newStart: 20, newLength: 3,
+                         content: "@@ -20,0 +20,3 @@\n+func_a\n+body\n+end"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert: source side — all (.unchanged, true)
+        let sourceLines = classified.filter { $0.filePath == "a.py" }
+        #expect(sourceLines.count == 3)
+        #expect(sourceLines.allSatisfy { $0.changeKind == .unchanged && $0.inMovedBlock })
+
+        // Assert: target side — all (.unchanged, true)
+        let targetLines = classified.filter { $0.filePath == "b.py" }
+        #expect(targetLines.count == 3)
+        #expect(targetLines.allSatisfy { $0.changeKind == .unchanged && $0.inMovedBlock })
+    }
+}
+
+// MARK: - Tests: AnnotatedDiff
+
+@Suite struct AnnotatedDiffTests {
+
+    @Test func codableRoundTrip() throws {
+        // Arrange
+        let hunk = Hunk(
+            filePath: "test.py",
+            content: "@@ -1,1 +1,1 @@\n-old\n+new",
+            oldStart: 1, oldLength: 1, newStart: 1, newLength: 1
+        )
+        let classifiedLine = ClassifiedDiffLine(
+            content: "new",
+            rawLine: "+new",
+            lineType: .added,
+            changeKind: .added,
+            inMovedBlock: false,
+            newLineNumber: 1,
+            oldLineNumber: nil,
+            filePath: "test.py"
+        )
+        let classifiedHunk = ClassifiedHunk(
+            filePath: "test.py", oldStart: 1, newStart: 1,
+            lines: [classifiedLine]
+        )
+        let fullDiff = GitDiff(rawContent: "raw", hunks: [hunk], commitHash: "abc123")
+        let effectiveDiff = GitDiff(rawContent: "eff", hunks: [hunk], commitHash: "abc123")
+        let moveReport = MoveReport(
+            movesDetected: 1, totalLinesMoved: 5, totalLinesEffectivelyChanged: 2, moves: []
+        )
+        let annotated = AnnotatedDiff(
+            fullDiff: fullDiff,
+            effectiveDiff: effectiveDiff,
+            moveReport: moveReport,
+            classifiedHunks: [classifiedHunk]
+        )
+
+        // Act
+        let data = try JSONEncoder().encode(annotated)
+        let decoded = try JSONDecoder().decode(AnnotatedDiff.self, from: data)
+
+        // Assert
+        #expect(decoded.fullDiff.commitHash == "abc123")
+        #expect(decoded.effectiveDiff?.commitHash == "abc123")
+        #expect(decoded.moveReport?.movesDetected == 1)
+        #expect(decoded.classifiedHunks.count == 1)
+        #expect(decoded.classifiedHunks[0].lines[0].changeKind == ChangeKind.added)
+        #expect(decoded.classifiedHunks[0].lines[0].inMovedBlock == false)
+    }
+
+    @Test func nilOptionalFieldsRoundTrip() throws {
+        // Arrange
+        let fullDiff = GitDiff(rawContent: "", hunks: [], commitHash: "def456")
+        let annotated = AnnotatedDiff(
+            fullDiff: fullDiff,
+            effectiveDiff: nil,
+            moveReport: nil,
+            classifiedHunks: []
+        )
+
+        // Act
+        let data = try JSONEncoder().encode(annotated)
+        let decoded = try JSONDecoder().decode(AnnotatedDiff.self, from: data)
+
+        // Assert
+        #expect(decoded.fullDiff.commitHash == "def456")
+        #expect(decoded.effectiveDiff == nil)
+        #expect(decoded.moveReport == nil)
+        #expect(decoded.classifiedHunks.isEmpty)
     }
 }
 

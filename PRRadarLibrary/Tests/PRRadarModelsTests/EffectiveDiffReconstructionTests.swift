@@ -277,6 +277,100 @@ private func makeEffectiveResult(
         #expect(result.hunks[1].oldStart == 4)
         #expect(result.hunks[1].oldLength == 2)
     }
+
+    @Test func moveWithModificationPreservesChangedLines() {
+        // Arrange: 3-line block moved, line 2 modified at destination
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [(1, "def foo():"), (2, "    old_body"), (3, "    return x")],
+            addedLines: [(10, "def foo():"), (11, "    new_body"), (12, "    return x")]
+        )
+        // sourceRegionStart = max(1, 1-3) = 1, targetRegionStart = max(1, 10-3) = 7
+        // Source line 2 is at region-relative pos 2: absolute = 1 + 2 - 1 = 2
+        // Target line 11 is at region-relative pos 5: absolute = 7 + 5 - 1 = 11
+        let rediffHunk = makeHunk(
+            "new.py", oldStart: 2, oldLength: 1, newStart: 5, newLength: 1,
+            content: "@@ -2,1 +5,1 @@\n-    old_body\n+    new_body"
+        )
+        let effResult = makeEffectiveResult(candidate, hunks: [rediffHunk])
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("old.py", oldStart: 1, oldLength: 3, newStart: 1, newLength: 0,
+                         content: "@@ -1,3 +1,0 @@\n-def foo():\n-    old_body\n-    return x"),
+                makeHunk("new.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 3,
+                         content: "@@ -10,0 +10,3 @@\n+def foo():\n+    new_body\n+    return x"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert: modified source line survives, verbatim lines stripped
+        let sourceHunks = result.hunks.filter { $0.filePath == "old.py" }
+        #expect(sourceHunks.count == 1)
+        #expect(sourceHunks[0].content.contains("-    old_body"))
+        #expect(!sourceHunks[0].content.contains("def foo"))
+
+        // Assert: modified target line survives, verbatim lines stripped
+        let targetHunks = result.hunks.filter { $0.filePath == "new.py" }
+        #expect(targetHunks.count == 1)
+        #expect(targetHunks[0].content.contains("+    new_body"))
+        #expect(!targetHunks[0].content.contains("def foo"))
+    }
+
+    @Test func moveWithInsertionPreservesInsertedLine() {
+        // Arrange: 5-line block moved with one new line inserted inside
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [
+                (1, "def process(data):"),
+                (2, "    validate(data)"),
+                (3, "    result = compute(data)"),
+                (4, "    log(result)"),
+                (5, "    return result"),
+            ],
+            addedLines: [
+                (10, "def process(data):"),
+                (11, "    validate(data)"),
+                (12, "    result = compute(data)"),
+                (14, "    log(result)"),
+                (15, "    return result"),
+            ]
+        )
+        // targetRegionStart = max(1, 10-3) = 7
+        // Insertion at region-relative line 7: absoluteLineNum = 7 + 7 - 1 = 13
+        let rediffHunk = makeHunk(
+            "new.py", oldStart: 6, oldLength: 0, newStart: 7, newLength: 1,
+            content: "@@ -6,0 +7,1 @@\n+    cache(result)"
+        )
+        let effResult = makeEffectiveResult(candidate, hunks: [rediffHunk])
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("old.py", oldStart: 1, oldLength: 5, newStart: 1, newLength: 0,
+                         content: "@@ -1,5 +1,0 @@\n-def process(data):\n-    validate(data)\n-    result = compute(data)\n-    log(result)\n-    return result"),
+                makeHunk("new.py", oldStart: 10, oldLength: 0, newStart: 10, newLength: 6,
+                         content: "@@ -10,0 +10,6 @@\n+def process(data):\n+    validate(data)\n+    result = compute(data)\n+    cache(result)\n+    log(result)\n+    return result"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let result = classifyAndReconstruct(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert: inserted line survives, verbatim moved lines stripped
+        let targetHunks = result.hunks.filter { $0.filePath == "new.py" }
+        #expect(targetHunks.count >= 1)
+        let allContent = targetHunks.map(\.content).joined(separator: "\n")
+        #expect(allContent.contains("+    cache(result)"))
+        #expect(!allContent.contains("+def process"))
+
+        // Assert: source is fully stripped (all verbatim)
+        let sourceHunks = result.hunks.filter { $0.filePath == "old.py" }
+        #expect(sourceHunks.isEmpty)
+    }
 }
 
 // MARK: - Tests: countChangedLinesInHunks

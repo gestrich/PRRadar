@@ -265,7 +265,10 @@ With `AnnotatedDiff` threaded through, migrate consumers from the old `LineClass
 4. **Update `ClassifiedDiffLine.init`** to only accept `changeKind` and `inMovedBlock`
 5. **Verify all `Codable` serialization** works with the new fields — intermediate JSON files (classified hunks) will use the new format
 
-## - [ ] Phase 7: Update tests
+## - [x] Phase 7: Update tests
+
+**Skills used**: `/swift-testing`
+**Principles applied**: Tests follow Arrange-Act-Assert pattern; added source-side classification tests (modified, deleted, verbatim), newCodeLinesOnly filtering for insertions inside moved blocks, DiffReconstruction survival tests for changed/added lines in moves, and AnnotatedDiff Codable round-trip tests
 
 **Skills to read**: `/swift-testing`
 

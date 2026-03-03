@@ -437,6 +437,29 @@ struct RegexNewCodeOnlyTests {
             Issue.record("Expected success, got \(result)")
         }
     }
+
+    @Test("newCodeLinesOnly detects violations in new insertions inside moved blocks")
+    func newCodeLinesOnlyDetectsAddedInsideMovedBlock() {
+        // Arrange
+        let service = RegexAnalysisService()
+        let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: true)
+        let task = makeRuleRequest(rule: rule)
+        let hunks = [makeClassifiedHunk(lines: [
+            makeClassifiedLine(content: "// TODO: inserted in move", changeKind: .added, inMovedBlock: true, newLineNumber: 15),
+            makeClassifiedLine(content: "// TODO: just moved", changeKind: .unchanged, inMovedBlock: true, newLineNumber: 16),
+        ])]
+
+        // Act
+        let result = service.analyzeTask(task, pattern: "TODO", classifiedHunks: hunks)
+
+        // Assert — .added + inMovedBlock passes the filter because changeKind == .added
+        if case .success(let r) = result {
+            #expect(r.violations.count == 1)
+            #expect(r.violations[0].lineNumber == 15)
+        } else {
+            Issue.record("Expected success, got \(result)")
+        }
+    }
 }
 
 // MARK: - Focus Area Filtering Tests
