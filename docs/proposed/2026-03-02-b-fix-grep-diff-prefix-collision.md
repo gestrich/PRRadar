@@ -145,7 +145,10 @@ This is safe because the classified line data only includes changed lines (not c
 
 **Note**: This file is in an external rules repo. Document the required change and apply it separately.
 
-## - [ ] Phase 5: Remove `extractChangedContent`
+## - [x] Phase 5: Remove `extractChangedContent`
+
+**Skills used**: none
+**Principles applied**: Removed `getChangedContent()` and `extractChangedContent(from:)` from Hunk; kept `getFocusedContent()` which is still used by AnalysisService for evaluation prompts
 
 **Skills to read**: none
 
