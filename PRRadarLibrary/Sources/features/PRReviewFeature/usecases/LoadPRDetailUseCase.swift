@@ -16,7 +16,7 @@ public struct LoadPRDetailUseCase: Sendable {
 
         let syncSnapshot: SyncSnapshot? = {
             let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-            if snapshot.fullDiff != nil || snapshot.effectiveDiff != nil {
+            if snapshot.annotatedDiff?.fullDiff != nil || snapshot.annotatedDiff?.effectiveDiff != nil {
                 return snapshot
             }
             return nil

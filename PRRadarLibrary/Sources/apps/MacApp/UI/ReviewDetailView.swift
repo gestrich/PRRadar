@@ -96,9 +96,9 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var diffOutputView: some View {
-        if let fullDiff = prModel.syncSnapshot?.fullDiff {
+        if let annotatedDiff = prModel.syncSnapshot?.annotatedDiff {
             VStack(spacing: 0) {
-                if hasAIOutput || prModel.syncSnapshot?.effectiveDiff != nil {
+                if hasAIOutput || annotatedDiff.effectiveDiff != nil {
                     HStack {
                         if hasAIOutput {
                             Button {
@@ -115,7 +115,7 @@ struct ReviewDetailView: View {
                             .accessibilityIdentifier("aiOutputButton")
                         }
                         Spacer()
-                        if prModel.syncSnapshot?.effectiveDiff != nil {
+                        if annotatedDiff.effectiveDiff != nil {
                             Button {
                                 showEffectiveDiff = true
                             } label: {
@@ -130,10 +130,8 @@ struct ReviewDetailView: View {
                 }
 
                 DiffPhaseView(
-                    fullDiff: fullDiff,
+                    annotatedDiff: annotatedDiff,
                     prModel: prModel,
-                    classifiedHunks: prModel.syncSnapshot?.classifiedHunks,
-                    moveReport: prModel.syncSnapshot?.moveReport,
                     onMoveTapped: { move in
                         effectiveDiffInitialMove = move
                         showEffectiveDiff = true
@@ -148,11 +146,11 @@ struct ReviewDetailView: View {
             .sheet(isPresented: $showEffectiveDiff, onDismiss: {
                 effectiveDiffInitialMove = nil
             }) {
-                if let effectiveDiff = prModel.syncSnapshot?.effectiveDiff {
+                if let effectiveDiff = annotatedDiff.effectiveDiff {
                     EffectiveDiffView(
-                        fullDiff: fullDiff,
+                        fullDiff: annotatedDiff.fullDiff,
                         effectiveDiff: effectiveDiff,
-                        moveReport: prModel.syncSnapshot?.moveReport,
+                        moveReport: annotatedDiff.moveReport,
                         prModel: prModel,
                         initialMove: effectiveDiffInitialMove
                     )

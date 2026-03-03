@@ -3,10 +3,8 @@ import SwiftUI
 
 struct DiffPhaseView: View {
 
-    let fullDiff: GitDiff
+    let annotatedDiff: AnnotatedDiff
     var prModel: PRModel
-    var classifiedHunks: [ClassifiedHunk]?
-    var moveReport: MoveReport?
     var onMoveTapped: ((MoveDetail) -> Void)?
 
     @State private var selectedFile: String?
@@ -27,19 +25,19 @@ struct DiffPhaseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PhaseSummaryBar(items: summaryItems(for: fullDiff))
+            PhaseSummaryBar(items: summaryItems(for: annotatedDiff.fullDiff))
                 .padding(8)
 
             HSplitView {
-                fileList(for: fullDiff)
+                fileList(for: annotatedDiff.fullDiff)
                     .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
 
-                diffContent(for: fullDiff)
+                diffContent(for: annotatedDiff.fullDiff)
             }
         }
         .onAppear {
             if selectedFile == nil {
-                selectedFile = fullDiff.changedFiles.first
+                selectedFile = annotatedDiff.fullDiff.changedFiles.first
             }
         }
     }
@@ -195,7 +193,7 @@ struct DiffPhaseView: View {
                 diff: filtered,
                 commentMapping: commentMapping(for: diff),
                 prModel: prModel,
-                movedLineLookup: MovedLineLookup(classifiedHunks: classifiedHunks, moveReport: moveReport),
+                movedLineLookup: MovedLineLookup(annotatedDiff: annotatedDiff),
                 onMoveTapped: onMoveTapped
             )
         }

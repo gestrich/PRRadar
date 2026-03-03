@@ -34,11 +34,11 @@ struct MovedLineLookup {
     private let classifiedByLine: [LineKey: LineClassification]
     private let moveDetailRanges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail, isSource: Bool)]
 
-    static let empty = MovedLineLookup(classifiedHunks: nil, moveReport: nil)
+    static let empty = MovedLineLookup(annotatedDiff: nil)
 
-    init(classifiedHunks: [ClassifiedHunk]?, moveReport: MoveReport?) {
+    init(annotatedDiff: AnnotatedDiff?) {
         var lineMap: [LineKey: LineClassification] = [:]
-        if let hunks = classifiedHunks {
+        if let hunks = annotatedDiff?.classifiedHunks {
             for hunk in hunks {
                 for line in hunk.lines {
                     if let oldNum = line.oldLineNumber {
@@ -53,7 +53,7 @@ struct MovedLineLookup {
         classifiedByLine = lineMap
 
         var ranges: [(filePath: String, range: ClosedRange<Int>, move: MoveDetail, isSource: Bool)] = []
-        if let report = moveReport {
+        if let report = annotatedDiff?.moveReport {
             for move in report.moves {
                 if move.sourceLines.count == 2 {
                     ranges.append((filePath: move.sourceFile, range: move.sourceLines[0]...move.sourceLines[1], move: move, isSource: true))

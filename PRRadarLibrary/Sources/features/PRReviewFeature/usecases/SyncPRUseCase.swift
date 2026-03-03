@@ -11,12 +11,6 @@ public struct SyncSnapshot: Sendable {
     public let reviewCommentCount: Int
     public let commitHash: String?
 
-    // Backward-compat bridges (removed in Phase 4)
-    public var fullDiff: GitDiff? { annotatedDiff?.fullDiff }
-    public var effectiveDiff: GitDiff? { annotatedDiff?.effectiveDiff }
-    public var moveReport: MoveReport? { annotatedDiff?.moveReport }
-    public var classifiedHunks: [ClassifiedHunk] { annotatedDiff?.classifiedHunks ?? [] }
-
     public init(
         annotatedDiff: AnnotatedDiff? = nil,
         files: [String],

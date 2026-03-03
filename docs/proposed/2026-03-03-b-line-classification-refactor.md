@@ -194,7 +194,10 @@ Update service method signatures to accept `AnnotatedDiff` instead of a separate
    - Replace `classifiedHunks` loading (line 222) with `AnnotatedDiff` loading
    - Pass the loaded `AnnotatedDiff` to `AnalyzeSingleTaskUseCase.execute()` and `AnalysisService.runBatchAnalysis()`
 
-## - [ ] Phase 4: Thread `AnnotatedDiff` through views and remove shims
+## - [x] Phase 4: Thread `AnnotatedDiff` through views and remove shims
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Views accept only the data they need — `DiffPhaseView` takes `AnnotatedDiff`, `EffectiveDiffView` takes non-optional `fullDiff`/`effectiveDiff`/`moveReport` (caller guarantees availability); removed backward-compat shims from `SyncSnapshot`
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
