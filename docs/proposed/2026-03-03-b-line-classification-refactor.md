@@ -120,7 +120,10 @@ The script analysis plan (2026-03-03-a) Phase 1 includes a `newCodeLinesOnly` fi
 
 5. **Update `classifyLines()`** to read pre-computed `result.rediffAnalysis` instead of re-parsing hunks.
 
-## - [ ] Phase 2: Create `AnnotatedDiff` model
+## - [x] Phase 2: Create `AnnotatedDiff` model
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: New services-layer model bundles diff data for threading through all layers; backward-compat computed properties on SyncSnapshot preserve existing callers during migration
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
