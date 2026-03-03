@@ -440,10 +440,10 @@ struct RegexNewCodeOnlyTests {
 
 // MARK: - Focus Area Filtering Tests
 
-@Suite("RegexAnalysisService focus area filtering")
-struct RegexFocusAreaFilteringTests {
+@Suite("ClassifiedHunk focus area filtering")
+struct ClassifiedHunkFocusAreaFilteringTests {
 
-    @Test("filterHunksForFocusArea filters by file path and line range")
+    @Test("filterForFocusArea filters by file path and line range")
     func filtersByFileAndRange() {
         // Arrange
         let hunks = [
@@ -463,7 +463,7 @@ struct RegexFocusAreaFilteringTests {
         )
 
         // Act
-        let filtered = RegexAnalysisService.filterHunksForFocusArea(hunks, focusArea: focusArea)
+        let filtered = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
 
         // Assert
         #expect(filtered.count == 1)
@@ -471,7 +471,7 @@ struct RegexFocusAreaFilteringTests {
         #expect(filtered[0].lines[0].newLineNumber == 15)
     }
 
-    @Test("filterHunksForFocusArea returns empty when no file matches")
+    @Test("filterForFocusArea returns empty when no file matches")
     func noFileMatch() {
         // Arrange
         let hunks = [
@@ -486,7 +486,7 @@ struct RegexFocusAreaFilteringTests {
         )
 
         // Act
-        let filtered = RegexAnalysisService.filterHunksForFocusArea(hunks, focusArea: focusArea)
+        let filtered = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
 
         // Assert
         #expect(filtered.isEmpty)

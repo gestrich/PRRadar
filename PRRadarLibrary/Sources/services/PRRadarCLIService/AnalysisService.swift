@@ -253,7 +253,7 @@ public struct AnalysisService: Sendable {
             var result: RuleOutcome
 
             if let pattern = task.rule.violationRegex {
-                let focusedHunks = RegexAnalysisService.filterHunksForFocusArea(classifiedHunks, focusArea: task.focusArea)
+                let focusedHunks = ClassifiedHunk.filterForFocusArea(classifiedHunks, focusArea: task.focusArea)
                 result = regexService.analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
 
                 let data = try encoder.encode(result)

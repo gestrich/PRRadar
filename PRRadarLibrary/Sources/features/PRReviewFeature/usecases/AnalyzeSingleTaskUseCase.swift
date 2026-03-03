@@ -44,7 +44,7 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
                         let hunks = classifiedHunks ?? Self.loadClassifiedHunks(
                             config: config, prNumber: prNumber, commitHash: resolvedCommit
                         )
-                        let focusedHunks = RegexAnalysisService.filterHunksForFocusArea(hunks, focusArea: task.focusArea)
+                        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
                         result = RegexAnalysisService().analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
                     } else {
                         let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
