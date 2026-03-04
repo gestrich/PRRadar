@@ -126,7 +126,10 @@ struct PRDiff {
 
 ## Phases
 
-## - [ ] Phase 1: Define unified models
+## - [x] Phase 1: Define unified models
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Models placed in Services layer (PRRadarModels), all types are Codable/Sendable/Equatable, factory methods for migration from old types
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
