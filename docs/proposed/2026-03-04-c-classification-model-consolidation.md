@@ -9,15 +9,40 @@
 
 ## Background
 
-PRRadar's line classification model uses `ChangeKind` (`.added`, `.removed`, `.changed`, `.unchanged`) combined with an optional `MoveInfo` struct to describe what happened to each diff line. This creates several conceptual problems:
+### The original bug
 
-1. **`.changed` conflates content modification with move context** — it only appears on lines within detected move blocks, making "modified content" and "part of a move" inseparable.
-2. **`.unchanged` is overloaded** — it covers genuine context lines, verbatim moves (demoted), and whitespace-only modifications (demoted). Consumers must check `move != nil` alongside `changeKind` to distinguish these.
-3. **No distinction between old and new versions of a modification** — both the `-` and `+` sides of a changed-in-move get `.changed`, making it impossible to tell which is the old version and which is the new.
-4. **In-place modifications are invisible** — a `-`/`+` pair that modifies a line in place gets `.removed`/`.added`, indistinguishable from genuinely new/deleted code.
-5. **`MoveInfo` is mostly redundant** — it carries `sourceFile`, `targetFile`, and `isSource`, but `isSource` is derivable from `diffType`, and one of the two files is always the line's own `filePath`. The only unique info is "the other file."
+PR #19024 in ff-ios was flagged by the `nullability-h-objc` regex rule on line R27 of `RouteTokenDelegateDataSource.h`:
 
-This plan restructures `ChangeKind` into an enum with associated values, where `.replaced` and `.replacement` carry a `Counterpart` that links to the paired line. This eliminates `MoveInfo` entirely — the counterpart *is* the link. No new detection logic is added — existing behavior is preserved with cleaner semantics.
+```objc
+@property (weak) RouteEditIPadView *parentView;
+```
+
+This line lacks a nullability annotation, so the regex pattern matched. However, the line was **not genuinely new** — it was a whitespace-only modification. The base branch had `* parentView` (space before variable name) and the head had `*parentView` (no space). The declaration itself was unchanged.
+
+The `+` line hit the fallthrough in `classifyLines()` → `changeKind = .added`. Downstream, `relevantLines(newCodeLinesOnly: true)` included it, and the regex rule matched → false positive.
+
+### Root cause
+
+The classification model has no concept of "in-place modification." A `-`/`+` pair that modifies a line in place gets `.removed`/`.added`, identical to genuinely new/deleted code. The `.changed` kind only exists within detected move blocks.
+
+Phase 2 of the [whitespace false-positives spec](2026-03-03-a-false-positive-whitespace-changes.md) added `buildWhitespaceOnlySet()` to handle whitespace-only modifications, but non-whitespace in-place modifications (variable renames, added parameters, type changes) remain undetected and still cause false positives with `newCodeLinesOnly: true` rules.
+
+### Additional issues discovered during investigation
+
+**Silent fallback on pipeline failure**: When `git merge-base` fails (e.g., commit not fetched locally), the effective diff pipeline silently returns empty classified hunks instead of erroring. `classified-hunks.json` contains `[]` even though the diff has hunks. The analyze step finds 0 tasks and reports "No tasks to evaluate" with no error shown. Location: `PRAcquisitionService.runEffectiveDiff()` catch block.
+
+### Broader model problems
+
+1. **`.changed` conflates content modification with move context** — only appears within detected move blocks
+2. **`.unchanged` is overloaded** — covers context lines, verbatim moves, and whitespace-only modifications
+3. **No distinction between old and new versions** — both `-` and `+` sides of a changed-in-move get `.changed`
+4. **`MoveInfo` is mostly redundant** — `isSource` is derivable from `diffType`, and one of sourceFile/targetFile is always the line's own `filePath`
+
+### This plan
+
+1. Restructures `ChangeKind` into an enum with associated values, where `.replaced` and `.replacement` carry a `Counterpart` that links to the paired line, eliminating `MoveInfo` entirely
+2. Adds in-place paired modification detection via `buildPairedModifications()`, replacing `buildWhitespaceOnlySet()` — so that all in-place `-`/`+` pairs are classified as `.replaced`/`.replacement` (or demoted to `.context` if whitespace-only)
+3. Fixes silent fallback on pipeline failure
 
 ### New ChangeKind
 
@@ -46,20 +71,27 @@ public enum ChangeKind: Codable, Sendable, Equatable {
 
 Cross-file move? `counterpart.filePath` differs from the line's own `filePath`. Same-file modification? Same `filePath`, different `lineNumber`.
 
+### Key behavioral change
+
+`PRHunk.newCodeLines` (filters `.new`) will no longer include in-place modifications — they become `.replacement`. This is the intended fix: rules with `newCodeLinesOnly: true` should only match genuinely new lines, not modifications of existing code. `changedLines` (filters `!= .context`) is unaffected since `.replaced`/`.replacement` pass that filter.
+
 ### Full classification grid
 
-| `diffType` | `changeKind` | Current equivalent | Meaning |
-|------------|-------------|-------------------|---------|
-| `.added` | `.new` | `.added`, no move | Genuinely new code |
-| `.added` | `.new` | `.added`, move present | New insertion within moved block |
-| `.added` | `.replacement(counterpart)` | `.changed`, move present | New version of modification in move |
-| `.added` | `.context` | `.unchanged`, move present | Verbatim move destination (demoted) |
-| `.added` | `.context` | `.unchanged`, no move | Whitespace-only modification (demoted) |
-| `.removed` | `.deleted` | `.removed`, no move | Genuinely deleted code |
-| `.removed` | `.deleted` | `.removed` from `changedSourceLines` | Deleted within moved block |
-| `.removed` | `.replaced(counterpart)` | `.changed` from `changedSourceLines` | Old version of modification in move |
-| `.removed` | `.context` | `.unchanged`, move present | Verbatim move source (demoted) |
-| `.context` | `.context` | `.unchanged`, no move | Unchanged context line |
+| `diffType` | `changeKind` | Source | Meaning |
+|------------|-------------|--------|---------|
+| `.added` | `.new` | no move, unpaired | Genuinely new code |
+| `.added` | `.new` | move, addedInMove | New insertion within moved block |
+| `.added` | `.replacement(counterpart)` | move, changedInMove | New version of modification in move |
+| `.added` | `.replacement(counterpart)` | no move, paired non-trivial | New version of in-place modification |
+| `.added` | `.context` | move, verbatim | Verbatim move destination (demoted) |
+| `.added` | `.context` | no move, paired whitespace-only | Whitespace-only modification (demoted) |
+| `.removed` | `.deleted` | no move, unpaired | Genuinely deleted code |
+| `.removed` | `.deleted` | move, changedSourceLines .deleted | Deleted within moved block |
+| `.removed` | `.replaced(counterpart)` | move, changedSourceLines .replaced | Old version of modification in move |
+| `.removed` | `.replaced(counterpart)` | no move, paired non-trivial | Old version of in-place modification |
+| `.removed` | `.context` | move, verbatim | Verbatim move source (demoted) |
+| `.removed` | `.context` | no move, paired whitespace-only | Whitespace-only modification (demoted) |
+| `.context` | `.context` | — | Unchanged context line |
 
 ### Consumer mapping
 
@@ -72,7 +104,7 @@ Since `ChangeKind` now has associated values, `==` comparisons change to pattern
 | `changeKind == .changed` | `changeKind.isReplaced \|\| changeKind.isReplacement` | `DiffStats.linesChanged` |
 | `changeKind != .unchanged` | `changeKind != .context` | `changedLines` |
 | `changeKind == .unchanged` | `changeKind == .context` | reconstruction filter |
-| `move != nil && changeKind == .unchanged` | `changeKind.counterpart != nil` (on `.context` lines, see note) | `isMoved`, reconstruction, `DiffStats.linesMoved` |
+| `move != nil && changeKind == .unchanged` | `verbatimMoveCounterpart != nil` | `isMoved`, reconstruction, `DiffStats.linesMoved` |
 | `changeKind == .changed && move != nil` | `changeKind.isReplaced \|\| changeKind.isReplacement` (counterpart implies pairing) | `hasChangesInMove` |
 
 **Convenience helpers** on `ChangeKind` to simplify pattern matching:
@@ -133,14 +165,15 @@ This preserves the ability to:
 
 | File | Change |
 |------|--------|
-| `ClassifiedDiffLine.swift` | New `Counterpart` struct, rewrite `ChangeKind` as enum with associated values, update `classifyLines()` |
+| `ClassifiedDiffLine.swift` | New `Counterpart` struct, rewrite `ChangeKind` as enum with associated values, add `buildPairedModifications()`, remove `buildWhitespaceOnlySet()` and `collapseWhitespace()`, update `classifyLines()` |
 | `BlockExtension.swift` | Update `RediffAnalysis.changedSourceLines` values, update `analyzeRediffHunks()` |
 | `PRLine.swift` | Remove `MoveInfo`, add `verbatimMoveCounterpart: Counterpart?`, update init |
 | `PRHunk.swift` | Update computed property filters to use pattern matching |
 | `DiffStats.swift` | Update `compute()` to use new cases |
 | `DiffReconstruction.swift` | Update filter to use `verbatimMoveCounterpart` |
 | `RichDiffViews.swift` | Replace `MoveInfo` references with counterpart lookups |
-| `LineClassificationTests.swift` | Update all assertions |
+| `PRAcquisitionService.swift` | Fix silent fallback on pipeline failure |
+| `LineClassificationTests.swift` | Update all assertions, add pairing tests |
 
 ### Serialization note
 
@@ -148,7 +181,40 @@ This preserves the ability to:
 
 ## Phases
 
-### - [ ] Phase 1: Define new types
+### - [ ] Phase 1: Reproduce the original bug
+
+Confirm the false positive on PR #19024 still exists before making changes. This establishes the baseline.
+
+```bash
+# Delete cached analysis data so the pipeline re-runs from scratch
+rm -rf ~/Desktop/code-reviews/19024
+
+# Build
+cd PRRadarLibrary && swift build
+
+# Run phases in order
+swift run PRRadarMacCLI sync 19024 --config ios
+swift run PRRadarMacCLI prepare 19024 --config ios
+swift run PRRadarMacCLI analyze 19024 --config ios --mode regex
+
+# Inspect classified hunks — expect parentView to show changeKind=unchanged (whitespace fix)
+# but other in-place modifications should still show changeKind=added (the bug)
+python3 -c "
+import json
+with open('$(ls ~/Desktop/code-reviews/19024/analysis/*/diff/classified-hunks.json)') as f:
+    hunks = json.load(f)
+for h in hunks:
+    for line in h.get('lines', []):
+        if line.get('lineType') in ('added', 'removed'):
+            ck = line.get('changeKind', '')
+            if ck == 'added':
+                print(f'BUG: {line[\"content\"][:80]}')
+"
+```
+
+Use `--config ios` (saved configuration pointing to local ff-ios checkout). Use `--mode regex` to skip Claude API calls.
+
+### - [ ] Phase 2: Define new types
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -192,18 +258,38 @@ Update `analyzeRediffHunks()` to produce new case names in `changedSourceLines`:
 
 Update `RediffAnalysis.changedSourceLines` type from `[Int: ChangeKind]` — values change from `.changed`/`.removed` to `.replaced(counterpart:)`/`.deleted`.
 
-### - [ ] Phase 2: Update classification pipeline
+### - [ ] Phase 3: Add paired modification detection
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Update `classifyLines()` in `ClassifiedDiffLine.swift` to produce the new `ChangeKind` values and populate `verbatimMoveCounterpart`. Remove the `moveInfo` local variable — its information is now split between the `ChangeKind` associated value and `verbatimMoveCounterpart`.
+Add `buildPairedModifications()` to `ClassifiedDiffLine.swift`, replacing `buildWhitespaceOnlySet()`. This detects all in-place `-`/`+` pairs within hunks, not just whitespace-only ones.
+
+**Add `buildPairedModifications(from:)` function:**
+- Walk each hunk and identify consecutive runs of removed lines followed by added lines ("change groups")
+- Pair them 1:1 sequentially (removed[0]↔added[0], removed[1]↔added[1], etc.)
+- Surplus lines (when counts differ) remain unpaired
+- For each pair, check if the modification is whitespace-only using `collapseWhitespace()` (strip all whitespace, compare)
+- Return two lookups:
+  - `byOldLine: [String: [Int: PairedModification]]` (filePath → oldLineNumber → pairing info)
+  - `byNewLine: [String: [Int: PairedModification]]` (filePath → newLineNumber → pairing info)
+- Where `PairedModification` captures: `isWhitespaceOnly: Bool`, `counterpartLineNumber: Int`
+
+**Delete `buildWhitespaceOnlySet()`** — subsumed by the new mechanism. Keep `collapseWhitespace()` as it's still used for the whitespace comparison.
+
+### - [ ] Phase 4: Update classification pipeline
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Update `classifyLines()` in `ClassifiedDiffLine.swift` to produce the new `ChangeKind` values and populate `verbatimMoveCounterpart`. Remove the `moveInfo` local variable — its information is now split between the `ChangeKind` associated value and `verbatimMoveCounterpart`. Replace the `buildWhitespaceOnlySet()` call with `buildPairedModifications()`.
 
 **`.removed` lines:**
 ```
 1. sourceMovedLines (changedSourceLines has .replaced) → .replaced(counterpart) from changedSourceLines
 2. sourceMovedLines (changedSourceLines has .deleted)  → .deleted
 3. sourceMovedLines (no changedSourceLines entry)      → .context, verbatimMoveCounterpart = Counterpart(targetFile, nil)
-4. fallthrough                                         → .deleted
+4. paired (whitespace-only)                            → .context
+5. paired (non-trivial)                                → .replaced(counterpart: Counterpart(filePath, pairedNewLineNum))
+6. fallthrough                                         → .deleted
 ```
 
 **`.added` lines:**
@@ -211,14 +297,17 @@ Update `classifyLines()` in `ClassifiedDiffLine.swift` to produce the new `Chang
 1. addedInMoveLines       → .new
 2. changedInMoveLines     → .replacement(counterpart: Counterpart(sourceFile, nil))
 3. targetMovedLines       → .context, verbatimMoveCounterpart = Counterpart(sourceFile, nil)
-4. whitespaceOnlyAdded    → .context
-5. fallthrough            → .new
+4. paired (whitespace-only) → .context
+5. paired (non-trivial)     → .replacement(counterpart: Counterpart(filePath, pairedOldLineNum))
+6. fallthrough              → .new
 ```
 
 **`.context` lines:**
 ```
 1. always                 → .context
 ```
+
+Note: Move checks (steps 1-3) take priority over in-place pairing (steps 4-5). A line that's part of a detected move is classified by the move logic, not the pairing logic.
 
 The `PRLine` init call changes: drop `move:`, add `verbatimMoveCounterpart:`.
 
@@ -228,7 +317,7 @@ Also update `PRHunk.fromHunk()` mapping:
 - `.context`/`.header` → `.context`
 - `verbatimMoveCounterpart` = nil for all (no move detection in this path)
 
-### - [ ] Phase 3: Update consumers
+### - [ ] Phase 5: Update consumers
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -267,7 +356,17 @@ Replace `move != nil && changeKind == .unchanged` with `verbatimMoveCounterpart 
 - The `findMoveDetail(for:)` helper may need to derive source/target from counterpart + line's own filePath
 - `changeKind.rawValue` display in `LineInfoPopoverView` — since `ChangeKind` no longer has raw values, display using a computed description property or switch
 
-### - [ ] Phase 4: Update tests
+### - [ ] Phase 6: Fix silent fallback on pipeline failure
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+The effective diff pipeline silently returns empty classified hunks when `git merge-base` fails. Fix in `PRAcquisitionService.runEffectiveDiff()` catch block:
+
+1. Log a warning so the user knows classification was skipped
+2. Fall back to classifying all diff lines from the raw diff (every `+` line → `.new`, every `-` line → `.deleted`, context → `.context`) instead of returning empty
+3. Both
+
+### - [ ] Phase 7: Update tests
 
 **Skills to read**: `/swift-testing`
 
@@ -291,16 +390,41 @@ Key test suites to update:
 - `PRDiffCodableTests` — JSON round-trip (custom Codable for associated-value enum)
 - `PRDiffConvenienceTests` and `PRDiffFromPipelineTests` — end-to-end assertions
 
-### - [ ] Phase 5: Validation
+New tests for paired modification detection:
+- `buildPairedModifications` — equal run counts, surplus removals, surplus additions, context lines separating change groups
+- `classifyLines` integration — paired non-trivial modifications get `.replaced`/`.replacement` with correct counterpart line numbers, whitespace-only pairs stay `.context`, unpaired lines stay `.new`/`.deleted`, move detection takes priority over in-place pairing
 
-**Skills to read**: `/swift-testing`
+### - [ ] Phase 8: Validate the bug is fixed
 
-1. Run `swift test` — all tests must pass
-2. Run `swift build` — no compilation errors
-3. Verify against test repo:
-   ```bash
-   cd PRRadarLibrary
-   swift run PRRadarMacCLI diff 1 --config test-repo
-   swift run PRRadarMacCLI analyze 1 --config test-repo
-   ```
-4. Spot-check that classification output uses new model and behavior matches pre-refactor output
+Re-run the same steps from Phase 1 against PR #19024. Expected results:
+
+```bash
+# Delete cached data and rebuild
+rm -rf ~/Desktop/code-reviews/19024
+cd PRRadarLibrary && swift build
+
+# Run pipeline
+swift run PRRadarMacCLI sync 19024 --config ios
+swift run PRRadarMacCLI prepare 19024 --config ios
+swift run PRRadarMacCLI analyze 19024 --config ios --mode regex
+
+# Inspect — parentView should be changeKind=context (whitespace-only, demoted)
+# Other in-place modifications should be changeKind=replacement (not new)
+# Genuinely new lines (like _Nonnull additions) should still be changeKind=new
+python3 -c "
+import json
+with open('$(ls ~/Desktop/code-reviews/19024/analysis/*/diff/classified-hunks.json)') as f:
+    hunks = json.load(f)
+for h in hunks:
+    for line in h.get('lines', []):
+        if 'parentView' in line.get('content', ''):
+            print(f'{line.get(\"lineType\",\"\"):8} | changeKind={str(line.get(\"changeKind\",\"\")):30} | {line[\"content\"][:80]}')
+"
+```
+
+**Expected**:
+- `parentView` line → `changeKind = context` (whitespace-only pair, demoted) — **false positive eliminated**
+- `- (nonnull instancetype)initWithTripSummary:...` → `changeKind = new` — genuinely new code still caught
+- `RouteTokenDelegateDataSource.h — nullability-h-objc` → no longer flagged
+- All unit tests pass (`swift test`)
+- 6 real violations in `.m` files still detected
