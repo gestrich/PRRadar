@@ -19,7 +19,7 @@ This line lacks a nullability annotation, so the regex pattern matched. However,
 
 ### Root Cause Analysis
 
-The investigation revealed **three separate issues**:
+The investigation revealed **four separate issues**:
 
 #### Issue 1: Stale local refs — PRRadar did not fetch before diffing (FIXED)
 
@@ -82,6 +82,20 @@ During investigation, we discovered that when `git merge-base` fails (e.g., the 
 
 This was caused by the commit not existing locally (`git merge-base origin/develop e0ff387` → "fatal: Not a valid commit name"). After `git fetch origin e0ff387`, the pipeline works correctly.
 
+#### Issue 4: All in-place modifications are treated as genuinely new code
+
+The whitespace-only fix (Issue 2) handles one special case, but the underlying problem is broader: **any** in-place modification — variable renames, added parameters, type changes — is classified as `.removed` + `.added`. The `.changed` changeKind only exists within detected move blocks (via re-diff analysis).
+
+This means a line like `function foo(x, y) {` changed to `function foo(x, y, z) {` shows up as genuinely new code. Rules with `newCodeLinesOnly: true` will match it, even though it's a modification of existing code, not a new line.
+
+The fix: generalize the whitespace-only detection into a full **paired modification detector** that:
+1. Matches `-`/`+` line pairs within hunks (sequential 1:1 pairing, same as git)
+2. Computes **inline diffs** using Swift's `CollectionDifference` (Myers algorithm, stdlib) to show exactly which characters changed
+3. Classifies paired `+` lines as `.changed` instead of `.added`
+4. Subsumes whitespace-only detection — whitespace-only becomes a derivable property from the inline diff spans
+
+This gives downstream consumers structured data about what parts of a line changed (character ranges of insertions/deletions), enabling smarter rule evaluation and UI highlighting.
+
 ### Diff Source Behavior
 
 Both diff sources now produce the full PR diff (merge-base → head):
@@ -135,6 +149,88 @@ Location: `PRAcquisitionService.runEffectiveDiff()` catch block (line ~330).
 2. Add a test case for whitespace-only modifications
 3. Verify the fix against PR #19024 using the steps below
 4. Confirm the parentView line is not flagged while genuinely new lines (like the `_Nonnull` additions) are still caught
+
+### - [ ] Phase 5: Inline change model
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Add the data model for representing character-level inline changes within a line.
+
+**Changes** in `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift`:
+
+1. Add `InlineChangeKind` enum with cases `.equal`, `.inserted`, `.deleted` (Codable, Sendable, Equatable)
+2. Add `InlineChangeSpan` struct with `kind: InlineChangeKind` and `text: String` — represents a contiguous span of characters that are equal, inserted, or deleted
+3. Add `inlineChanges: [InlineChangeSpan]?` field to `ClassifiedDiffLine` (default `nil` for backward compatibility — all existing call sites compile unchanged)
+4. Add `isWhitespaceOnly` computed property on `[InlineChangeSpan]` — returns `true` when all non-equal spans contain only whitespace characters
+
+Example representation:
+```
+Old: "function foo(x, y) {"
+New: "function foo(x, y, z) {"
+New-side spans: [equal("function foo(x, y"), inserted(", z"), equal(") {")]
+```
+
+### - [ ] Phase 6: Inline diff computation
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Create a pure function that computes inline change spans between two strings using Swift's built-in `CollectionDifference` (Myers diff algorithm from stdlib — no external dependencies).
+
+**New file**: `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/InlineDiff.swift`
+
+1. `func computeInlineSpans(old: String, new: String) -> (oldSpans: [InlineChangeSpan], newSpans: [InlineChangeSpan])`
+   - Converts both strings to `[Character]` arrays
+   - Calls `new.difference(from: old)` to get the `CollectionDifference`
+   - Walks the diff to build contiguous spans of `.equal`, `.inserted`, `.deleted` text
+   - Returns spans for both the old side (equal + deleted) and new side (equal + inserted)
+
+This is a pure function with no state — takes two strings, returns structured spans.
+
+### - [ ] Phase 7: Paired modification detection and classification
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Wire the inline diff into the classification pipeline. This replaces `buildWhitespaceOnlySet()` with a general paired modification detector.
+
+**Changes** in `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift`:
+
+1. Add `PairedModification` struct holding old/new line numbers and computed inline spans
+2. Add `buildPairedModifications(from:)` function:
+   - Walk each hunk and identify consecutive runs of removed lines followed by added lines ("change groups")
+   - Pair them 1:1 sequentially (removed[0]↔added[0], removed[1]↔added[1], etc.)
+   - Surplus lines (when counts differ) remain unpaired
+   - For each pair, call `computeInlineSpans()` to get character-level diff
+   - Return lookup keyed by `[filePath: [lineNumber: PairedModification]]` for both old and new sides
+3. Modify `classifyLines()` to use paired modifications:
+   - Replace `buildWhitespaceOnlySet()` call with `buildPairedModifications()`
+   - For `.removed` lines: if paired → `changeKind = .changed`, `inlineChanges = oldSpans`
+   - For `.added` lines: if paired AND `spans.isWhitespaceOnly` → `changeKind = .unchanged` (preserves Phase 2 behavior); if paired AND non-trivial → `changeKind = .changed`, `inlineChanges = newSpans`
+   - Move checks still take priority (checked first in the chain)
+4. Delete `buildWhitespaceOnlySet()` and `collapseWhitespace()` — subsumed by the new mechanism
+
+**Classification priority (`.added` lines) after change:**
+```
+1. addedInMoveLines       → (.added, inMovedBlock: true)
+2. changedInMoveLines     → (.changed, inMovedBlock: true)
+3. targetMovedLines       → (.unchanged, inMovedBlock: true)
+4. paired (whitespace-only) → (.unchanged, inMovedBlock: false, inlineChanges: spans)
+5. paired (non-trivial)     → (.changed, inMovedBlock: false, inlineChanges: spans)  ← NEW
+6. fallthrough              → (.added, inMovedBlock: false)
+```
+
+**Key behavioral change**: `ClassifiedHunk.newCodeLines` (filters `.added`) will no longer include in-place modifications — they become `.changed`. This is the intended fix: rules with `newCodeLinesOnly: true` should only match genuinely new lines, not modifications of existing code. `changedLines` (filters `!= .unchanged`) is unaffected since `.changed` already passes that filter.
+
+### - [ ] Phase 8: Validation
+
+**Skills to read**: `/swift-testing`
+
+1. Run `swift test` — all existing tests must pass
+2. Update existing `LineClassificationTests` for cases where `.added` becomes `.changed`
+3. Add new tests:
+   - `computeInlineSpans()` — identical strings, completely different, partial changes (word added/removed), whitespace-only
+   - Pairing logic — equal run counts, surplus removals, surplus additions, context lines separating change groups
+   - `classifyLines()` integration — paired modifications get `.changed`, whitespace-only stays `.unchanged`, unpaired lines stay `.added`/`.removed`, move detection takes priority over pairing
+4. Verify against PR #19024 using the local validation steps below
 
 ## Local Validation Steps
 
