@@ -27,72 +27,15 @@ public struct PRDiff: Codable, Sendable, Equatable {
         hunks.filter { $0.filePath == filePath }
     }
 
-    public static func build(
-        from gitDiff: GitDiff,
-        classifiedHunks: [ClassifiedHunk],
-        moveReport: MoveReport?
-    ) -> PRDiff {
-        let moveDetails = moveReport?.moves ?? []
-        let prHunks = classifiedHunks.map { hunk in
-            PRHunk(
-                filePath: hunk.filePath,
-                oldStart: hunk.oldStart,
-                newStart: hunk.newStart,
-                lines: hunk.lines.map { line in
-                    let moveInfo = findMoveInfo(
-                        for: line,
-                        in: moveDetails
-                    )
-                    return PRLine(from: line, moveInfo: moveInfo)
-                }
-            )
-        }
-
-        let stats = DiffStats.compute(from: prHunks)
-
+    /// Build a PRDiff from a raw GitDiff with no move analysis (fallback path).
+    public static func fromRawDiff(_ gitDiff: GitDiff) -> PRDiff {
+        let prHunks = gitDiff.hunks.map { PRHunk.fromHunk($0) }
         return PRDiff(
             commitHash: gitDiff.commitHash,
             rawText: gitDiff.rawContent,
             hunks: prHunks,
-            moves: moveDetails,
-            stats: stats
+            moves: [],
+            stats: DiffStats.compute(from: prHunks)
         )
-    }
-
-    private static func findMoveInfo(
-        for line: ClassifiedDiffLine,
-        in moves: [MoveDetail]
-    ) -> MoveInfo? {
-        guard line.inMovedBlock else { return nil }
-
-        for move in moves {
-            if line.lineType == .removed,
-               let oldNum = line.oldLineNumber,
-               line.filePath == move.sourceFile,
-               move.sourceLines.count >= 2,
-               oldNum >= move.sourceLines[0],
-               oldNum <= move.sourceLines[1] {
-                return MoveInfo(
-                    sourceFile: move.sourceFile,
-                    targetFile: move.targetFile,
-                    isSource: true
-                )
-            }
-
-            if line.lineType == .added,
-               let newNum = line.newLineNumber,
-               line.filePath == move.targetFile,
-               move.targetLines.count >= 2,
-               newNum >= move.targetLines[0],
-               newNum <= move.targetLines[1] {
-                return MoveInfo(
-                    sourceFile: move.sourceFile,
-                    targetFile: move.targetFile,
-                    isSource: false
-                )
-            }
-        }
-
-        return nil
     }
 }

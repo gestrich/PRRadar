@@ -62,15 +62,15 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var fullDiff: GitDiff? {
-        syncSnapshot?.annotatedDiff?.fullDiff
+        syncSnapshot?.fullDiff
     }
 
     var effectiveDiff: GitDiff? {
-        syncSnapshot?.annotatedDiff?.effectiveDiff
+        syncSnapshot?.effectiveDiff
     }
 
     var moveReport: MoveReport? {
-        syncSnapshot?.annotatedDiff?.moveReport
+        syncSnapshot?.moveReport
     }
 
     var diffFiles: [String]? {

@@ -4,7 +4,9 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct SyncSnapshot: Sendable {
-    public let annotatedDiff: AnnotatedDiff?
+    public let fullDiff: GitDiff?
+    public let effectiveDiff: GitDiff?
+    public let moveReport: MoveReport?
     public let prDiff: PRDiff?
     public let files: [String]
     public let commentCount: Int
@@ -13,7 +15,9 @@ public struct SyncSnapshot: Sendable {
     public let commitHash: String?
 
     public init(
-        annotatedDiff: AnnotatedDiff? = nil,
+        fullDiff: GitDiff? = nil,
+        effectiveDiff: GitDiff? = nil,
+        moveReport: MoveReport? = nil,
         prDiff: PRDiff? = nil,
         files: [String],
         commentCount: Int = 0,
@@ -21,7 +25,9 @@ public struct SyncSnapshot: Sendable {
         reviewCommentCount: Int = 0,
         commitHash: String? = nil
     ) {
-        self.annotatedDiff = annotatedDiff
+        self.fullDiff = fullDiff
+        self.effectiveDiff = effectiveDiff
+        self.moveReport = moveReport
         self.prDiff = prDiff
         self.files = files
         self.commentCount = commentCount
@@ -42,7 +48,6 @@ public struct SyncPRUseCase: Sendable {
     public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) -> SyncSnapshot {
         let resolvedCommit = commitHash ?? resolveCommitHash(config: config, prNumber: prNumber)
 
-        // Diff files live under analysis/<commit>/diff/
         let files = OutputFileReader.files(
             in: config,
             prNumber: prNumber,
@@ -50,16 +55,28 @@ public struct SyncPRUseCase: Sendable {
             commitHash: resolvedCommit
         )
 
-        let annotatedDiff = PhaseOutputParser.loadAnnotatedDiff(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+        let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff,
+            filename: DataPathsService.diffParsedJSONFilename, commitHash: resolvedCommit
+        )
+        let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff,
+            filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: resolvedCommit
+        )
+        let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff,
+            filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
+        )
         let prDiff = LoadPRDiffUseCase(config: config).execute(prNumber: prNumber, commitHash: resolvedCommit)
 
-        // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
             config: config, prNumber: prNumber, phase: .metadata, filename: DataPathsService.ghCommentsFilename
         )
 
         return SyncSnapshot(
-            annotatedDiff: annotatedDiff,
+            fullDiff: fullDiff,
+            effectiveDiff: effectiveDiff,
+            moveReport: moveReport,
             prDiff: prDiff,
             files: files,
             commentCount: comments?.comments.count ?? 0,
@@ -71,7 +88,6 @@ public struct SyncPRUseCase: Sendable {
 
     /// Resolve the commit hash from metadata/gh-pr.json, or scan analysis/ for the latest commit directory.
     public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: Int) -> String? {
-        // Try reading headRefOid from metadata/gh-pr.json
         let metadataDir = DataPathsService.phaseDirectory(
             outputDir: config.resolvedOutputDir,
             prNumber: prNumber,
@@ -83,7 +99,6 @@ public struct SyncPRUseCase: Sendable {
            let fullHash = pr.headRefOid {
             return String(fullHash.prefix(7))
         }
-        // Fallback: pick the most recent commit directory under analysis/
         let analysisRoot = "\(config.resolvedOutputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
         if let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) {
             return dirs.sorted().last

@@ -80,43 +80,6 @@ public enum PhaseOutputParser {
 
     // MARK: - Composite Loaders
 
-    /// Load an `AnnotatedDiff` from the diff phase output files on disk.
-    public static func loadAnnotatedDiff(
-        config: RepositoryConfiguration,
-        prNumber: Int,
-        commitHash: String?
-    ) -> AnnotatedDiff? {
-        guard let fullDiff: GitDiff = try? parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.diffParsedJSONFilename, commitHash: commitHash
-        ) else { return nil }
-
-        let effectiveDiff: GitDiff? = try? parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: commitHash
-        )
-        let moveReport: MoveReport? = try? parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.effectiveDiffMovesFilename, commitHash: commitHash
-        )
-        let classifiedHunks: [ClassifiedHunk] = (try? parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.classifiedHunksFilename, commitHash: commitHash
-        )) ?? []
-        let prDiff: PRDiff? = try? parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.prDiffFilename, commitHash: commitHash
-        )
-
-        return AnnotatedDiff(
-            fullDiff: fullDiff,
-            effectiveDiff: effectiveDiff,
-            moveReport: moveReport,
-            classifiedHunks: classifiedHunks,
-            prDiff: prDiff
-        )
-    }
-
     /// Load a `PRDiff` from the diff phase output files on disk.
     public static func loadPRDiff(
         config: RepositoryConfiguration,

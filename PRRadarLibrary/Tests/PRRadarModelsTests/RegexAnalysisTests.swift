@@ -464,8 +464,8 @@ struct RegexNewCodeOnlyTests {
 
 // MARK: - Focus Area Filtering Tests
 
-@Suite("ClassifiedHunk focus area filtering")
-struct ClassifiedHunkFocusAreaFilteringTests {
+@Suite("PRHunk focus area filtering")
+struct PRHunkFocusAreaFilteringTests {
 
     @Test("filterForFocusArea filters by file path and line range")
     func filtersByFileAndRange() {
@@ -517,10 +517,10 @@ struct ClassifiedHunkFocusAreaFilteringTests {
     }
 }
 
-// MARK: - Grep Filtering with Classified Hunks
+// MARK: - Grep Filtering with PRHunks
 
-@Suite("Grep filtering uses clean source content from classified hunks")
-struct GrepFilteringClassifiedHunkTests {
+@Suite("Grep filtering uses clean source content from PRHunks")
+struct GrepFilteringPRHunkTests {
 
     private func makeRule(
         name: String = "test-rule",

@@ -280,12 +280,13 @@ Delete types that are no longer referenced after migration.
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
 1. Move new types from `UnifiedDiff/` to a permanent location (or rename directory to match chosen prefix, e.g., `PRDiff/`)
-2. Audit all `public` types in `PRRadarModels` — ensure the diff-related public API is just:
+2. Simplify `SyncSnapshot` to a single `prDiff: PRDiff?` field — remove `fullDiff: GitDiff?`, `effectiveDiff: GitDiff?`, and `moveReport: MoveReport?` since `PRDiff` already contains all that data. Update all consumers (`PRModel`, `LoadPRDetailUseCase`, `PrepareUseCase`, views) to access through `prDiff` instead.
+3. Audit all `public` types in `PRRadarModels` — ensure the diff-related public API is just:
    - Primitives: `GitDiff`, `Hunk`, `DiffLine`, `DiffLineType`
    - Unified: `PRDiff`, `PRHunk`, `PRLine`, `MoveInfo`, `DiffStats`
    - Enums: `ChangeKind`
    - Serializable: `MoveDetail`, `MoveReport`
-3. Verify algorithm internals (`TaggedLine`, `LineMatch`, `MoveCandidate`, `EffectiveDiffResult`, `RediffAnalysis`) are not exposed as public
+4. Verify algorithm internals (`TaggedLine`, `LineMatch`, `MoveCandidate`, `EffectiveDiffResult`, `RediffAnalysis`) are not exposed as public
 
 ## - [ ] Phase 8: Validation
 

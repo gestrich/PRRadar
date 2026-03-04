@@ -208,10 +208,10 @@ struct RuleAnalysisTypeTests {
     }
 }
 
-// MARK: - ClassifiedHunk.relevantLines/relevantLineNumbers Tests
+// MARK: - PRHunk.relevantLines/relevantLineNumbers Tests
 
-@Suite("ClassifiedHunk relevant lines helpers")
-struct ClassifiedHunkRelevantLinesTests {
+@Suite("PRHunk relevant lines helpers")
+struct PRHunkRelevantLinesTests {
 
     @Test("relevantLines with newCodeLinesOnly: true returns only added lines")
     func relevantLinesNewCodeOnly() {

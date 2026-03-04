@@ -3,25 +3,16 @@ import Foundation
 /// Result of running the full effective diff pipeline.
 public struct EffectiveDiffPipelineResult: Sendable, Equatable {
     public let effectiveDiff: GitDiff
-    public let moveReport: EffectiveDiffMoveReport
-    public let classifiedLines: [ClassifiedDiffLine]
-    public let classifiedHunks: [ClassifiedHunk]
-    public let annotatedDiff: AnnotatedDiff
+    public let moveReport: MoveReport
     public let prDiff: PRDiff
 
     public init(
         effectiveDiff: GitDiff,
-        moveReport: EffectiveDiffMoveReport,
-        classifiedLines: [ClassifiedDiffLine],
-        classifiedHunks: [ClassifiedHunk],
-        annotatedDiff: AnnotatedDiff,
+        moveReport: MoveReport,
         prDiff: PRDiff
     ) {
         self.effectiveDiff = effectiveDiff
         self.moveReport = moveReport
-        self.classifiedLines = classifiedLines
-        self.classifiedHunks = classifiedHunks
-        self.annotatedDiff = annotatedDiff
         self.prDiff = prDiff
     }
 }
@@ -59,40 +50,33 @@ public func runEffectiveDiffPipeline(
     }
 
     let report = buildMoveReport(effectiveResults)
+    let moveReport = report.toMoveReport()
 
     let classifiedLines = classifyLines(
         originalDiff: gitDiff,
         effectiveResults: effectiveResults
     )
-    let classifiedHunks = groupIntoClassifiedHunks(
+    let prHunks = groupIntoPRHunks(
         originalDiff: gitDiff,
         classifiedLines: classifiedLines
     )
     let effectiveDiff = reconstructEffectiveDiff(
         originalDiff: gitDiff,
-        classifiedHunks: classifiedHunks
+        prHunks: prHunks
     )
 
-    let prDiff = PRDiff.build(
-        from: gitDiff,
-        classifiedHunks: classifiedHunks,
-        moveReport: report.toMoveReport()
-    )
-
-    let annotatedDiff = AnnotatedDiff(
-        fullDiff: gitDiff,
-        effectiveDiff: effectiveDiff,
-        moveReport: report.toMoveReport(),
-        classifiedHunks: classifiedHunks,
-        prDiff: prDiff
+    let stats = DiffStats.compute(from: prHunks)
+    let prDiff = PRDiff(
+        commitHash: gitDiff.commitHash,
+        rawText: gitDiff.rawContent,
+        hunks: prHunks,
+        moves: moveReport.moves,
+        stats: stats
     )
 
     return EffectiveDiffPipelineResult(
         effectiveDiff: effectiveDiff,
-        moveReport: report,
-        classifiedLines: classifiedLines,
-        classifiedHunks: classifiedHunks,
-        annotatedDiff: annotatedDiff,
+        moveReport: moveReport,
         prDiff: prDiff
     )
 }

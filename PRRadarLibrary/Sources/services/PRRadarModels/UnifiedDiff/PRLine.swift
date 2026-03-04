@@ -31,17 +31,6 @@ public struct PRLine: Codable, Sendable, Equatable {
         self.inlineChanges = inlineChanges
     }
 
-    public init(from classifiedLine: ClassifiedDiffLine, moveInfo: MoveInfo?) {
-        self.content = classifiedLine.content
-        self.rawLine = classifiedLine.rawLine
-        self.diffType = classifiedLine.lineType
-        self.changeKind = classifiedLine.changeKind
-        self.oldLineNumber = classifiedLine.oldLineNumber
-        self.newLineNumber = classifiedLine.newLineNumber
-        self.filePath = classifiedLine.filePath
-        self.move = moveInfo
-        self.inlineChanges = nil
-    }
 }
 
 // MARK: - MoveInfo

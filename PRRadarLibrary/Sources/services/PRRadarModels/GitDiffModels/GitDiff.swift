@@ -121,31 +121,6 @@ import Foundation
         }
     }
 
-    public func diffSections() -> [DisplayDiffSection] {
-        var sections: [String: [DisplayDiffLine]] = [:]
-
-        for hunk in hunks {
-            if sections[hunk.filePath] == nil {
-                sections[hunk.filePath] = []
-            }
-
-            for line in hunk.diffLines {
-                let type: DisplayDiffLineType
-                if line.hasPrefix("+") {
-                    type = .addition
-                } else if line.hasPrefix("-") {
-                    type = .deletion
-                } else {
-                    type = .context
-                }
-                sections[hunk.filePath]?.append(DisplayDiffLine(content: line, type: type))
-            }
-        }
-
-        return sections.map { DisplayDiffSection(filePath: $0.key, lines: $0.value) }
-            .sorted { $0.filePath < $1.filePath }
-    }
-
     public func getChangedLines() -> [String: Set<Int>] {
         var changedLines: [String: Set<Int>] = [:]
 
@@ -205,49 +180,5 @@ import Foundation
         }
 
         return nil
-    }
-}
-
-// MARK: - Display Models (for SwiftUI views)
-
-/// Represents a section of diff lines for a single file (display purposes)
-public struct DisplayDiffSection: Identifiable, Equatable {
-    public let id = UUID()
-    public let filePath: String
-    public let lines: [DisplayDiffLine]
-    public let isStaged: Bool
-
-    public init(filePath: String, lines: [DisplayDiffLine], isStaged: Bool = false) {
-        self.filePath = filePath
-        self.lines = lines
-        self.isStaged = isStaged
-    }
-}
-
-/// Represents a single line in a diff for display purposes
-public struct DisplayDiffLine: Identifiable, Equatable {
-    public let id = UUID()
-    public let content: String
-    public let type: DisplayDiffLineType
-
-    public init(content: String, type: DisplayDiffLineType) {
-        self.content = content
-        self.type = type
-    }
-}
-
-public enum DisplayDiffLineType: Equatable {
-    case addition
-    case deletion
-    case context
-}
-
-extension DiffLineType {
-    public var displayType: DisplayDiffLineType {
-        switch self {
-        case .added: .addition
-        case .removed: .deletion
-        case .context, .header: .context
-        }
     }
 }

@@ -133,8 +133,8 @@ struct LoadPRDetailUseCaseTests {
         // Assert
         #expect(detail.commitHash == commitHash)
         #expect(detail.syncSnapshot != nil)
-        #expect(detail.syncSnapshot?.annotatedDiff?.fullDiff != nil)
-        #expect(detail.syncSnapshot?.annotatedDiff?.effectiveDiff != nil)
+        #expect(detail.syncSnapshot?.fullDiff != nil)
+        #expect(detail.syncSnapshot?.effectiveDiff != nil)
         #expect(detail.preparation != nil)
         #expect(detail.preparation?.focusAreas.count == 1)
         #expect(detail.preparation?.rules.count == 1)
@@ -204,7 +204,7 @@ struct LoadPRDetailUseCaseTests {
 
         // Assert
         #expect(detail.syncSnapshot != nil)
-        #expect(detail.syncSnapshot?.annotatedDiff?.fullDiff != nil)
+        #expect(detail.syncSnapshot?.fullDiff != nil)
         #expect(detail.preparation == nil)
         #expect(detail.analysis == nil)
         #expect(detail.report == nil)

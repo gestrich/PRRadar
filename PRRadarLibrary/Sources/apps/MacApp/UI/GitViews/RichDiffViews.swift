@@ -111,7 +111,7 @@ struct DiffLineRowView: View {
     let lineContent: String
     let oldLineNumber: Int?
     let newLineNumber: Int?
-    let lineType: DisplayDiffLineType
+    let lineType: DiffLineType
     let searchQuery: String
     var isMoved: Bool
     var prLine: PRLine?
@@ -122,7 +122,7 @@ struct DiffLineRowView: View {
         lineContent: String,
         oldLineNumber: Int?,
         newLineNumber: Int?,
-        lineType: DisplayDiffLineType,
+        lineType: DiffLineType,
         searchQuery: String = "",
         isMoved: Bool = false,
         prLine: PRLine? = nil,
@@ -238,31 +238,31 @@ struct DiffLineRowView: View {
 
     private var textColor: Color {
         switch lineType {
-        case .addition, .deletion:
+        case .added, .removed:
             return Color.white
-        case .context:
+        case .context, .header:
             return Color.primary
         }
     }
 
     private var gutterBackground: Color {
         switch lineType {
-        case .addition:
+        case .added:
             return Color.green.opacity(0.15)
-        case .deletion:
+        case .removed:
             return Color.red.opacity(0.15)
-        case .context:
+        case .context, .header:
             return Color.gray.opacity(0.1)
         }
     }
 
     private var backgroundColor: Color {
         switch lineType {
-        case .addition:
+        case .added:
             return Color.green.opacity(0.08)
-        case .deletion:
+        case .removed:
             return Color.red.opacity(0.08)
-        case .context:
+        case .context, .header:
             return Color.clear
         }
     }
@@ -374,7 +374,7 @@ struct AnnotatedHunkContentView: View {
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(Array(hunk.lines.enumerated()), id: \.offset) { _, line in
-                let displayType = line.diffType.displayType
+                let displayType = line.diffType
                 let moveDetail = findMoveDetail(for: line)
                 DiffLineRowView(
                     lineContent: line.rawLine,
@@ -447,19 +447,19 @@ struct AnnotatedHunkContentView: View {
         return moves.first { $0.sourceFile == moveInfo.sourceFile && $0.targetFile == moveInfo.targetFile }
     }
 
-    private func lineBackground(for lineType: DisplayDiffLineType) -> Color {
+    private func lineBackground(for lineType: DiffLineType) -> Color {
         switch lineType {
-        case .addition: Color.green.opacity(0.08)
-        case .deletion: Color.red.opacity(0.08)
-        case .context: .clear
+        case .added: Color.green.opacity(0.08)
+        case .removed: Color.red.opacity(0.08)
+        case .context, .header: .clear
         }
     }
 
-    private func gutterBackground(for lineType: DisplayDiffLineType) -> Color {
+    private func gutterBackground(for lineType: DiffLineType) -> Color {
         switch lineType {
-        case .addition: Color.green.opacity(0.15)
-        case .deletion: Color.red.opacity(0.15)
-        case .context: Color.gray.opacity(0.1)
+        case .added: Color.green.opacity(0.15)
+        case .removed: Color.red.opacity(0.15)
+        case .context, .header: Color.gray.opacity(0.1)
         }
     }
 }

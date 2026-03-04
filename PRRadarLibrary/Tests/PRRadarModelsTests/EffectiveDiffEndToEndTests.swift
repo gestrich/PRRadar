@@ -45,7 +45,7 @@ private func runPipeline(
     diffText: String,
     oldFiles: [String: String],
     newFiles: [String: String]
-) async throws -> (effectiveDiff: GitDiff, report: EffectiveDiffMoveReport) {
+) async throws -> (effectiveDiff: GitDiff, report: MoveReport) {
     let result = try await runEffectiveDiffPipeline(
         gitDiff: GitDiff.fromDiffContent(diffText, commitHash: ""),
         oldFiles: oldFiles,

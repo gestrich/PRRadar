@@ -84,8 +84,8 @@ private func makeEffectiveResult(
         effectiveResults: [EffectiveDiffResult]
     ) -> GitDiff {
         let classified = classifyLines(originalDiff: originalDiff, effectiveResults: effectiveResults)
-        let hunks = groupIntoClassifiedHunks(originalDiff: originalDiff, classifiedLines: classified)
-        return reconstructEffectiveDiff(originalDiff: originalDiff, classifiedHunks: hunks)
+        let hunks = groupIntoPRHunks(originalDiff: originalDiff, classifiedLines: classified)
+        return reconstructEffectiveDiff(originalDiff: originalDiff, prHunks: hunks)
     }
 
     @Test func noMovesReturnsOriginal() {

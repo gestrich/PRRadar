@@ -4,16 +4,16 @@ import Foundation
 
 /// Details about a single detected code move (algorithm output).
 /// Distinct from the `MoveDetail` in `DiffOutput.swift` which is the Codable serialization model.
-public struct EffectiveDiffMoveDetail: Sendable, Equatable {
-    public let sourceFile: String
-    public let targetFile: String
-    public let sourceLines: (start: Int, end: Int)
-    public let targetLines: (start: Int, end: Int)
-    public let matchedLines: Int
-    public let score: Double
-    public let effectiveDiffLines: Int
+struct EffectiveDiffMoveDetail: Sendable, Equatable {
+    let sourceFile: String
+    let targetFile: String
+    let sourceLines: (start: Int, end: Int)
+    let targetLines: (start: Int, end: Int)
+    let matchedLines: Int
+    let score: Double
+    let effectiveDiffLines: Int
 
-    public init(
+    init(
         sourceFile: String,
         targetFile: String,
         sourceLines: (start: Int, end: Int),
@@ -31,7 +31,7 @@ public struct EffectiveDiffMoveDetail: Sendable, Equatable {
         self.effectiveDiffLines = effectiveDiffLines
     }
 
-    public static func == (lhs: EffectiveDiffMoveDetail, rhs: EffectiveDiffMoveDetail) -> Bool {
+    static func == (lhs: EffectiveDiffMoveDetail, rhs: EffectiveDiffMoveDetail) -> Bool {
         lhs.sourceFile == rhs.sourceFile
         && lhs.targetFile == rhs.targetFile
         && lhs.sourceLines.start == rhs.sourceLines.start
@@ -43,7 +43,7 @@ public struct EffectiveDiffMoveDetail: Sendable, Equatable {
         && lhs.effectiveDiffLines == rhs.effectiveDiffLines
     }
 
-    public func toMoveDetail() -> MoveDetail {
+    func toMoveDetail() -> MoveDetail {
         MoveDetail(
             sourceFile: sourceFile,
             targetFile: targetFile,
@@ -57,13 +57,13 @@ public struct EffectiveDiffMoveDetail: Sendable, Equatable {
 }
 
 /// Summary of all detected code moves (algorithm output).
-public struct EffectiveDiffMoveReport: Sendable, Equatable {
-    public let movesDetected: Int
-    public let totalLinesMoved: Int
-    public let totalLinesEffectivelyChanged: Int
-    public let moves: [EffectiveDiffMoveDetail]
+struct EffectiveDiffMoveReport: Sendable, Equatable {
+    let movesDetected: Int
+    let totalLinesMoved: Int
+    let totalLinesEffectivelyChanged: Int
+    let moves: [EffectiveDiffMoveDetail]
 
-    public init(
+    init(
         movesDetected: Int,
         totalLinesMoved: Int,
         totalLinesEffectivelyChanged: Int,
@@ -75,7 +75,7 @@ public struct EffectiveDiffMoveReport: Sendable, Equatable {
         self.moves = moves
     }
 
-    public func toMoveReport() -> MoveReport {
+    func toMoveReport() -> MoveReport {
         MoveReport(
             movesDetected: movesDetected,
             totalLinesMoved: totalLinesMoved,
@@ -103,20 +103,20 @@ func countChangedLinesInHunks(_ hunks: [Hunk]) -> Int {
 
 /// Reconstruct the effective diff by filtering out verbatim moved lines.
 ///
-/// Lines with `inMovedBlock == true` and `changeKind == .unchanged` are stripped.
-/// Lines that are `inMovedBlock: true` but have `changeKind` of `.changed`, `.added`,
+/// Lines with `move != nil` and `changeKind == .unchanged` are stripped.
+/// Lines that are in a moved block but have `changeKind` of `.changed`, `.added`,
 /// or `.removed` survive — they represent actual content changes within the moved block.
 /// Remaining lines are split at filtered-line boundaries into sub-hunks that preserve
 /// correct line numbers. Only sub-hunks containing at least one changed line are kept.
-public func reconstructEffectiveDiff(
+func reconstructEffectiveDiff(
     originalDiff: GitDiff,
-    classifiedHunks: [ClassifiedHunk]
+    prHunks: [PRHunk]
 ) -> GitDiff {
     var survivingHunks: [Hunk] = []
 
-    for (originalHunk, classifiedHunk) in zip(originalDiff.hunks, classifiedHunks) {
-        let hasMovedLines = classifiedHunk.lines.contains {
-            $0.inMovedBlock && $0.changeKind == .unchanged
+    for (originalHunk, prHunk) in zip(originalDiff.hunks, prHunks) {
+        let hasMovedLines = prHunk.lines.contains {
+            $0.move != nil && $0.changeKind == .unchanged
         }
 
         if !hasMovedLines {
@@ -128,12 +128,11 @@ public func reconstructEffectiveDiff(
             .filter { $0.lineType == .header && !$0.rawLine.hasPrefix("@@") }
             .map(\.rawLine)
 
-        // Split into segments at moved-line boundaries
-        var segments: [[ClassifiedDiffLine]] = []
-        var current: [ClassifiedDiffLine] = []
+        var segments: [[PRLine]] = []
+        var current: [PRLine] = []
 
-        for line in classifiedHunk.lines {
-            if !(line.inMovedBlock && line.changeKind == .unchanged) {
+        for line in prHunk.lines {
+            if !(line.move != nil && line.changeKind == .unchanged) {
                 current.append(line)
             } else {
                 if !current.isEmpty {
@@ -147,14 +146,14 @@ public func reconstructEffectiveDiff(
         }
 
         for segment in segments {
-            guard segment.contains(where: { $0.lineType == .added || $0.lineType == .removed }) else {
+            guard segment.contains(where: { $0.diffType == .added || $0.diffType == .removed }) else {
                 continue
             }
 
             let oldStart = segment.compactMap(\.oldLineNumber).min() ?? originalHunk.oldStart
             let newStart = segment.compactMap(\.newLineNumber).min() ?? originalHunk.newStart
-            let oldLength = segment.filter { $0.lineType == .removed || $0.lineType == .context }.count
-            let newLength = segment.filter { $0.lineType == .added || $0.lineType == .context }.count
+            let oldLength = segment.filter { $0.diffType == .removed || $0.diffType == .context }.count
+            let newLength = segment.filter { $0.diffType == .added || $0.diffType == .context }.count
 
             let header = "@@ -\(oldStart),\(oldLength) +\(newStart),\(newLength) @@"
             let bodyRaw = segment.map(\.rawLine)
@@ -182,7 +181,7 @@ public func reconstructEffectiveDiff(
 
 // MARK: - Move Report
 
-public func buildMoveReport(
+func buildMoveReport(
     _ effectiveResults: [EffectiveDiffResult]
 ) -> EffectiveDiffMoveReport {
     var details: [EffectiveDiffMoveDetail] = []

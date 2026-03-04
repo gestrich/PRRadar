@@ -194,7 +194,7 @@ public struct PRAcquisitionService: Sendable {
         let parsedMD = formatDiffAsMarkdown(gitDiff)
         try write(parsedMD, to: "\(diffDir)/\(DataPathsService.diffParsedMarkdownFilename)")
 
-        let (effectiveDiffJSON, effectiveMD, movesJSON, classifiedHunksJSON, prDiffJSON) = try await runEffectiveDiff(
+        let (effectiveDiffJSON, effectiveMD, movesJSON, prDiffJSON) = try await runEffectiveDiff(
             gitDiff: gitDiff,
             baseRefName: baseRefName,
             headCommit: fullCommitHash,
@@ -204,7 +204,6 @@ public struct PRAcquisitionService: Sendable {
         try write(effectiveDiffJSON, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedJSONFilename)")
         try write(effectiveMD, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedMarkdownFilename)")
         try write(movesJSON, to: "\(diffDir)/\(DataPathsService.effectiveDiffMovesFilename)")
-        try write(classifiedHunksJSON, to: "\(diffDir)/\(DataPathsService.classifiedHunksFilename)")
         try write(prDiffJSON, to: "\(diffDir)/\(DataPathsService.prDiffFilename)")
 
         try PhaseResultWriter.writeSuccess(
@@ -300,7 +299,7 @@ public struct PRAcquisitionService: Sendable {
         headCommit: String,
         fallbackDiffJSON: Data,
         fallbackMD: String
-    ) async throws -> (diffJSON: Data, diffMD: String, movesJSON: Data, classifiedHunksJSON: Data, prDiffJSON: Data) {
+    ) async throws -> (diffJSON: Data, diffMD: String, movesJSON: Data, prDiffJSON: Data) {
         do {
             let mergeBase = try await historyProvider.getMergeBase(
                 commit1: "origin/\(baseRefName)",
@@ -323,12 +322,10 @@ public struct PRAcquisitionService: Sendable {
 
             let effectiveDiffJSON = try JSONEncoder.prettyPrinted.encode(result.effectiveDiff)
             let effectiveMD = formatDiffAsMarkdown(result.effectiveDiff)
-            let moveReport = result.moveReport.toMoveReport()
-            let movesJSON = try JSONEncoder.prettyPrinted.encode(moveReport)
-            let classifiedHunksJSON = try JSONEncoder.prettyPrinted.encode(result.classifiedHunks)
+            let movesJSON = try JSONEncoder.prettyPrinted.encode(result.moveReport)
             let prDiffJSON = try JSONEncoder.prettyPrinted.encode(result.prDiff)
 
-            return (effectiveDiffJSON, effectiveMD, movesJSON, classifiedHunksJSON, prDiffJSON)
+            return (effectiveDiffJSON, effectiveMD, movesJSON, prDiffJSON)
         } catch {
             let emptyMoveReport = MoveReport(
                 movesDetected: 0,
@@ -337,14 +334,9 @@ public struct PRAcquisitionService: Sendable {
                 moves: []
             )
             let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
-            let emptyClassifiedHunksJSON = try JSONEncoder.prettyPrinted.encode([ClassifiedHunk]())
-            let fallbackPRDiff = PRDiff.build(
-                from: gitDiff,
-                classifiedHunks: [],
-                moveReport: nil
-            )
+            let fallbackPRDiff = PRDiff.fromRawDiff(gitDiff)
             let fallbackPRDiffJSON = try JSONEncoder.prettyPrinted.encode(fallbackPRDiff)
-            return (fallbackDiffJSON, fallbackMD, movesJSON, emptyClassifiedHunksJSON, fallbackPRDiffJSON)
+            return (fallbackDiffJSON, fallbackMD, movesJSON, fallbackPRDiffJSON)
         }
     }
 
