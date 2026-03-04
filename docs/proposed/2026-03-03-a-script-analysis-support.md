@@ -237,7 +237,10 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
 
 4. **Verify end-to-end flow**: The prepare → analyze pipeline should work with a script rule. The rule YAML `violation_script` field gets parsed into `ReviewRule`, carried through to `TaskRule` in `RuleRequest`, and dispatched to `ScriptAnalysisService` during analysis.
 
-## - [ ] Phase 5: Tests
+## - [x] Phase 5: Tests
+
+**Skills used**: `swift-testing`
+**Principles applied**: Arrange-Act-Assert pattern with section comments; `@Suite`/`@Test` attributes; private helper factories paralleling existing test files; real temporary scripts for integration tests; strict error case coverage
 
 **Skills to read**: `/swift-testing`
 

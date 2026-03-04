@@ -7,7 +7,7 @@ struct AnalysisModeTests {
 
     // MARK: - Helpers
 
-    private func makeTask(violationRegex: String? = nil) -> RuleRequest {
+    private func makeTask(violationRegex: String? = nil, violationScript: String? = nil) -> RuleRequest {
         RuleRequest(
             taskId: "test-task",
             rule: TaskRule(
@@ -15,7 +15,8 @@ struct AnalysisModeTests {
                 description: "Test rule",
                 category: "test",
                 content: "Rule content",
-                violationRegex: violationRegex
+                violationRegex: violationRegex,
+                violationScript: violationScript
             ),
             focusArea: FocusArea(
                 focusId: "focus-1",
@@ -36,6 +37,10 @@ struct AnalysisModeTests {
 
     private func makeAiTask() -> RuleRequest {
         makeTask(violationRegex: nil)
+    }
+
+    private func makeScriptTask() -> RuleRequest {
+        makeTask(violationScript: "scripts/check.sh")
     }
 
     // MARK: - .all
@@ -116,6 +121,44 @@ struct AnalysisModeTests {
         #expect(!result)
     }
 
+    // MARK: - .scriptOnly
+
+    @Test("scriptOnly matches script task")
+    func scriptOnlyMatchesScriptTask() {
+        // Arrange
+        let task = makeScriptTask()
+
+        // Act
+        let result = AnalysisMode.scriptOnly.matches(task)
+
+        // Assert
+        #expect(result)
+    }
+
+    @Test("scriptOnly rejects regex task")
+    func scriptOnlyRejectsRegexTask() {
+        // Arrange
+        let task = makeRegexTask()
+
+        // Act
+        let result = AnalysisMode.scriptOnly.matches(task)
+
+        // Assert
+        #expect(!result)
+    }
+
+    @Test("scriptOnly rejects AI task")
+    func scriptOnlyRejectsAiTask() {
+        // Arrange
+        let task = makeAiTask()
+
+        // Act
+        let result = AnalysisMode.scriptOnly.matches(task)
+
+        // Assert
+        #expect(!result)
+    }
+
     // MARK: - Filtering a mixed task list
 
     @Test("regexOnly filters to only regex tasks from a mixed list")
@@ -124,6 +167,7 @@ struct AnalysisModeTests {
         let tasks = [
             makeRegexTask(),
             makeAiTask(),
+            makeScriptTask(),
             makeTask(violationRegex: "HACK"),
         ]
 
@@ -140,11 +184,29 @@ struct AnalysisModeTests {
         let tasks = [
             makeRegexTask(),
             makeAiTask(),
+            makeScriptTask(),
             makeTask(violationRegex: "HACK"),
         ]
 
         // Act
         let filtered = tasks.filter { AnalysisMode.aiOnly.matches($0) }
+
+        // Assert
+        #expect(filtered.count == 1)
+    }
+
+    @Test("scriptOnly filters to only script tasks from a mixed list")
+    func scriptOnlyFiltersMixedList() {
+        // Arrange
+        let tasks = [
+            makeRegexTask(),
+            makeAiTask(),
+            makeScriptTask(),
+            makeTask(violationRegex: "HACK"),
+        ]
+
+        // Act
+        let filtered = tasks.filter { AnalysisMode.scriptOnly.matches($0) }
 
         // Assert
         #expect(filtered.count == 1)
@@ -156,6 +218,7 @@ struct AnalysisModeTests {
         let tasks = [
             makeRegexTask(),
             makeAiTask(),
+            makeScriptTask(),
             makeTask(violationRegex: "HACK"),
         ]
 
@@ -163,7 +226,7 @@ struct AnalysisModeTests {
         let filtered = tasks.filter { AnalysisMode.all.matches($0) }
 
         // Assert
-        #expect(filtered.count == 3)
+        #expect(filtered.count == 4)
     }
 
     // MARK: - Raw values
