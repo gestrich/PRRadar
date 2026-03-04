@@ -159,7 +159,10 @@ Create new model types in `PRRadarModels/` using the chosen naming prefix. These
 
 4. Create `DiffStats.swift` (simple struct with line counts — added, removed, moved, changed)
 
-## - [ ] Phase 2: Update pipeline to produce unified models
+## - [x] Phase 2: Update pipeline to produce unified models
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Dual output for migration — pipeline produces both old and new models. PRDiff serialized to pr-diff.json alongside existing files.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

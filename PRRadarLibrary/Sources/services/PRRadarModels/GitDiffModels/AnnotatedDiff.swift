@@ -10,16 +10,19 @@ public struct AnnotatedDiff: Codable, Sendable, Equatable {
     public let effectiveDiff: GitDiff?
     public let moveReport: MoveReport?
     public let classifiedHunks: [ClassifiedHunk]
+    public let prDiff: PRDiff?
 
     public init(
         fullDiff: GitDiff,
         effectiveDiff: GitDiff? = nil,
         moveReport: MoveReport? = nil,
-        classifiedHunks: [ClassifiedHunk] = []
+        classifiedHunks: [ClassifiedHunk] = [],
+        prDiff: PRDiff? = nil
     ) {
         self.fullDiff = fullDiff
         self.effectiveDiff = effectiveDiff
         self.moveReport = moveReport
         self.classifiedHunks = classifiedHunks
+        self.prDiff = prDiff
     }
 }

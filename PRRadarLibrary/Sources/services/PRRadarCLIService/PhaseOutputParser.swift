@@ -112,6 +112,18 @@ public enum PhaseOutputParser {
         )
     }
 
+    /// Load a `PRDiff` from the diff phase output files on disk.
+    public static func loadPRDiff(
+        config: RepositoryConfiguration,
+        prNumber: Int,
+        commitHash: String?
+    ) -> PRDiff? {
+        try? parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff,
+            filename: DataPathsService.prDiffFilename, commitHash: commitHash
+        )
+    }
+
     // MARK: - Subdirectory Variants
 
     /// Decode a single JSON file from a phase subdirectory.
