@@ -283,7 +283,10 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
 
 7. **Integration: `AnalysisService` dispatch tests**: Verify script tasks route to `ScriptAnalysisService`.
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: End-to-end validation against real test repo; found and fixed two integration bugs: `RuleLoaderService.ruleWithURL()` dropping `violationScript` field, and `AnalyzeSingleTaskUseCase` missing script dispatch (fell through to AI). Verified post-filtering correctly excludes unchanged lines.
 
 **Skills to read**: `/swift-testing`
 

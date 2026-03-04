@@ -168,7 +168,8 @@ public struct RuleLoaderService: Sendable {
             grep: rule.grep,
             newCodeLinesOnly: rule.newCodeLinesOnly,
             violationRegex: rule.violationRegex,
-            violationMessage: rule.violationMessage
+            violationMessage: rule.violationMessage,
+            violationScript: rule.violationScript
         )
     }
 }

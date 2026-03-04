@@ -15,8 +15,8 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
 
     /// Execute a single analysis task.
     ///
-    /// Routes to `RegexAnalysisService` or `AnalysisService` based on whether the
-    /// task's rule has a `violationRegex`. Callers that already have an `AnnotatedDiff`
+    /// Routes to `RegexAnalysisService`, `ScriptAnalysisService`, or `AnalysisService`
+    /// based on the task's rule analysis type. Callers that already have an `AnnotatedDiff`
     /// loaded can pass it to avoid a redundant disk read.
     public func execute(
         task: RuleRequest,
@@ -47,6 +47,13 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
                         let hunks = resolvedDiff?.classifiedHunks ?? []
                         let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
                         result = RegexAnalysisService().analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
+                    } else if let scriptPath = task.rule.violationScript {
+                        let resolvedDiff = annotatedDiff ?? PhaseOutputParser.loadAnnotatedDiff(
+                            config: config, prNumber: prNumber, commitHash: resolvedCommit
+                        )
+                        let hunks = resolvedDiff?.classifiedHunks ?? []
+                        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
+                        result = ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, classifiedHunks: focusedHunks)
                     } else {
                         let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
                         guard let anthropicKey = resolver.getAnthropicKey() else {
