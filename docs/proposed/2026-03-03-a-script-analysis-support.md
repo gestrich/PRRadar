@@ -219,7 +219,10 @@ Create `PRRadarCLIService/ScriptAnalysisService.swift` parallel to `RegexAnalysi
    - If any line fails validation, throw a `RuleError` for the entire script result — no partial results, no silent skipping
    - Empty lines are skipped (trailing newline is common)
 
-## - [ ] Phase 4: Wire script analysis into the pipeline
+## - [x] Phase 4: Wire script analysis into the pipeline
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Paralleled regex case structure for script dispatch; layered error handling (missing field at dispatch, execution errors in ScriptAnalysisService); writes result JSON same as regex/AI
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

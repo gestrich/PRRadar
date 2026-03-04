@@ -220,8 +220,8 @@ public struct AnalysisService: Sendable {
 
     /// Run analysis for all tasks, writing results to the evaluations directory.
     ///
-    /// Tasks with `violationRegex` are evaluated via `RegexAnalysisService` first (instant),
-    /// then AI tasks are evaluated sequentially via the Claude agent.
+    /// Tasks are grouped by type: regex first (instant), then scripts (fast, local),
+    /// then AI tasks (expensive, sequential via Claude agent).
     public func runBatchAnalysis(
         tasks: [RuleRequest],
         evalsDir: String,
@@ -274,13 +274,23 @@ public struct AnalysisService: Sendable {
                 try data.write(to: URL(fileURLWithPath: resultPath))
 
             case .script:
-                result = .error(RuleError(
-                    taskId: task.taskId,
-                    ruleName: task.rule.name,
-                    filePath: task.focusArea.filePath,
-                    errorMessage: "Script analysis not yet implemented",
-                    analysisMethod: .regex(pattern: "")
-                ))
+                guard let scriptPath = task.rule.violationScript else {
+                    result = .error(RuleError(
+                        taskId: task.taskId,
+                        ruleName: task.rule.name,
+                        filePath: task.focusArea.filePath,
+                        errorMessage: "Script rule missing violationScript path",
+                        analysisMethod: .script(path: "")
+                    ))
+                    break
+                }
+                let scriptService = ScriptAnalysisService()
+                let focusedScriptHunks = ClassifiedHunk.filterForFocusArea(classifiedHunks, focusArea: task.focusArea)
+                result = scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: focusedScriptHunks)
+
+                let scriptData = try encoder.encode(result)
+                let scriptResultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
+                try scriptData.write(to: URL(fileURLWithPath: scriptResultPath))
 
             case .ai:
                 do {
