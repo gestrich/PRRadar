@@ -12,7 +12,7 @@ public struct RegexAnalysisService: Sendable {
     public func analyzeTask(
         _ task: RuleRequest,
         pattern: String,
-        classifiedHunks: [ClassifiedHunk]
+        hunks: [PRHunk]
     ) -> RuleOutcome {
         let startTime = Date().timeIntervalSinceReferenceDate
 
@@ -29,7 +29,7 @@ public struct RegexAnalysisService: Sendable {
             ))
         }
 
-        let linesToCheck = classifiedHunks.flatMap {
+        let linesToCheck = hunks.flatMap {
             $0.relevantLines(newCodeLinesOnly: task.rule.newCodeLinesOnly)
         }
 

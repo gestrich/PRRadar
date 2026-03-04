@@ -13,7 +13,7 @@ public struct ScriptAnalysisService: Sendable {
         _ task: RuleRequest,
         scriptPath: String,
         repoPath: String,
-        classifiedHunks: [ClassifiedHunk]
+        hunks: [PRHunk]
     ) -> RuleOutcome {
         let startTime = Date().timeIntervalSinceReferenceDate
         let analysisMethod = AnalysisMethod.script(path: scriptPath)
@@ -105,7 +105,7 @@ public struct ScriptAnalysisService: Sendable {
         }
 
         // Post-filter against changed lines
-        let relevantLineNumbers = Set(classifiedHunks.flatMap {
+        let relevantLineNumbers = Set(hunks.flatMap {
             $0.relevantLineNumbers(newCodeLinesOnly: task.rule.newCodeLinesOnly)
         })
 

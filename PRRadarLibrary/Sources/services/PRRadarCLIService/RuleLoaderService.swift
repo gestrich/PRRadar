@@ -93,9 +93,9 @@ public struct RuleLoaderService: Sendable {
     public func filterRulesForFocusArea(
         _ allRules: [ReviewRule],
         focusArea: FocusArea,
-        annotatedDiff: AnnotatedDiff
+        prDiff: PRDiff
     ) -> [ReviewRule] {
-        let focusedHunks = ClassifiedHunk.filterForFocusArea(annotatedDiff.classifiedHunks, focusArea: focusArea)
+        let focusedHunks = PRHunk.filterForFocusArea(prDiff.hunks, focusArea: focusArea)
         let changedContent = focusedHunks
             .flatMap { $0.changedLines }
             .map { $0.content }

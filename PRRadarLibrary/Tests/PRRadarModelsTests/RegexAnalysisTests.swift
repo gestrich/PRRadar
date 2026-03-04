@@ -5,32 +5,32 @@ import Testing
 
 // MARK: - Helpers
 
-private func makeClassifiedLine(
+private func makePRLine(
     content: String,
     changeKind: ChangeKind,
-    inMovedBlock: Bool = false,
+    move: MoveInfo? = nil,
     lineType: DiffLineType = .added,
     filePath: String = "Calculator.swift",
     newLineNumber: Int? = nil,
     oldLineNumber: Int? = nil
-) -> ClassifiedDiffLine {
-    ClassifiedDiffLine(
+) -> PRLine {
+    PRLine(
         content: content,
         rawLine: lineType == .added ? "+\(content)" : lineType == .removed ? "-\(content)" : " \(content)",
-        lineType: lineType,
+        diffType: lineType,
         changeKind: changeKind,
-        inMovedBlock: inMovedBlock,
-        newLineNumber: newLineNumber ?? (lineType == .added ? 1 : nil),
         oldLineNumber: oldLineNumber ?? (lineType == .removed ? 1 : nil),
-        filePath: filePath
+        newLineNumber: newLineNumber ?? (lineType == .added ? 1 : nil),
+        filePath: filePath,
+        move: move
     )
 }
 
-private func makeClassifiedHunk(
+private func makePRHunk(
     filePath: String = "Calculator.swift",
-    lines: [ClassifiedDiffLine]
-) -> ClassifiedHunk {
-    ClassifiedHunk(filePath: filePath, oldStart: 1, newStart: 1, lines: lines)
+    lines: [PRLine]
+) -> PRHunk {
+    PRHunk(filePath: filePath, oldStart: 1, newStart: 1, lines: lines)
 }
 
 private func makeTaskRule(
@@ -213,12 +213,12 @@ struct RegexAnalysisServiceTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -236,12 +236,12 @@ struct RegexAnalysisServiceTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "force_unwrap!")
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "let x = Optional.some(42)", changeKind: .added, newLineNumber: 5),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "let x = Optional.some(42)", changeKind: .added, newLineNumber: 5),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "force_unwrap!", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "force_unwrap!", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -258,15 +258,15 @@ struct RegexAnalysisServiceTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "guard a != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
-            makeClassifiedLine(content: "return 1.0 / Double(a)", changeKind: .added, newLineNumber: 21),
-            makeClassifiedLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 25),
-            makeClassifiedLine(content: "guard c != 0 else { return nil }", changeKind: .added, newLineNumber: 30),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "guard a != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
+            makePRLine(content: "return 1.0 / Double(a)", changeKind: .added, newLineNumber: 21),
+            makePRLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 25),
+            makePRLine(content: "guard c != 0 else { return nil }", changeKind: .added, newLineNumber: 30),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -283,12 +283,12 @@ struct RegexAnalysisServiceTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "return nil", violationMessage: "Custom message")
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "return nil", changeKind: .added, newLineNumber: 1),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "return nil", changeKind: .added, newLineNumber: 1),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -304,12 +304,12 @@ struct RegexAnalysisServiceTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "return nil", changeKind: .added, newLineNumber: 1),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "return nil", changeKind: .added, newLineNumber: 1),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -325,12 +325,12 @@ struct RegexAnalysisServiceTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "return nil", changeKind: .added, newLineNumber: 1),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "return nil", changeKind: .added, newLineNumber: 1),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -352,7 +352,7 @@ struct RegexAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, pattern: "[invalid", classifiedHunks: [])
+        let result = service.analyzeTask(task, pattern: "[invalid", hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -370,7 +370,7 @@ struct RegexAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", classifiedHunks: [])
+        let result = service.analyzeTask(task, pattern: "return nil", hunks: [])
 
         // Assert
         if case .success(let r) = result {
@@ -392,16 +392,16 @@ struct RegexNewCodeOnlyTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "// TODO: new task", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "// TODO: moved task", changeKind: .unchanged, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "// TODO: changed in move", changeKind: .changed, inMovedBlock: true, newLineNumber: 12),
-            makeClassifiedLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
-            makeClassifiedLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "// TODO: new task", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "// TODO: moved task", changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "// TODO: changed in move", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 12),
+            makePRLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
+            makePRLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "TODO", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
 
         // Assert — only .new (changeKind == .added) passes; .changedInMove (changeKind == .changed) is excluded
         if case .success(let r) = result {
@@ -419,16 +419,16 @@ struct RegexNewCodeOnlyTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: false)
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "// TODO: new", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makeClassifiedLine(content: "// TODO: changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 12),
-            makeClassifiedLine(content: "// TODO: moved", changeKind: .unchanged, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "// TODO: new", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "// TODO: changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 12),
+            makePRLine(content: "// TODO: moved", changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "TODO", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -444,15 +444,15 @@ struct RegexNewCodeOnlyTests {
         let service = RegexAnalysisService()
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "// TODO: inserted in move", changeKind: .added, inMovedBlock: true, newLineNumber: 15),
-            makeClassifiedLine(content: "// TODO: just moved", changeKind: .unchanged, inMovedBlock: true, newLineNumber: 16),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "// TODO: inserted in move", changeKind: .added, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 15),
+            makePRLine(content: "// TODO: just moved", changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 16),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "TODO", classifiedHunks: hunks)
+        let result = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
 
-        // Assert — .added + inMovedBlock passes the filter because changeKind == .added
+        // Assert — .added + move passes the filter because changeKind == .added
         if case .success(let r) = result {
             #expect(r.violations.count == 1)
             #expect(r.violations[0].lineNumber == 15)
@@ -471,13 +471,13 @@ struct ClassifiedHunkFocusAreaFilteringTests {
     func filtersByFileAndRange() {
         // Arrange
         let hunks = [
-            makeClassifiedHunk(filePath: "A.swift", lines: [
-                makeClassifiedLine(content: "line1", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
-                makeClassifiedLine(content: "line2", changeKind: .added, filePath: "A.swift", newLineNumber: 15),
-                makeClassifiedLine(content: "line3", changeKind: .added, filePath: "A.swift", newLineNumber: 25),
+            makePRHunk(filePath: "A.swift", lines: [
+                makePRLine(content: "line1", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
+                makePRLine(content: "line2", changeKind: .added, filePath: "A.swift", newLineNumber: 15),
+                makePRLine(content: "line3", changeKind: .added, filePath: "A.swift", newLineNumber: 25),
             ]),
-            makeClassifiedHunk(filePath: "B.swift", lines: [
-                makeClassifiedLine(content: "other", changeKind: .added, filePath: "B.swift", newLineNumber: 10),
+            makePRHunk(filePath: "B.swift", lines: [
+                makePRLine(content: "other", changeKind: .added, filePath: "B.swift", newLineNumber: 10),
             ]),
         ]
         let focusArea = FocusArea(
@@ -487,7 +487,7 @@ struct ClassifiedHunkFocusAreaFilteringTests {
         )
 
         // Act
-        let filtered = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let filtered = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
 
         // Assert
         #expect(filtered.count == 1)
@@ -499,8 +499,8 @@ struct ClassifiedHunkFocusAreaFilteringTests {
     func noFileMatch() {
         // Arrange
         let hunks = [
-            makeClassifiedHunk(filePath: "A.swift", lines: [
-                makeClassifiedLine(content: "code", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
+            makePRHunk(filePath: "A.swift", lines: [
+                makePRLine(content: "code", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
             ]),
         ]
         let focusArea = FocusArea(
@@ -510,7 +510,7 @@ struct ClassifiedHunkFocusAreaFilteringTests {
         )
 
         // Act
-        let filtered = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let filtered = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
 
         // Assert
         #expect(filtered.isEmpty)
@@ -547,8 +547,8 @@ struct GrepFilteringClassifiedHunkTests {
             grepAny: ["^[+-]\\s*\\("],
             appliesTo: AppliesTo(filePatterns: ["*.h"])
         )
-        let hunks = [makeClassifiedHunk(filePath: "Header.h", lines: [
-            makeClassifiedLine(
+        let hunks = [makePRHunk(filePath: "Header.h", lines: [
+            makePRLine(
                 content: "- (UITabBarItem *)foo;",
                 changeKind: .added,
                 filePath: "Header.h",
@@ -562,7 +562,7 @@ struct GrepFilteringClassifiedHunkTests {
         )
 
         // Act
-        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
         let changedContent = focusedHunks
             .flatMap { $0.changedLines }
             .map { $0.content }
@@ -576,8 +576,8 @@ struct GrepFilteringClassifiedHunkTests {
     func objcClassMethodPatternMatchesCleanSource() {
         // Arrange
         let rule = makeRule(grepAny: ["^[+-]\\s*\\("])
-        let hunks = [makeClassifiedHunk(filePath: "Header.h", lines: [
-            makeClassifiedLine(
+        let hunks = [makePRHunk(filePath: "Header.h", lines: [
+            makePRLine(
                 content: "+ (instancetype)sharedInstance;",
                 changeKind: .added,
                 filePath: "Header.h",
@@ -591,7 +591,7 @@ struct GrepFilteringClassifiedHunkTests {
         )
 
         // Act
-        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
         let changedContent = focusedHunks
             .flatMap { $0.changedLines }
             .map { $0.content }
@@ -605,8 +605,8 @@ struct GrepFilteringClassifiedHunkTests {
     func importPatternMatchesAddedLine() {
         // Arrange
         let rule = makeRule(grepAny: ["@import"])
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(
+        let hunks = [makePRHunk(lines: [
+            makePRLine(
                 content: "@import UIKit;",
                 changeKind: .added,
                 newLineNumber: 1
@@ -619,7 +619,7 @@ struct GrepFilteringClassifiedHunkTests {
         )
 
         // Act
-        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
         let changedContent = focusedHunks
             .flatMap { $0.changedLines }
             .map { $0.content }
@@ -633,15 +633,15 @@ struct GrepFilteringClassifiedHunkTests {
     func movedLinesExcluded() {
         // Arrange
         let rule = makeRule(grepAny: ["@import"])
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(
+        let hunks = [makePRHunk(lines: [
+            makePRLine(
                 content: "@import UIKit;",
-                changeKind: .unchanged, inMovedBlock: true,
+                changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false),
                 newLineNumber: 1
             ),
-            makeClassifiedLine(
+            makePRLine(
                 content: "@import Foundation;",
-                changeKind: .unchanged, inMovedBlock: true,
+                changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false),
                 lineType: .removed,
                 oldLineNumber: 5
             ),
@@ -653,7 +653,7 @@ struct GrepFilteringClassifiedHunkTests {
         )
 
         // Act
-        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
         let changedContent = focusedHunks
             .flatMap { $0.changedLines }
             .map { $0.content }
@@ -667,8 +667,8 @@ struct GrepFilteringClassifiedHunkTests {
     func contextLinesExcluded() {
         // Arrange
         let rule = makeRule(grepAny: ["@import"])
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(
+        let hunks = [makePRHunk(lines: [
+            makePRLine(
                 content: "@import UIKit;",
                 changeKind: .unchanged,
                 lineType: .context,
@@ -682,7 +682,7 @@ struct GrepFilteringClassifiedHunkTests {
         )
 
         // Act
-        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: focusArea)
+        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: focusArea)
         let changedContent = focusedHunks
             .flatMap { $0.changedLines }
             .map { $0.content }

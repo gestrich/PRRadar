@@ -16,13 +16,13 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
     /// Execute a single analysis task.
     ///
     /// Routes to `RegexAnalysisService`, `ScriptAnalysisService`, or `AnalysisService`
-    /// based on the task's rule analysis type. Callers that already have an `AnnotatedDiff`
+    /// based on the task's rule analysis type. Callers that already have a `PRDiff`
     /// loaded can pass it to avoid a redundant disk read.
     public func execute(
         task: RuleRequest,
         prNumber: Int,
         commitHash: String? = nil,
-        annotatedDiff: AnnotatedDiff? = nil
+        prDiff: PRDiff? = nil
     ) -> AsyncThrowingStream<TaskProgress, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -41,19 +41,19 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
                     let result: RuleOutcome
 
                     if let pattern = task.rule.violationRegex {
-                        let resolvedDiff = annotatedDiff ?? PhaseOutputParser.loadAnnotatedDiff(
+                        let resolvedDiff = prDiff ?? PhaseOutputParser.loadPRDiff(
                             config: config, prNumber: prNumber, commitHash: resolvedCommit
                         )
-                        let hunks = resolvedDiff?.classifiedHunks ?? []
-                        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
-                        result = RegexAnalysisService().analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
+                        let hunks = resolvedDiff?.hunks ?? []
+                        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
+                        result = RegexAnalysisService().analyzeTask(task, pattern: pattern, hunks: focusedHunks)
                     } else if let scriptPath = task.rule.violationScript {
-                        let resolvedDiff = annotatedDiff ?? PhaseOutputParser.loadAnnotatedDiff(
+                        let resolvedDiff = prDiff ?? PhaseOutputParser.loadPRDiff(
                             config: config, prNumber: prNumber, commitHash: resolvedCommit
                         )
-                        let hunks = resolvedDiff?.classifiedHunks ?? []
-                        let focusedHunks = ClassifiedHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
-                        result = ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, classifiedHunks: focusedHunks)
+                        let hunks = resolvedDiff?.hunks ?? []
+                        let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
+                        result = ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, hunks: focusedHunks)
                     } else {
                         let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
                         guard let anthropicKey = resolver.getAnthropicKey() else {

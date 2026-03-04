@@ -37,7 +37,8 @@ public struct PrepareUseCase: Sendable {
                     continuation.yield(.log(text: "Generating focus areas...\n"))
 
                     let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-                    guard let fullDiff = diffSnapshot.annotatedDiff?.fullDiff else {
+                    guard let fullDiff = diffSnapshot.annotatedDiff?.fullDiff,
+                          let prDiff = diffSnapshot.prDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
                         return
@@ -151,7 +152,7 @@ public struct PrepareUseCase: Sendable {
                     let tasks = try await taskCreator.createAndWriteTasks(
                         rules: allRules,
                         focusAreas: allFocusAreas,
-                        annotatedDiff: diffSnapshot.annotatedDiff!,
+                        prDiff: prDiff,
                         outputDir: prepareDir,
                         rulesDir: rulesDir
                     )

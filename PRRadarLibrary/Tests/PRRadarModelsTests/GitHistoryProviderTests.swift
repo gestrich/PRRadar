@@ -179,7 +179,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         let tasks = try await service.createTasks(
-            rules: [rule], focusAreas: [focusArea], annotatedDiff: AnnotatedDiff(fullDiff: GitDiff(rawContent: "", hunks: [], commitHash: "abc123"))
+            rules: [rule], focusAreas: [focusArea], prDiff: PRDiff(commitHash: "abc123", rawText: "", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
         )
 
         // Assert
@@ -204,7 +204,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         let tasks = try await service.createTasks(
-            rules: [rule], focusAreas: [focusArea], annotatedDiff: AnnotatedDiff(fullDiff: GitDiff(rawContent: "", hunks: [], commitHash: "abc123"))
+            rules: [rule], focusAreas: [focusArea], prDiff: PRDiff(commitHash: "abc123", rawText: "", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
         )
 
         // Assert
@@ -236,7 +236,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         _ = try await service.createTasks(
-            rules: [rule], focusAreas: [focus1, focus2], annotatedDiff: AnnotatedDiff(fullDiff: GitDiff(rawContent: "", hunks: [], commitHash: "abc123"))
+            rules: [rule], focusAreas: [focus1, focus2], prDiff: PRDiff(commitHash: "abc123", rawText: "", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
         )
 
         // Assert — getBlobHash called only once for the same file
@@ -259,7 +259,7 @@ struct TaskCreatorServiceHistoryProviderTests {
 
         // Act
         let tasks = try await service.createTasks(
-            rules: [rule], focusAreas: [focus1, focus2], annotatedDiff: AnnotatedDiff(fullDiff: GitDiff(rawContent: "", hunks: [], commitHash: "abc123"))
+            rules: [rule], focusAreas: [focus1, focus2], prDiff: PRDiff(commitHash: "abc123", rawText: "", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
         )
 
         // Assert

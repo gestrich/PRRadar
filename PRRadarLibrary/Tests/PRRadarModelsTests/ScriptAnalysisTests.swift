@@ -5,32 +5,32 @@ import Testing
 
 // MARK: - Helpers
 
-private func makeClassifiedLine(
+private func makePRLine(
     content: String,
     changeKind: ChangeKind,
-    inMovedBlock: Bool = false,
+    move: MoveInfo? = nil,
     lineType: DiffLineType = .added,
     filePath: String = "Calculator.swift",
     newLineNumber: Int? = nil,
     oldLineNumber: Int? = nil
-) -> ClassifiedDiffLine {
-    ClassifiedDiffLine(
+) -> PRLine {
+    PRLine(
         content: content,
         rawLine: lineType == .added ? "+\(content)" : lineType == .removed ? "-\(content)" : " \(content)",
-        lineType: lineType,
+        diffType: lineType,
         changeKind: changeKind,
-        inMovedBlock: inMovedBlock,
-        newLineNumber: newLineNumber ?? (lineType == .added ? 1 : nil),
         oldLineNumber: oldLineNumber ?? (lineType == .removed ? 1 : nil),
-        filePath: filePath
+        newLineNumber: newLineNumber ?? (lineType == .added ? 1 : nil),
+        filePath: filePath,
+        move: move
     )
 }
 
-private func makeClassifiedHunk(
+private func makePRHunk(
     filePath: String = "Calculator.swift",
-    lines: [ClassifiedDiffLine]
-) -> ClassifiedHunk {
-    ClassifiedHunk(filePath: filePath, oldStart: 1, newStart: 1, lines: lines)
+    lines: [PRLine]
+) -> PRHunk {
+    PRHunk(filePath: filePath, oldStart: 1, newStart: 1, lines: lines)
 }
 
 private func makeTaskRule(
@@ -216,11 +216,11 @@ struct ClassifiedHunkRelevantLinesTests {
     @Test("relevantLines with newCodeLinesOnly: true returns only added lines")
     func relevantLinesNewCodeOnly() {
         // Arrange
-        let hunk = makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makeClassifiedLine(content: "unchanged", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+        let hunk = makePRHunk(lines: [
+            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "unchanged", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -234,11 +234,11 @@ struct ClassifiedHunkRelevantLinesTests {
     @Test("relevantLines with newCodeLinesOnly: false returns all changed lines")
     func relevantLinesAllChanged() {
         // Arrange
-        let hunk = makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makeClassifiedLine(content: "unchanged", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+        let hunk = makePRHunk(lines: [
+            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "unchanged", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -252,10 +252,10 @@ struct ClassifiedHunkRelevantLinesTests {
     @Test("relevantLineNumbers with newCodeLinesOnly: true returns line numbers of added lines")
     func relevantLineNumbersNewCodeOnly() {
         // Arrange
-        let hunk = makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+        let hunk = makePRHunk(lines: [
+            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -268,11 +268,11 @@ struct ClassifiedHunkRelevantLinesTests {
     @Test("relevantLineNumbers with newCodeLinesOnly: false returns line numbers of all changed lines")
     func relevantLineNumbersAllChanged() {
         // Arrange
-        let hunk = makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makeClassifiedLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+        let hunk = makePRHunk(lines: [
+            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -285,8 +285,8 @@ struct ClassifiedHunkRelevantLinesTests {
     @Test("relevantLineNumbers falls back to oldLineNumber when newLineNumber is nil")
     func fallsBackToOldLineNumber() {
         // Arrange
-        let hunk = makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "removed", changeKind: .removed, lineType: .removed, newLineNumber: nil, oldLineNumber: 42),
+        let hunk = makePRHunk(lines: [
+            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, newLineNumber: nil, oldLineNumber: 42),
         ])
 
         // Act
@@ -807,13 +807,13 @@ struct ScriptAnalysisServiceTests {
         let service = ScriptAnalysisService()
         let rule = makeTaskRule(description: "Default message", violationScript: scriptPath)
         let task = makeRuleRequest(rule: rule, filePath: "Calculator.swift", startLine: 1, endLine: 100)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "import A", changeKind: .added, newLineNumber: 15),
-            makeClassifiedLine(content: "import B", changeKind: .added, newLineNumber: 23),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "import A", changeKind: .added, newLineNumber: 15),
+            makePRLine(content: "import B", changeKind: .added, newLineNumber: 23),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: hunks)
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -842,7 +842,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: [])
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .success(let r) = result {
@@ -862,7 +862,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: [])
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -883,7 +883,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: "scripts/nonexistent.sh", repoPath: repoDir.path, classifiedHunks: [])
+        let result = service.analyzeTask(task, scriptPath: "scripts/nonexistent.sh", repoPath: repoDir.path, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -909,7 +909,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: "scripts/check.sh", repoPath: repoDir.path, classifiedHunks: [])
+        let result = service.analyzeTask(task, scriptPath: "scripts/check.sh", repoPath: repoDir.path, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -928,12 +928,12 @@ struct ScriptAnalysisServiceTests {
         let service = ScriptAnalysisService()
         let rule = makeTaskRule(violationScript: scriptPath)
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "changed line", changeKind: .added, newLineNumber: 15),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "changed line", changeKind: .added, newLineNumber: 15),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: hunks)
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -954,14 +954,14 @@ struct ScriptAnalysisServiceTests {
         let service = ScriptAnalysisService()
         let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "changed in move", changeKind: .changed, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 12),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "changed in move", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 12),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: hunks)
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert — only line 10 (changeKind == .added) passes
         if case .success(let r) = result {
@@ -981,15 +981,15 @@ struct ScriptAnalysisServiceTests {
         let service = ScriptAnalysisService()
         let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: false)
         let task = makeRuleRequest(rule: rule)
-        let hunks = [makeClassifiedHunk(lines: [
-            makeClassifiedLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makeClassifiedLine(content: "changed", changeKind: .changed, inMovedBlock: true, newLineNumber: 11),
-            makeClassifiedLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 12),
-            makeClassifiedLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
+        let hunks = [makePRHunk(lines: [
+            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 12),
+            makePRLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: hunks)
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert — lines 10, 11, 12 pass (changed); line 13 (unchanged) does not
         if case .success(let r) = result {
@@ -1012,7 +1012,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: [])
+        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .error(let e) = result {

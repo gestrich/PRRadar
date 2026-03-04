@@ -226,7 +226,7 @@ public struct AnalysisService: Sendable {
         tasks: [RuleRequest],
         evalsDir: String,
         repoPath: String,
-        annotatedDiff: AnnotatedDiff? = nil,
+        prDiff: PRDiff? = nil,
         onStart: ((Int, Int, RuleRequest) -> Void)? = nil,
         onResult: ((Int, Int, RuleOutcome) -> Void)? = nil,
         onPrompt: ((String, RuleRequest) -> Void)? = nil,
@@ -246,7 +246,7 @@ public struct AnalysisService: Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
         let regexService = RegexAnalysisService()
-        let classifiedHunks = annotatedDiff?.classifiedHunks ?? []
+        let allHunks = prDiff?.hunks ?? []
 
         for (i, task) in orderedTasks.enumerated() {
             let index = i + 1
@@ -266,8 +266,8 @@ public struct AnalysisService: Sendable {
                     ))
                     break
                 }
-                let focusedHunks = ClassifiedHunk.filterForFocusArea(classifiedHunks, focusArea: task.focusArea)
-                result = regexService.analyzeTask(task, pattern: pattern, classifiedHunks: focusedHunks)
+                let focusedHunks = PRHunk.filterForFocusArea(allHunks, focusArea: task.focusArea)
+                result = regexService.analyzeTask(task, pattern: pattern, hunks: focusedHunks)
 
                 let data = try encoder.encode(result)
                 let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
@@ -285,8 +285,8 @@ public struct AnalysisService: Sendable {
                     break
                 }
                 let scriptService = ScriptAnalysisService()
-                let focusedScriptHunks = ClassifiedHunk.filterForFocusArea(classifiedHunks, focusArea: task.focusArea)
-                result = scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, classifiedHunks: focusedScriptHunks)
+                let focusedScriptHunks = PRHunk.filterForFocusArea(allHunks, focusArea: task.focusArea)
+                result = scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: focusedScriptHunks)
 
                 let scriptData = try encoder.encode(result)
                 let scriptResultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"

@@ -206,7 +206,10 @@ Create a single use case that is the **only way clients get a `PRDiff`**. Caller
 
 4. Later phases must follow the same rule: if a use case or service needs `PRDiff`, it receives it as a parameter from its caller (who got it from `LoadPRDiffUseCase` or from the `SyncSnapshot`/`PRDetail` data flow). No direct `PhaseOutputParser.loadPRDiff()` calls.
 
-## - [ ] Phase 4: Migrate analysis consumers
+## - [x] Phase 4: Migrate analysis consumers
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: All consumers receive PRDiff/PRHunk as parameters; no direct PhaseOutputParser.loadAnnotatedDiff calls from client code; pure type substitution since PRHunk/PRLine have identical API shapes to ClassifiedHunk/ClassifiedDiffLine
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
