@@ -182,7 +182,10 @@ Replace the implicit `isRegexOnly: Bool` pattern with a proper enum.
 
 5. **Add example rule** in `docs/rule-examples/import-order-script.md` showing the `violation_script` YAML format.
 
-## - [ ] Phase 3: Implement `ScriptAnalysisService`
+## - [x] Phase 3: Implement `ScriptAnalysisService`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Stateless `Sendable` struct at services layer paralleling `RegexAnalysisService`; strict TSV parsing with `ScriptParsingError` enum; post-filters via `ClassifiedHunk.relevantLineNumbers` from Phase 1; reads pipes before `waitUntilExit` to avoid deadlock
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
