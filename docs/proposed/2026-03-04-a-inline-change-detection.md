@@ -1,4 +1,4 @@
-# Inline Change Detection and Paired Modification Classification
+# Inline Change Detection
 
 ## Relevant Skills
 
@@ -9,55 +9,53 @@
 
 ## Background
 
-PRRadar's effective diff pipeline classifies each diff line with a `ChangeKind` (`.added`, `.removed`, `.changed`, `.unchanged`). Currently, when a line is modified in place (not moved), the unified diff produces a `-` line and a `+` line. The classification assigns `.removed` and `.added` respectively — making in-place modifications **indistinguishable from genuinely new code**.
+`PRLine` already has an `inlineChanges: [InlineChangeSpan]?` field, but it is never populated — it's always `nil`. This plan adds the computation that populates it with character-level inline change data for paired modifications.
 
-The `.changed` kind is only assigned within detected move blocks (via re-diff analysis). This means rules with `newCodeLinesOnly: true` match modified lines as if they were brand new, causing false positives. For example, changing `* parentView` to `*parentView` (whitespace-only) or adding a parameter to an existing function signature both appear as "new code."
-
-Phase 2 of the [whitespace false-positives spec](2026-03-03-a-false-positive-whitespace-changes.md) added `buildWhitespaceOnlySet()` to handle the whitespace-only subset. This plan generalizes that approach to **all** in-place modifications and adds structured inline change data showing exactly which characters changed.
+**Prerequisite**: [Paired Modification Classification](2026-03-04-b-paired-modification-classification.md) must be completed first. That spec introduces `buildPairedModifications()` which identifies `-`/`+` line pairs within hunks and classifies them as `.changed`. This spec builds on that pairing infrastructure to compute **what** changed within each paired line.
 
 ### Approach
 
-1. **Pair `-`/`+` line runs** within hunks (sequential 1:1, matching how git pairs them)
-2. **Compute inline diffs** using Swift's `CollectionDifference` (Myers algorithm, built into stdlib — no external dependencies)
-3. **Store inline change spans** on `ClassifiedDiffLine` showing exactly which character ranges were inserted/deleted/unchanged
-4. **Classify** paired `+` lines as `.changed` instead of `.added`; whitespace-only pairs stay `.unchanged`
-5. **Replace** `buildWhitespaceOnlySet()` with the new general mechanism
+1. **Compute inline diffs** using Swift's `CollectionDifference` (Myers algorithm, built into stdlib — no external dependencies)
+2. **Store inline change spans** on `PRLine.inlineChanges` showing exactly which character ranges were inserted or deleted
+3. **Optionally replace** the whitespace-only check in `buildPairedModifications()` with a span-based `isWhitespaceOnly` check
 
-### Key behavioral change
+### Existing model
 
-`ClassifiedHunk.newCodeLines` (filters `.added`) will no longer include in-place modifications — they become `.changed`. This is the intended fix: rules with `newCodeLinesOnly: true` should only match genuinely new lines, not modifications of existing code. `changedLines` (filters `!= .unchanged`) is unaffected since `.changed` already passes that filter.
+`InlineChangeSpan` is already defined in `PRRadarLibrary/Sources/services/PRRadarModels/PRDiff/PRLine.swift`:
+
+```swift
+public struct InlineChangeSpan: Codable, Sendable, Equatable {
+    public let range: Range<Int>    // character index range within the line's content
+    public let kind: Kind
+
+    public enum Kind: String, Codable, Sendable, Equatable {
+        case added      // characters inserted (present on new side only)
+        case removed    // characters deleted (present on old side only)
+    }
+}
+```
+
+Spans mark only the changed ranges — characters not covered by any span are implicitly unchanged. For a new-side (`+`) line, spans have `kind: .added` marking inserted characters. For an old-side (`-`) line, spans have `kind: .removed` marking deleted characters.
+
+Example:
+```
+Old: "function foo(x, y) {"
+New: "function foo(x, y, z) {"
+New-side spans: [InlineChangeSpan(range: 17..<20, kind: .added)]  // ", z"
+Old-side spans: []  // nothing was deleted, only inserted
+```
 
 ### Files involved
 
 | File | Change |
 |------|--------|
-| `PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift` | Add models, modify `classifyLines()`, remove whitespace-only functions |
-| `PRRadarModels/EffectiveDiff/InlineDiff.swift` | **New** — inline diff computation using `CollectionDifference` |
-| `Tests/PRRadarModelsTests/LineClassificationTests.swift` | Update existing + add new tests |
+| `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/InlineDiff.swift` | **New** — inline diff computation using `CollectionDifference` |
+| `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift` | Wire inline spans into `classifyLines()` for paired lines |
+| `PRRadarLibrary/Tests/PRRadarModelsTests/LineClassificationTests.swift` | Add inline diff tests |
 
 ## Phases
 
-### - [ ] Phase 1: Inline change model
-
-**Skills to read**: `/swift-app-architecture:swift-architecture`
-
-Add the data model for representing character-level inline changes within a line.
-
-**Changes** in `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift`:
-
-1. Add `InlineChangeKind` enum with cases `.equal`, `.inserted`, `.deleted` (Codable, Sendable, Equatable)
-2. Add `InlineChangeSpan` struct with `kind: InlineChangeKind` and `text: String` — represents a contiguous span of characters that are equal, inserted, or deleted
-3. Add `inlineChanges: [InlineChangeSpan]?` field to `ClassifiedDiffLine` (default `nil` for backward compatibility — all existing call sites compile unchanged)
-4. Add `isWhitespaceOnly` computed property on `[InlineChangeSpan]` — returns `true` when all non-equal spans contain only whitespace characters
-
-Example representation:
-```
-Old: "function foo(x, y) {"
-New: "function foo(x, y, z) {"
-New-side spans: [equal("function foo(x, y"), inserted(", z"), equal(") {")]
-```
-
-### - [ ] Phase 2: Inline diff computation
+### - [ ] Phase 1: Inline diff computation
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -67,52 +65,41 @@ Create a pure function that computes inline change spans between two strings usi
 
 1. `func computeInlineSpans(old: String, new: String) -> (oldSpans: [InlineChangeSpan], newSpans: [InlineChangeSpan])`
    - Converts both strings to `[Character]` arrays
-   - Calls `new.difference(from: old)` to get the `CollectionDifference`
-   - Walks the diff to build contiguous spans of `.equal`, `.inserted`, `.deleted` text
-   - Returns spans for both the old side (equal + deleted) and new side (equal + inserted)
+   - Calls `newChars.difference(from: oldChars)` to get the `CollectionDifference`
+   - Walks the diff to build `InlineChangeSpan` entries:
+     - Old side: spans with `kind: .removed` at character positions where deletions occurred
+     - New side: spans with `kind: .added` at character positions where insertions occurred
+   - Adjacent changes of the same kind are merged into a single span
+   - Returns spans for both sides
 
 This is a pure function with no state — takes two strings, returns structured spans.
 
-### - [ ] Phase 3: Paired modification detection and classification
+### - [ ] Phase 2: Wire inline spans into classification
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Wire the inline diff into the classification pipeline. This replaces `buildWhitespaceOnlySet()` with a general paired modification detector.
+Populate `PRLine.inlineChanges` for paired lines in `classifyLines()`.
 
 **Changes** in `PRRadarLibrary/Sources/services/PRRadarModels/EffectiveDiff/ClassifiedDiffLine.swift`:
 
-1. Add `PairedModification` struct holding old/new line numbers and computed inline spans
-2. Add `buildPairedModifications(from:)` function:
-   - Walk each hunk and identify consecutive runs of removed lines followed by added lines ("change groups")
-   - Pair them 1:1 sequentially (removed[0]↔added[0], removed[1]↔added[1], etc.)
-   - Surplus lines (when counts differ) remain unpaired
-   - For each pair, call `computeInlineSpans()` to get character-level diff
-   - Return lookup keyed by `[filePath: [lineNumber: PairedModification]]` for both old and new sides
-3. Modify `classifyLines()` to use paired modifications:
-   - Replace `buildWhitespaceOnlySet()` call with `buildPairedModifications()`
-   - For `.removed` lines: if paired → `changeKind = .changed`, `inlineChanges = oldSpans`
-   - For `.added` lines: if paired AND `spans.isWhitespaceOnly` → `changeKind = .unchanged` (preserves existing behavior); if paired AND non-trivial → `changeKind = .changed`, `inlineChanges = newSpans`
-   - Move checks still take priority (checked first in the chain)
-4. Delete `buildWhitespaceOnlySet()` and `collapseWhitespace()` — subsumed by the new mechanism
+1. Expand `buildPairedModifications()` (from the paired modification spec) to also store the old and new content strings for each pair
+2. In `classifyLines()`, for each paired line:
+   - Call `computeInlineSpans(old:new:)` with the paired contents
+   - Attach the appropriate spans to the `PRLine` via `inlineChanges:`
+   - `.removed` lines get old-side spans; `.added`/`.changed` lines get new-side spans
 
-**Classification priority (`.added` lines) after change:**
-```
-1. addedInMoveLines       → (.added, inMovedBlock: true)
-2. changedInMoveLines     → (.changed, inMovedBlock: true)
-3. targetMovedLines       → (.unchanged, inMovedBlock: true)
-4. paired (whitespace-only) → (.unchanged, inMovedBlock: false, inlineChanges: spans)
-5. paired (non-trivial)     → (.changed, inMovedBlock: false, inlineChanges: spans)  ← NEW
-6. fallthrough              → (.added, inMovedBlock: false)
-```
+**Optional enhancement**: Add an `isWhitespaceOnly` computed property on `[InlineChangeSpan]` that checks whether all spans contain only whitespace characters. This could replace the `collapseWhitespace()` comparison in `buildPairedModifications()` for a more precise whitespace-only check.
 
-### - [ ] Phase 4: Validation
+### - [ ] Phase 3: Validation
 
 **Skills to read**: `/swift-testing`
 
 1. Run `swift test` — all existing tests must pass
-2. Update existing `LineClassificationTests` for cases where `.added` becomes `.changed`
-3. Add new tests:
-   - `computeInlineSpans()` — identical strings, completely different, partial changes (word added/removed), whitespace-only
-   - Pairing logic — equal run counts, surplus removals, surplus additions, context lines separating change groups
-   - `classifyLines()` integration — paired modifications get `.changed`, whitespace-only stays `.unchanged`, unpaired lines stay `.added`/`.removed`, move detection takes priority over pairing
-4. Verify against PR #19024 using the local validation steps in the [parent spec](2026-03-03-a-false-positive-whitespace-changes.md#local-validation-steps)
+2. Add new tests for `computeInlineSpans()`:
+   - Identical strings → empty spans on both sides
+   - Completely different strings → single span covering entire content
+   - Partial changes — word added, word removed, word replaced
+   - Whitespace-only differences → spans contain only whitespace
+   - Empty strings (one or both sides)
+3. Add integration tests verifying `PRLine.inlineChanges` is populated for paired modifications after `classifyLines()`
+4. Verify spans are `nil` for unpaired lines, context lines, and moved lines

@@ -150,11 +150,12 @@ Location: `PRAcquisitionService.runEffectiveDiff()` catch block (line ~330).
 3. Verify the fix against PR #19024 using the steps below
 4. Confirm the parentView line is not flagged while genuinely new lines (like the `_Nonnull` additions) are still caught
 
-### - [ ] Phase 5–8: Inline change detection and paired modification classification
+### - [ ] Phase 5–8: Paired modification classification and inline change detection
 
-Extracted to its own spec: **[2026-03-04-a-inline-change-detection.md](2026-03-04-a-inline-change-detection.md)**
+Extracted to two specs:
 
-Generalizes `buildWhitespaceOnlySet()` into a full paired modification detector with character-level inline diffs using Swift's `CollectionDifference` (Myers algorithm). In-place modifications become `.changed` instead of `.added`.
+1. **[Paired Modification Classification](2026-03-04-b-paired-modification-classification.md)** — Generalizes `buildWhitespaceOnlySet()` into a paired modification detector. In-place modifications become `.changed` instead of `.added`.
+2. **[Inline Change Detection](2026-03-04-a-inline-change-detection.md)** — Adds character-level inline diffs using `CollectionDifference`, populating `PRLine.inlineChanges`. Depends on (1).
 
 ## Local Validation Steps
 
