@@ -183,7 +183,10 @@ Modify the effective diff pipeline to output the new unified models alongside ex
 
 4. Add `prDiff: PRDiff?` to `AnnotatedDiff` (temporary bridge — removed in Phase 6 when `AnnotatedDiff` itself is deleted. No backward compat needed since there are no external consumers.)
 
-## - [ ] Phase 3: Create single-entry-point use case
+## - [x] Phase 3: Create single-entry-point use case
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Single entry point via `LoadPRDiffUseCase`; PRDiff threaded through existing data flow (SyncSnapshot → PRDetail → PRModel); no direct PhaseOutputParser calls from client code
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
