@@ -294,7 +294,10 @@ Delete types that are no longer referenced after migration.
    - Serializable: `MoveDetail`, `MoveReport`
 4. Verify algorithm internals (`TaggedLine`, `LineMatch`, `MoveCandidate`, `EffectiveDiffResult`, `RediffAnalysis`) are not exposed as public
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Added 18 tests across 4 new suites covering MoveInfo population, DiffStats computation, PRDiff convenience methods, and PRDiff construction from pipeline output; verified CLI end-to-end and MacApp build
 
 **Skills to read**: `/swift-testing`
 

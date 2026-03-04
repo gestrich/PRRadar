@@ -870,3 +870,426 @@ private func makeEffectiveResult(
         #expect(!allContent.contains("+moved1"), "Moved lines should be filtered")
     }
 }
+
+// MARK: - Tests: MoveInfo population
+
+@Suite struct MoveInfoPopulationTests {
+
+    @Test func movedSourceLinesHaveCorrectMoveInfo() throws {
+        // Arrange
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [(1, "func_a"), (2, "body_a")],
+            addedLines: [(5, "func_a"), (6, "body_a")]
+        )
+        let effResult = makeEffectiveResult(candidate)
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("old.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 0,
+                         content: "@@ -1,2 +1,0 @@\n-func_a\n-body_a"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert
+        for line in classified {
+            let info = try #require(line.move)
+            #expect(info.sourceFile == "old.py")
+            #expect(info.targetFile == "new.py")
+            #expect(info.isSource == true)
+        }
+    }
+
+    @Test func movedTargetLinesHaveCorrectMoveInfo() throws {
+        // Arrange
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [(1, "func_a"), (2, "body_a")],
+            addedLines: [(5, "func_a"), (6, "body_a")]
+        )
+        let effResult = makeEffectiveResult(candidate)
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("new.py", oldStart: 5, oldLength: 0, newStart: 5, newLength: 2,
+                         content: "@@ -5,0 +5,2 @@\n+func_a\n+body_a"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
+
+        // Assert
+        for line in classified {
+            let info = try #require(line.move)
+            #expect(info.sourceFile == "old.py")
+            #expect(info.targetFile == "new.py")
+            #expect(info.isSource == false)
+        }
+    }
+
+    @Test func nonMovedLinesHaveNilMoveInfo() {
+        // Arrange
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("app.py", oldStart: 1, oldLength: 0, newStart: 1, newLength: 1,
+                         content: "@@ -1,0 +1,1 @@\n+new_line"),
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [])
+
+        // Assert
+        #expect(classified.count == 1)
+        #expect(classified[0].move == nil)
+    }
+}
+
+// MARK: - Tests: DiffStats.compute
+
+@Suite struct DiffStatsComputeTests {
+
+    private func makeLine(
+        changeKind: ChangeKind,
+        diffType: DiffLineType = .added,
+        move: MoveInfo? = nil
+    ) -> PRLine {
+        PRLine(
+            content: "x",
+            rawLine: "+x",
+            diffType: diffType,
+            changeKind: changeKind,
+            oldLineNumber: nil,
+            newLineNumber: 1,
+            filePath: "test.py",
+            move: move
+        )
+    }
+
+    @Test func countsAddedLines() {
+        let hunks = [PRHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
+            makeLine(changeKind: .added),
+            makeLine(changeKind: .added),
+        ])]
+
+        let stats = DiffStats.compute(from: hunks)
+
+        #expect(stats.linesAdded == 2)
+        #expect(stats.linesRemoved == 0)
+        #expect(stats.linesMoved == 0)
+        #expect(stats.linesChanged == 0)
+    }
+
+    @Test func countsRemovedLines() {
+        let hunks = [PRHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
+            makeLine(changeKind: .removed, diffType: .removed),
+        ])]
+
+        let stats = DiffStats.compute(from: hunks)
+
+        #expect(stats.linesRemoved == 1)
+    }
+
+    @Test func countsMovedLines() {
+        let moveInfo = MoveInfo(sourceFile: "a.py", targetFile: "b.py", isSource: false)
+        let hunks = [PRHunk(filePath: "b.py", oldStart: 1, newStart: 1, lines: [
+            makeLine(changeKind: .unchanged, move: moveInfo),
+            makeLine(changeKind: .unchanged, move: moveInfo),
+            makeLine(changeKind: .unchanged, move: moveInfo),
+        ])]
+
+        let stats = DiffStats.compute(from: hunks)
+
+        #expect(stats.linesMoved == 3)
+        #expect(stats.linesAdded == 0)
+    }
+
+    @Test func countsChangedLines() {
+        let moveInfo = MoveInfo(sourceFile: "a.py", targetFile: "b.py", isSource: false)
+        let hunks = [PRHunk(filePath: "b.py", oldStart: 1, newStart: 1, lines: [
+            makeLine(changeKind: .changed, move: moveInfo),
+        ])]
+
+        let stats = DiffStats.compute(from: hunks)
+
+        #expect(stats.linesChanged == 1)
+    }
+
+    @Test func ignoresContextLines() {
+        let hunks = [PRHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
+            makeLine(changeKind: .unchanged, diffType: .context),
+            makeLine(changeKind: .added),
+        ])]
+
+        let stats = DiffStats.compute(from: hunks)
+
+        #expect(stats.linesAdded == 1)
+        #expect(stats.linesMoved == 0)
+    }
+
+    @Test func mixedStats() {
+        let moveInfo = MoveInfo(sourceFile: "a.py", targetFile: "b.py", isSource: false)
+        let hunks = [PRHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
+            makeLine(changeKind: .added),
+            makeLine(changeKind: .removed, diffType: .removed),
+            makeLine(changeKind: .unchanged, move: moveInfo),
+            makeLine(changeKind: .changed, move: moveInfo),
+            makeLine(changeKind: .unchanged, diffType: .context),
+        ])]
+
+        let stats = DiffStats.compute(from: hunks)
+
+        #expect(stats.linesAdded == 1)
+        #expect(stats.linesRemoved == 1)
+        #expect(stats.linesMoved == 1)
+        #expect(stats.linesChanged == 1)
+    }
+}
+
+// MARK: - Tests: PRDiff convenience methods
+
+@Suite struct PRDiffConvenienceTests {
+
+    private static let sampleDiff: PRDiff = {
+        let line1 = PRLine(content: "new", rawLine: "+new", diffType: .added, changeKind: .added,
+                           oldLineNumber: nil, newLineNumber: 1, filePath: "a.py", move: nil)
+        let line2 = PRLine(content: "old", rawLine: "-old", diffType: .removed, changeKind: .removed,
+                           oldLineNumber: 1, newLineNumber: nil, filePath: "b.py", move: nil)
+        let hunk1 = PRHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [line1])
+        let hunk2 = PRHunk(filePath: "b.py", oldStart: 1, newStart: 1, lines: [line2])
+        return PRDiff(
+            commitHash: "abc123",
+            rawText: "",
+            hunks: [hunk1, hunk2],
+            moves: [],
+            stats: DiffStats(linesAdded: 1, linesRemoved: 1, linesMoved: 0, linesChanged: 0)
+        )
+    }()
+
+    @Test func changedFilesReturnsSortedUniqueFiles() {
+        let files = Self.sampleDiff.changedFiles
+
+        #expect(files == ["a.py", "b.py"])
+    }
+
+    @Test func hunksForFileFiltersCorrectly() {
+        let hunks = Self.sampleDiff.hunks(forFile: "a.py")
+
+        #expect(hunks.count == 1)
+        #expect(hunks[0].filePath == "a.py")
+    }
+
+    @Test func hunksForFileReturnsEmptyForUnknownFile() {
+        let hunks = Self.sampleDiff.hunks(forFile: "unknown.py")
+
+        #expect(hunks.isEmpty)
+    }
+
+    @Test func fromRawDiffBuildsWithoutMoves() {
+        // Arrange
+        let gitDiff = GitDiff(
+            rawContent: "raw",
+            hunks: [
+                makeHunk("file.py", oldStart: 1, oldLength: 1, newStart: 1, newLength: 2,
+                         content: "@@ -1,1 +1,2 @@\n ctx\n+added")
+            ],
+            commitHash: "def456"
+        )
+
+        // Act
+        let prDiff = PRDiff.fromRawDiff(gitDiff)
+
+        // Assert
+        #expect(prDiff.commitHash == "def456")
+        #expect(prDiff.rawText == "raw")
+        #expect(prDiff.hunks.count == 1)
+        #expect(prDiff.moves.isEmpty)
+        #expect(prDiff.stats.linesAdded == 1)
+    }
+
+    @Test func derivedMoveReportMatchesMoves() {
+        // Arrange
+        let move = MoveDetail(
+            sourceFile: "a.py", targetFile: "b.py",
+            sourceLines: [1, 2, 3, 4, 5], targetLines: [1, 2, 3, 4, 5],
+            matchedLines: 5, score: 1.0, effectiveDiffLines: 0
+        )
+        let diff = PRDiff(
+            commitHash: "abc",
+            rawText: "",
+            hunks: [],
+            moves: [move],
+            stats: DiffStats(linesAdded: 2, linesRemoved: 1, linesMoved: 5, linesChanged: 0)
+        )
+
+        // Act
+        let report = diff.derivedMoveReport
+
+        // Assert
+        #expect(report.movesDetected == 1)
+        #expect(report.totalLinesMoved == 5)
+        #expect(report.totalLinesEffectivelyChanged == 3)
+    }
+
+    @Test func codableRoundTripWithMoveInfo() throws {
+        // Arrange
+        let moveInfo = MoveInfo(sourceFile: "old.py", targetFile: "new.py", isSource: false)
+        let line = PRLine(content: "moved", rawLine: "+moved", diffType: .added, changeKind: .unchanged,
+                          oldLineNumber: nil, newLineNumber: 1, filePath: "new.py", move: moveInfo)
+        let hunk = PRHunk(filePath: "new.py", oldStart: 1, newStart: 1, lines: [line])
+        let move = MoveDetail(sourceFile: "old.py", targetFile: "new.py",
+                              sourceLines: [1], targetLines: [1],
+                              matchedLines: 1, score: 1.0, effectiveDiffLines: 0)
+        let diff = PRDiff(
+            commitHash: "abc",
+            rawText: "raw",
+            hunks: [hunk],
+            moves: [move],
+            stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 1, linesChanged: 0)
+        )
+
+        // Act
+        let data = try JSONEncoder().encode(diff)
+        let decoded = try JSONDecoder().decode(PRDiff.self, from: data)
+
+        // Assert
+        #expect(decoded.moves.count == 1)
+        #expect(decoded.moves[0].sourceFile == "old.py")
+        let decodedLine = try #require(decoded.hunks.first?.lines.first)
+        let decodedMove = try #require(decodedLine.move)
+        #expect(decodedMove.sourceFile == "old.py")
+        #expect(decodedMove.targetFile == "new.py")
+        #expect(decodedMove.isSource == false)
+        #expect(decoded.stats.linesMoved == 1)
+    }
+}
+
+// MARK: - Tests: PRDiff from pipeline output
+
+@Suite struct PRDiffFromPipelineTests {
+
+    @Test func pipelineProducesPRDiffWithCorrectStructure() {
+        // Arrange: a simple diff with one added line, no moves
+        let original = GitDiff(
+            rawContent: "raw diff text",
+            hunks: [
+                makeHunk("app.py", oldStart: 1, oldLength: 1, newStart: 1, newLength: 2,
+                         content: "@@ -1,1 +1,2 @@\n ctx\n+new_line"),
+            ],
+            commitHash: "abc123"
+        )
+        let classifiedLines = classifyLines(originalDiff: original, effectiveResults: [])
+        let prHunks = groupIntoPRHunks(originalDiff: original, classifiedLines: classifiedLines)
+        let stats = DiffStats.compute(from: prHunks)
+
+        // Act
+        let prDiff = PRDiff(
+            commitHash: original.commitHash,
+            rawText: original.rawContent,
+            hunks: prHunks,
+            moves: [],
+            stats: stats
+        )
+
+        // Assert
+        #expect(prDiff.commitHash == "abc123")
+        #expect(prDiff.rawText == "raw diff text")
+        #expect(prDiff.hunks.count == 1)
+        #expect(prDiff.hunks[0].filePath == "app.py")
+        #expect(prDiff.hunks[0].lines.count == 2)
+        #expect(prDiff.moves.isEmpty)
+        #expect(prDiff.stats.linesAdded == 1)
+    }
+
+    @Test func pipelineWithMovesPopulatesMoveInfoOnLines() {
+        // Arrange
+        let candidate = makeCandidate(
+            sourceFile: "old.py", targetFile: "new.py",
+            removedLines: [(1, "func_a"), (2, "body")],
+            addedLines: [(5, "func_a"), (6, "body")]
+        )
+        let effResult = makeEffectiveResult(candidate)
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("old.py", oldStart: 1, oldLength: 2, newStart: 1, newLength: 0,
+                         content: "@@ -1,2 +1,0 @@\n-func_a\n-body"),
+                makeHunk("new.py", oldStart: 5, oldLength: 0, newStart: 5, newLength: 2,
+                         content: "@@ -5,0 +5,2 @@\n+func_a\n+body"),
+            ],
+            commitHash: "def456"
+        )
+        let classifiedLines = classifyLines(originalDiff: original, effectiveResults: [effResult])
+        let prHunks = groupIntoPRHunks(originalDiff: original, classifiedLines: classifiedLines)
+        let stats = DiffStats.compute(from: prHunks)
+
+        // Act
+        let prDiff = PRDiff(
+            commitHash: original.commitHash,
+            rawText: original.rawContent,
+            hunks: prHunks,
+            moves: [],
+            stats: stats
+        )
+
+        // Assert — source side
+        let sourceHunk = prDiff.hunks(forFile: "old.py")
+        #expect(sourceHunk.count == 1)
+        for line in sourceHunk[0].lines {
+            #expect(line.move?.isSource == true)
+            #expect(line.move?.sourceFile == "old.py")
+            #expect(line.move?.targetFile == "new.py")
+        }
+
+        // Assert — target side
+        let targetHunk = prDiff.hunks(forFile: "new.py")
+        #expect(targetHunk.count == 1)
+        for line in targetHunk[0].lines {
+            #expect(line.move?.isSource == false)
+            #expect(line.move?.sourceFile == "old.py")
+            #expect(line.move?.targetFile == "new.py")
+        }
+
+        // Assert — stats
+        #expect(stats.linesMoved == 4)
+        #expect(stats.linesAdded == 0)
+    }
+
+    @Test func pipelineStatsCountMixedChanges() {
+        // Arrange: 1 genuine add, 2 moved, 1 context
+        let candidate = makeCandidate(
+            sourceFile: "a.py", targetFile: "b.py",
+            removedLines: [(1, "moved")],
+            addedLines: [(2, "moved")]
+        )
+        let effResult = makeEffectiveResult(candidate)
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("a.py", oldStart: 1, oldLength: 1, newStart: 1, newLength: 0,
+                         content: "@@ -1,1 +1,0 @@\n-moved"),
+                makeHunk("b.py", oldStart: 1, oldLength: 1, newStart: 1, newLength: 3,
+                         content: "@@ -1,1 +1,3 @@\n ctx\n+moved\n+brand_new"),
+            ],
+            commitHash: ""
+        )
+        let classifiedLines = classifyLines(originalDiff: original, effectiveResults: [effResult])
+        let prHunks = groupIntoPRHunks(originalDiff: original, classifiedLines: classifiedLines)
+
+        // Act
+        let stats = DiffStats.compute(from: prHunks)
+
+        // Assert
+        #expect(stats.linesMoved == 2)
+        #expect(stats.linesAdded == 1)
+        #expect(stats.linesRemoved == 0)
+    }
+}
