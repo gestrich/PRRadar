@@ -241,3 +241,13 @@ public enum DisplayDiffLineType: Equatable {
     case deletion
     case context
 }
+
+extension DiffLineType {
+    public var displayType: DisplayDiffLineType {
+        switch self {
+        case .added: .addition
+        case .removed: .deletion
+        case .context, .header: .context
+        }
+    }
+}

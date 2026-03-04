@@ -3,15 +3,17 @@ import SwiftUI
 
 struct EffectiveDiffView: View {
 
-    let fullDiff: GitDiff
-    let effectiveDiff: GitDiff
-    let moveReport: MoveReport?
+    let annotatedDiff: AnnotatedDiff
     var prModel: PRModel
     var initialMove: MoveDetail?
 
     @State private var selectedTab = 1  // Default to effective diff
     @State private var selectedFile: String?
     @State private var selectedMoveIndex: Int?
+
+    private var fullDiff: GitDiff { annotatedDiff.fullDiff }
+    private var effectiveDiff: GitDiff { annotatedDiff.effectiveDiff ?? annotatedDiff.fullDiff }
+    private var moveReport: MoveReport? { annotatedDiff.moveReport }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -145,7 +147,7 @@ struct EffectiveDiffView: View {
     private var diffContent: some View {
         let activeDiff = selectedTab == 0 ? fullDiff : effectiveDiff
 
-        let displayDiff: GitDiff = {
+        let filteredDiff: GitDiff = {
             if let file = selectedFile {
                 let hunks = activeDiff.getHunks(byFilePath: file)
                 let raw = hunks.map(\.content).joined(separator: "\n")
@@ -163,9 +165,10 @@ struct EffectiveDiffView: View {
         }()
 
         AnnotatedDiffContentView(
-            diff: displayDiff,
+            annotatedDiff: annotatedDiff,
             commentMapping: .empty,
-            prModel: prModel
+            prModel: prModel,
+            displayDiff: filteredDiff
         )
     }
 }

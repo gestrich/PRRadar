@@ -146,11 +146,9 @@ struct ReviewDetailView: View {
             .sheet(isPresented: $showEffectiveDiff, onDismiss: {
                 effectiveDiffInitialMove = nil
             }) {
-                if let effectiveDiff = annotatedDiff.effectiveDiff {
+                if annotatedDiff.effectiveDiff != nil {
                     EffectiveDiffView(
-                        fullDiff: annotatedDiff.fullDiff,
-                        effectiveDiff: effectiveDiff,
-                        moveReport: annotatedDiff.moveReport,
+                        annotatedDiff: annotatedDiff,
                         prModel: prModel,
                         initialMove: effectiveDiffInitialMove
                     )

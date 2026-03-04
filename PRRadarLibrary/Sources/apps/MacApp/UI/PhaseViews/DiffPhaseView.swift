@@ -190,10 +190,10 @@ struct DiffPhaseView: View {
             }
 
             AnnotatedDiffContentView(
-                diff: filtered,
+                annotatedDiff: annotatedDiff,
                 commentMapping: commentMapping(for: diff),
                 prModel: prModel,
-                movedLineLookup: MovedLineLookup(annotatedDiff: annotatedDiff),
+                displayDiff: filtered,
                 onMoveTapped: onMoveTapped
             )
         }

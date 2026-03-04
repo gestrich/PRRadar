@@ -105,6 +105,38 @@ public struct ClassifiedHunk: Codable, Sendable, Equatable {
     }
 }
 
+extension ClassifiedHunk {
+    /// Create a ClassifiedHunk from a raw Hunk with default (unclassified) change kinds.
+    public static func fromHunk(_ hunk: Hunk) -> ClassifiedHunk {
+        let lines = hunk.getDiffLines()
+            .filter { $0.lineType != .header }
+            .map { diffLine in
+                let changeKind: ChangeKind
+                switch diffLine.lineType {
+                case .added: changeKind = .added
+                case .removed: changeKind = .removed
+                case .context, .header: changeKind = .unchanged
+                }
+                return ClassifiedDiffLine(
+                    content: diffLine.content,
+                    rawLine: diffLine.rawLine,
+                    lineType: diffLine.lineType,
+                    changeKind: changeKind,
+                    inMovedBlock: false,
+                    newLineNumber: diffLine.newLineNumber,
+                    oldLineNumber: diffLine.oldLineNumber,
+                    filePath: hunk.filePath
+                )
+            }
+        return ClassifiedHunk(
+            filePath: hunk.filePath,
+            oldStart: hunk.oldStart,
+            newStart: hunk.newStart,
+            lines: lines
+        )
+    }
+}
+
 /// Extract lines with `changeKind` of `.added` or `.changed` across all hunks.
 ///
 /// These are lines the PR author wrote — genuinely new additions and
@@ -153,6 +185,11 @@ public func classifyLines(
     originalDiff: GitDiff,
     effectiveResults: [EffectiveDiffResult]
 ) -> [ClassifiedDiffLine] {
+    // Build lookup of added lines that differ only in whitespace from a removed line.
+    // For each hunk, pair removed/added lines by content with all whitespace stripped.
+    // Matched added lines are whitespace-only modifications — not genuinely new code.
+    let whitespaceOnlyAdded = buildWhitespaceOnlySet(from: originalDiff)
+
     var sourceMovedLines: [String: Set<Int>] = [:]
     var targetMovedLines: [String: Set<Int>] = [:]
     var addedInMoveLines: [String: Set<Int>] = [:]
@@ -213,6 +250,10 @@ public func classifyLines(
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
                     changeKind = .unchanged
                     inMovedBlock = true
+                } else if let newNum = diffLine.newLineNumber,
+                          whitespaceOnlyAdded[hunk.filePath]?.contains(newNum) == true {
+                    changeKind = .unchanged
+                    inMovedBlock = false
                 } else {
                     changeKind = .added
                     inMovedBlock = false
@@ -240,4 +281,47 @@ public func classifyLines(
     }
 
     return classified
+}
+
+// MARK: - Whitespace-Only Detection
+
+/// Collapse all whitespace in a string so that `"* parentView"` and `"*parentView"` compare equal.
+private func collapseWhitespace(_ s: String) -> String {
+    s.split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace).joined()
+}
+
+/// Scan each hunk for removed/added line pairs that differ only in whitespace.
+///
+/// Returns a per-file set of new-line numbers for added lines whose content is identical
+/// to a removed line after collapsing all whitespace. These are whitespace-only modifications.
+func buildWhitespaceOnlySet(from diff: GitDiff) -> [String: Set<Int>] {
+    var result: [String: Set<Int>] = [:]
+
+    for hunk in diff.hunks {
+        let lines = hunk.getDiffLines()
+        let removed = lines.filter { $0.lineType == .removed }
+        let added = lines.filter { $0.lineType == .added }
+
+        // Index removed lines by collapsed content (multiset: one entry per occurrence)
+        var removedByCollapsed: [String: [Int]] = [:]
+        for r in removed {
+            let key = collapseWhitespace(r.content)
+            guard !key.isEmpty else { continue }
+            removedByCollapsed[key, default: []].append(r.oldLineNumber ?? 0)
+        }
+
+        for a in added {
+            let key = collapseWhitespace(a.content)
+            guard !key.isEmpty else { continue }
+            guard var indices = removedByCollapsed[key], !indices.isEmpty else { continue }
+            // Consume one removed occurrence to maintain 1:1 pairing
+            indices.removeFirst()
+            removedByCollapsed[key] = indices
+            if let newNum = a.newLineNumber {
+                result[hunk.filePath, default: []].insert(newNum)
+            }
+        }
+    }
+
+    return result
 }

@@ -16,7 +16,9 @@ public struct LocalGitHistoryProvider: GitHistoryProvider {
     }
 
     public func getRawDiff() async throws -> String {
-        try await gitOps.getBranchDiff(base: baseBranch, head: headBranch, remote: remote, repoPath: repoPath)
+        try await gitOps.fetchBranch(remote: remote, branch: baseBranch, repoPath: repoPath)
+        try await gitOps.fetchBranch(remote: remote, branch: headBranch, repoPath: repoPath)
+        return try await gitOps.getBranchDiff(base: baseBranch, head: headBranch, remote: remote, repoPath: repoPath)
     }
 
     public func getFileContent(commit: String, filePath: String) async throws -> String {

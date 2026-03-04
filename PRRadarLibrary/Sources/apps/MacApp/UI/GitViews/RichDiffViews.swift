@@ -2,16 +2,6 @@ import AppKit
 import PRRadarModels
 import SwiftUI
 
-// MARK: - Data Models
-
-struct DiffLineData: Identifiable {
-    let id: String
-    let content: String
-    let oldLine: Int?
-    let newLine: Int?
-    let lineType: DisplayDiffLineType
-}
-
 enum DiffLayout {
     static let gutterWidth: CGFloat = 96
 }
@@ -130,6 +120,68 @@ struct InlineCommentCard<Content: View>: View {
     }
 }
 
+// MARK: - Line Info Popover
+
+struct LineInfoPopoverView: View {
+    let line: ClassifiedDiffLine
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Line Info")
+                .font(.headline)
+
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                GridRow {
+                    Text("Change Kind")
+                        .foregroundStyle(.secondary)
+                    Text(line.changeKind.rawValue)
+                        .fontWeight(.medium)
+                }
+                GridRow {
+                    Text("Line Type")
+                        .foregroundStyle(.secondary)
+                    Text(line.lineType.rawValue)
+                }
+                GridRow {
+                    Text("In Moved Block")
+                        .foregroundStyle(.secondary)
+                    Text(line.inMovedBlock ? "Yes" : "No")
+                }
+                GridRow {
+                    Text("Old Line #")
+                        .foregroundStyle(.secondary)
+                    Text(line.oldLineNumber.map(String.init) ?? "-")
+                }
+                GridRow {
+                    Text("New Line #")
+                        .foregroundStyle(.secondary)
+                    Text(line.newLineNumber.map(String.init) ?? "-")
+                }
+                GridRow {
+                    Text("File Path")
+                        .foregroundStyle(.secondary)
+                    Text(line.filePath)
+                        .lineLimit(2)
+                        .truncationMode(.head)
+                }
+            }
+            .font(.system(.caption, design: .monospaced))
+
+            Divider()
+
+            Text("Raw Line")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(line.rawLine)
+                .font(.system(.caption2, design: .monospaced))
+                .textSelection(.enabled)
+                .lineLimit(5)
+        }
+        .padding(12)
+        .frame(minWidth: 280, maxWidth: 400)
+    }
+}
+
 // MARK: - Views
 
 struct DiffLineRowView: View {
@@ -139,6 +191,7 @@ struct DiffLineRowView: View {
     let lineType: DisplayDiffLineType
     let searchQuery: String
     var isMoved: Bool
+    var classifiedLine: ClassifiedDiffLine?
     var onAddComment: (() -> Void)?
     var onMoveTapped: (() -> Void)?
 
@@ -149,6 +202,7 @@ struct DiffLineRowView: View {
         lineType: DisplayDiffLineType,
         searchQuery: String = "",
         isMoved: Bool = false,
+        classifiedLine: ClassifiedDiffLine? = nil,
         onAddComment: (() -> Void)? = nil,
         onMoveTapped: (() -> Void)? = nil
     ) {
@@ -158,11 +212,13 @@ struct DiffLineRowView: View {
         self.lineType = lineType
         self.searchQuery = searchQuery
         self.isMoved = isMoved
+        self.classifiedLine = classifiedLine
         self.onAddComment = onAddComment
         self.onMoveTapped = onMoveTapped
     }
 
     @State private var isHovering = false
+    @State private var showLineInfo = false
 
     private var matchesSearch: Bool {
         guard !searchQuery.isEmpty else { return false }
@@ -199,6 +255,18 @@ struct DiffLineRowView: View {
             .padding(.horizontal, 4)
             .frame(maxHeight: .infinity)
             .background(gutterBackground)
+            .contextMenu {
+                if classifiedLine != nil {
+                    Button("Line Info") {
+                        showLineInfo = true
+                    }
+                }
+            }
+            .popover(isPresented: $showLineInfo) {
+                if let line = classifiedLine {
+                    LineInfoPopoverView(line: line)
+                }
+            }
             .overlay(alignment: .trailing) {
                 if isHovering, let onAddComment, newLineNumber != nil {
                     Button(action: onAddComment) {
@@ -368,7 +436,7 @@ struct PureRenameContentView: View {
 // MARK: - Annotated Views (with inline comments)
 
 struct AnnotatedHunkContentView: View {
-    let hunk: Hunk
+    let classifiedHunk: ClassifiedHunk
     let commentsAtLine: [Int: [ReviewComment]]
     let searchQuery: String
     var prModel: PRModel
@@ -382,30 +450,32 @@ struct AnnotatedHunkContentView: View {
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(diffLineData) { line in
-                let moveInfo = movedLineLookup.lookup(
-                    filePath: hunk.filePath,
-                    oldLine: line.oldLine,
-                    newLine: line.newLine,
-                    lineType: line.lineType
-                )
+            ForEach(Array(classifiedHunk.lines.enumerated()), id: \.offset) { _, line in
+                let displayType = line.lineType.displayType
+                let moveInfo = line.inMovedBlock ? movedLineLookup.lookup(
+                    filePath: classifiedHunk.filePath,
+                    oldLine: line.oldLineNumber,
+                    newLine: line.newLineNumber,
+                    lineType: displayType
+                ) : nil
                 DiffLineRowView(
-                    lineContent: line.content,
-                    oldLineNumber: line.oldLine,
-                    newLineNumber: line.newLine,
-                    lineType: line.lineType,
+                    lineContent: line.rawLine,
+                    oldLineNumber: line.oldLineNumber,
+                    newLineNumber: line.newLineNumber,
+                    lineType: displayType,
                     searchQuery: searchQuery,
-                    isMoved: moveInfo != nil,
-                    onAddComment: line.newLine != nil ? {
-                        composingCommentLine = (filePath: hunk.filePath, lineNumber: line.newLine!)
+                    isMoved: line.inMovedBlock,
+                    classifiedLine: line,
+                    onAddComment: line.newLineNumber != nil ? {
+                        composingCommentLine = (filePath: classifiedHunk.filePath, lineNumber: line.newLineNumber!)
                     } : nil,
                     onMoveTapped: moveInfo.map { info in { onMoveTapped?(info.move) } }
                 )
 
-                if let newLine = line.newLine,
+                if let newLine = line.newLineNumber,
                    let comments = commentsAtLine[newLine] {
-                    let lineBg = lineBackground(for: line.lineType)
-                    let gutterBg = gutterBackground(for: line.lineType)
+                    let lineBg = lineBackground(for: displayType)
+                    let gutterBg = gutterBackground(for: displayType)
                     ForEach(comments) { rc in
                         switch rc.state {
                         case .new:
@@ -437,25 +507,21 @@ struct AnnotatedHunkContentView: View {
                     }
                 }
 
-                if let newLine = line.newLine,
+                if let newLine = line.newLineNumber,
                    let compose = composingCommentLine,
-                   compose.filePath == hunk.filePath,
+                   compose.filePath == classifiedHunk.filePath,
                    compose.lineNumber == newLine {
                     InlineCommentComposeView(
                         filePath: compose.filePath,
                         lineNumber: compose.lineNumber,
                         prModel: prModel,
-                        lineBackground: lineBackground(for: line.lineType),
-                        gutterBackground: gutterBackground(for: line.lineType),
+                        lineBackground: lineBackground(for: displayType),
+                        gutterBackground: gutterBackground(for: displayType),
                         onCancel: { composingCommentLine = nil }
                     )
                 }
             }
         }
-    }
-
-    private var diffLineData: [DiffLineData] {
-        HunkLineParser.parse(hunk: hunk)
     }
 
     private func lineBackground(for lineType: DisplayDiffLineType) -> Color {
@@ -476,28 +542,31 @@ struct AnnotatedHunkContentView: View {
 }
 
 struct AnnotatedDiffContentView: View {
-    let diff: GitDiff
+    let annotatedDiff: AnnotatedDiff
     let commentMapping: DiffCommentMapping
     let searchQuery: String
     var prModel: PRModel
-    var movedLineLookup: MovedLineLookup
+    var displayDiff: GitDiff?
     var onMoveTapped: ((MoveDetail) -> Void)?
 
     init(
-        diff: GitDiff,
+        annotatedDiff: AnnotatedDiff,
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
         prModel: PRModel,
-        movedLineLookup: MovedLineLookup = .empty,
+        displayDiff: GitDiff? = nil,
         onMoveTapped: ((MoveDetail) -> Void)? = nil
     ) {
-        self.diff = diff
+        self.annotatedDiff = annotatedDiff
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
         self.prModel = prModel
-        self.movedLineLookup = movedLineLookup
+        self.displayDiff = displayDiff
         self.onMoveTapped = onMoveTapped
     }
+
+    private var diff: GitDiff { displayDiff ?? annotatedDiff.fullDiff }
+    private var movedLineLookup: MovedLineLookup { MovedLineLookup(annotatedDiff: annotatedDiff) }
 
     private var tasks: [RuleRequest] { prModel.preparation?.tasks ?? [] }
     private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
@@ -542,8 +611,10 @@ struct AnnotatedDiffContentView: View {
                         HunkHeaderView(hunk: hunk) {
                             hunkActions(for: hunk)
                         }
+                        let classified = findClassifiedHunk(for: hunk)
+                            ?? ClassifiedHunk.fromHunk(hunk)
                         AnnotatedHunkContentView(
-                            hunk: hunk,
+                            classifiedHunk: classified,
                             commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
                             prModel: prModel,
@@ -594,6 +665,14 @@ struct AnnotatedDiffContentView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func findClassifiedHunk(for hunk: Hunk) -> ClassifiedHunk? {
+        annotatedDiff.classifiedHunks.first {
+            $0.filePath == hunk.filePath
+                && $0.oldStart == hunk.oldStart
+                && $0.newStart == hunk.newStart
         }
     }
 
@@ -684,48 +763,3 @@ struct AnnotatedDiffContentView: View {
     }
 }
 
-// MARK: - Shared Line Parsing
-
-enum HunkLineParser {
-    static func parse(hunk: Hunk) -> [DiffLineData] {
-        let hunkLines = hunk.diffLines
-        var oldLine = hunk.oldStart
-        var newLine = hunk.newStart
-        var lines: [DiffLineData] = []
-
-        for (lineIndex, lineContent) in hunkLines.enumerated() {
-            let oldNum: Int?
-            let newNum: Int?
-
-            let type: DisplayDiffLineType
-
-            if lineContent.hasPrefix("+") {
-                oldNum = nil
-                newNum = newLine
-                newLine += 1
-                type = .addition
-            } else if lineContent.hasPrefix("-") {
-                oldNum = oldLine
-                newNum = nil
-                oldLine += 1
-                type = .deletion
-            } else {
-                oldNum = oldLine
-                newNum = newLine
-                oldLine += 1
-                newLine += 1
-                type = .context
-            }
-
-            lines.append(DiffLineData(
-                id: "\(hunk.id)_\(lineIndex)",
-                content: lineContent,
-                oldLine: oldNum,
-                newLine: newNum,
-                lineType: type
-            ))
-        }
-
-        return lines
-    }
-}
