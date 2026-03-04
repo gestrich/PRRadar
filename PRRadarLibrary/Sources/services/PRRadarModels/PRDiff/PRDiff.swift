@@ -38,4 +38,33 @@ public struct PRDiff: Codable, Sendable, Equatable {
             stats: DiffStats.compute(from: prHunks)
         )
     }
+
+    /// Reconstruct the full GitDiff by re-parsing from rawText.
+    public func toGitDiff() -> GitDiff {
+        GitDiff.fromDiffContent(rawText, commitHash: commitHash)
+    }
+
+    /// Derive the effective GitDiff by filtering out fully-moved hunks.
+    public func toEffectiveGitDiff() -> GitDiff {
+        let fullDiff = toGitDiff()
+        let effectiveHunks = fullDiff.hunks.filter { gitHunk in
+            let matchingPRHunk = hunks.first {
+                $0.filePath == gitHunk.filePath
+                    && $0.oldStart == gitHunk.oldStart
+                    && $0.newStart == gitHunk.newStart
+            }
+            return matchingPRHunk.map { !$0.isMoved } ?? true
+        }
+        return GitDiff(rawContent: "", hunks: effectiveHunks, commitHash: commitHash)
+    }
+
+    /// Derive a MoveReport from the moves and stats already on this diff.
+    public var derivedMoveReport: MoveReport {
+        MoveReport(
+            movesDetected: moves.count,
+            totalLinesMoved: moves.reduce(0) { $0 + $1.matchedLines },
+            totalLinesEffectivelyChanged: stats.linesChanged + stats.linesAdded + stats.linesRemoved,
+            moves: moves
+        )
+    }
 }

@@ -258,7 +258,10 @@ Switch MacApp views from `AnnotatedDiff`/`ClassifiedHunk`/`ClassifiedDiffLine` +
 
 8. Remove `MovedLineLookup`, `MovedLineInfo`, `DisplayDiffLine`, `DisplayDiffSection`, `DisplayDiffLineType` once no longer referenced.
 
-## - [ ] Phase 6: Remove old models and clean up
+## - [x] Phase 6: Remove old models and clean up
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Deleted all replaced types (ClassifiedDiffLine, ClassifiedHunk, AnnotatedDiff, EffectiveDiffPipelineResult, Display* types, MovedLineLookup/MovedLineInfo); made EffectiveDiffMoveDetail/EffectiveDiffMoveReport internal; removed old serialization and loadAnnotatedDiff
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -275,7 +278,10 @@ Delete types that are no longer referenced after migration.
 9. Remove `loadAnnotatedDiff()` from `PhaseOutputParser` — replaced by `loadPRDiff()` (which is only called by `LoadPRDiffUseCase`)
 10. Update all imports
 
-## - [ ] Phase 7: Rename directory and audit
+## - [x] Phase 7: Rename directory and audit
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Simplified SyncSnapshot to single `prDiff` field; added convenience methods on PRDiff for backward-compatible GitDiff reconstruction; made algorithm internals (TaggedLine, LineMatch, MoveCandidate, etc.) internal access; kept RediffFunction public as required by public pipeline API
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

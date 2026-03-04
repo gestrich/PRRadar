@@ -57,6 +57,8 @@ struct LoadPRDetailUseCaseTests {
         let diff = GitDiff(rawContent: "diff content", hunks: [], commitHash: commitHash)
         try writeJSON(diff, to: "\(diffDir)/\(DataPathsService.diffParsedJSONFilename)")
         try writeJSON(diff, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedJSONFilename)")
+        let prDiff = PRDiff(commitHash: commitHash, rawText: "diff content", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
+        try writeJSON(prDiff, to: "\(diffDir)/\(DataPathsService.prDiffFilename)")
 
         // Prepare: focus areas
         let focusArea = FocusArea(focusId: "f1", filePath: "file.swift", startLine: 1, endLine: 10, description: "test focus", hunkIndex: 0, hunkContent: "@@ content")
@@ -133,8 +135,7 @@ struct LoadPRDetailUseCaseTests {
         // Assert
         #expect(detail.commitHash == commitHash)
         #expect(detail.syncSnapshot != nil)
-        #expect(detail.syncSnapshot?.fullDiff != nil)
-        #expect(detail.syncSnapshot?.effectiveDiff != nil)
+        #expect(detail.syncSnapshot?.prDiff != nil)
         #expect(detail.preparation != nil)
         #expect(detail.preparation?.focusAreas.count == 1)
         #expect(detail.preparation?.rules.count == 1)
@@ -194,6 +195,8 @@ struct LoadPRDetailUseCaseTests {
         try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
         let diff = GitDiff(rawContent: "diff content", hunks: [], commitHash: commitHash)
         try writeJSON(diff, to: "\(diffDir)/\(DataPathsService.diffParsedJSONFilename)")
+        let prDiff = PRDiff(commitHash: commitHash, rawText: "diff content", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
+        try writeJSON(prDiff, to: "\(diffDir)/\(DataPathsService.prDiffFilename)")
         try PhaseResultWriter.writeSuccess(phase: .diff, outputDir: outputDir, prNumber: 1, commitHash: commitHash, stats: PhaseStats(artifactsProduced: 1))
 
         let config = makeConfig(outputDir: outputDir)
@@ -204,7 +207,7 @@ struct LoadPRDetailUseCaseTests {
 
         // Assert
         #expect(detail.syncSnapshot != nil)
-        #expect(detail.syncSnapshot?.fullDiff != nil)
+        #expect(detail.syncSnapshot?.prDiff != nil)
         #expect(detail.preparation == nil)
         #expect(detail.analysis == nil)
         #expect(detail.report == nil)
@@ -272,6 +275,8 @@ struct LoadPRDetailUseCaseTests {
         try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
         let diff = GitDiff(rawContent: "diff", hunks: [], commitHash: expectedShortHash)
         try writeJSON(diff, to: "\(diffDir)/\(DataPathsService.diffParsedJSONFilename)")
+        let prDiff = PRDiff(commitHash: expectedShortHash, rawText: "diff", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
+        try writeJSON(prDiff, to: "\(diffDir)/\(DataPathsService.prDiffFilename)")
 
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)
@@ -295,6 +300,8 @@ struct LoadPRDetailUseCaseTests {
         try FileManager.default.createDirectory(atPath: diffDir, withIntermediateDirectories: true)
         let diff = GitDiff(rawContent: "diff", hunks: [], commitHash: commitHash)
         try writeJSON(diff, to: "\(diffDir)/\(DataPathsService.diffParsedJSONFilename)")
+        let prDiff = PRDiff(commitHash: commitHash, rawText: "diff", hunks: [], moves: [], stats: DiffStats(linesAdded: 0, linesRemoved: 0, linesMoved: 0, linesChanged: 0))
+        try writeJSON(prDiff, to: "\(diffDir)/\(DataPathsService.prDiffFilename)")
 
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)

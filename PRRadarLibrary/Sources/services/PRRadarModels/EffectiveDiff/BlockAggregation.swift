@@ -1,21 +1,21 @@
 import Foundation
 
-public let defaultGapTolerance = 3
-public let defaultMinBlockSize = 3
-public let defaultMinScore = 0.0
+let defaultGapTolerance = 3
+let defaultMinBlockSize = 3
+let defaultMinScore = 0.0
 
 // MARK: - Data Structures
 
-public struct MoveCandidate: Sendable, Equatable {
-    public let removedLines: [TaggedLine]
-    public let addedLines: [TaggedLine]
-    public let score: Double
-    public let sourceFile: String
-    public let targetFile: String
-    public let sourceStartLine: Int
-    public let targetStartLine: Int
+struct MoveCandidate: Sendable, Equatable {
+    let removedLines: [TaggedLine]
+    let addedLines: [TaggedLine]
+    let score: Double
+    let sourceFile: String
+    let targetFile: String
+    let sourceStartLine: Int
+    let targetStartLine: Int
 
-    public init(
+    init(
         removedLines: [TaggedLine],
         addedLines: [TaggedLine],
         score: Double,
@@ -41,7 +41,7 @@ private struct GroupKey: Hashable {
     let targetFile: String
 }
 
-public func groupMatchesIntoBlocks(
+func groupMatchesIntoBlocks(
     _ matches: [LineMatch],
     gapTolerance: Int = defaultGapTolerance
 ) -> [[LineMatch]] {
@@ -78,7 +78,7 @@ public func groupMatchesIntoBlocks(
 
 // MARK: - Scoring
 
-public func computeSizeFactor(_ block: [LineMatch], minBlockSize: Int = defaultMinBlockSize) -> Double {
+func computeSizeFactor(_ block: [LineMatch], minBlockSize: Int = defaultMinBlockSize) -> Double {
     let size = block.count
     if size < minBlockSize { return 0.0 }
     let maxSize = 10
@@ -86,7 +86,7 @@ public func computeSizeFactor(_ block: [LineMatch], minBlockSize: Int = defaultM
     return Double(size - minBlockSize + 1) / Double(maxSize - minBlockSize + 1)
 }
 
-public func computeLineUniqueness(_ block: [LineMatch], allAddedLines: [TaggedLine]) -> Double {
+func computeLineUniqueness(_ block: [LineMatch], allAddedLines: [TaggedLine]) -> Double {
     var freq: [String: Int] = [:]
     for line in allAddedLines {
         guard !line.normalized.isEmpty else { continue }
@@ -105,7 +105,7 @@ public func computeLineUniqueness(_ block: [LineMatch], allAddedLines: [TaggedLi
     return scores.reduce(0, +) / Double(scores.count)
 }
 
-public func computeMatchConsistency(_ block: [LineMatch]) -> Double {
+func computeMatchConsistency(_ block: [LineMatch]) -> Double {
     guard block.count > 1 else { return 1.0 }
 
     let targetLineNumbers = block.map { Double($0.added.lineNumber) }
@@ -125,13 +125,13 @@ public func computeMatchConsistency(_ block: [LineMatch]) -> Double {
     return 1.0 / ratio
 }
 
-public func computeDistanceFactor(_ block: [LineMatch]) -> Double {
+func computeDistanceFactor(_ block: [LineMatch]) -> Double {
     let avgDistance = Double(block.reduce(0) { $0 + $1.distance }) / Double(block.count)
     if avgDistance == 0 { return 0.0 }
     return min(1.0, avgDistance * 0.5)
 }
 
-public func scoreBlock(_ block: [LineMatch], allAddedLines: [TaggedLine]) -> Double {
+func scoreBlock(_ block: [LineMatch], allAddedLines: [TaggedLine]) -> Double {
     let size = computeSizeFactor(block)
     if size == 0.0 { return 0.0 }
 
@@ -144,7 +144,7 @@ public func scoreBlock(_ block: [LineMatch], allAddedLines: [TaggedLine]) -> Dou
 
 // MARK: - Move Candidate Discovery
 
-public func findMoveCandidates(
+func findMoveCandidates(
     matches: [LineMatch],
     allAddedLines: [TaggedLine],
     gapTolerance: Int = defaultGapTolerance,

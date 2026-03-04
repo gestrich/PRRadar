@@ -37,8 +37,7 @@ public struct PrepareUseCase: Sendable {
                     continuation.yield(.log(text: "Generating focus areas...\n"))
 
                     let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-                    guard let fullDiff = diffSnapshot.fullDiff,
-                          let prDiff = diffSnapshot.prDiff else {
+                    guard let prDiff = diffSnapshot.prDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
                         return
@@ -61,7 +60,7 @@ public struct PrepareUseCase: Sendable {
                     )
 
                     let focusResults = try await focusGenerator.generateAllFocusAreas(
-                        hunks: fullDiff.hunks,
+                        hunks: prDiff.toGitDiff().hunks,
                         prNumber: prNumber,
                         requestedTypes: [.file],
                         transcriptDir: focusDir,

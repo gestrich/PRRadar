@@ -9,7 +9,7 @@ public enum ChangeKind: String, Codable, Sendable, Equatable {
 ///
 /// Uses the original diff's hunk structure to determine boundaries — each original hunk's
 /// non-header line count determines how many classified lines belong to it.
-public func groupIntoPRHunks(
+func groupIntoPRHunks(
     originalDiff: GitDiff,
     classifiedLines: [PRLine]
 ) -> [PRHunk] {
@@ -40,7 +40,7 @@ public func groupIntoPRHunks(
 /// Builds lookup sets from the move candidates and pre-computed re-diff analysis,
 /// then walks the original diff to assign each line a classification as a `PRLine`
 /// with `MoveInfo` baked in.
-public func classifyLines(
+func classifyLines(
     originalDiff: GitDiff,
     effectiveResults: [EffectiveDiffResult]
 ) -> [PRLine] {

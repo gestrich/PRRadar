@@ -1,17 +1,17 @@
 import Foundation
 
-public let defaultContextLines = 3
-public let defaultTrimProximity = 3
+let defaultContextLines = 3
+let defaultTrimProximity = 3
 
 // MARK: - Data Structures
 
-public struct EffectiveDiffResult: Sendable, Equatable {
-    public let candidate: MoveCandidate
-    public let hunks: [Hunk]
-    public let rawDiff: String
-    public let rediffAnalysis: RediffAnalysis
+struct EffectiveDiffResult: Sendable, Equatable {
+    let candidate: MoveCandidate
+    let hunks: [Hunk]
+    let rawDiff: String
+    let rediffAnalysis: RediffAnalysis
 
-    public init(candidate: MoveCandidate, hunks: [Hunk], rawDiff: String, rediffAnalysis: RediffAnalysis = RediffAnalysis()) {
+    init(candidate: MoveCandidate, hunks: [Hunk], rawDiff: String, rediffAnalysis: RediffAnalysis = RediffAnalysis()) {
         self.candidate = candidate
         self.hunks = hunks
         self.rawDiff = rawDiff
@@ -20,15 +20,15 @@ public struct EffectiveDiffResult: Sendable, Equatable {
 }
 
 /// Analysis of re-diff hunks: which lines within a move are insertions, modifications, or deletions.
-public struct RediffAnalysis: Sendable, Equatable {
+struct RediffAnalysis: Sendable, Equatable {
     /// Target-side lines that are new insertions inside the moved block (absolute coordinates).
-    public let addedInMoveLines: Set<Int>
+    let addedInMoveLines: Set<Int>
     /// Target-side lines that are modifications of existing source content (absolute coordinates).
-    public let changedInMoveLines: Set<Int>
+    let changedInMoveLines: Set<Int>
     /// Source-side lines that were modified or deleted at the destination (absolute coordinates → change kind).
-    public let changedSourceLines: [Int: ChangeKind]
+    let changedSourceLines: [Int: ChangeKind]
 
-    public init(addedInMoveLines: Set<Int> = [], changedInMoveLines: Set<Int> = [], changedSourceLines: [Int: ChangeKind] = [:]) {
+    init(addedInMoveLines: Set<Int> = [], changedInMoveLines: Set<Int> = [], changedSourceLines: [Int: ChangeKind] = [:]) {
         self.addedInMoveLines = addedInMoveLines
         self.changedInMoveLines = changedInMoveLines
         self.changedSourceLines = changedSourceLines
@@ -113,7 +113,7 @@ func extractLineRange(from fileContent: String, start: Int, end: Int) -> String 
     return result
 }
 
-public func extendBlockRange(
+func extendBlockRange(
     _ candidate: MoveCandidate,
     contextLines: Int = defaultContextLines
 ) -> (source: (start: Int, end: Int), target: (start: Int, end: Int)) {
@@ -142,7 +142,7 @@ func hunkOverlapsBlock(
         && hunkAbsEnd >= blockStart - proximity
 }
 
-public func trimHunks(
+func trimHunks(
     _ hunks: [Hunk],
     blockStart: Int,
     blockEnd: Int,
@@ -152,7 +152,7 @@ public func trimHunks(
     hunks.filter { hunkOverlapsBlock($0, blockStart: blockStart, blockEnd: blockEnd, regionStart: regionStart, proximity: proximity) }
 }
 
-public func computeEffectiveDiffForCandidate(
+func computeEffectiveDiffForCandidate(
     _ candidate: MoveCandidate,
     oldFiles: [String: String],
     newFiles: [String: String],

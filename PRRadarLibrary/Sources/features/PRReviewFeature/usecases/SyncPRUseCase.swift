@@ -4,9 +4,6 @@ import PRRadarConfigService
 import PRRadarModels
 
 public struct SyncSnapshot: Sendable {
-    public let fullDiff: GitDiff?
-    public let effectiveDiff: GitDiff?
-    public let moveReport: MoveReport?
     public let prDiff: PRDiff?
     public let files: [String]
     public let commentCount: Int
@@ -15,9 +12,6 @@ public struct SyncSnapshot: Sendable {
     public let commitHash: String?
 
     public init(
-        fullDiff: GitDiff? = nil,
-        effectiveDiff: GitDiff? = nil,
-        moveReport: MoveReport? = nil,
         prDiff: PRDiff? = nil,
         files: [String],
         commentCount: Int = 0,
@@ -25,9 +19,6 @@ public struct SyncSnapshot: Sendable {
         reviewCommentCount: Int = 0,
         commitHash: String? = nil
     ) {
-        self.fullDiff = fullDiff
-        self.effectiveDiff = effectiveDiff
-        self.moveReport = moveReport
         self.prDiff = prDiff
         self.files = files
         self.commentCount = commentCount
@@ -55,18 +46,6 @@ public struct SyncPRUseCase: Sendable {
             commitHash: resolvedCommit
         )
 
-        let fullDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.diffParsedJSONFilename, commitHash: resolvedCommit
-        )
-        let effectiveDiff: GitDiff? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: resolvedCommit
-        )
-        let moveReport: MoveReport? = try? PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .diff,
-            filename: DataPathsService.effectiveDiffMovesFilename, commitHash: resolvedCommit
-        )
         let prDiff = LoadPRDiffUseCase(config: config).execute(prNumber: prNumber, commitHash: resolvedCommit)
 
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
@@ -74,9 +53,6 @@ public struct SyncPRUseCase: Sendable {
         )
 
         return SyncSnapshot(
-            fullDiff: fullDiff,
-            effectiveDiff: effectiveDiff,
-            moveReport: moveReport,
             prDiff: prDiff,
             files: files,
             commentCount: comments?.comments.count ?? 0,

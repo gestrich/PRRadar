@@ -2,20 +2,20 @@ import Foundation
 
 // MARK: - Data Structures
 
-public enum TaggedLineType: String, Sendable {
+enum TaggedLineType: String, Sendable {
     case added
     case removed
 }
 
-public struct TaggedLine: Sendable, Equatable {
-    public let content: String
-    public let normalized: String
-    public let filePath: String
-    public let lineNumber: Int
-    public let hunkIndex: Int
-    public let lineType: TaggedLineType
+struct TaggedLine: Sendable, Equatable {
+    let content: String
+    let normalized: String
+    let filePath: String
+    let lineNumber: Int
+    let hunkIndex: Int
+    let lineType: TaggedLineType
 
-    public init(
+    init(
         content: String,
         normalized: String,
         filePath: String,
@@ -32,13 +32,13 @@ public struct TaggedLine: Sendable, Equatable {
     }
 }
 
-public struct LineMatch: Sendable, Equatable {
-    public let removed: TaggedLine
-    public let added: TaggedLine
-    public let distance: Int
-    public let similarity: Double
+struct LineMatch: Sendable, Equatable {
+    let removed: TaggedLine
+    let added: TaggedLine
+    let distance: Int
+    let similarity: Double
 
-    public init(removed: TaggedLine, added: TaggedLine, distance: Int, similarity: Double) {
+    init(removed: TaggedLine, added: TaggedLine, distance: Int, similarity: Double) {
         self.removed = removed
         self.added = added
         self.distance = distance
@@ -52,7 +52,7 @@ func normalize(_ line: String) -> String {
     line.trimmingCharacters(in: .whitespaces)
 }
 
-public func extractTaggedLines(from gitDiff: GitDiff) -> (removed: [TaggedLine], added: [TaggedLine]) {
+func extractTaggedLines(from gitDiff: GitDiff) -> (removed: [TaggedLine], added: [TaggedLine]) {
     var removed: [TaggedLine] = []
     var added: [TaggedLine] = []
 
@@ -83,7 +83,7 @@ public func extractTaggedLines(from gitDiff: GitDiff) -> (removed: [TaggedLine],
     return (removed, added)
 }
 
-public func buildAddedIndex(_ addedLines: [TaggedLine]) -> [String: [Int]] {
+func buildAddedIndex(_ addedLines: [TaggedLine]) -> [String: [Int]] {
     var index: [String: [Int]] = [:]
     for (i, line) in addedLines.enumerated() {
         guard !line.normalized.isEmpty else { continue }
@@ -92,7 +92,7 @@ public func buildAddedIndex(_ addedLines: [TaggedLine]) -> [String: [Int]] {
     return index
 }
 
-public func findExactMatches(
+func findExactMatches(
     removedLines: [TaggedLine],
     addedLines: [TaggedLine]
 ) -> [LineMatch] {
