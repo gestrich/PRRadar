@@ -187,23 +187,27 @@ Modify the effective diff pipeline to output the new unified models alongside ex
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Create (or refactor) a single use case that is the **only way clients get a `PRDiff`**. Callers never coordinate raw diff fetching, pipeline processing, or disk loading themselves.
+Create a single use case that is the **only way clients get a `PRDiff`**. Callers never coordinate raw diff fetching, pipeline processing, or disk loading themselves. **`PhaseOutputParser.loadPRDiff()` must never be called directly by client code** — only `LoadPRDiffUseCase` may call it.
 
-1. Create/refactor a use case (e.g., `LoadPRDiffUseCase` or extend `FetchDiffUseCase`) that:
-   - Fetches raw diff (via `PRAcquisitionService` or reads from disk via `PhaseOutputParser`)
-   - Runs the effective diff pipeline if needed
-   - Returns a fully-formed `PRDiff`
-   - This is the single call point — all consumers go through here
+1. Create `LoadPRDiffUseCase` in features/PRReviewFeature/usecases/:
+   - Wraps `PhaseOutputParser.loadPRDiff()` — this is the only caller of that method
+   - Returns a fully-formed `PRDiff?`
+   - This is the single call point — all consumers go through here or receive `PRDiff` as a parameter from a caller that already obtained it
 
-2. All existing consumers that currently load `AnnotatedDiff` independently (e.g., `AnalyzeSingleTaskUseCase` calling `PhaseOutputParser.loadAnnotatedDiff()`, `PrepareUseCase` reading `diffSnapshot.annotatedDiff`) should instead receive `PRDiff` from this use case or have it passed in from a caller that already obtained it.
+2. Thread `PRDiff` through the standard data flow:
+   - Add `prDiff: PRDiff?` to `SyncSnapshot` — loaded via `LoadPRDiffUseCase` in `SyncPRUseCase.parseOutput()`
+   - Add `prDiff: PRDiff?` to `PRDetail` — surfaced from `SyncSnapshot`
+   - Fix `PhaseOutputParser.loadAnnotatedDiff()` to populate `AnnotatedDiff.prDiff` from disk (Phase 2 gap)
 
-3. `PRModel` (the app-layer observable model) obtains `PRDiff` through a use case call — it does not assemble diff data from multiple sources.
+3. `PRModel` (the app-layer observable model) obtains `PRDiff` through `detail?.prDiff` — it does not assemble diff data from multiple sources.
+
+4. Later phases must follow the same rule: if a use case or service needs `PRDiff`, it receives it as a parameter from its caller (who got it from `LoadPRDiffUseCase` or from the `SyncSnapshot`/`PRDetail` data flow). No direct `PhaseOutputParser.loadPRDiff()` calls.
 
 ## - [ ] Phase 4: Migrate analysis consumers
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
-Switch analysis services and use cases from `ClassifiedHunk`/`ClassifiedDiffLine` to `PRHunk`/`PRLine`. All consumers receive `PRDiff` (or its hunks) — they never load it themselves.
+Switch analysis services and use cases from `ClassifiedHunk`/`ClassifiedDiffLine` to `PRHunk`/`PRLine`. All consumers receive `PRDiff` (or its hunks) as parameters — they never load it themselves and never call `PhaseOutputParser` directly.
 
 Consumers to migrate (in order of isolation — least dependencies first):
 
@@ -213,13 +217,15 @@ Consumers to migrate (in order of isolation — least dependencies first):
 
 3. **`AnalysisService.runBatchAnalysis()`** — currently takes `AnnotatedDiff?`, reads `.classifiedHunks`. Change to take `PRDiff` and use its hunks.
 
-4. **`AnalyzeSingleTaskUseCase.execute()`** — currently loads `AnnotatedDiff` itself via `PhaseOutputParser`. Change to receive `PRDiff` as a parameter (provided by the caller, which got it from the single-entry-point use case).
+4. **`AnalyzeSingleTaskUseCase.execute()`** — currently loads `AnnotatedDiff` itself via `PhaseOutputParser`. Change to receive `PRDiff` as a parameter (provided by the caller). Remove `PhaseOutputParser.loadAnnotatedDiff()` call.
 
-5. **`RuleLoaderService.filterRulesForFocusArea()`** — currently takes `AnnotatedDiff`, calls `ClassifiedHunk.filterForFocusArea()`. Change to take `PRDiff` and use `PRHunk.filterForFocusArea()`.
+5. **`AnalyzeUseCase.runEvaluations()`** — currently calls `PhaseOutputParser.loadAnnotatedDiff()` at line 222 and passes to `AnalyzeSingleTaskUseCase`. Change to load `PRDiff` via `LoadPRDiffUseCase` and pass it down.
 
-6. **`TaskCreatorService.createAndWriteTasks()`** — currently takes `AnnotatedDiff`, reads `.fullDiff.commitHash`. Change to take `PRDiff` and read `.commitHash`.
+6. **`RuleLoaderService.filterRulesForFocusArea()`** — currently takes `AnnotatedDiff`, calls `ClassifiedHunk.filterForFocusArea()`. Change to take `PRDiff` and use `PRHunk.filterForFocusArea()`.
 
-7. **`PrepareUseCase`** — currently passes `AnnotatedDiff` to task creator. Change to pass `PRDiff` (obtained from the single-entry-point use case).
+7. **`TaskCreatorService.createAndWriteTasks()`** — currently takes `AnnotatedDiff`, reads `.fullDiff.commitHash`. Change to take `PRDiff` and read `.commitHash`.
+
+8. **`PrepareUseCase`** — currently gets `AnnotatedDiff` via `SyncPRUseCase.parseOutput()`. Change to get `PRDiff` from `SyncSnapshot.prDiff` (already available from Phase 3) and pass to task creator.
 
 ## - [ ] Phase 5: Migrate view consumers
 
@@ -257,7 +263,7 @@ Delete types that are no longer referenced after migration.
 6. Delete `MovedLineLookup`, `MovedLineInfo`
 7. Make `EffectiveDiffMoveDetail` and `EffectiveDiffMoveReport` internal (remove `public`)
 8. Remove old serialization files from `PRAcquisitionService` (effective-diff-parsed.json, classified-hunks.json) — replaced by `pr-diff.json`
-9. Remove `loadAnnotatedDiff()` from `PhaseOutputParser` — replaced by `loadPRDiff()`
+9. Remove `loadAnnotatedDiff()` from `PhaseOutputParser` — replaced by `loadPRDiff()` (which is only called by `LoadPRDiffUseCase`)
 10. Update all imports
 
 ## - [ ] Phase 7: Rename directory and audit

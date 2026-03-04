@@ -103,12 +103,17 @@ public enum PhaseOutputParser {
             config: config, prNumber: prNumber, phase: .diff,
             filename: DataPathsService.classifiedHunksFilename, commitHash: commitHash
         )) ?? []
+        let prDiff: PRDiff? = try? parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff,
+            filename: DataPathsService.prDiffFilename, commitHash: commitHash
+        )
 
         return AnnotatedDiff(
             fullDiff: fullDiff,
             effectiveDiff: effectiveDiff,
             moveReport: moveReport,
-            classifiedHunks: classifiedHunks
+            classifiedHunks: classifiedHunks,
+            prDiff: prDiff
         )
     }
 

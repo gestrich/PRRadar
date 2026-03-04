@@ -57,6 +57,10 @@ final class PRModel: Identifiable, Hashable {
         metadata.number
     }
 
+    var prDiff: PRDiff? {
+        detail?.prDiff
+    }
+
     var fullDiff: GitDiff? {
         syncSnapshot?.annotatedDiff?.fullDiff
     }

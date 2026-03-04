@@ -5,6 +5,7 @@ import PRRadarModels
 
 public struct SyncSnapshot: Sendable {
     public let annotatedDiff: AnnotatedDiff?
+    public let prDiff: PRDiff?
     public let files: [String]
     public let commentCount: Int
     public let reviewCount: Int
@@ -13,6 +14,7 @@ public struct SyncSnapshot: Sendable {
 
     public init(
         annotatedDiff: AnnotatedDiff? = nil,
+        prDiff: PRDiff? = nil,
         files: [String],
         commentCount: Int = 0,
         reviewCount: Int = 0,
@@ -20,6 +22,7 @@ public struct SyncSnapshot: Sendable {
         commitHash: String? = nil
     ) {
         self.annotatedDiff = annotatedDiff
+        self.prDiff = prDiff
         self.files = files
         self.commentCount = commentCount
         self.reviewCount = reviewCount
@@ -48,6 +51,7 @@ public struct SyncPRUseCase: Sendable {
         )
 
         let annotatedDiff = PhaseOutputParser.loadAnnotatedDiff(config: config, prNumber: prNumber, commitHash: resolvedCommit)
+        let prDiff = LoadPRDiffUseCase(config: config).execute(prNumber: prNumber, commitHash: resolvedCommit)
 
         // Comments live under metadata/
         let comments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
@@ -56,6 +60,7 @@ public struct SyncPRUseCase: Sendable {
 
         return SyncSnapshot(
             annotatedDiff: annotatedDiff,
+            prDiff: prDiff,
             files: files,
             commentCount: comments?.comments.count ?? 0,
             reviewCount: comments?.reviews.count ?? 0,

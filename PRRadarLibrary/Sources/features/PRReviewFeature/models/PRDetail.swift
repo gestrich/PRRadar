@@ -6,6 +6,7 @@ public struct PRDetail: Sendable {
     public let availableCommits: [String]
     public let phaseStatuses: [PRRadarPhase: PhaseStatus]
     public let syncSnapshot: SyncSnapshot?
+    public let prDiff: PRDiff?
     public let preparation: PrepareOutput?
     public let analysis: PRReviewResult?
     public let report: ReportPhaseOutput?
@@ -21,6 +22,7 @@ public struct PRDetail: Sendable {
         availableCommits: [String],
         phaseStatuses: [PRRadarPhase: PhaseStatus],
         syncSnapshot: SyncSnapshot?,
+        prDiff: PRDiff? = nil,
         preparation: PrepareOutput?,
         analysis: PRReviewResult?,
         report: ReportPhaseOutput?,
@@ -35,6 +37,7 @@ public struct PRDetail: Sendable {
         self.availableCommits = availableCommits
         self.phaseStatuses = phaseStatuses
         self.syncSnapshot = syncSnapshot
+        self.prDiff = prDiff
         self.preparation = preparation
         self.analysis = analysis
         self.report = report
