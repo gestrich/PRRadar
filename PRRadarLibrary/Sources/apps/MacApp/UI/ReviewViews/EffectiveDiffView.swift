@@ -3,17 +3,16 @@ import SwiftUI
 
 struct EffectiveDiffView: View {
 
-    let annotatedDiff: AnnotatedDiff
+    let prDiff: PRDiff
+    let fullDiff: GitDiff
+    let effectiveDiff: GitDiff
+    let moveReport: MoveReport?
     var prModel: PRModel
     var initialMove: MoveDetail?
 
     @State private var selectedTab = 1  // Default to effective diff
     @State private var selectedFile: String?
     @State private var selectedMoveIndex: Int?
-
-    private var fullDiff: GitDiff { annotatedDiff.fullDiff }
-    private var effectiveDiff: GitDiff { annotatedDiff.effectiveDiff ?? annotatedDiff.fullDiff }
-    private var moveReport: MoveReport? { annotatedDiff.moveReport }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +27,7 @@ struct EffectiveDiffView: View {
             }
         }
         .onAppear {
-            if let initialMove, let index = moveReport?.moves.firstIndex(of: initialMove) {
+            if let initialMove, let index = prDiff.moves.firstIndex(of: initialMove) {
                 selectedMoveIndex = index
             }
         }
@@ -88,9 +87,9 @@ struct EffectiveDiffView: View {
                 }
             }
 
-            if let report = moveReport, !report.moves.isEmpty {
-                Section("Code Moves (\(report.moves.count))") {
-                    ForEach(Array(report.moves.enumerated()), id: \.offset) { index, move in
+            if !prDiff.moves.isEmpty {
+                Section("Code Moves (\(prDiff.moves.count))") {
+                    ForEach(Array(prDiff.moves.enumerated()), id: \.offset) { index, move in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.right")
@@ -153,8 +152,8 @@ struct EffectiveDiffView: View {
                 let raw = hunks.map(\.content).joined(separator: "\n")
                 return GitDiff(rawContent: raw, hunks: hunks, commitHash: activeDiff.commitHash)
             }
-            if let moveIndex = selectedMoveIndex, let report = moveReport {
-                let move = report.moves[moveIndex]
+            if let moveIndex = selectedMoveIndex {
+                let move = prDiff.moves[moveIndex]
                 let sourceHunks = activeDiff.getHunks(byFilePath: move.sourceFile)
                 let targetHunks = activeDiff.getHunks(byFilePath: move.targetFile)
                 let hunks = sourceHunks + targetHunks
@@ -165,10 +164,10 @@ struct EffectiveDiffView: View {
         }()
 
         AnnotatedDiffContentView(
-            annotatedDiff: annotatedDiff,
+            prDiff: prDiff,
+            displayDiff: filteredDiff,
             commentMapping: .empty,
-            prModel: prModel,
-            displayDiff: filteredDiff
+            prModel: prModel
         )
     }
 }

@@ -42,6 +42,35 @@ public struct PRHunk: Codable, Sendable, Equatable {
             .compactMap { $0.newLineNumber ?? $0.oldLineNumber })
     }
 
+    public static func fromHunk(_ hunk: Hunk) -> PRHunk {
+        let lines = hunk.getDiffLines()
+            .filter { $0.lineType != .header }
+            .map { diffLine in
+                let changeKind: ChangeKind
+                switch diffLine.lineType {
+                case .added: changeKind = .added
+                case .removed: changeKind = .removed
+                case .context, .header: changeKind = .unchanged
+                }
+                return PRLine(
+                    content: diffLine.content,
+                    rawLine: diffLine.rawLine,
+                    diffType: diffLine.lineType,
+                    changeKind: changeKind,
+                    oldLineNumber: diffLine.oldLineNumber,
+                    newLineNumber: diffLine.newLineNumber,
+                    filePath: hunk.filePath,
+                    move: nil
+                )
+            }
+        return PRHunk(
+            filePath: hunk.filePath,
+            oldStart: hunk.oldStart,
+            newStart: hunk.newStart,
+            lines: lines
+        )
+    }
+
     public static func filterForFocusArea(
         _ hunks: [PRHunk],
         focusArea: FocusArea

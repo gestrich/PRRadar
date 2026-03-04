@@ -96,9 +96,9 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var diffOutputView: some View {
-        if let annotatedDiff = prModel.syncSnapshot?.annotatedDiff {
+        if let prDiff = prModel.prDiff, let fullDiff = prModel.fullDiff {
             VStack(spacing: 0) {
-                if hasAIOutput || annotatedDiff.effectiveDiff != nil {
+                if hasAIOutput || prModel.effectiveDiff != nil {
                     HStack {
                         if hasAIOutput {
                             Button {
@@ -115,7 +115,7 @@ struct ReviewDetailView: View {
                             .accessibilityIdentifier("aiOutputButton")
                         }
                         Spacer()
-                        if annotatedDiff.effectiveDiff != nil {
+                        if prModel.effectiveDiff != nil {
                             Button {
                                 showEffectiveDiff = true
                             } label: {
@@ -130,7 +130,8 @@ struct ReviewDetailView: View {
                 }
 
                 DiffPhaseView(
-                    annotatedDiff: annotatedDiff,
+                    prDiff: prDiff,
+                    fullDiff: fullDiff,
                     prModel: prModel,
                     onMoveTapped: { move in
                         effectiveDiffInitialMove = move
@@ -146,9 +147,12 @@ struct ReviewDetailView: View {
             .sheet(isPresented: $showEffectiveDiff, onDismiss: {
                 effectiveDiffInitialMove = nil
             }) {
-                if annotatedDiff.effectiveDiff != nil {
+                if let effectiveDiff = prModel.effectiveDiff {
                     EffectiveDiffView(
-                        annotatedDiff: annotatedDiff,
+                        prDiff: prDiff,
+                        fullDiff: fullDiff,
+                        effectiveDiff: effectiveDiff,
+                        moveReport: prModel.moveReport,
                         prModel: prModel,
                         initialMove: effectiveDiffInitialMove
                     )

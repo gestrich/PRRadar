@@ -233,7 +233,10 @@ Consumers to migrate (in order of isolation — least dependencies first):
 
 8. **`PrepareUseCase`** — currently gets `AnnotatedDiff` via `SyncPRUseCase.parseOutput()`. Change to get `PRDiff` from `SyncSnapshot.prDiff` (already available from Phase 3) and pass to task creator.
 
-## - [ ] Phase 5: Migrate view consumers
+## - [x] Phase 5: Migrate view consumers
+
+**Skills used**: `swift-app-architecture:swift-architecture`, `swift-app-architecture:swift-swiftui`
+**Principles applied**: Views receive PRDiff/PRHunk/PRLine directly; MovedLineLookup/MovedLineInfo eliminated (move info baked into PRLine.move); views still accept GitDiff for structural display (hunk headers, rename detection, comment mapping) pending Phase 6 consolidation
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`, `/swift-app-architecture:swift-swiftui`
 
