@@ -431,7 +431,10 @@ New tests for paired modification detection:
 - `buildPairedModifications` — equal run counts, surplus removals, surplus additions, context lines separating change groups
 - `classifyLines` integration — all paired modifications get `contentChange=.modified` with correct pairing role and counterpart line numbers, unpaired lines stay `.added`/`.deleted`, move detection takes priority over in-place pairing
 
-### - [ ] Phase 9: Validate the bug is fixed
+### - [x] Phase 9: Validate the bug is fixed
+
+**Skills used**: `/pr-radar-verify-work`
+**Principles applied**: Created a draft PR (#15) in PRRadar-TestRepo with an interior whitespace change (`NSString *name` → `NSString* name`) on an unannotated property — the same pattern as the original `parentView` bug. Pipeline analysis (`sync` + `prepare` + `analyze --mode regex`) confirmed `contentChange=modified` for both the removed and added lines (with paired roles), and 0 violations from `nullability-objc` (which uses `new_code_lines_only: true`). All 655 unit tests pass.
 
 Re-run the same steps from Phase 2 against PR #19024. Expected results:
 
