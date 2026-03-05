@@ -84,13 +84,13 @@ Cross-file move? `counterpart.filePath` differs from the line's own `filePath`. 
 | `.added` | `.replacement(counterpart)` | move, changedInMove | New version of modification in move |
 | `.added` | `.replacement(counterpart)` | no move, paired non-trivial | New version of in-place modification |
 | `.added` | `.context` | move, verbatim | Verbatim move destination (demoted) |
-| `.added` | `.context` | no move, paired whitespace-only | Whitespace-only modification (demoted) |
+| `.added` | `.replacement(counterpart)` | no move, paired whitespace-only | In-place modification (whitespace-only is still a modification) |
 | `.removed` | `.deleted` | no move, unpaired | Genuinely deleted code |
 | `.removed` | `.deleted` | move, changedSourceLines .deleted | Deleted within moved block |
 | `.removed` | `.replaced(counterpart)` | move, changedSourceLines .replaced | Old version of modification in move |
 | `.removed` | `.replaced(counterpart)` | no move, paired non-trivial | Old version of in-place modification |
 | `.removed` | `.context` | move, verbatim | Verbatim move source (demoted) |
-| `.removed` | `.context` | no move, paired whitespace-only | Whitespace-only modification (demoted) |
+| `.removed` | `.replaced(counterpart)` | no move, paired whitespace-only | In-place modification (whitespace-only is still a modification) |
 | `.context` | `.context` | — | Unchanged context line |
 
 ### Consumer mapping
@@ -282,9 +282,10 @@ Update `analyzeRediffHunks()` to produce new case names in `changedSourceLines`:
 
 Update `RediffAnalysis.changedSourceLines` type from `[Int: ChangeKind]` — values change from `.changed`/`.removed` to `.replaced(counterpart:)`/`.deleted`.
 
-### - [ ] Phase 4: Add paired modification detection
+### - [x] Phase 4: Add paired modification detection
 
-**Skills to read**: `/swift-app-architecture:swift-architecture`
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Added `PairedModification` struct (counterpartLineNumber only — no whitespace classification) and `buildPairedModifications(from:)` which positionally pairs removed[i]↔added[i] within contiguous change groups. Deleted `buildWhitespaceOnlySet()` and `stripAllWhitespace()`. All paired lines fall through to `.deleted`/`.new` for now; Phase 5 promotes them to `.replaced`/`.replacement`. The `isSurroundingWhitespaceOnlyChange` indicator is deferred to Phase 10.
 
 Add `buildPairedModifications()` to `ClassifiedDiffLine.swift`, replacing `buildWhitespaceOnlySet()`. This detects all in-place `-`/`+` pairs within hunks, not just whitespace-only ones.
 
@@ -292,13 +293,14 @@ Add `buildPairedModifications()` to `ClassifiedDiffLine.swift`, replacing `build
 - Walk each hunk and identify consecutive runs of removed lines followed by added lines ("change groups")
 - Pair them 1:1 sequentially (removed[0]↔added[0], removed[1]↔added[1], etc.)
 - Surplus lines (when counts differ) remain unpaired
-- For each pair, check if the modification is whitespace-only using `collapseWhitespace()` (strip all whitespace, compare)
 - Return two lookups:
   - `byOldLine: [String: [Int: PairedModification]]` (filePath → oldLineNumber → pairing info)
   - `byNewLine: [String: [Int: PairedModification]]` (filePath → newLineNumber → pairing info)
-- Where `PairedModification` captures: `isWhitespaceOnly: Bool`, `counterpartLineNumber: Int`
+- Where `PairedModification` captures only: `counterpartLineNumber: Int`
 
-**Delete `buildWhitespaceOnlySet()`** — subsumed by the new mechanism. Keep `collapseWhitespace()` as it's still used for the whitespace comparison.
+No whitespace comparison is performed — all paired lines are in-place modifications regardless of how much the content changed. The `newCodeLinesOnly` fix comes purely from the `.replacement` classification in Phase 5, not from any whitespace check.
+
+**Delete `buildWhitespaceOnlySet()`** — subsumed by the new mechanism.
 
 ### - [ ] Phase 5: Update classification pipeline
 
@@ -311,19 +313,17 @@ Update `classifyLines()` in `ClassifiedDiffLine.swift` to produce the new `Chang
 1. sourceMovedLines (changedSourceLines has .replaced) → .replaced(counterpart) from changedSourceLines
 2. sourceMovedLines (changedSourceLines has .deleted)  → .deleted
 3. sourceMovedLines (no changedSourceLines entry)      → .context, verbatimMoveCounterpart = Counterpart(targetFile, nil)
-4. paired (whitespace-only)                            → .context
-5. paired (non-trivial)                                → .replaced(counterpart: Counterpart(filePath, pairedNewLineNum))
-6. fallthrough                                         → .deleted
+4. paired (any content change)                         → .replaced(counterpart: Counterpart(filePath, pairedNewLineNum))
+5. fallthrough                                         → .deleted
 ```
 
 **`.added` lines:**
 ```
-1. addedInMoveLines       → .new
-2. changedInMoveLines     → .replacement(counterpart: Counterpart(sourceFile, nil))
-3. targetMovedLines       → .context, verbatimMoveCounterpart = Counterpart(sourceFile, nil)
-4. paired (whitespace-only) → .context
-5. paired (non-trivial)     → .replacement(counterpart: Counterpart(filePath, pairedOldLineNum))
-6. fallthrough              → .new
+1. addedInMoveLines     → .new
+2. changedInMoveLines   → .replacement(counterpart: Counterpart(sourceFile, nil))
+3. targetMovedLines     → .context, verbatimMoveCounterpart = Counterpart(sourceFile, nil)
+4. paired (any content change) → .replacement(counterpart: Counterpart(filePath, pairedOldLineNum))
+5. fallthrough          → .new
 ```
 
 **`.context` lines:**
@@ -416,7 +416,7 @@ Key test suites to update:
 
 New tests for paired modification detection:
 - `buildPairedModifications` — equal run counts, surplus removals, surplus additions, context lines separating change groups
-- `classifyLines` integration — paired non-trivial modifications get `.replaced`/`.replacement` with correct counterpart line numbers, whitespace-only pairs stay `.context`, unpaired lines stay `.new`/`.deleted`, move detection takes priority over in-place pairing
+- `classifyLines` integration — all paired modifications get `.replaced`/`.replacement` with correct counterpart line numbers (regardless of whether the change is whitespace-only), unpaired lines stay `.new`/`.deleted`, move detection takes priority over in-place pairing
 
 ### - [ ] Phase 9: Validate the bug is fixed
 
@@ -432,8 +432,8 @@ swift run PRRadarMacCLI sync 19024 --config ios
 swift run PRRadarMacCLI prepare 19024 --config ios
 swift run PRRadarMacCLI analyze 19024 --config ios --mode regex
 
-# Inspect — parentView should be changeKind=context (whitespace-only, demoted)
-# Other in-place modifications should be changeKind=replacement (not new)
+# Inspect — parentView should be changeKind=replacement (in-place modification, not new code)
+# Other in-place modifications should also be changeKind=replacement
 # Genuinely new lines (like _Nonnull additions) should still be changeKind=new
 python3 -c "
 import json
@@ -447,8 +447,38 @@ for h in hunks:
 ```
 
 **Expected**:
-- `parentView` line → `changeKind = context` (whitespace-only pair, demoted) — **false positive eliminated**
+- `parentView` line → `changeKind = replacement` (in-place modification, not new code) — **false positive eliminated**
 - `- (nonnull instancetype)initWithTripSummary:...` → `changeKind = new` — genuinely new code still caught
 - `RouteTokenDelegateDataSource.h — nullability-h-objc` → no longer flagged
 - All unit tests pass (`swift test`)
 - 6 real violations in `.m` files still detected
+
+### - [ ] Phase 10: Add `isSurroundingWhitespaceOnlyChange` to `PRLine`
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Add `isSurroundingWhitespaceOnlyChange: Bool` to `PRLine`. This flag is `true` when a paired `-`/`+` line differs from its counterpart only in leading/trailing whitespace (interior whitespace changes are NOT flagged). It is always `false` for `.new`, `.deleted`, and `.context` lines.
+
+**Comparison**: `removed.content.trimmingCharacters(in: .whitespaces) == added.content.trimmingCharacters(in: .whitespaces)`
+
+**Examples**:
+- `"    Hello"` → `"Hello"` → `true` (leading whitespace only)
+- `"Hello    "` → `"Hello"` → `true` (trailing whitespace only)
+- `"* parentView"` → `"*parentView"` → `false` (interior change)
+- `"Hello  World"` → `"Hello World"` → `false` (interior change)
+
+**Changes**:
+- Add `isSurroundingWhitespaceOnlyChange: Bool` to `PRLine` (default `false`)
+- Populate it in `classifyLines()` for paired `.replaced`/`.replacement` lines using the trimmed comparison
+- Record `isSurroundingWhitespaceOnly: Bool` in `PairedModification` (computed during `buildPairedModifications`) and propagate to the `PRLine`
+
+### - [ ] Phase 11: Suppress surrouding-whitespace-only lines in regex and script analysis
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Update the analysis layer to skip lines where `isSurroundingWhitespaceOnlyChange == true` for regex and script rules. AI rules are unaffected — they receive the raw diff text and can reason about whitespace themselves.
+
+**Changes**:
+- `RegexAnalysisService`: skip lines where `isSurroundingWhitespaceOnlyChange == true`
+- `ScriptAnalysisService` (or equivalent): same suppression
+- Add tests confirming that surrounding-whitespace-only `.replacement` lines are not flagged by regex rules

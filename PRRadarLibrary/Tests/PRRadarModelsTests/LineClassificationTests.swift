@@ -310,8 +310,9 @@ private func makeEffectiveResult(
         #expect(classified[4].changeKind == .new, "Line after move should be .new")
     }
 
-    @Test func leadingWhitespaceOnlyChangeClassifiedAsUnchanged() {
-        // Arrange — removed line has leading spaces, added line has none; content otherwise identical
+    @Test func leadingWhitespaceOnlyPairFallsThroughUntilPhase5() {
+        // Arrange — removed line has leading spaces, added line has none; content otherwise identical.
+        // Phase 5 will promote to .replaced/.replacement; Phase 10 will set isSurroundingWhitespaceOnlyChange.
         let original = GitDiff(
             rawContent: "",
             hunks: [
@@ -324,13 +325,16 @@ private func makeEffectiveResult(
         // Act
         let classified = classifyLines(originalDiff: original, effectiveResults: [])
 
-        // Assert — leading whitespace difference only → demoted to .context
+        // Assert — paired but not yet promoted → .deleted / .new until Phase 5
+        let removed = classified.first { $0.diffType == .removed }
         let added = classified.first { $0.diffType == .added }
-        #expect(added?.changeKind == .context)
+        #expect(removed?.changeKind == .deleted)
+        #expect(added?.changeKind == .new)
     }
 
-    @Test func interiorWhitespaceChangeClassifiedAsAdded() {
-        // Arrange — "* parentView" vs "*parentView": interior whitespace removed, not leading/trailing
+    @Test func inPlacePairFallsThroughToDeletedAndNewUntilPhase5() {
+        // Arrange — "* parentView" vs "*parentView": positionally paired in-place modification.
+        // Phase 5 will promote paired lines to .replaced/.replacement; until then they fall through.
         let original = GitDiff(
             rawContent: "",
             hunks: [
@@ -343,8 +347,10 @@ private func makeEffectiveResult(
         // Act
         let classified = classifyLines(originalDiff: original, effectiveResults: [])
 
-        // Assert — interior whitespace difference → treated as real modification → .new (not .context)
+        // Assert — pairing info recorded but classification not yet applied → .deleted / .new
+        let removed = classified.first { $0.diffType == .removed }
         let added = classified.first { $0.diffType == .added }
+        #expect(removed?.changeKind == .deleted)
         #expect(added?.changeKind == .new)
     }
 }

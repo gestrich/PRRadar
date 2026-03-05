@@ -137,7 +137,7 @@ func classifyLines(
     originalDiff: GitDiff,
     effectiveResults: [EffectiveDiffResult]
 ) -> [PRLine] {
-    let whitespaceOnlyAdded = buildWhitespaceOnlySet(from: originalDiff)
+    let pairedMods = buildPairedModifications(from: originalDiff)
 
     var sourceMovedLines: [String: Set<Int>] = [:]
     var targetMovedLines: [String: Set<Int>] = [:]
@@ -213,10 +213,6 @@ func classifyLines(
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
                     changeKind = .context
                     moveInfo = targetMoveInfoLookup[hunk.filePath]?[newNum]
-                } else if let newNum = diffLine.newLineNumber,
-                          whitespaceOnlyAdded[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .context
-                    moveInfo = nil
                 } else {
                     changeKind = .new
                     moveInfo = nil
@@ -247,47 +243,57 @@ func classifyLines(
     return classified
 }
 
-// MARK: - Whitespace-Only Detection
+// MARK: - Paired Modification Detection
 
-/// Trim leading and trailing whitespace for whitespace-only comparison.
-///
-/// Only leading/trailing differences are considered whitespace-only.
-/// Interior whitespace changes (e.g. `"* parentView"` vs `"*parentView"`) are treated as real modifications.
-private func trimSurroundingWhitespace(_ s: String) -> String {
-    s.trimmingCharacters(in: .whitespaces)
+struct PairedModification {
+    let counterpartLineNumber: Int
 }
 
-/// Scan each hunk for removed/added line pairs that differ only in leading/trailing whitespace.
+/// Detects in-place `-`/`+` pairs within each hunk via sequential positional pairing.
 ///
-/// Returns a per-file set of new-line numbers for added lines whose content is identical
-/// to a removed line after trimming surrounding whitespace. Interior whitespace differences
-/// (e.g. `"* parentView"` vs `"*parentView"`) are NOT considered whitespace-only.
-func buildWhitespaceOnlySet(from diff: GitDiff) -> [String: Set<Int>] {
-    var result: [String: Set<Int>] = [:]
+/// Scans each hunk for contiguous blocks of removed and added lines ("change groups").
+/// Within each group, pairs removed[i]↔added[i] in order. Surplus lines when counts
+/// differ remain unpaired and are not included in the result.
+///
+/// Returns two lookups:
+/// - `byOldLine`: filePath → oldLineNumber → pairing info for removed lines
+/// - `byNewLine`: filePath → newLineNumber → pairing info for added lines
+func buildPairedModifications(from diff: GitDiff) -> (byOldLine: [String: [Int: PairedModification]], byNewLine: [String: [Int: PairedModification]]) {
+    var byOldLine: [String: [Int: PairedModification]] = [:]
+    var byNewLine: [String: [Int: PairedModification]] = [:]
 
     for hunk in diff.hunks {
-        let lines = hunk.getDiffLines()
-        let removed = lines.filter { $0.lineType == .removed }
-        let added = lines.filter { $0.lineType == .added }
+        let lines = hunk.getDiffLines().filter { $0.lineType != .header }
+        var i = 0
+        while i < lines.count {
+            guard lines[i].lineType == .removed || lines[i].lineType == .added else {
+                i += 1
+                continue
+            }
 
-        var removedByCollapsed: [String: [Int]] = [:]
-        for r in removed {
-            let key = trimSurroundingWhitespace(r.content)
-            guard !key.isEmpty else { continue }
-            removedByCollapsed[key, default: []].append(r.oldLineNumber ?? 0)
-        }
+            var removedInGroup: [DiffLine] = []
+            var addedInGroup: [DiffLine] = []
 
-        for a in added {
-            let key = trimSurroundingWhitespace(a.content)
-            guard !key.isEmpty else { continue }
-            guard var indices = removedByCollapsed[key], !indices.isEmpty else { continue }
-            indices.removeFirst()
-            removedByCollapsed[key] = indices
-            if let newNum = a.newLineNumber {
-                result[hunk.filePath, default: []].insert(newNum)
+            while i < lines.count && (lines[i].lineType == .removed || lines[i].lineType == .added) {
+                switch lines[i].lineType {
+                case .removed: removedInGroup.append(lines[i])
+                case .added: addedInGroup.append(lines[i])
+                default: break
+                }
+                i += 1
+            }
+
+            let pairCount = min(removedInGroup.count, addedInGroup.count)
+            for j in 0..<pairCount {
+                let removed = removedInGroup[j]
+                let added = addedInGroup[j]
+                guard let oldNum = removed.oldLineNumber, let newNum = added.newLineNumber else { continue }
+
+                byOldLine[hunk.filePath, default: [:]][oldNum] = PairedModification(counterpartLineNumber: newNum)
+                byNewLine[hunk.filePath, default: [:]][newNum] = PairedModification(counterpartLineNumber: oldNum)
             }
         }
     }
 
-    return result
+    return (byOldLine: byOldLine, byNewLine: byNewLine)
 }
