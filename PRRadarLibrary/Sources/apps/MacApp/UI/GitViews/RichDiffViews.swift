@@ -186,10 +186,7 @@ struct LineInfoPopoverView: View {
         let file = counterpart.filePath == line.filePath
             ? "(same file)"
             : counterpart.filePath
-        if let lineNum = counterpart.lineNumber {
-            return "\(file) : \(lineNum)"
-        }
-        return "\(file) : line unknown"
+        return "\(file) : \(counterpart.lineNumber)"
     }
 }
 

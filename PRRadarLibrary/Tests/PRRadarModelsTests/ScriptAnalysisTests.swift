@@ -218,7 +218,7 @@ struct PRHunkRelevantLinesTests {
         // Arrange
         let hunk = makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 5),
             makePRLine(content: "unchanged", contentChange: .unchanged, lineType: .context, newLineNumber: 12),
         ])
@@ -236,7 +236,7 @@ struct PRHunkRelevantLinesTests {
         // Arrange
         let hunk = makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 5),
             makePRLine(content: "unchanged", contentChange: .unchanged, lineType: .context, newLineNumber: 12),
         ])
@@ -254,7 +254,7 @@ struct PRHunkRelevantLinesTests {
         // Arrange
         let hunk = makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "context", contentChange: .unchanged, lineType: .context, newLineNumber: 12),
         ])
 
@@ -270,7 +270,7 @@ struct PRHunkRelevantLinesTests {
         // Arrange
         let hunk = makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 5),
             makePRLine(content: "context", contentChange: .unchanged, lineType: .context, newLineNumber: 12),
         ])
@@ -956,7 +956,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "changed in move", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "changed in move", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 12),
         ])]
 
@@ -983,7 +983,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 12),
             makePRLine(content: "context", contentChange: .unchanged, lineType: .context, newLineNumber: 13),
         ])]

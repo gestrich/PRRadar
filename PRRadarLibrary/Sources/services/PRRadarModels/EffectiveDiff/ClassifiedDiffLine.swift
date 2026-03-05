@@ -2,9 +2,9 @@
 
 public struct Counterpart: Codable, Sendable, Equatable {
     public let filePath: String
-    public let lineNumber: Int?
+    public let lineNumber: Int
 
-    public init(filePath: String, lineNumber: Int?) {
+    public init(filePath: String, lineNumber: Int) {
         self.filePath = filePath
         self.lineNumber = lineNumber
     }
@@ -83,6 +83,8 @@ func classifyLines(
 
     var targetFileForSourceLine: [String: [Int: String]] = [:]
     var sourceFileForTargetLine: [String: [Int: String]] = [:]
+    var targetLineNumberForSourceLine: [String: [Int: Int]] = [:]
+    var sourceLineNumberForTargetLine: [String: [Int: Int]] = [:]
 
     for result in effectiveResults {
         let candidate = result.candidate
@@ -94,6 +96,11 @@ func classifyLines(
         for line in candidate.addedLines {
             targetMovedLines[candidate.targetFile, default: []].insert(line.lineNumber)
             sourceFileForTargetLine[candidate.targetFile, default: [:]][line.lineNumber] = candidate.sourceFile
+        }
+        // removedLines[i] and addedLines[i] are parallel — build line-level counterpart lookup.
+        for (removed, added) in zip(candidate.removedLines, candidate.addedLines) {
+            targetLineNumberForSourceLine[candidate.sourceFile, default: [:]][removed.lineNumber] = added.lineNumber
+            sourceLineNumberForTargetLine[candidate.targetFile, default: [:]][added.lineNumber] = removed.lineNumber
         }
 
         for lineNum in result.rediffAnalysis.addedInMoveLines {
@@ -126,15 +133,19 @@ func classifyLines(
                     let targetFile = targetFileForSourceLine[hunk.filePath]?[oldNum] ?? hunk.filePath
                     switch changedSourceLines[hunk.filePath]?[oldNum] {
                     case .modified:
+                        // Content changed at destination — counterpart line unresolvable, don't claim it's a move.
                         contentChange = .modified
-                        pairing = Pairing(role: .before, counterpart: Counterpart(filePath: targetFile, lineNumber: nil))
+                        pairing = nil
                     case .deleted:
                         contentChange = .deleted
                         pairing = nil
                     case .added, .unchanged, nil:
-                        // Verbatim move source — content unchanged, has counterpart
                         contentChange = .unchanged
-                        pairing = Pairing(role: .before, counterpart: Counterpart(filePath: targetFile, lineNumber: nil))
+                        if let targetLineNum = targetLineNumberForSourceLine[hunk.filePath]?[oldNum] {
+                            pairing = Pairing(role: .before, counterpart: Counterpart(filePath: targetFile, lineNumber: targetLineNum))
+                        } else {
+                            pairing = nil
+                        }
                     }
                 } else if let oldNum = diffLine.oldLineNumber,
                           let paired = pairedMods.byOldLine[hunk.filePath]?[oldNum] {
@@ -153,14 +164,18 @@ func classifyLines(
                     pairing = nil
                 } else if let newNum = diffLine.newLineNumber,
                           changedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    let sourceFile = sourceFileForTargetLine[hunk.filePath]?[newNum] ?? hunk.filePath
+                    // Content modified at destination — counterpart line unresolvable, don't claim it's a move.
                     contentChange = .modified
-                    pairing = Pairing(role: .after, counterpart: Counterpart(filePath: sourceFile, lineNumber: nil))
+                    pairing = nil
                 } else if let newNum = diffLine.newLineNumber,
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
                     let sourceFile = sourceFileForTargetLine[hunk.filePath]?[newNum] ?? hunk.filePath
                     contentChange = .unchanged
-                    pairing = Pairing(role: .after, counterpart: Counterpart(filePath: sourceFile, lineNumber: nil))
+                    if let sourceLineNum = sourceLineNumberForTargetLine[hunk.filePath]?[newNum] {
+                        pairing = Pairing(role: .after, counterpart: Counterpart(filePath: sourceFile, lineNumber: sourceLineNum))
+                    } else {
+                        pairing = nil
+                    }
                 } else if let newNum = diffLine.newLineNumber,
                           let paired = pairedMods.byNewLine[hunk.filePath]?[newNum] {
                     contentChange = .modified

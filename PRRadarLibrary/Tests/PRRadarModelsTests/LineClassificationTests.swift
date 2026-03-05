@@ -151,8 +151,9 @@ private func makeEffectiveResult(
         let classified = classifyLines(originalDiff: original, effectiveResults: [effResult])
 
         // Assert
-        let changedInMove = classified.filter { $0.contentChange == .modified && $0.pairing?.role == .after }
-        #expect(!changedInMove.isEmpty, "Re-diffed added line should be .modified (changedInMove)")
+        // Changed-in-move lines are .modified without a pairing — counterpart line is unresolvable.
+        let changedInMove = classified.filter { $0.contentChange == .modified && $0.pairing == nil }
+        #expect(!changedInMove.isEmpty, "Re-diffed added line should be .modified without pairing (changedInMove)")
         let moved = classified.filter { $0.contentChange == .unchanged && $0.pairing != nil }
         #expect(!moved.isEmpty, "Unchanged moved lines should be .unchanged with pairing")
     }
@@ -422,8 +423,8 @@ private func makeEffectiveResult(
 
 @Suite struct PRHunkPropertiesTests {
 
-    private static let testPairingAfter = Pairing(role: .after, counterpart: Counterpart(filePath: "old.py", lineNumber: nil))
-    private static let testPairingBefore = Pairing(role: .before, counterpart: Counterpart(filePath: "new.py", lineNumber: nil))
+    private static let testPairingAfter = Pairing(role: .after, counterpart: Counterpart(filePath: "old.py", lineNumber: 1))
+    private static let testPairingBefore = Pairing(role: .before, counterpart: Counterpart(filePath: "new.py", lineNumber: 1))
 
     private func makeLine(
         contentChange: ContentChange,
@@ -709,7 +710,8 @@ private func makeEffectiveResult(
 
         // Assert
         let targetLines = classified.filter { $0.filePath == "helpers.py" }
-        let changedInMove = targetLines.filter { $0.contentChange == .modified && $0.pairing?.role == .after }
+        // Changed-in-move lines are .modified without a pairing — counterpart line unresolvable.
+        let changedInMove = targetLines.filter { $0.contentChange == .modified && $0.pairing == nil }
         #expect(changedInMove.count >= 1)
         #expect(changedInMove.contains { $0.content == "def calculate(x, tax=0):" })
 
@@ -743,7 +745,8 @@ private func makeEffectiveResult(
         // Assert
         let sourceLines = classified.filter { $0.filePath == "old.py" }
         #expect(sourceLines.count == 3)
-        let changedSource = sourceLines.filter { $0.contentChange == .modified && $0.pairing?.role == .before }
+        // Modified-in-move source lines are .modified without a pairing — counterpart line unresolvable.
+        let changedSource = sourceLines.filter { $0.contentChange == .modified && $0.pairing == nil }
         #expect(changedSource.count == 1)
         #expect(changedSource[0].oldLineNumber == 2)
 
@@ -752,10 +755,12 @@ private func makeEffectiveResult(
     }
 
     @Test func sourceLineDeletedFromMoveClassifiedAsRemoved() {
+        // Candidate must be symmetric (one removed↔added pair per LineMatch from the pipeline).
+        // The rediff will reveal that line_b was deleted at the destination.
         let candidate = makeCandidate(
             sourceFile: "old.py", targetFile: "new.py",
             removedLines: [(1, "line_a"), (2, "line_b"), (3, "line_c")],
-            addedLines: [(10, "line_a"), (11, "line_c")]
+            addedLines: [(10, "line_a"), (11, "line_b"), (12, "line_c")]
         )
         let rediffHunk = makeHunk(
             "new.py", oldStart: 2, oldLength: 1, newStart: 2, newLength: 0,
@@ -1110,7 +1115,7 @@ private func makeEffectiveResult(
     }
 
     @Test func countsMovedLines() {
-        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "a.py", lineNumber: nil))
+        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "a.py", lineNumber: 1))
         let hunks = [PRHunk(filePath: "b.py", oldStart: 1, newStart: 1, lines: [
             makeLine(contentChange: .unchanged, pairing: pairing),
             makeLine(contentChange: .unchanged, pairing: pairing),
@@ -1124,7 +1129,7 @@ private func makeEffectiveResult(
     }
 
     @Test func countsChangedLines() {
-        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "a.py", lineNumber: nil))
+        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "a.py", lineNumber: 1))
         let hunks = [PRHunk(filePath: "b.py", oldStart: 1, newStart: 1, lines: [
             makeLine(contentChange: .modified, pairing: pairing),
         ])]
@@ -1147,7 +1152,7 @@ private func makeEffectiveResult(
     }
 
     @Test func mixedStats() {
-        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "a.py", lineNumber: nil))
+        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "a.py", lineNumber: 1))
         let hunks = [PRHunk(filePath: "a.py", oldStart: 1, newStart: 1, lines: [
             makeLine(contentChange: .added),
             makeLine(contentChange: .deleted, diffType: .removed),
@@ -1252,7 +1257,7 @@ private func makeEffectiveResult(
 
     @Test func codableRoundTripWithPairing() throws {
         // Arrange — a verbatim move target line with pairing
-        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "old.py", lineNumber: nil))
+        let pairing = Pairing(role: .after, counterpart: Counterpart(filePath: "old.py", lineNumber: 1))
         let line = PRLine(content: "moved", rawLine: "+moved", diffType: .added, contentChange: .unchanged,
                           pairing: pairing, oldLineNumber: nil, newLineNumber: 1, filePath: "new.py")
         let hunk = PRHunk(filePath: "new.py", oldStart: 1, newStart: 1, lines: [line])

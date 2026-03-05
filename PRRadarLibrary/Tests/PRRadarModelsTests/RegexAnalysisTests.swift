@@ -394,8 +394,8 @@ struct RegexNewCodeOnlyTests {
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "// TODO: new task", contentChange: .added, newLineNumber: 10),
-            makePRLine(content: "// TODO: moved task", contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
-            makePRLine(content: "// TODO: changed in move", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 12),
+            makePRLine(content: "// TODO: moved task", contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
+            makePRLine(content: "// TODO: changed in move", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 12),
             makePRLine(content: "// TODO: context", contentChange: .unchanged, lineType: .context, newLineNumber: 13),
             makePRLine(content: "// TODO: removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 5),
         ])]
@@ -422,8 +422,8 @@ struct RegexNewCodeOnlyTests {
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "// TODO: new", contentChange: .added, newLineNumber: 10),
             makePRLine(content: "// TODO: removed", contentChange: .deleted, lineType: .removed, oldLineNumber: 5),
-            makePRLine(content: "// TODO: changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 12),
-            makePRLine(content: "// TODO: moved", contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 11),
+            makePRLine(content: "// TODO: changed", contentChange: .modified, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 12),
+            makePRLine(content: "// TODO: moved", contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 11),
             makePRLine(content: "// TODO: context", contentChange: .unchanged, lineType: .context, newLineNumber: 13),
         ])]
 
@@ -446,7 +446,7 @@ struct RegexNewCodeOnlyTests {
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "// TODO: inserted in move", contentChange: .added, newLineNumber: 15),
-            makePRLine(content: "// TODO: just moved", contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)), newLineNumber: 16),
+            makePRLine(content: "// TODO: just moved", contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)), newLineNumber: 16),
         ])]
 
         // Act
@@ -636,12 +636,12 @@ struct GrepFilteringPRHunkTests {
         let hunks = [makePRHunk(lines: [
             makePRLine(
                 content: "@import UIKit;",
-                contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)),
+                contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)),
                 newLineNumber: 1
             ),
             makePRLine(
                 content: "@import Foundation;",
-                contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: nil)),
+                contentChange: .unchanged, pairing: Pairing(role: .after, counterpart: Counterpart(filePath: "a", lineNumber: 1)),
                 lineType: .removed,
                 oldLineNumber: 5
             ),
