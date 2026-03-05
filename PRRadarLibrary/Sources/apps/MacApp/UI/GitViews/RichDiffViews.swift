@@ -49,59 +49,249 @@ struct LineInfoPopoverView: View {
     let line: PRLine
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Line Info")
-                .font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundStyle(.secondary)
+                    Text("Line Classification Info")
+                        .font(.headline)
+                }
 
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                GridRow {
-                    Text("Content Change")
-                        .foregroundStyle(.secondary)
-                    Text(line.contentChange.rawValue)
-                        .fontWeight(.medium)
+                // Classification
+                LineInfoSection(title: "Classification") {
+                    LineInfoRow(
+                        label: "Content Change",
+                        description: "What happened to this line's content relative to the base branch.",
+                        value: line.contentChange.displayName,
+                        valueColor: line.contentChange.displayColor,
+                        badge: line.contentChange.rawValue
+                    )
+                    LineInfoRow(
+                        label: "Diff Type",
+                        description: "How this line appears in the raw diff output (+, -, or context).",
+                        value: line.diffType.displayName,
+                        valueColor: line.diffType.displayColor
+                    )
+                    if line.isSurroundingWhitespaceOnlyChange {
+                        LineInfoRow(
+                            label: "Whitespace-Only Change",
+                            description: "This paired line differs from its counterpart only in leading/trailing whitespace. PRRadar skips it for regex and script rules to avoid false positives.",
+                            value: "Yes — leading/trailing whitespace only",
+                            valueColor: .orange
+                        )
+                    }
                 }
-                GridRow {
-                    Text("Line Type")
-                        .foregroundStyle(.secondary)
-                    Text(line.diffType.rawValue)
+
+                // Pairing / Move
+                LineInfoSection(title: "Pairing & Move Detection") {
+                    if let pairing = line.pairing {
+                        LineInfoRow(
+                            label: "Paired",
+                            description: "This line is linked to a counterpart — either as part of a code move or an in-place edit where a removed line was matched with an added line.",
+                            value: pairing.role == .before ? "Before (old/removed side)" : "After (new/added side)",
+                            valueColor: pairing.role == .before ? .red.opacity(0.8) : .green.opacity(0.8)
+                        )
+                        LineInfoRow(
+                            label: "Counterpart",
+                            description: "The line this is paired with. For moves, this is in a different location. For in-place edits, it's the same file at a nearby line.",
+                            value: counterpartDescription(pairing.counterpart),
+                            badge: pairing.counterpart.filePath != line.filePath ? "cross-file" : "same file"
+                        )
+                        if let moveFiles = line.crossFileMoveFiles {
+                            LineInfoRow(
+                                label: "Cross-File Move",
+                                description: "Code moved between files. PRRadar detected the source and destination.",
+                                value: "\(moveFiles.source)  →  \(moveFiles.target)",
+                                valueColor: .orange
+                            )
+                        }
+                    } else {
+                        LineInfoRow(
+                            label: "Paired",
+                            description: "Whether this line is linked to a counterpart from a move or in-place edit.",
+                            value: "No — standalone line",
+                            valueColor: .secondary
+                        )
+                    }
                 }
-                GridRow {
-                    Text("Paired")
-                        .foregroundStyle(.secondary)
-                    Text(line.pairing != nil ? "Yes (\(line.pairing!.role.rawValue))" : "No")
+
+                // Location
+                LineInfoSection(title: "Location") {
+                    LineInfoRow(
+                        label: "File",
+                        description: nil,
+                        value: line.filePath
+                    )
+                    HStack(spacing: 24) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Old Line #")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(line.oldLineNumber.map(String.init) ?? "—")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(line.oldLineNumber != nil ? .primary : .tertiary)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("New Line #")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(line.newLineNumber.map(String.init) ?? "—")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(line.newLineNumber != nil ? .primary : .tertiary)
+                        }
+                    }
+                    .padding(.top, 2)
                 }
-                GridRow {
-                    Text("Old Line #")
-                        .foregroundStyle(.secondary)
-                    Text(line.oldLineNumber.map(String.init) ?? "-")
+
+                // Inline character-level changes
+                if let spans = line.inlineChanges, !spans.isEmpty {
+                    LineInfoSection(title: "Inline Character Changes") {
+                        Text("Character-level diff detected within this line:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ForEach(Array(spans.enumerated()), id: \.offset) { _, span in
+                            HStack(spacing: 8) {
+                                Image(systemName: span.kind == .added ? "plus.circle.fill" : "minus.circle.fill")
+                                    .foregroundStyle(span.kind == .added ? Color.green : Color.red)
+                                    .font(.caption)
+                                Text("chars \(span.range.lowerBound)–\(span.range.upperBound - 1)")
+                                    .font(.system(.caption, design: .monospaced))
+                            }
+                        }
+                    }
                 }
-                GridRow {
-                    Text("New Line #")
+
+                // Raw line
+                LineInfoSection(title: "Raw Diff Line") {
+                    Text("The original line from the diff output, including the +/- prefix.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(line.newLineNumber.map(String.init) ?? "-")
-                }
-                GridRow {
-                    Text("File Path")
-                        .foregroundStyle(.secondary)
-                    Text(line.filePath)
-                        .lineLimit(2)
-                        .truncationMode(.head)
+                    Text(line.rawLine)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
-            .font(.system(.caption, design: .monospaced))
-
-            Divider()
-
-            Text("Raw Line")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(line.rawLine)
-                .font(.system(.caption2, design: .monospaced))
-                .textSelection(.enabled)
-                .lineLimit(5)
+            .padding(16)
         }
-        .padding(12)
-        .frame(minWidth: 280, maxWidth: 400)
+        .frame(minWidth: 360, maxWidth: 480, maxHeight: 560)
+    }
+
+    private func counterpartDescription(_ counterpart: Counterpart) -> String {
+        let file = counterpart.filePath == line.filePath
+            ? "(same file)"
+            : counterpart.filePath
+        if let lineNum = counterpart.lineNumber {
+            return "\(file) : \(lineNum)"
+        }
+        return "\(file) : line unknown"
+    }
+}
+
+// MARK: - Line Info Helpers
+
+private struct LineInfoSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundStyle(.tertiary)
+                .tracking(0.5)
+
+            VStack(alignment: .leading, spacing: 6) {
+                content
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+private struct LineInfoRow: View {
+    let label: String
+    let description: String?
+    let value: String
+    var valueColor: Color = .primary
+    var badge: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(label)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                if let badge {
+                    Text(badge)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.5))
+                        .clipShape(Capsule())
+                }
+            }
+            if let description {
+                Text(description)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(value)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(valueColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private extension ContentChange {
+    var displayName: String {
+        switch self {
+        case .added:     return "Added — genuinely new line, no base branch counterpart"
+        case .deleted:   return "Deleted — line removed with no replacement"
+        case .modified:  return "Modified — in-place edit of an existing line"
+        case .unchanged: return "Unchanged — content identical to base branch"
+        }
+    }
+
+    var displayColor: Color {
+        switch self {
+        case .added:     return .green
+        case .deleted:   return .red
+        case .modified:  return .orange
+        case .unchanged: return .secondary
+        }
+    }
+}
+
+private extension DiffLineType {
+    var displayName: String {
+        switch self {
+        case .added:   return "+ (added line in diff)"
+        case .removed: return "- (removed line in diff)"
+        case .context: return "  (context / unchanged)"
+        case .header:  return "  (hunk header)"
+        }
+    }
+
+    var displayColor: Color {
+        switch self {
+        case .added:           return .green
+        case .removed:         return .red
+        case .context, .header: return .secondary
+        }
     }
 }
 

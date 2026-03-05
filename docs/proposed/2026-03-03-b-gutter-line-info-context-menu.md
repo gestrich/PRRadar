@@ -12,45 +12,13 @@
 
 When debugging false positives in rule evaluation (e.g., whitespace-only changes flagged as new code), there's no way to inspect how PRRadar classified a diff line without digging into the JSON output files. Adding a right-click context menu on the diff gutter that shows a "Line Info" popover would surface this debug data directly in the GUI.
 
-**Current state:** `DiffLineRowView` renders the gutter (line numbers, move indicator) but only receives basic display data via `DiffLineData` (a view-only model created by `HunkLineParser` from raw `Hunk` data). The full classification data (`ClassifiedDiffLine` with `changeKind`, `inMovedBlock`) lives in `AnnotatedDiff.classifiedHunks` but is not wired to the line-level views — only move detection is bridged via `MovedLineLookup`.
+**Current state:** `DiffLineRowView` accepts a `PRLine` (the unified line model from `PRDiff`) and renders the gutter (line numbers, move indicator). The full classification data — `contentChange`, `pairing`, `isSurroundingWhitespaceOnlyChange` — is already on `PRLine` and is directly accessible in the view. `EffectiveDiffView` and `DiffPhaseView` both take `PRDiff`, so classified data flows through to the line-level views without any additional threading needed.
 
-**Key insight:** `ClassifiedDiffLine` is a superset of `DiffLineData` — it has all the same fields plus `changeKind`, `inMovedBlock`, `rawLine`, and `filePath`. Classified data is always created upstream during the sync phase (`PRAcquisitionService.runEffectiveDiff()`), so we can replace the view-layer `DiffLineData` / `HunkLineParser` with `ClassifiedDiffLine` / `ClassifiedHunk` directly.
-
-**Callers of `AnnotatedDiffContentView`:**
-1. `DiffPhaseView` — already has `annotatedDiff` with `classifiedHunks`
-2. `EffectiveDiffView` — currently only receives raw `GitDiff`, but its caller (`ReviewDetailView:150`) has the full `annotatedDiff`. Just needs to be threaded through.
+**Note:** Prerequisite work (replacing the old `DiffLineData`/`HunkLineParser` view models, threading classified hunks through `EffectiveDiffView`, removing `MovedLineLookup`) was completed as part of the unified diff model consolidation (`2026-03-04-b-unified-diff-models.md`). The classification model was also updated to use `contentChange`/`pairing` instead of `changeKind`/`inMovedBlock` (`2026-03-04-c-classification-model-consolidation.md`).
 
 ## Phases
 
-### - [ ] Phase 1: Replace DiffLineData/HunkLineParser with ClassifiedDiffLine/ClassifiedHunk in views
-
-**Skills to read**: `/swift-app-architecture:swift-swiftui`
-
-Replace the view-layer data model with the existing domain model.
-
-**File**: `PRRadarLibrary/Sources/apps/MacApp/UI/GitViews/RichDiffViews.swift`
-
-- Delete `DiffLineData` struct and `HunkLineParser` enum — no longer needed
-- Change `AnnotatedHunkContentView` to accept `ClassifiedHunk` instead of `Hunk`
-  - Replace `private var diffLineData: [DiffLineData]` with iteration over `ClassifiedHunk.lines`
-  - Use `ClassifiedDiffLine.newLineNumber`, `.oldLineNumber`, `.content`, `.lineType` where `DiffLineData` fields were used
-  - Map `DiffLineType` → `DisplayDiffLineType` for `DiffLineRowView` (or update `DiffLineRowView` to use `DiffLineType` directly)
-- Change `AnnotatedDiffContentView` to accept `[ClassifiedHunk]` alongside (or instead of) `GitDiff`
-  - Iterate over classified hunks grouped by file path instead of `diff.getHunks(byFilePath:)`
-- Pass `ClassifiedDiffLine` to `DiffLineRowView` (as a new parameter) so it has the full classification data available
-- `MovedLineLookup` may become unnecessary since `ClassifiedDiffLine.inMovedBlock` is now directly available on each line. Evaluate whether it can be removed or simplified.
-
-### - [ ] Phase 2: Thread ClassifiedHunks through EffectiveDiffView
-
-**Skills to read**: `/swift-app-architecture:swift-swiftui`
-
-Wire the classified hunks through the one callsite that currently lacks them.
-
-**Files to modify**:
-- `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewViews/EffectiveDiffView.swift` — accept `classifiedHunks: [ClassifiedHunk]` parameter and pass to `AnnotatedDiffContentView`
-- `PRRadarLibrary/Sources/apps/MacApp/UI/ReviewDetailView.swift` (line ~150) — pass `annotatedDiff.classifiedHunks` when constructing `EffectiveDiffView`
-
-### - [ ] Phase 3: Add gutter context menu with Line Info popover
+### - [ ] Phase 1: Add gutter context menu with Line Info popover
 
 **Skills to read**: `/swift-app-architecture:swift-swiftui`
 
@@ -62,15 +30,17 @@ In `DiffLineRowView`:
 - Add `.contextMenu` to the gutter `HStack` with a "Line Info" button
 - When tapped, show a popover (using `@State private var showLineInfo = false` + `.popover(isPresented:)`)
 - The popover shows a `LineInfoPopoverView` containing:
-  - **Change Kind**: `.added` / `.changed` / `.removed` / `.unchanged`
-  - **Line Type**: `.added` / `.removed` / `.context`
-  - **In Moved Block**: yes/no
+  - **Content Change**: `.added` / `.modified` / `.deleted` / `.unchanged` (from `line.contentChange`)
+  - **Pairing Role**: `.before` / `.after` / none (from `line.pairing?.role`)
+  - **Counterpart**: file path and line number of the paired line, if any (from `line.pairing?.counterpart`)
+  - **Surrounding Whitespace Only**: yes/no (from `line.isSurroundingWhitespaceOnlyChange`)
+  - **Diff Type**: `.added` / `.removed` / `.context` (from `line.diffType`)
   - **Old Line #** / **New Line #**
   - **File Path**
   - **Raw Line**: the original diff line text
 - Use a compact, monospaced layout (similar to existing popover patterns in `CodeView.swift`)
 
-### - [ ] Phase 4: Validation
+### - [ ] Phase 2: Validation
 
 **Skills to read**: `/swift-testing`
 
@@ -82,6 +52,6 @@ In `DiffLineRowView`:
    - Right-click on the gutter of a diff line
    - Verify "Line Info" appears in the context menu
    - Verify the popover shows correct classification data
-   - Check that whitespace-only lines show `changeKind = unchanged` (ties into the Phase 2 fix from the false-positive spec)
-   - Check that moved lines show `inMovedBlock = true`
-   - Check that genuinely added lines show `changeKind = added`
+   - Check that surrounding-whitespace-only lines show `contentChange = modified`, `isSurroundingWhitespaceOnlyChange = true`
+   - Check that verbatim moved lines show `contentChange = unchanged`, `pairing != nil`
+   - Check that genuinely added lines show `contentChange = added`, `pairing = nil`
