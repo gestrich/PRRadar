@@ -231,7 +231,7 @@ Add `buildPairedModifications()` to `ClassifiedDiffLine.swift`, replacing `build
 
 No whitespace comparison is performed — all paired lines are in-place modifications regardless of how much the content changed.
 
-### - [ ] Phase 5: Introduce `ContentChange` + `Pairing` model and update classification pipeline
+### - [x] Phase 5: Introduce `ContentChange` + `Pairing` model and update classification pipeline
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -339,7 +339,12 @@ Update `analyzeRediffHunks()` accordingly.
 
 **Note**: This phase must be completed atomically with the consumer updates in Phase 6. After `PRLine` drops `changeKind`, the project will not compile until all call sites are updated.
 
-### - [ ] Phase 6: Update consumers
+### - [x] Phase 6: Update consumers
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Updated all consumers of `ChangeKind`/`MoveInfo` to use `contentChange`/`pairing`. Moved cross-file move source/target derivation from `RichDiffViews` to `PRLine.crossFileMoveFiles` (Models layer). Replaced `default:` in `changedSourceLines` switch with explicit cases (`.added, .unchanged, nil`).
+
+
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -388,7 +393,12 @@ The effective diff pipeline silently returns empty classified hunks when `git me
 2. Fall back to classifying all diff lines from the raw diff (every `+` line → `contentChange=.added`, every `-` line → `contentChange=.deleted`, context → `contentChange=.unchanged`) instead of returning empty
 3. Both
 
-### - [ ] Phase 8: Update tests
+### - [x] Phase 8: Update tests
+
+**Skills used**: `/swift-testing`
+**Principles applied**: Updated all test helpers and assertions to use `ContentChange`/`Pairing`. Added explicit pairing role and counterpart assertions for paired modification tests.
+
+
 
 **Skills to read**: `/swift-testing`
 
