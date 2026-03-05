@@ -56,7 +56,10 @@ swift run PRRadarMacCLI run-all \
   --comment
 ```
 
-## - [ ] Phase 3: Create bash wrapper script and update `.gitignore`
+## - [x] Phase 3: Create bash wrapper script and update `.gitignore`
+
+**Skills used**: none
+**Principles applied**: Script uses `--mode regex` only; `daily-review.sh` git-ignored to protect personal config values
 
 Create `scripts/daily-review.sh` with this structure:
 

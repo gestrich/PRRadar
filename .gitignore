@@ -25,3 +25,6 @@ code-reviews/
 
 # Environment variables (API keys)
 .env
+
+# Personal cron/daily-review script (contains personal config values)
+scripts/daily-review.sh
