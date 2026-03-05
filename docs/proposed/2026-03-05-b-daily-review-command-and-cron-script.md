@@ -121,7 +121,10 @@ Add a comment at the top of `daily-review.sh` explaining how to wire it up:
 
 Include a minimal `launchd` plist template in the comment (not as a separate file) so Bill can copy it directly. Use `StartCalendarInterval` with `Hour=5 Minute=30`.
 
-## - [ ] Phase 5: Validation
+## - [x] Phase 5: Validation
+
+**Skills used**: none
+**Principles applied**: Build clean, 658 tests passing, smoke test confirmed `--lookback-hours` and `--mode regex` work end-to-end with no AI calls
 
 **Skills to read**: `swift-testing`
 
