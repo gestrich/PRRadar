@@ -35,13 +35,13 @@ public struct RunAllUseCase: Sendable {
 
                     let limitNum = Int(limit ?? "10000") ?? 10000
                     let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")
+                    let dateFilter: PRDateFilter? = sinceDate.map { .createdSince($0) }
 
                     continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(state?.displayName ?? "all"))...\n"))
 
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: state,
-                        since: sinceDate
+                        filter: PRFilter(dateFilter: dateFilter, state: state)
                     )
 
                     continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))

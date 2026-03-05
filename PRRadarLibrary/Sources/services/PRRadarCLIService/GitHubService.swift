@@ -76,11 +76,14 @@ public struct GitHubService: Sendable {
 
     public func listPullRequests(
         limit: Int,
-        state: PRState?,
-        since: Date? = nil
+        filter: PRFilter = PRFilter()
     ) async throws -> [GitHubPullRequest] {
+        let dateFilter = filter.dateFilter
+
         let openness: Openness
-        if let state {
+        if let apiStateOverride = dateFilter?.requiresClosedAPIState, apiStateOverride {
+            openness = .closed
+        } else if let state = filter.state {
             switch state.apiStateValue {
             case "closed": openness = .closed
             default: openness = .open
@@ -89,16 +92,19 @@ public struct GitHubService: Sendable {
             openness = .all
         }
 
+        let sort: SortType = dateFilter?.sortsByCreated == true ? .created : .updated
+
         var allPRs: [GitHubPullRequest] = []
         var page = 1
         let perPage = 100
+        let formatter = ISO8601DateFormatter()
 
         while true {
             let prs = try await octokitClient.listPullRequests(
                 owner: owner,
                 repository: repo,
                 state: openness,
-                sort: .created,
+                sort: sort,
                 direction: .desc,
                 page: String(page),
                 perPage: String(perPage)
@@ -110,23 +116,24 @@ public struct GitHubService: Sendable {
 
             let mapped = prs.map { $0.toGitHubPullRequest() }
 
-            // If we have a since date, check if we've hit PRs older than it
-            if let since = since {
-                let formatter = ISO8601DateFormatter()
+            if let dateFilter {
+                let since = dateFilter.date
+                let extractDate = dateFilter.dateExtractor
+                let extractEarlyStop = dateFilter.earlyStopExtractor
                 var hitOldPRs = false
 
                 for pr in mapped {
-                    guard let createdStr = pr.createdAt,
-                          let createdDate = formatter.date(from: createdStr) else {
-                        allPRs.append(pr)
-                        continue
-                    }
-
-                    if createdDate >= since {
-                        allPRs.append(pr)
-                    } else {
+                    if let earlyStopStr = extractEarlyStop(pr),
+                       let earlyStopDate = formatter.date(from: earlyStopStr),
+                       earlyStopDate < since {
                         hitOldPRs = true
                         break
+                    }
+
+                    if let dateStr = extractDate(pr),
+                       let prDate = formatter.date(from: dateStr),
+                       prDate >= since {
+                        allPRs.append(pr)
                     }
                 }
 
@@ -137,12 +144,10 @@ public struct GitHubService: Sendable {
                 allPRs.append(contentsOf: mapped)
             }
 
-            // Stop if we've reached the limit
             if allPRs.count >= limit {
                 break
             }
 
-            // Stop if this page had fewer results than requested (last page)
             if prs.count < perPage {
                 break
             }
@@ -152,8 +157,7 @@ public struct GitHubService: Sendable {
 
         let result = Array(allPRs.prefix(limit))
 
-        // Post-filter by enhancedState when a specific state was requested
-        if let state {
+        if let state = filter.state {
             return result.filter { $0.enhancedState == state }
         }
         return result

@@ -1,5 +1,73 @@
 import Foundation
 
+// MARK: - PR Filtering
+
+public struct PRFilter: Sendable {
+    public var dateFilter: PRDateFilter?
+    public var state: PRState?
+
+    public init(dateFilter: PRDateFilter? = nil, state: PRState? = nil) {
+        self.dateFilter = dateFilter
+        self.state = state
+    }
+}
+
+public enum PRDateFilter: Sendable {
+    case createdSince(Date)
+    case updatedSince(Date)
+    case mergedSince(Date)
+    case closedSince(Date)
+
+    public var date: Date {
+        switch self {
+        case .createdSince(let d), .updatedSince(let d),
+             .mergedSince(let d), .closedSince(let d):
+            return d
+        }
+    }
+
+    public var fieldLabel: String {
+        switch self {
+        case .createdSince: return "created"
+        case .updatedSince: return "updated"
+        case .mergedSince: return "merged"
+        case .closedSince: return "closed"
+        }
+    }
+
+    public var sortsByCreated: Bool {
+        switch self {
+        case .createdSince: return true
+        case .updatedSince, .mergedSince, .closedSince: return false
+        }
+    }
+
+    public var requiresClosedAPIState: Bool {
+        switch self {
+        case .createdSince, .updatedSince: return false
+        case .mergedSince, .closedSince: return true
+        }
+    }
+
+    public var dateExtractor: @Sendable (GitHubPullRequest) -> String? {
+        switch self {
+        case .createdSince: return { $0.createdAt }
+        case .updatedSince: return { $0.updatedAt }
+        case .mergedSince: return { $0.mergedAt }
+        case .closedSince: return { $0.closedAt }
+        }
+    }
+
+    public var earlyStopExtractor: @Sendable (GitHubPullRequest) -> String? {
+        switch self {
+        case .createdSince: return { $0.createdAt }
+        case .updatedSince, .mergedSince, .closedSince: return { $0.updatedAt }
+        }
+    }
+}
+
+// MARK: - PR State
+
 public enum PRState: String, Codable, Sendable, CaseIterable {
     case open = "OPEN"
     case closed = "CLOSED"

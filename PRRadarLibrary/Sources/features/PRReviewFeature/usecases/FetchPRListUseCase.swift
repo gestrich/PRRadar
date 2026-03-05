@@ -28,10 +28,10 @@ public struct FetchPRListUseCase: Sendable {
 
                     let limitNum = Int(limit ?? "30") ?? 30
 
+                    let dateFilter: PRDateFilter? = since.map { .createdSince($0) }
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        state: state,
-                        since: since
+                        filter: PRFilter(dateFilter: dateFilter, state: state)
                     )
 
                     // Fetch repository info once (needed by PRDiscoveryService when filtering by repoSlug)

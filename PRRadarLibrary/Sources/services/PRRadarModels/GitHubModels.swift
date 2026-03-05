@@ -142,6 +142,7 @@ public struct GitHubPullRequest: Codable, Sendable {
     public let createdAt: String?
     public let updatedAt: String?
     public let mergedAt: String?
+    public let closedAt: String?
     public let author: GitHubAuthor?
     public let labels: [GitHubLabel]?
     public let files: [GitHubFile]?
@@ -163,6 +164,7 @@ public struct GitHubPullRequest: Codable, Sendable {
         createdAt: String? = nil,
         updatedAt: String? = nil,
         mergedAt: String? = nil,
+        closedAt: String? = nil,
         author: GitHubAuthor? = nil,
         labels: [GitHubLabel]? = nil,
         files: [GitHubFile]? = nil,
@@ -183,6 +185,7 @@ public struct GitHubPullRequest: Codable, Sendable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.mergedAt = mergedAt
+        self.closedAt = closedAt
         self.author = author
         self.labels = labels
         self.files = files
@@ -344,6 +347,7 @@ extension GitHubPullRequest {
             createdAt: createdAt,
             updatedAt: updatedAt,
             mergedAt: mergedAt,
+            closedAt: closedAt,
             author: author?.withName(from: nameMap),
             labels: labels,
             files: files,
