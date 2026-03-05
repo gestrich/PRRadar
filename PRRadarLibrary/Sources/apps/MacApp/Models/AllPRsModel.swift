@@ -90,9 +90,12 @@ final class AllPRsModel {
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
+        let dateFilter: PRDateFilter? = since.map { .createdSince($0) }
+        let prFilter = PRFilter(dateFilter: dateFilter, state: prState)
+
         var updatedMetadata: [PRMetadata]?
         do {
-            for try await progress in useCase.execute(state: prState, since: since, repoSlug: slug) {
+            for try await progress in useCase.execute(filter: prFilter, repoSlug: slug) {
                 switch progress {
                 case .running, .progress:
                     break

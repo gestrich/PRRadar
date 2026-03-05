@@ -17,13 +17,12 @@ public struct RunAllUseCase: Sendable {
     }
 
     public func execute(
-        since: String,
+        filter: PRFilter,
         rulesDir: String,
         minScore: String? = nil,
         repo: String? = nil,
         comment: Bool = false,
         limit: String? = nil,
-        state: PRState? = nil,
         analysisMode: AnalysisMode = .all
     ) -> AsyncThrowingStream<PhaseProgress<RunAllOutput>, Error> {
         AsyncThrowingStream { continuation in
@@ -34,14 +33,13 @@ public struct RunAllUseCase: Sendable {
                     let (gitHub, _) = try await GitHubServiceFactory.create(repoPath: config.repoPath, githubAccount: config.githubAccount)
 
                     let limitNum = Int(limit ?? "10000") ?? 10000
-                    let sinceDate = ISO8601DateFormatter().date(from: since + "T00:00:00Z")
-                    let dateFilter: PRDateFilter? = sinceDate.map { .createdSince($0) }
-
-                    continuation.yield(.log(text: "Fetching PRs since \(since) (state: \(state?.displayName ?? "all"))...\n"))
+                    let dateLabel = filter.dateFilter.map { "Fetching PRs \($0.fieldLabel) since \($0.date)" } ?? "Fetching all PRs"
+                    let stateLabel = filter.state?.displayName ?? "all"
+                    continuation.yield(.log(text: "\(dateLabel) (state: \(stateLabel))...\n"))
 
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        filter: PRFilter(dateFilter: dateFilter, state: state)
+                        filter: filter
                     )
 
                     continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))

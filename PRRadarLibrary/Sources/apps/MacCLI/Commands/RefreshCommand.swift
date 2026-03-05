@@ -30,6 +30,7 @@ struct RefreshCommand: AsyncParsableCommand {
 
     func run() async throws {
         let stateFilter: PRState? = try parseStateFilter(state) ?? .open
+        let prFilter = PRFilter(state: stateFilter)
 
         let prRadarConfig = try resolveConfig(
             configName: config,
@@ -43,7 +44,7 @@ struct RefreshCommand: AsyncParsableCommand {
         if !json {
             print("Fetching recent PRs from GitHub...")
         }
-        for try await progress in useCase.execute(limit: limit, state: stateFilter, repoSlug: repoSlug) {
+        for try await progress in useCase.execute(limit: limit, filter: prFilter, repoSlug: repoSlug) {
             switch progress {
             case .running:
                 break

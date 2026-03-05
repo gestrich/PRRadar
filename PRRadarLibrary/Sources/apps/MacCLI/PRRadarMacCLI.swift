@@ -114,6 +114,10 @@ func resolveConfigFromOptions(_ options: CLIOptions) throws -> RepositoryConfigu
     )
 }
 
+func parseDateString(_ value: String) -> Date? {
+    ISO8601DateFormatter().date(from: value + "T00:00:00Z")
+}
+
 func parseStateFilter(_ value: String?) throws -> PRState? {
     guard let value else { return nil }
     if value.lowercased() == "all" { return nil }

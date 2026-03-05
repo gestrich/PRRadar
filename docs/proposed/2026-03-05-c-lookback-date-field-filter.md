@@ -125,7 +125,10 @@ Add the filter types to `PRRadarModels` and thread through the service layer:
 
 3. **`OctokitClient.listPullRequests()`** — no changes needed, already accepts `sort: SortType` with `.created` and `.updated` cases
 
-## - [ ] Phase 2: Thread `PRFilter` through use cases
+## - [x] Phase 2: Thread `PRFilter` through use cases
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Pushed all date/state parsing to the CLI edge (Apps layer). Use cases accept a single `PRFilter` — no loose parameters. Log messages derive labels from `filter.dateFilter?.fieldLabel`.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

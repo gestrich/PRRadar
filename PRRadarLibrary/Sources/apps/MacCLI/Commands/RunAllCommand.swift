@@ -56,19 +56,20 @@ struct RunAllCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
-        let sinceDate: String
+        let dateFilter: PRDateFilter?
         if let since {
-            sinceDate = since
+            guard let date = parseDateString(since) else {
+                throw ValidationError("Invalid date format for --since: \(since). Use YYYY-MM-DD.")
+            }
+            dateFilter = .createdSince(date)
         } else if let hours = lookbackHours {
-            let cutoff = Date.now.addingTimeInterval(-Double(hours) * 3600)
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            sinceDate = formatter.string(from: cutoff)
+            dateFilter = .createdSince(Date.now.addingTimeInterval(-Double(hours) * 3600))
         } else {
             throw ValidationError("Either --since or --lookback-hours must be provided")
         }
 
         let stateFilter: PRState? = try parseStateFilter(state)
+        let prFilter = PRFilter(dateFilter: dateFilter, state: stateFilter)
 
         let prRadarConfig = try resolveConfig(
             configName: config,
@@ -79,13 +80,12 @@ struct RunAllCommand: AsyncParsableCommand {
         let useCase = RunAllUseCase(config: prRadarConfig)
 
         for try await progress in useCase.execute(
-            since: sinceDate,
+            filter: prFilter,
             rulesDir: rulesDir ?? prRadarConfig.resolvedRulesDir,
             minScore: minScore,
             repo: repo,
             comment: comment,
             limit: limit,
-            state: stateFilter,
             analysisMode: mode
         ) {
             switch progress {
