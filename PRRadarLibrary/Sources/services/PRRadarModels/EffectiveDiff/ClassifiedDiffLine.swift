@@ -1,8 +1,101 @@
-public enum ChangeKind: String, Codable, Sendable, Equatable {
-    case added
-    case changed
-    case removed
-    case unchanged
+// MARK: - Counterpart
+
+public struct Counterpart: Codable, Sendable, Equatable {
+    public let filePath: String
+    public let lineNumber: Int?
+
+    public init(filePath: String, lineNumber: Int?) {
+        self.filePath = filePath
+        self.lineNumber = lineNumber
+    }
+}
+
+// MARK: - ChangeKind
+
+public enum ChangeKind: Sendable, Equatable {
+    /// Genuinely new line (no counterpart on the old side).
+    case new
+    /// Genuinely deleted line (no counterpart on the new side).
+    case deleted
+    /// Old version of an in-place modification — counterpart points to the `+` side.
+    case replaced(counterpart: Counterpart)
+    /// New version of an in-place modification — counterpart points to the `-` side.
+    case replacement(counterpart: Counterpart)
+    /// No meaningful change: context line, verbatim move source/destination, or whitespace-only modification.
+    case context
+}
+
+extension ChangeKind: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case counterpart
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        switch type {
+        case "new":
+            self = .new
+        case "deleted":
+            self = .deleted
+        case "replaced":
+            let c = try container.decode(Counterpart.self, forKey: .counterpart)
+            self = .replaced(counterpart: c)
+        case "replacement":
+            let c = try container.decode(Counterpart.self, forKey: .counterpart)
+            self = .replacement(counterpart: c)
+        default:
+            self = .context
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .new:
+            try container.encode("new", forKey: .type)
+        case .deleted:
+            try container.encode("deleted", forKey: .type)
+        case .replaced(let c):
+            try container.encode("replaced", forKey: .type)
+            try container.encode(c, forKey: .counterpart)
+        case .replacement(let c):
+            try container.encode("replacement", forKey: .type)
+            try container.encode(c, forKey: .counterpart)
+        case .context:
+            try container.encode("context", forKey: .type)
+        }
+    }
+}
+
+extension ChangeKind {
+    public var isReplaced: Bool {
+        if case .replaced = self { return true }
+        return false
+    }
+
+    public var isReplacement: Bool {
+        if case .replacement = self { return true }
+        return false
+    }
+
+    public var counterpart: Counterpart? {
+        switch self {
+        case .replaced(let c), .replacement(let c): return c
+        default: return nil
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .new: return "new"
+        case .deleted: return "deleted"
+        case .replaced: return "replaced"
+        case .replacement: return "replacement"
+        case .context: return "context"
+        }
+    }
 }
 
 /// Group a flat list of classified lines back into hunk-level containers.
@@ -97,36 +190,40 @@ func classifyLines(
                 if let oldNum = diffLine.oldLineNumber,
                    sourceMovedLines[hunk.filePath]?.contains(oldNum) == true {
                     moveInfo = sourceMoveInfoLookup[hunk.filePath]?[oldNum]
-                    changeKind = changedSourceLines[hunk.filePath]?[oldNum] ?? .unchanged
+                    // changedSourceLines now returns .replaced(counterpart:) or .deleted;
+                    // default to .context for verbatim moves (no entry in changedSourceLines)
+                    changeKind = changedSourceLines[hunk.filePath]?[oldNum] ?? .context
                 } else {
-                    changeKind = .removed
+                    changeKind = .deleted
                     moveInfo = nil
                 }
 
             case .added:
                 if let newNum = diffLine.newLineNumber,
                    addedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .added
+                    changeKind = .new
                     moveInfo = targetMoveInfoLookup[hunk.filePath]?[newNum]
                 } else if let newNum = diffLine.newLineNumber,
                           changedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .changed
-                    moveInfo = targetMoveInfoLookup[hunk.filePath]?[newNum]
+                    let moveInfoForLine = targetMoveInfoLookup[hunk.filePath]?[newNum]
+                    moveInfo = moveInfoForLine
+                    let sourceFile = moveInfoForLine?.sourceFile ?? hunk.filePath
+                    changeKind = .replacement(counterpart: Counterpart(filePath: sourceFile, lineNumber: nil))
                 } else if let newNum = diffLine.newLineNumber,
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .unchanged
+                    changeKind = .context
                     moveInfo = targetMoveInfoLookup[hunk.filePath]?[newNum]
                 } else if let newNum = diffLine.newLineNumber,
                           whitespaceOnlyAdded[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .unchanged
+                    changeKind = .context
                     moveInfo = nil
                 } else {
-                    changeKind = .added
+                    changeKind = .new
                     moveInfo = nil
                 }
 
             case .context:
-                changeKind = .unchanged
+                changeKind = .context
                 moveInfo = nil
 
             case .header:
@@ -141,7 +238,8 @@ func classifyLines(
                 oldLineNumber: diffLine.oldLineNumber,
                 newLineNumber: diffLine.newLineNumber,
                 filePath: hunk.filePath,
-                move: moveInfo
+                move: moveInfo,
+                verbatimMoveCounterpart: nil
             ))
         }
     }

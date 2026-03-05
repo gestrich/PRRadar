@@ -21,13 +21,13 @@ public struct DiffStats: Codable, Sendable, Equatable {
             for line in hunk.lines {
                 guard line.diffType != .context && line.diffType != .header else { continue }
                 switch line.changeKind {
-                case .added:
+                case .new:
                     added += 1
-                case .removed:
+                case .deleted:
                     removed += 1
-                case .changed:
+                case .replaced, .replacement:
                     changed += 1
-                case .unchanged:
+                case .context:
                     if line.move != nil {
                         moved += 1
                     }

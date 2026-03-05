@@ -103,9 +103,9 @@ func countChangedLinesInHunks(_ hunks: [Hunk]) -> Int {
 
 /// Reconstruct the effective diff by filtering out verbatim moved lines.
 ///
-/// Lines with `move != nil` and `changeKind == .unchanged` are stripped.
-/// Lines that are in a moved block but have `changeKind` of `.changed`, `.added`,
-/// or `.removed` survive — they represent actual content changes within the moved block.
+/// Lines with `move != nil` and `changeKind == .context` are stripped.
+/// Lines that are in a moved block but have `changeKind` of `.replacement`, `.new`,
+/// or `.deleted` survive — they represent actual content changes within the moved block.
 /// Remaining lines are split at filtered-line boundaries into sub-hunks that preserve
 /// correct line numbers. Only sub-hunks containing at least one changed line are kept.
 func reconstructEffectiveDiff(
@@ -116,7 +116,7 @@ func reconstructEffectiveDiff(
 
     for (originalHunk, prHunk) in zip(originalDiff.hunks, prHunks) {
         let hasMovedLines = prHunk.lines.contains {
-            $0.move != nil && $0.changeKind == .unchanged
+            $0.move != nil && $0.changeKind == .context
         }
 
         if !hasMovedLines {
@@ -132,7 +132,7 @@ func reconstructEffectiveDiff(
         var current: [PRLine] = []
 
         for line in prHunk.lines {
-            if !(line.move != nil && line.changeKind == .unchanged) {
+            if !(line.move != nil && line.changeKind == .context) {
                 current.append(line)
             } else {
                 if !current.isEmpty {

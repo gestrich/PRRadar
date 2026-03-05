@@ -217,10 +217,10 @@ struct PRHunkRelevantLinesTests {
     func relevantLinesNewCodeOnly() {
         // Arrange
         let hunk = makePRHunk(lines: [
-            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makePRLine(content: "unchanged", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+            makePRLine(content: "added", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "unchanged", changeKind: .context, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -235,10 +235,10 @@ struct PRHunkRelevantLinesTests {
     func relevantLinesAllChanged() {
         // Arrange
         let hunk = makePRHunk(lines: [
-            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makePRLine(content: "unchanged", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+            makePRLine(content: "added", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "unchanged", changeKind: .context, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -253,9 +253,9 @@ struct PRHunkRelevantLinesTests {
     func relevantLineNumbersNewCodeOnly() {
         // Arrange
         let hunk = makePRHunk(lines: [
-            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+            makePRLine(content: "added", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "context", changeKind: .context, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -269,10 +269,10 @@ struct PRHunkRelevantLinesTests {
     func relevantLineNumbersAllChanged() {
         // Arrange
         let hunk = makePRHunk(lines: [
-            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makePRLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 12),
+            makePRLine(content: "added", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "context", changeKind: .context, lineType: .context, newLineNumber: 12),
         ])
 
         // Act
@@ -286,7 +286,7 @@ struct PRHunkRelevantLinesTests {
     func fallsBackToOldLineNumber() {
         // Arrange
         let hunk = makePRHunk(lines: [
-            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, newLineNumber: nil, oldLineNumber: 42),
+            makePRLine(content: "removed", changeKind: .deleted, lineType: .removed, newLineNumber: nil, oldLineNumber: 42),
         ])
 
         // Act
@@ -808,8 +808,8 @@ struct ScriptAnalysisServiceTests {
         let rule = makeTaskRule(description: "Default message", violationScript: scriptPath)
         let task = makeRuleRequest(rule: rule, filePath: "Calculator.swift", startLine: 1, endLine: 100)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "import A", changeKind: .added, newLineNumber: 15),
-            makePRLine(content: "import B", changeKind: .added, newLineNumber: 23),
+            makePRLine(content: "import A", changeKind: .new, newLineNumber: 15),
+            makePRLine(content: "import B", changeKind: .new, newLineNumber: 23),
         ])]
 
         // Act
@@ -929,7 +929,7 @@ struct ScriptAnalysisServiceTests {
         let rule = makeTaskRule(violationScript: scriptPath)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "changed line", changeKind: .added, newLineNumber: 15),
+            makePRLine(content: "changed line", changeKind: .new, newLineNumber: 15),
         ])]
 
         // Act
@@ -955,9 +955,9 @@ struct ScriptAnalysisServiceTests {
         let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "changed in move", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 12),
+            makePRLine(content: "added", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "changed in move", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 12),
         ])]
 
         // Act
@@ -982,10 +982,10 @@ struct ScriptAnalysisServiceTests {
         let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: false)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "added", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "removed", changeKind: .removed, lineType: .removed, oldLineNumber: 12),
-            makePRLine(content: "context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
+            makePRLine(content: "added", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "changed", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 12),
+            makePRLine(content: "context", changeKind: .context, lineType: .context, newLineNumber: 13),
         ])]
 
         // Act

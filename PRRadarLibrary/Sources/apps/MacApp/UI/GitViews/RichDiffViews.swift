@@ -57,7 +57,7 @@ struct LineInfoPopoverView: View {
                 GridRow {
                     Text("Change Kind")
                         .foregroundStyle(.secondary)
-                    Text(line.changeKind.rawValue)
+                    Text(line.changeKind.description)
                         .fontWeight(.medium)
                 }
                 GridRow {

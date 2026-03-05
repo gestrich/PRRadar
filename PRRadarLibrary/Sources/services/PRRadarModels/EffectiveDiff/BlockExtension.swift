@@ -38,10 +38,10 @@ struct RediffAnalysis: Sendable, Equatable {
 /// Analyze re-diff hunks to classify which lines within a move are insertions, modifications, or deletions.
 ///
 /// For each hunk, uses the ratio of removed-to-added lines to determine:
-/// - **Target side**: Pure insertion hunks (no `-` lines) → all `+` lines are `.added`.
-///   Mixed hunks → first `min(removedCount, addedCount)` `+` lines are `.changed`, surplus are `.added`.
-/// - **Source side**: `-` lines in hunks with `+` lines → `.changed`; in hunks without → `.removed`.
-func analyzeRediffHunks(hunks: [Hunk], sourceRegionStart: Int, targetRegionStart: Int) -> RediffAnalysis {
+/// - **Target side**: Pure insertion hunks (no `-` lines) → all `+` lines are `.new`.
+///   Mixed hunks → first `min(removedCount, addedCount)` `+` lines are `.replacement`, surplus are `.new`.
+/// - **Source side**: `-` lines in hunks with `+` lines → `.replaced(counterpart:)`; in hunks without → `.deleted`.
+func analyzeRediffHunks(hunks: [Hunk], targetFile: String, sourceRegionStart: Int, targetRegionStart: Int) -> RediffAnalysis {
     var addedInMove: Set<Int> = []
     var changedInMove: Set<Int> = []
     var changedSource: [Int: ChangeKind] = [:]
@@ -76,7 +76,9 @@ func analyzeRediffHunks(hunks: [Hunk], sourceRegionStart: Int, targetRegionStart
         for diffLine in diffLines where diffLine.lineType == .removed {
             if let relativeOldLineNum = diffLine.oldLineNumber {
                 let absoluteLineNum = sourceRegionStart + relativeOldLineNum - 1
-                changedSource[absoluteLineNum] = addedCount > 0 ? .changed : .removed
+                changedSource[absoluteLineNum] = addedCount > 0
+                    ? .replaced(counterpart: Counterpart(filePath: targetFile, lineNumber: nil))
+                    : .deleted
             }
         }
     }
@@ -189,6 +191,7 @@ func computeEffectiveDiffForCandidate(
 
     let analysis = analyzeRediffHunks(
         hunks: trimmed,
+        targetFile: candidate.targetFile,
         sourceRegionStart: ranges.source.start,
         targetRegionStart: ranges.target.start
     )

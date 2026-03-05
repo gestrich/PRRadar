@@ -14,23 +14,23 @@ public struct PRHunk: Codable, Sendable, Equatable {
     public var isMoved: Bool {
         let nonContext = lines.filter { $0.diffType != .context }
         guard !nonContext.isEmpty else { return false }
-        return nonContext.allSatisfy { $0.move != nil && $0.changeKind == .unchanged }
+        return nonContext.allSatisfy { $0.move != nil && $0.changeKind == .context }
     }
 
     public var hasNewCode: Bool {
-        lines.contains { $0.changeKind == .added }
+        lines.contains { $0.changeKind == .new }
     }
 
     public var hasChangesInMove: Bool {
-        lines.contains { $0.changeKind == .changed && $0.move != nil }
+        lines.contains { $0.changeKind.isReplaced || $0.changeKind.isReplacement }
     }
 
     public var newCodeLines: [PRLine] {
-        lines.filter { $0.changeKind == .added }
+        lines.filter { $0.changeKind == .new }
     }
 
     public var changedLines: [PRLine] {
-        lines.filter { $0.changeKind != .unchanged }
+        lines.filter { $0.changeKind != .context }
     }
 
     public func relevantLines(newCodeLinesOnly: Bool) -> [PRLine] {
@@ -48,9 +48,9 @@ public struct PRHunk: Codable, Sendable, Equatable {
             .map { diffLine in
                 let changeKind: ChangeKind
                 switch diffLine.lineType {
-                case .added: changeKind = .added
-                case .removed: changeKind = .removed
-                case .context, .header: changeKind = .unchanged
+                case .added: changeKind = .new
+                case .removed: changeKind = .deleted
+                case .context, .header: changeKind = .context
                 }
                 return PRLine(
                     content: diffLine.content,
@@ -60,7 +60,8 @@ public struct PRHunk: Codable, Sendable, Equatable {
                     oldLineNumber: diffLine.oldLineNumber,
                     newLineNumber: diffLine.newLineNumber,
                     filePath: hunk.filePath,
-                    move: nil
+                    move: nil,
+                    verbatimMoveCounterpart: nil
                 )
             }
         return PRHunk(

@@ -70,7 +70,7 @@ private func makeEffectiveResult(
     rawDiff: String = ""
 ) -> EffectiveDiffResult {
     let ranges = extendBlockRange(candidate)
-    let analysis = analyzeRediffHunks(hunks: hunks, sourceRegionStart: ranges.source.start, targetRegionStart: ranges.target.start)
+    let analysis = analyzeRediffHunks(hunks: hunks, targetFile: candidate.targetFile, sourceRegionStart: ranges.source.start, targetRegionStart: ranges.target.start)
     return EffectiveDiffResult(candidate: candidate, hunks: hunks, rawDiff: rawDiff, rediffAnalysis: analysis)
 }
 

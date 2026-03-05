@@ -214,7 +214,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
+            makePRLine(content: "guard b != 0 else { return nil }", changeKind: .new, newLineNumber: 20),
         ])]
 
         // Act
@@ -237,7 +237,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "force_unwrap!")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "let x = Optional.some(42)", changeKind: .added, newLineNumber: 5),
+            makePRLine(content: "let x = Optional.some(42)", changeKind: .new, newLineNumber: 5),
         ])]
 
         // Act
@@ -259,10 +259,10 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "guard a != 0 else { return nil }", changeKind: .added, newLineNumber: 20),
-            makePRLine(content: "return 1.0 / Double(a)", changeKind: .added, newLineNumber: 21),
-            makePRLine(content: "guard b != 0 else { return nil }", changeKind: .added, newLineNumber: 25),
-            makePRLine(content: "guard c != 0 else { return nil }", changeKind: .added, newLineNumber: 30),
+            makePRLine(content: "guard a != 0 else { return nil }", changeKind: .new, newLineNumber: 20),
+            makePRLine(content: "return 1.0 / Double(a)", changeKind: .new, newLineNumber: 21),
+            makePRLine(content: "guard b != 0 else { return nil }", changeKind: .new, newLineNumber: 25),
+            makePRLine(content: "guard c != 0 else { return nil }", changeKind: .new, newLineNumber: 30),
         ])]
 
         // Act
@@ -284,7 +284,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil", violationMessage: "Custom message")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "return nil", changeKind: .added, newLineNumber: 1),
+            makePRLine(content: "return nil", changeKind: .new, newLineNumber: 1),
         ])]
 
         // Act
@@ -305,7 +305,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "return nil", changeKind: .added, newLineNumber: 1),
+            makePRLine(content: "return nil", changeKind: .new, newLineNumber: 1),
         ])]
 
         // Act
@@ -326,7 +326,7 @@ struct RegexAnalysisServiceTests {
         let rule = makeTaskRule(violationRegex: "return nil")
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "return nil", changeKind: .added, newLineNumber: 1),
+            makePRLine(content: "return nil", changeKind: .new, newLineNumber: 1),
         ])]
 
         // Act
@@ -393,11 +393,11 @@ struct RegexNewCodeOnlyTests {
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "// TODO: new task", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "// TODO: moved task", changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "// TODO: changed in move", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 12),
-            makePRLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
-            makePRLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "// TODO: new task", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "// TODO: moved task", changeKind: .context, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "// TODO: changed in move", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 12),
+            makePRLine(content: "// TODO: context", changeKind: .context, lineType: .context, newLineNumber: 13),
+            makePRLine(content: "// TODO: removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 5),
         ])]
 
         // Act
@@ -420,11 +420,11 @@ struct RegexNewCodeOnlyTests {
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: false)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "// TODO: new", changeKind: .added, newLineNumber: 10),
-            makePRLine(content: "// TODO: removed", changeKind: .removed, lineType: .removed, oldLineNumber: 5),
-            makePRLine(content: "// TODO: changed", changeKind: .changed, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 12),
-            makePRLine(content: "// TODO: moved", changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
-            makePRLine(content: "// TODO: context", changeKind: .unchanged, lineType: .context, newLineNumber: 13),
+            makePRLine(content: "// TODO: new", changeKind: .new, newLineNumber: 10),
+            makePRLine(content: "// TODO: removed", changeKind: .deleted, lineType: .removed, oldLineNumber: 5),
+            makePRLine(content: "// TODO: changed", changeKind: .replacement(counterpart: Counterpart(filePath: "a", lineNumber: nil)), move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 12),
+            makePRLine(content: "// TODO: moved", changeKind: .context, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 11),
+            makePRLine(content: "// TODO: context", changeKind: .context, lineType: .context, newLineNumber: 13),
         ])]
 
         // Act
@@ -445,8 +445,8 @@ struct RegexNewCodeOnlyTests {
         let rule = makeTaskRule(violationRegex: "TODO", newCodeLinesOnly: true)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
-            makePRLine(content: "// TODO: inserted in move", changeKind: .added, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 15),
-            makePRLine(content: "// TODO: just moved", changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 16),
+            makePRLine(content: "// TODO: inserted in move", changeKind: .new, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 15),
+            makePRLine(content: "// TODO: just moved", changeKind: .context, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false), newLineNumber: 16),
         ])]
 
         // Act
@@ -472,12 +472,12 @@ struct PRHunkFocusAreaFilteringTests {
         // Arrange
         let hunks = [
             makePRHunk(filePath: "A.swift", lines: [
-                makePRLine(content: "line1", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
-                makePRLine(content: "line2", changeKind: .added, filePath: "A.swift", newLineNumber: 15),
-                makePRLine(content: "line3", changeKind: .added, filePath: "A.swift", newLineNumber: 25),
+                makePRLine(content: "line1", changeKind: .new, filePath: "A.swift", newLineNumber: 5),
+                makePRLine(content: "line2", changeKind: .new, filePath: "A.swift", newLineNumber: 15),
+                makePRLine(content: "line3", changeKind: .new, filePath: "A.swift", newLineNumber: 25),
             ]),
             makePRHunk(filePath: "B.swift", lines: [
-                makePRLine(content: "other", changeKind: .added, filePath: "B.swift", newLineNumber: 10),
+                makePRLine(content: "other", changeKind: .new, filePath: "B.swift", newLineNumber: 10),
             ]),
         ]
         let focusArea = FocusArea(
@@ -500,7 +500,7 @@ struct PRHunkFocusAreaFilteringTests {
         // Arrange
         let hunks = [
             makePRHunk(filePath: "A.swift", lines: [
-                makePRLine(content: "code", changeKind: .added, filePath: "A.swift", newLineNumber: 5),
+                makePRLine(content: "code", changeKind: .new, filePath: "A.swift", newLineNumber: 5),
             ]),
         ]
         let focusArea = FocusArea(
@@ -550,7 +550,7 @@ struct GrepFilteringPRHunkTests {
         let hunks = [makePRHunk(filePath: "Header.h", lines: [
             makePRLine(
                 content: "- (UITabBarItem *)foo;",
-                changeKind: .added,
+                changeKind: .new,
                 filePath: "Header.h",
                 newLineNumber: 70
             ),
@@ -579,7 +579,7 @@ struct GrepFilteringPRHunkTests {
         let hunks = [makePRHunk(filePath: "Header.h", lines: [
             makePRLine(
                 content: "+ (instancetype)sharedInstance;",
-                changeKind: .added,
+                changeKind: .new,
                 filePath: "Header.h",
                 newLineNumber: 10
             ),
@@ -608,7 +608,7 @@ struct GrepFilteringPRHunkTests {
         let hunks = [makePRHunk(lines: [
             makePRLine(
                 content: "@import UIKit;",
-                changeKind: .added,
+                changeKind: .new,
                 newLineNumber: 1
             ),
         ])]
@@ -636,12 +636,12 @@ struct GrepFilteringPRHunkTests {
         let hunks = [makePRHunk(lines: [
             makePRLine(
                 content: "@import UIKit;",
-                changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false),
+                changeKind: .context, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false),
                 newLineNumber: 1
             ),
             makePRLine(
                 content: "@import Foundation;",
-                changeKind: .unchanged, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false),
+                changeKind: .context, move: MoveInfo(sourceFile: "a", targetFile: "b", isSource: false),
                 lineType: .removed,
                 oldLineNumber: 5
             ),
@@ -670,7 +670,7 @@ struct GrepFilteringPRHunkTests {
         let hunks = [makePRHunk(lines: [
             makePRLine(
                 content: "@import UIKit;",
-                changeKind: .unchanged,
+                changeKind: .context,
                 lineType: .context,
                 newLineNumber: 1
             ),

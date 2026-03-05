@@ -7,6 +7,9 @@ public struct PRLine: Codable, Sendable, Equatable {
     public let newLineNumber: Int?
     public let filePath: String
     public let move: MoveInfo?
+    /// Non-nil only for verbatim move source/destination lines (demoted to `.context`).
+    /// Populated in Phase 5 when MoveInfo is removed; nil until then.
+    public let verbatimMoveCounterpart: Counterpart?
     public let inlineChanges: [InlineChangeSpan]?
 
     public init(
@@ -18,6 +21,7 @@ public struct PRLine: Codable, Sendable, Equatable {
         newLineNumber: Int?,
         filePath: String,
         move: MoveInfo?,
+        verbatimMoveCounterpart: Counterpart? = nil,
         inlineChanges: [InlineChangeSpan]? = nil
     ) {
         self.content = content
@@ -28,6 +32,7 @@ public struct PRLine: Codable, Sendable, Equatable {
         self.newLineNumber = newLineNumber
         self.filePath = filePath
         self.move = move
+        self.verbatimMoveCounterpart = verbatimMoveCounterpart
         self.inlineChanges = inlineChanges
     }
 

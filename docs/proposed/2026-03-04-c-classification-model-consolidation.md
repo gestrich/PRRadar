@@ -237,9 +237,10 @@ for h in hunks:
 
 Use `--config ios` (saved configuration pointing to local ff-ios checkout). Use `--mode regex` to skip Claude API calls.
 
-### - [ ] Phase 3: Define new types
+### - [x] Phase 3: Define new types
 
-**Skills to read**: `/swift-app-architecture:swift-architecture`
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Added `Counterpart` struct and rewrote `ChangeKind` enum with associated values (`.new`, `.deleted`, `.replaced(counterpart:)`, `.replacement(counterpart:)`, `.context`). Added custom `Codable` conformance and convenience helpers (`isReplaced`, `isReplacement`, `counterpart`, `description`). Added `verbatimMoveCounterpart: Counterpart?` to `PRLine` (kept `MoveInfo` for Phase 5 removal). Updated `analyzeRediffHunks()` with `targetFile` parameter to produce `.replaced(counterpart:)` and `.deleted`. Updated all consumers (PRHunk, DiffStats, DiffReconstruction, RichDiffViews) and all test files to use new case names. 655 tests pass.
 
 Define the new `Counterpart` struct and rewrite `ChangeKind` as an enum with associated values. Add convenience helpers. Remove `MoveInfo`.
 
