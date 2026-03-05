@@ -197,9 +197,7 @@ public struct PRAcquisitionService: Sendable {
         let (effectiveDiffJSON, effectiveMD, movesJSON, prDiffJSON) = try await runEffectiveDiff(
             gitDiff: gitDiff,
             baseRefName: baseRefName,
-            headCommit: fullCommitHash,
-            fallbackDiffJSON: parsedDiffJSON,
-            fallbackMD: parsedMD
+            headCommit: fullCommitHash
         )
         try write(effectiveDiffJSON, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedJSONFilename)")
         try write(effectiveMD, to: "\(diffDir)/\(DataPathsService.effectiveDiffParsedMarkdownFilename)")
@@ -292,52 +290,36 @@ public struct PRAcquisitionService: Sendable {
     }
 
     /// Run the effective diff pipeline, returning encoded JSON and markdown for the effective diff and move report.
-    /// Falls back to the full diff on any error.
     private func runEffectiveDiff(
         gitDiff: GitDiff,
         baseRefName: String,
-        headCommit: String,
-        fallbackDiffJSON: Data,
-        fallbackMD: String
+        headCommit: String
     ) async throws -> (diffJSON: Data, diffMD: String, movesJSON: Data, prDiffJSON: Data) {
-        do {
-            let mergeBase = try await historyProvider.getMergeBase(
-                commit1: "origin/\(baseRefName)",
-                commit2: headCommit
-            )
+        let mergeBase = try await historyProvider.getMergeBase(
+            commit1: "origin/\(baseRefName)",
+            commit2: headCommit
+        )
 
-            var oldFiles: [String: String] = [:]
-            var newFiles: [String: String] = [:]
-            for filePath in gitDiff.uniqueFiles {
-                oldFiles[filePath] = try? await historyProvider.getFileContent(commit: mergeBase, filePath: filePath)
-                newFiles[filePath] = try? await historyProvider.getFileContent(commit: headCommit, filePath: filePath)
-            }
-
-            let result = try await runEffectiveDiffPipeline(
-                gitDiff: gitDiff,
-                oldFiles: oldFiles,
-                newFiles: newFiles,
-                rediff: gitOps.diffNoIndex
-            )
-
-            let effectiveDiffJSON = try JSONEncoder.prettyPrinted.encode(result.effectiveDiff)
-            let effectiveMD = formatDiffAsMarkdown(result.effectiveDiff)
-            let movesJSON = try JSONEncoder.prettyPrinted.encode(result.moveReport)
-            let prDiffJSON = try JSONEncoder.prettyPrinted.encode(result.prDiff)
-
-            return (effectiveDiffJSON, effectiveMD, movesJSON, prDiffJSON)
-        } catch {
-            let emptyMoveReport = MoveReport(
-                movesDetected: 0,
-                totalLinesMoved: 0,
-                totalLinesEffectivelyChanged: gitDiff.hunks.count,
-                moves: []
-            )
-            let movesJSON = try JSONEncoder.prettyPrinted.encode(emptyMoveReport)
-            let fallbackPRDiff = PRDiff.fromRawDiff(gitDiff)
-            let fallbackPRDiffJSON = try JSONEncoder.prettyPrinted.encode(fallbackPRDiff)
-            return (fallbackDiffJSON, fallbackMD, movesJSON, fallbackPRDiffJSON)
+        var oldFiles: [String: String] = [:]
+        var newFiles: [String: String] = [:]
+        for filePath in gitDiff.uniqueFiles {
+            oldFiles[filePath] = try? await historyProvider.getFileContent(commit: mergeBase, filePath: filePath)
+            newFiles[filePath] = try? await historyProvider.getFileContent(commit: headCommit, filePath: filePath)
         }
+
+        let result = try await runEffectiveDiffPipeline(
+            gitDiff: gitDiff,
+            oldFiles: oldFiles,
+            newFiles: newFiles,
+            rediff: gitOps.diffNoIndex
+        )
+
+        let effectiveDiffJSON = try JSONEncoder.prettyPrinted.encode(result.effectiveDiff)
+        let effectiveMD = formatDiffAsMarkdown(result.effectiveDiff)
+        let movesJSON = try JSONEncoder.prettyPrinted.encode(result.moveReport)
+        let prDiffJSON = try JSONEncoder.prettyPrinted.encode(result.prDiff)
+
+        return (effectiveDiffJSON, effectiveMD, movesJSON, prDiffJSON)
     }
 
     private func formatDiffAsMarkdown(_ diff: GitDiff) -> String {
