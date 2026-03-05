@@ -181,9 +181,27 @@ This preserves the ability to:
 
 ## Phases
 
-### - [ ] Phase 1: Reproduce the original bug
+### - [ ] Phase 1: Tighten whitespace-only detection to leading/trailing only
 
-Confirm the false positive on PR #19024 still exists before making changes. This establishes the baseline.
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+The current `collapseWhitespace()` strips ALL whitespace, so `"* parentView"` and `"*parentView"` compare equal. This hides interior whitespace changes that are arguably real modifications (e.g., moving a `*` against the variable name changes pointer semantics in some contexts).
+
+Change `collapseWhitespace()` (or replace it with a new comparison) to only consider **leading/trailing** whitespace differences as whitespace-only. Interior whitespace changes should be treated as real modifications.
+
+**Changes in `ClassifiedDiffLine.swift`**:
+- Replace `collapseWhitespace()` with a comparison that trims leading/trailing whitespace from both lines, then checks exact equality
+- `"  foo bar"` vs `"foo bar"` → whitespace-only (leading whitespace)
+- `"* parentView"` vs `"*parentView"` → NOT whitespace-only (interior change)
+- `"foo  "` vs `"foo"` → whitespace-only (trailing whitespace)
+
+**Effect**: This reintroduces the original `parentView` false positive from PR #19024 because that line's change is now correctly treated as a real modification (not whitespace-only). The subsequent phases (paired modification detection) will fix this properly by classifying it as `.replaced`/`.replacement` instead of `.added`.
+
+**Tests**: Update existing whitespace-only tests to match the tighter definition. Add tests for interior vs leading/trailing whitespace differences.
+
+### - [ ] Phase 2: Reproduce the original bug
+
+Confirm the false positive on PR #19024 exists after tightening the whitespace definition. The `parentView` line should now be classified as `changeKind=added` (the bug is back), and other in-place modifications should also show as `added`.
 
 ```bash
 # Delete cached analysis data so the pipeline re-runs from scratch
@@ -197,8 +215,8 @@ swift run PRRadarMacCLI sync 19024 --config ios
 swift run PRRadarMacCLI prepare 19024 --config ios
 swift run PRRadarMacCLI analyze 19024 --config ios --mode regex
 
-# Inspect classified hunks — expect parentView to show changeKind=unchanged (whitespace fix)
-# but other in-place modifications should still show changeKind=added (the bug)
+# Inspect — expect parentView to show changeKind=added (bug reintroduced)
+# and other in-place modifications also showing changeKind=added
 python3 -c "
 import json
 with open('$(ls ~/Desktop/code-reviews/19024/analysis/*/diff/classified-hunks.json)') as f:
@@ -214,7 +232,7 @@ for h in hunks:
 
 Use `--config ios` (saved configuration pointing to local ff-ios checkout). Use `--mode regex` to skip Claude API calls.
 
-### - [ ] Phase 2: Define new types
+### - [ ] Phase 3: Define new types
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -258,7 +276,7 @@ Update `analyzeRediffHunks()` to produce new case names in `changedSourceLines`:
 
 Update `RediffAnalysis.changedSourceLines` type from `[Int: ChangeKind]` — values change from `.changed`/`.removed` to `.replaced(counterpart:)`/`.deleted`.
 
-### - [ ] Phase 3: Add paired modification detection
+### - [ ] Phase 4: Add paired modification detection
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -276,7 +294,7 @@ Add `buildPairedModifications()` to `ClassifiedDiffLine.swift`, replacing `build
 
 **Delete `buildWhitespaceOnlySet()`** — subsumed by the new mechanism. Keep `collapseWhitespace()` as it's still used for the whitespace comparison.
 
-### - [ ] Phase 4: Update classification pipeline
+### - [ ] Phase 5: Update classification pipeline
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -317,7 +335,7 @@ Also update `PRHunk.fromHunk()` mapping:
 - `.context`/`.header` → `.context`
 - `verbatimMoveCounterpart` = nil for all (no move detection in this path)
 
-### - [ ] Phase 5: Update consumers
+### - [ ] Phase 6: Update consumers
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -356,7 +374,7 @@ Replace `move != nil && changeKind == .unchanged` with `verbatimMoveCounterpart 
 - The `findMoveDetail(for:)` helper may need to derive source/target from counterpart + line's own filePath
 - `changeKind.rawValue` display in `LineInfoPopoverView` — since `ChangeKind` no longer has raw values, display using a computed description property or switch
 
-### - [ ] Phase 6: Fix silent fallback on pipeline failure
+### - [ ] Phase 7: Fix silent fallback on pipeline failure
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -366,7 +384,7 @@ The effective diff pipeline silently returns empty classified hunks when `git me
 2. Fall back to classifying all diff lines from the raw diff (every `+` line → `.new`, every `-` line → `.deleted`, context → `.context`) instead of returning empty
 3. Both
 
-### - [ ] Phase 7: Update tests
+### - [ ] Phase 8: Update tests
 
 **Skills to read**: `/swift-testing`
 
@@ -394,7 +412,7 @@ New tests for paired modification detection:
 - `buildPairedModifications` — equal run counts, surplus removals, surplus additions, context lines separating change groups
 - `classifyLines` integration — paired non-trivial modifications get `.replaced`/`.replacement` with correct counterpart line numbers, whitespace-only pairs stay `.context`, unpaired lines stay `.new`/`.deleted`, move detection takes priority over in-place pairing
 
-### - [ ] Phase 8: Validate the bug is fixed
+### - [ ] Phase 9: Validate the bug is fixed
 
 Re-run the same steps from Phase 1 against PR #19024. Expected results:
 
