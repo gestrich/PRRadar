@@ -181,7 +181,10 @@ This preserves the ability to:
 
 ## Phases
 
-### - [ ] Phase 1: Tighten whitespace-only detection to leading/trailing only
+### - [x] Phase 1: Tighten whitespace-only detection to leading/trailing only
+
+**Skills used**: `/swift-app-architecture:swift-architecture`, `/swift-testing`
+**Principles applied**: Renamed `collapseWhitespace()` to `trimSurroundingWhitespace()` using `trimmingCharacters(in: .whitespaces)`. Added two tests: `leadingWhitespaceOnlyChangeClassifiedAsUnchanged` and `interiorWhitespaceChangeClassifiedAsAdded` (reproduces the `* parentView` case).
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -199,7 +202,9 @@ Change `collapseWhitespace()` (or replace it with a new comparison) to only cons
 
 **Tests**: Update existing whitespace-only tests to match the tighter definition. Add tests for interior vs leading/trailing whitespace differences.
 
-### - [ ] Phase 2: Reproduce the original bug
+### - [x] Phase 2: Reproduce the original bug
+
+**Note**: PR #19024's branch has been deleted from the remote (old merged PR), so the full pipeline sync can't run. The bug is confirmed reproduced at the unit test level — `interiorWhitespaceChangeClassifiedAsAdded` directly tests `"* parentView"` vs `"*parentView"` and asserts `changeKind == .added`.
 
 Confirm the false positive on PR #19024 exists after tightening the whitespace definition. The `parentView` line should now be classified as `changeKind=added` (the bug is back), and other in-place modifications should also show as `added`.
 

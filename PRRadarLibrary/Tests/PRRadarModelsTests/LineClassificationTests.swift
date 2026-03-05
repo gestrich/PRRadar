@@ -309,6 +309,44 @@ private func makeEffectiveResult(
         #expect(classified[3].changeKind == .unchanged && classified[3].move != nil, "Moved line should be .moved")
         #expect(classified[4].changeKind == .added, "Line after move should be .new")
     }
+
+    @Test func leadingWhitespaceOnlyChangeClassifiedAsUnchanged() {
+        // Arrange — removed line has leading spaces, added line has none; content otherwise identical
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("file.swift", oldStart: 1, oldLength: 1, newStart: 1, newLength: 1,
+                         content: "@@ -1,1 +1,1 @@\n-    foo()\n+foo()")
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [])
+
+        // Assert — leading whitespace difference only → demoted to .unchanged
+        let added = classified.first { $0.diffType == .added }
+        #expect(added?.changeKind == .unchanged)
+    }
+
+    @Test func interiorWhitespaceChangeClassifiedAsAdded() {
+        // Arrange — "* parentView" vs "*parentView": interior whitespace removed, not leading/trailing
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("file.h", oldStart: 1, oldLength: 1, newStart: 1, newLength: 1,
+                         content: "@@ -1,1 +1,1 @@\n-@property (weak) RouteEditIPadView * parentView;\n+@property (weak) RouteEditIPadView *parentView;")
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [])
+
+        // Assert — interior whitespace difference → treated as real modification → .added (not .unchanged)
+        let added = classified.first { $0.diffType == .added }
+        #expect(added?.changeKind == .added)
+    }
 }
 
 // MARK: - Tests: PRHunk derived properties

@@ -151,15 +151,19 @@ func classifyLines(
 
 // MARK: - Whitespace-Only Detection
 
-/// Collapse all whitespace in a string so that `"* parentView"` and `"*parentView"` compare equal.
-private func collapseWhitespace(_ s: String) -> String {
-    s.split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace).joined()
+/// Trim leading and trailing whitespace for whitespace-only comparison.
+///
+/// Only leading/trailing differences are considered whitespace-only.
+/// Interior whitespace changes (e.g. `"* parentView"` vs `"*parentView"`) are treated as real modifications.
+private func trimSurroundingWhitespace(_ s: String) -> String {
+    s.trimmingCharacters(in: .whitespaces)
 }
 
-/// Scan each hunk for removed/added line pairs that differ only in whitespace.
+/// Scan each hunk for removed/added line pairs that differ only in leading/trailing whitespace.
 ///
 /// Returns a per-file set of new-line numbers for added lines whose content is identical
-/// to a removed line after collapsing all whitespace. These are whitespace-only modifications.
+/// to a removed line after trimming surrounding whitespace. Interior whitespace differences
+/// (e.g. `"* parentView"` vs `"*parentView"`) are NOT considered whitespace-only.
 func buildWhitespaceOnlySet(from diff: GitDiff) -> [String: Set<Int>] {
     var result: [String: Set<Int>] = [:]
 
@@ -170,13 +174,13 @@ func buildWhitespaceOnlySet(from diff: GitDiff) -> [String: Set<Int>] {
 
         var removedByCollapsed: [String: [Int]] = [:]
         for r in removed {
-            let key = collapseWhitespace(r.content)
+            let key = trimSurroundingWhitespace(r.content)
             guard !key.isEmpty else { continue }
             removedByCollapsed[key, default: []].append(r.oldLineNumber ?? 0)
         }
 
         for a in added {
-            let key = collapseWhitespace(a.content)
+            let key = trimSurroundingWhitespace(a.content)
             guard !key.isEmpty else { continue }
             guard var indices = removedByCollapsed[key], !indices.isEmpty else { continue }
             indices.removeFirst()
