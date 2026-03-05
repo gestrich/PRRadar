@@ -13,6 +13,10 @@ public struct PRLine: Codable, Sendable, Equatable {
     /// NOT flagged. Always `false` for `.added`, `.deleted`, and `.unchanged` lines.
     public let isSurroundingWhitespaceOnlyChange: Bool
 
+    public var stableID: String {
+        "\(filePath):\(diffType):\(oldLineNumber ?? -1):\(newLineNumber ?? -1)"
+    }
+
     /// Returns `(sourceFile, targetFile)` when this line is part of a cross-file move, nil otherwise.
     public var crossFileMoveFiles: (source: String, target: String)? {
         guard let pairing, pairing.counterpart.filePath != filePath else { return nil }

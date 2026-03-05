@@ -197,6 +197,7 @@ struct DiffPhaseView: View {
                 prModel: prModel,
                 onMoveTapped: onMoveTapped
             )
+            .id(selectedFile)
         }
         .sheet(isPresented: Binding(
             get: { showTasksForFile != nil },

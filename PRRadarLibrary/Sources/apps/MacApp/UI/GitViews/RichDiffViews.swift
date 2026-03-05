@@ -566,8 +566,8 @@ struct AnnotatedHunkContentView: View {
     private var imageBaseDir: String? { prModel.imageBaseDir }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(hunk.lines.enumerated()), id: \.offset) { _, line in
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(hunk.lines.enumerated()), id: \.element.stableID) { _, line in
                 let displayType = line.diffType
                 let moveDetail = findMoveDetail(for: line)
                 DiffLineRowView(
