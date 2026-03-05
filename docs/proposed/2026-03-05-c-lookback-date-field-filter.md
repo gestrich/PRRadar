@@ -214,7 +214,10 @@ Switch to `--updated-lookback-hours` — `updatedSince` is a superset of `create
 
 Also fix the `set -e` / `EXIT_CODE=$?` bug (line 81 is unreachable on failure).
 
-## - [ ] Phase 5: Tests and validation
+## - [x] Phase 5: Tests and validation
+
+**Skills used**: `swift-testing`, `pr-radar-verify-work`
+**Principles applied**: Tests follow Arrange-Act-Assert pattern with `@Test` and `#expect`. PRDateFilter tests verify all computed properties for all four cases. PRFilter tests verify composition and filtering behavior on PR arrays. Integration verified with both `--lookback-hours` and `--updated-lookback-hours` against test repo.
 
 **Skills to read**: `swift-testing`, `pr-radar-verify-work`
 
