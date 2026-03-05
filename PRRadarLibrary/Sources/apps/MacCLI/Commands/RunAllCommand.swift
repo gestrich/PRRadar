@@ -7,11 +7,14 @@ import PRReviewFeature
 struct RunAllCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "run-all",
-        abstract: "Run the full pipeline for all PRs created since a given date"
+        abstract: "Run the full pipeline for all PRs created since a date or within a lookback window"
     )
 
-    @Option(name: .long, help: "Date in YYYY-MM-DD format")
-    var since: String
+    @Option(name: .long, help: "Date in YYYY-MM-DD format (required unless --lookback-hours is provided)")
+    var since: String?
+
+    @Option(name: .long, help: "Run pipeline for PRs created in the last N hours")
+    var lookbackHours: Int?
 
     @Option(name: .long, help: "Named configuration from settings")
     var config: String?
@@ -53,6 +56,18 @@ struct RunAllCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
+        let sinceDate: String
+        if let since {
+            sinceDate = since
+        } else if let hours = lookbackHours {
+            let cutoff = Date.now.addingTimeInterval(-Double(hours) * 3600)
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            sinceDate = formatter.string(from: cutoff)
+        } else {
+            throw ValidationError("Either --since or --lookback-hours must be provided")
+        }
+
         let stateFilter: PRState? = try parseStateFilter(state)
 
         let prRadarConfig = try resolveConfig(
@@ -64,7 +79,7 @@ struct RunAllCommand: AsyncParsableCommand {
         let useCase = RunAllUseCase(config: prRadarConfig)
 
         for try await progress in useCase.execute(
-            since: since,
+            since: sinceDate,
             rulesDir: rulesDir ?? prRadarConfig.resolvedRulesDir,
             minScore: minScore,
             repo: repo,

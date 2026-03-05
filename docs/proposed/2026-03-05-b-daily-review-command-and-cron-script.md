@@ -33,7 +33,10 @@ Changes:
 
 No new files. Only the three existing files change.
 
-## - [ ] Phase 2: Add `--lookback-hours` to `RunAllCommand`
+## - [x] Phase 2: Add `--lookback-hours` to `RunAllCommand`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Made `--since` optional, added `--lookback-hours: Int?`, computed cutoff date inline in `run()`, `ValidationError` thrown when neither flag is provided for clean ArgumentParser error output
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
