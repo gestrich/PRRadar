@@ -383,7 +383,10 @@ Replace `verbatimMoveCounterpart != nil` with `contentChange == .unchanged && pa
 - Replace `line.move.isSource` with `line.pairing?.role == .before`
 - `changeKind.rawValue` display in `LineInfoPopoverView` — replace with `line.contentChange.rawValue` (and optionally show pairing role)
 
-### - [ ] Phase 7: Fix silent fallback on pipeline failure
+### - [x] Phase 7: Fix silent fallback on pipeline failure
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Removed the catch block entirely rather than logging a warning — the fallback produced degraded results (same false positives the spec fixes), so failing loudly is correct. Removed unused `fallbackDiffJSON`/`fallbackMD` parameters. Errors propagate through `acquire()` → `SyncPRUseCase` → `.failed` event → CLI/UI error.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
