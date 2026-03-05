@@ -2,54 +2,44 @@ public struct PRLine: Codable, Sendable, Equatable {
     public let content: String
     public let rawLine: String
     public let diffType: DiffLineType
-    public let changeKind: ChangeKind
+    public let contentChange: ContentChange
+    public let pairing: Pairing?
     public let oldLineNumber: Int?
     public let newLineNumber: Int?
     public let filePath: String
-    public let move: MoveInfo?
-    /// Non-nil only for verbatim move source/destination lines (demoted to `.context`).
-    /// Populated in Phase 5 when MoveInfo is removed; nil until then.
-    public let verbatimMoveCounterpart: Counterpart?
     public let inlineChanges: [InlineChangeSpan]?
+
+    /// Returns `(sourceFile, targetFile)` when this line is part of a cross-file move, nil otherwise.
+    public var crossFileMoveFiles: (source: String, target: String)? {
+        guard let pairing, pairing.counterpart.filePath != filePath else { return nil }
+        switch pairing.role {
+        case .before: return (source: filePath, target: pairing.counterpart.filePath)
+        case .after:  return (source: pairing.counterpart.filePath, target: filePath)
+        }
+    }
 
     public init(
         content: String,
         rawLine: String,
         diffType: DiffLineType,
-        changeKind: ChangeKind,
+        contentChange: ContentChange,
+        pairing: Pairing? = nil,
         oldLineNumber: Int?,
         newLineNumber: Int?,
         filePath: String,
-        move: MoveInfo?,
-        verbatimMoveCounterpart: Counterpart? = nil,
         inlineChanges: [InlineChangeSpan]? = nil
     ) {
         self.content = content
         self.rawLine = rawLine
         self.diffType = diffType
-        self.changeKind = changeKind
+        self.contentChange = contentChange
+        self.pairing = pairing
         self.oldLineNumber = oldLineNumber
         self.newLineNumber = newLineNumber
         self.filePath = filePath
-        self.move = move
-        self.verbatimMoveCounterpart = verbatimMoveCounterpart
         self.inlineChanges = inlineChanges
     }
 
-}
-
-// MARK: - MoveInfo
-
-public struct MoveInfo: Codable, Sendable, Equatable {
-    public let sourceFile: String
-    public let targetFile: String
-    public let isSource: Bool
-
-    public init(sourceFile: String, targetFile: String, isSource: Bool) {
-        self.sourceFile = sourceFile
-        self.targetFile = targetFile
-        self.isSource = isSource
-    }
 }
 
 // MARK: - InlineChangeSpan

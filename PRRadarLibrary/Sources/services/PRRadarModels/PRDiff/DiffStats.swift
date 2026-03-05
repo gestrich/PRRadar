@@ -20,15 +20,15 @@ public struct DiffStats: Codable, Sendable, Equatable {
         for hunk in hunks {
             for line in hunk.lines {
                 guard line.diffType != .context && line.diffType != .header else { continue }
-                switch line.changeKind {
-                case .new:
+                switch line.contentChange {
+                case .added:
                     added += 1
                 case .deleted:
                     removed += 1
-                case .replaced, .replacement:
+                case .modified:
                     changed += 1
-                case .context:
-                    if line.move != nil {
+                case .unchanged:
+                    if line.pairing != nil {
                         moved += 1
                     }
                 }

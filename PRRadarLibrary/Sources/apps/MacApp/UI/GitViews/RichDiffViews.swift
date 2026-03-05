@@ -55,9 +55,9 @@ struct LineInfoPopoverView: View {
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
                 GridRow {
-                    Text("Change Kind")
+                    Text("Content Change")
                         .foregroundStyle(.secondary)
-                    Text(line.changeKind.description)
+                    Text(line.contentChange.rawValue)
                         .fontWeight(.medium)
                 }
                 GridRow {
@@ -66,9 +66,9 @@ struct LineInfoPopoverView: View {
                     Text(line.diffType.rawValue)
                 }
                 GridRow {
-                    Text("In Moved Block")
+                    Text("Paired")
                         .foregroundStyle(.secondary)
-                    Text(line.move != nil ? "Yes" : "No")
+                    Text(line.pairing != nil ? "Yes (\(line.pairing!.role.rawValue))" : "No")
                 }
                 GridRow {
                     Text("Old Line #")
@@ -382,7 +382,7 @@ struct AnnotatedHunkContentView: View {
                     newLineNumber: line.newLineNumber,
                     lineType: displayType,
                     searchQuery: searchQuery,
-                    isMoved: line.move != nil,
+                    isMoved: line.pairing != nil,
                     prLine: line,
                     onAddComment: line.newLineNumber != nil ? {
                         composingCommentLine = (filePath: hunk.filePath, lineNumber: line.newLineNumber!)
@@ -443,8 +443,8 @@ struct AnnotatedHunkContentView: View {
     }
 
     private func findMoveDetail(for line: PRLine) -> MoveDetail? {
-        guard let moveInfo = line.move else { return nil }
-        return moves.first { $0.sourceFile == moveInfo.sourceFile && $0.targetFile == moveInfo.targetFile }
+        guard let moveFiles = line.crossFileMoveFiles else { return nil }
+        return moves.first { $0.sourceFile == moveFiles.source && $0.targetFile == moveFiles.target }
     }
 
     private func lineBackground(for lineType: DiffLineType) -> Color {

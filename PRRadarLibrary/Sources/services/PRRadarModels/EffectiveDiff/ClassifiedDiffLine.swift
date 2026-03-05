@@ -10,91 +10,28 @@ public struct Counterpart: Codable, Sendable, Equatable {
     }
 }
 
-// MARK: - ChangeKind
+// MARK: - ContentChange
 
-public enum ChangeKind: Sendable, Equatable {
-    /// Genuinely new line (no counterpart on the old side).
-    case new
-    /// Genuinely deleted line (no counterpart on the new side).
+public enum ContentChange: String, Codable, Sendable, Equatable {
+    case unchanged
+    case added
     case deleted
-    /// Old version of an in-place modification — counterpart points to the `+` side.
-    case replaced(counterpart: Counterpart)
-    /// New version of an in-place modification — counterpart points to the `-` side.
-    case replacement(counterpart: Counterpart)
-    /// No meaningful change: context line, verbatim move source/destination, or whitespace-only modification.
-    case context
+    case modified
 }
 
-extension ChangeKind: Codable {
-    private enum CodingKeys: String, CodingKey {
-        case type
-        case counterpart
-    }
+// MARK: - Pairing
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(String.self, forKey: .type)
-        switch type {
-        case "new":
-            self = .new
-        case "deleted":
-            self = .deleted
-        case "replaced":
-            let c = try container.decode(Counterpart.self, forKey: .counterpart)
-            self = .replaced(counterpart: c)
-        case "replacement":
-            let c = try container.decode(Counterpart.self, forKey: .counterpart)
-            self = .replacement(counterpart: c)
-        default:
-            self = .context
-        }
+public struct Pairing: Codable, Sendable, Equatable {
+    public enum Role: String, Codable, Sendable, Equatable {
+        case before  // old/removed side
+        case after   // new/added side
     }
+    public let role: Role
+    public let counterpart: Counterpart
 
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case .new:
-            try container.encode("new", forKey: .type)
-        case .deleted:
-            try container.encode("deleted", forKey: .type)
-        case .replaced(let c):
-            try container.encode("replaced", forKey: .type)
-            try container.encode(c, forKey: .counterpart)
-        case .replacement(let c):
-            try container.encode("replacement", forKey: .type)
-            try container.encode(c, forKey: .counterpart)
-        case .context:
-            try container.encode("context", forKey: .type)
-        }
-    }
-}
-
-extension ChangeKind {
-    public var isReplaced: Bool {
-        if case .replaced = self { return true }
-        return false
-    }
-
-    public var isReplacement: Bool {
-        if case .replacement = self { return true }
-        return false
-    }
-
-    public var counterpart: Counterpart? {
-        switch self {
-        case .replaced(let c), .replacement(let c): return c
-        default: return nil
-        }
-    }
-
-    public var description: String {
-        switch self {
-        case .new: return "new"
-        case .deleted: return "deleted"
-        case .replaced: return "replaced"
-        case .replacement: return "replacement"
-        case .context: return "context"
-        }
+    public init(role: Role, counterpart: Counterpart) {
+        self.role = role
+        self.counterpart = counterpart
     }
 }
 
@@ -131,8 +68,7 @@ func groupIntoPRHunks(
 /// Classify every content line in the original diff using effective diff results.
 ///
 /// Builds lookup sets from the move candidates and pre-computed re-diff analysis,
-/// then walks the original diff to assign each line a classification as a `PRLine`
-/// with `MoveInfo` baked in.
+/// then walks the original diff to assign each line a `ContentChange` and optional `Pairing`.
 func classifyLines(
     originalDiff: GitDiff,
     effectiveResults: [EffectiveDiffResult]
@@ -143,36 +79,33 @@ func classifyLines(
     var targetMovedLines: [String: Set<Int>] = [:]
     var addedInMoveLines: [String: Set<Int>] = [:]
     var changedInMoveLines: [String: Set<Int>] = [:]
-    var changedSourceLines: [String: [Int: ChangeKind]] = [:]
+    var changedSourceLines: [String: [Int: ContentChange]] = [:]
 
-    // Map (filePath, lineNumber) → MoveInfo for moved lines
-    var sourceMoveInfoLookup: [String: [Int: MoveInfo]] = [:]
-    var targetMoveInfoLookup: [String: [Int: MoveInfo]] = [:]
+    var targetFileForSourceLine: [String: [Int: String]] = [:]
+    var sourceFileForTargetLine: [String: [Int: String]] = [:]
 
     for result in effectiveResults {
         let candidate = result.candidate
-        let sourceMoveInfo = MoveInfo(sourceFile: candidate.sourceFile, targetFile: candidate.targetFile, isSource: true)
-        let targetMoveInfo = MoveInfo(sourceFile: candidate.sourceFile, targetFile: candidate.targetFile, isSource: false)
 
         for line in candidate.removedLines {
             sourceMovedLines[candidate.sourceFile, default: []].insert(line.lineNumber)
-            sourceMoveInfoLookup[candidate.sourceFile, default: [:]][line.lineNumber] = sourceMoveInfo
+            targetFileForSourceLine[candidate.sourceFile, default: [:]][line.lineNumber] = candidate.targetFile
         }
         for line in candidate.addedLines {
             targetMovedLines[candidate.targetFile, default: []].insert(line.lineNumber)
-            targetMoveInfoLookup[candidate.targetFile, default: [:]][line.lineNumber] = targetMoveInfo
+            sourceFileForTargetLine[candidate.targetFile, default: [:]][line.lineNumber] = candidate.sourceFile
         }
 
         for lineNum in result.rediffAnalysis.addedInMoveLines {
             addedInMoveLines[candidate.targetFile, default: []].insert(lineNum)
-            targetMoveInfoLookup[candidate.targetFile, default: [:]][lineNum] = targetMoveInfo
+            sourceFileForTargetLine[candidate.targetFile, default: [:]][lineNum] = candidate.sourceFile
         }
         for lineNum in result.rediffAnalysis.changedInMoveLines {
             changedInMoveLines[candidate.targetFile, default: []].insert(lineNum)
-            targetMoveInfoLookup[candidate.targetFile, default: [:]][lineNum] = targetMoveInfo
+            sourceFileForTargetLine[candidate.targetFile, default: [:]][lineNum] = candidate.sourceFile
         }
-        for (lineNum, kind) in result.rediffAnalysis.changedSourceLines {
-            changedSourceLines[candidate.sourceFile, default: [:]][lineNum] = kind
+        for (lineNum, contentChange) in result.rediffAnalysis.changedSourceLines {
+            changedSourceLines[candidate.sourceFile, default: [:]][lineNum] = contentChange
         }
     }
 
@@ -182,45 +115,62 @@ func classifyLines(
         for diffLine in hunk.getDiffLines() {
             guard diffLine.lineType != .header else { continue }
 
-            let changeKind: ChangeKind
-            var moveInfo: MoveInfo?
+            let contentChange: ContentChange
+            let pairing: Pairing?
 
             switch diffLine.lineType {
             case .removed:
                 if let oldNum = diffLine.oldLineNumber,
                    sourceMovedLines[hunk.filePath]?.contains(oldNum) == true {
-                    moveInfo = sourceMoveInfoLookup[hunk.filePath]?[oldNum]
-                    // changedSourceLines now returns .replaced(counterpart:) or .deleted;
-                    // default to .context for verbatim moves (no entry in changedSourceLines)
-                    changeKind = changedSourceLines[hunk.filePath]?[oldNum] ?? .context
+                    let targetFile = targetFileForSourceLine[hunk.filePath]?[oldNum] ?? hunk.filePath
+                    switch changedSourceLines[hunk.filePath]?[oldNum] {
+                    case .modified:
+                        contentChange = .modified
+                        pairing = Pairing(role: .before, counterpart: Counterpart(filePath: targetFile, lineNumber: nil))
+                    case .deleted:
+                        contentChange = .deleted
+                        pairing = nil
+                    case .added, .unchanged, nil:
+                        // Verbatim move source — content unchanged, has counterpart
+                        contentChange = .unchanged
+                        pairing = Pairing(role: .before, counterpart: Counterpart(filePath: targetFile, lineNumber: nil))
+                    }
+                } else if let oldNum = diffLine.oldLineNumber,
+                          let paired = pairedMods.byOldLine[hunk.filePath]?[oldNum] {
+                    contentChange = .modified
+                    pairing = Pairing(role: .before, counterpart: Counterpart(filePath: hunk.filePath, lineNumber: paired.counterpartLineNumber))
                 } else {
-                    changeKind = .deleted
-                    moveInfo = nil
+                    contentChange = .deleted
+                    pairing = nil
                 }
 
             case .added:
                 if let newNum = diffLine.newLineNumber,
                    addedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .new
-                    moveInfo = targetMoveInfoLookup[hunk.filePath]?[newNum]
+                    contentChange = .added
+                    pairing = nil
                 } else if let newNum = diffLine.newLineNumber,
                           changedInMoveLines[hunk.filePath]?.contains(newNum) == true {
-                    let moveInfoForLine = targetMoveInfoLookup[hunk.filePath]?[newNum]
-                    moveInfo = moveInfoForLine
-                    let sourceFile = moveInfoForLine?.sourceFile ?? hunk.filePath
-                    changeKind = .replacement(counterpart: Counterpart(filePath: sourceFile, lineNumber: nil))
+                    let sourceFile = sourceFileForTargetLine[hunk.filePath]?[newNum] ?? hunk.filePath
+                    contentChange = .modified
+                    pairing = Pairing(role: .after, counterpart: Counterpart(filePath: sourceFile, lineNumber: nil))
                 } else if let newNum = diffLine.newLineNumber,
                           targetMovedLines[hunk.filePath]?.contains(newNum) == true {
-                    changeKind = .context
-                    moveInfo = targetMoveInfoLookup[hunk.filePath]?[newNum]
+                    let sourceFile = sourceFileForTargetLine[hunk.filePath]?[newNum] ?? hunk.filePath
+                    contentChange = .unchanged
+                    pairing = Pairing(role: .after, counterpart: Counterpart(filePath: sourceFile, lineNumber: nil))
+                } else if let newNum = diffLine.newLineNumber,
+                          let paired = pairedMods.byNewLine[hunk.filePath]?[newNum] {
+                    contentChange = .modified
+                    pairing = Pairing(role: .after, counterpart: Counterpart(filePath: hunk.filePath, lineNumber: paired.counterpartLineNumber))
                 } else {
-                    changeKind = .new
-                    moveInfo = nil
+                    contentChange = .added
+                    pairing = nil
                 }
 
             case .context:
-                changeKind = .context
-                moveInfo = nil
+                contentChange = .unchanged
+                pairing = nil
 
             case .header:
                 continue
@@ -230,12 +180,11 @@ func classifyLines(
                 content: diffLine.content,
                 rawLine: diffLine.rawLine,
                 diffType: diffLine.lineType,
-                changeKind: changeKind,
+                contentChange: contentChange,
+                pairing: pairing,
                 oldLineNumber: diffLine.oldLineNumber,
                 newLineNumber: diffLine.newLineNumber,
-                filePath: hunk.filePath,
-                move: moveInfo,
-                verbatimMoveCounterpart: nil
+                filePath: hunk.filePath
             ))
         }
     }

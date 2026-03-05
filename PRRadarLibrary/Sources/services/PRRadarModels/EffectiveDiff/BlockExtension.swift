@@ -25,10 +25,10 @@ struct RediffAnalysis: Sendable, Equatable {
     let addedInMoveLines: Set<Int>
     /// Target-side lines that are modifications of existing source content (absolute coordinates).
     let changedInMoveLines: Set<Int>
-    /// Source-side lines that were modified or deleted at the destination (absolute coordinates → change kind).
-    let changedSourceLines: [Int: ChangeKind]
+    /// Source-side lines that were modified or deleted at the destination (absolute coordinates → content change).
+    let changedSourceLines: [Int: ContentChange]
 
-    init(addedInMoveLines: Set<Int> = [], changedInMoveLines: Set<Int> = [], changedSourceLines: [Int: ChangeKind] = [:]) {
+    init(addedInMoveLines: Set<Int> = [], changedInMoveLines: Set<Int> = [], changedSourceLines: [Int: ContentChange] = [:]) {
         self.addedInMoveLines = addedInMoveLines
         self.changedInMoveLines = changedInMoveLines
         self.changedSourceLines = changedSourceLines
@@ -44,7 +44,7 @@ struct RediffAnalysis: Sendable, Equatable {
 func analyzeRediffHunks(hunks: [Hunk], targetFile: String, sourceRegionStart: Int, targetRegionStart: Int) -> RediffAnalysis {
     var addedInMove: Set<Int> = []
     var changedInMove: Set<Int> = []
-    var changedSource: [Int: ChangeKind] = [:]
+    var changedSource: [Int: ContentChange] = [:]
 
     for hunk in hunks {
         let diffLines = hunk.getDiffLines().filter { $0.lineType != .header }
@@ -76,9 +76,7 @@ func analyzeRediffHunks(hunks: [Hunk], targetFile: String, sourceRegionStart: In
         for diffLine in diffLines where diffLine.lineType == .removed {
             if let relativeOldLineNum = diffLine.oldLineNumber {
                 let absoluteLineNum = sourceRegionStart + relativeOldLineNum - 1
-                changedSource[absoluteLineNum] = addedCount > 0
-                    ? .replaced(counterpart: Counterpart(filePath: targetFile, lineNumber: nil))
-                    : .deleted
+                changedSource[absoluteLineNum] = addedCount > 0 ? .modified : .deleted
             }
         }
     }

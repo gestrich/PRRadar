@@ -14,23 +14,23 @@ public struct PRHunk: Codable, Sendable, Equatable {
     public var isMoved: Bool {
         let nonContext = lines.filter { $0.diffType != .context }
         guard !nonContext.isEmpty else { return false }
-        return nonContext.allSatisfy { $0.move != nil && $0.changeKind == .context }
+        return nonContext.allSatisfy { $0.contentChange == .unchanged && $0.pairing != nil }
     }
 
     public var hasNewCode: Bool {
-        lines.contains { $0.changeKind == .new }
+        lines.contains { $0.contentChange == .added }
     }
 
     public var hasChangesInMove: Bool {
-        lines.contains { $0.changeKind.isReplaced || $0.changeKind.isReplacement }
+        lines.contains { $0.contentChange == .modified && $0.pairing?.counterpart.filePath != $0.filePath }
     }
 
     public var newCodeLines: [PRLine] {
-        lines.filter { $0.changeKind == .new }
+        lines.filter { $0.contentChange == .added }
     }
 
     public var changedLines: [PRLine] {
-        lines.filter { $0.changeKind != .context }
+        lines.filter { $0.contentChange != .unchanged }
     }
 
     public func relevantLines(newCodeLinesOnly: Bool) -> [PRLine] {
@@ -46,22 +46,20 @@ public struct PRHunk: Codable, Sendable, Equatable {
         let lines = hunk.getDiffLines()
             .filter { $0.lineType != .header }
             .map { diffLine in
-                let changeKind: ChangeKind
+                let contentChange: ContentChange
                 switch diffLine.lineType {
-                case .added: changeKind = .new
-                case .removed: changeKind = .deleted
-                case .context, .header: changeKind = .context
+                case .added: contentChange = .added
+                case .removed: contentChange = .deleted
+                case .context, .header: contentChange = .unchanged
                 }
                 return PRLine(
                     content: diffLine.content,
                     rawLine: diffLine.rawLine,
                     diffType: diffLine.lineType,
-                    changeKind: changeKind,
+                    contentChange: contentChange,
                     oldLineNumber: diffLine.oldLineNumber,
                     newLineNumber: diffLine.newLineNumber,
-                    filePath: hunk.filePath,
-                    move: nil,
-                    verbatimMoveCounterpart: nil
+                    filePath: hunk.filePath
                 )
             }
         return PRHunk(
