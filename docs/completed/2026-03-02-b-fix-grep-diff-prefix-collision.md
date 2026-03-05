@@ -120,7 +120,7 @@ Check for any other callers and thread classified hunks through.
 ## - [x] Phase 4: Update import-order-objc grep pattern
 
 **Skills used**: none
-**Principles applied**: Removed diff prefix assumption from external rule; PR created at https://github.com/jeppesen-foreflight/ff-ios/pull/19048
+**Principles applied**: Removed diff prefix assumption from external rule
 
 **Skills to read**: none
 
