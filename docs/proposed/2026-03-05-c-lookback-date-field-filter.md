@@ -198,7 +198,9 @@ The CLI constructs a `PRFilter` from parsed arguments — all parsing stays at t
 
 4. Update `CommandConfiguration.abstract` on both commands to reflect the new capability
 
-## - [ ] Phase 4: Update `daily-review.sh`
+## - [x] Phase 4: Update `daily-review.sh`
+
+**Principles applied**: Switched to `--updated-lookback-hours 24` so one run covers both new and active open PRs. Fixed `set -e`/`EXIT_CODE=$?` bug by wrapping CLI call with `set +e`/`set -e`.
 
 Switch to `--updated-lookback-hours` — `updatedSince` is a superset of `createdSince` (any newly created PR is also recently updated), so a single run covers both new and active PRs:
 
