@@ -467,7 +467,10 @@ for h in hunks:
 - All unit tests pass (`swift test`)
 - 6 real violations in `.m` files still detected
 
-### - [ ] Phase 10: Add `isSurroundingWhitespaceOnlyChange` to `PRLine`
+### - [x] Phase 10: Add `isSurroundingWhitespaceOnlyChange` to `PRLine`
+
+**Skills used**: `/swift-app-architecture:swift-architecture`, `/swift-testing`
+**Principles applied**: Added `isSurroundingWhitespaceOnly: Bool` to `PairedModification` (computed in `buildPairedModifications` by comparing trimmed content of paired DiffLines). Propagated via a local `isSurroundingWhitespaceOnlyChange` variable in `classifyLines()` — only set for in-place paired modification cases, defaults to `false` for all other line kinds. Added `isSurroundingWhitespaceOnlyChange: Bool = false` to `PRLine` with a doc comment. Added three tests: `leadingWhitespaceOnlyPairFlagged`, `interiorWhitespaceChangePairNotFlagged`, `genuinelyNewLineNotFlagged`.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

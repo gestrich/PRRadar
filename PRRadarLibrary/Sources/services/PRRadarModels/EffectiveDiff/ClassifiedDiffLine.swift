@@ -117,6 +117,7 @@ func classifyLines(
 
             let contentChange: ContentChange
             let pairing: Pairing?
+            var isSurroundingWhitespaceOnlyChange = false
 
             switch diffLine.lineType {
             case .removed:
@@ -139,6 +140,7 @@ func classifyLines(
                           let paired = pairedMods.byOldLine[hunk.filePath]?[oldNum] {
                     contentChange = .modified
                     pairing = Pairing(role: .before, counterpart: Counterpart(filePath: hunk.filePath, lineNumber: paired.counterpartLineNumber))
+                    isSurroundingWhitespaceOnlyChange = paired.isSurroundingWhitespaceOnly
                 } else {
                     contentChange = .deleted
                     pairing = nil
@@ -163,6 +165,7 @@ func classifyLines(
                           let paired = pairedMods.byNewLine[hunk.filePath]?[newNum] {
                     contentChange = .modified
                     pairing = Pairing(role: .after, counterpart: Counterpart(filePath: hunk.filePath, lineNumber: paired.counterpartLineNumber))
+                    isSurroundingWhitespaceOnlyChange = paired.isSurroundingWhitespaceOnly
                 } else {
                     contentChange = .added
                     pairing = nil
@@ -184,7 +187,8 @@ func classifyLines(
                 pairing: pairing,
                 oldLineNumber: diffLine.oldLineNumber,
                 newLineNumber: diffLine.newLineNumber,
-                filePath: hunk.filePath
+                filePath: hunk.filePath,
+                isSurroundingWhitespaceOnlyChange: isSurroundingWhitespaceOnlyChange
             ))
         }
     }
@@ -196,6 +200,7 @@ func classifyLines(
 
 struct PairedModification {
     let counterpartLineNumber: Int
+    let isSurroundingWhitespaceOnly: Bool
 }
 
 /// Detects in-place `-`/`+` pairs within each hunk via sequential positional pairing.
@@ -238,8 +243,11 @@ func buildPairedModifications(from diff: GitDiff) -> (byOldLine: [String: [Int: 
                 let added = addedInGroup[j]
                 guard let oldNum = removed.oldLineNumber, let newNum = added.newLineNumber else { continue }
 
-                byOldLine[hunk.filePath, default: [:]][oldNum] = PairedModification(counterpartLineNumber: newNum)
-                byNewLine[hunk.filePath, default: [:]][newNum] = PairedModification(counterpartLineNumber: oldNum)
+                let isSurroundingWhitespaceOnly =
+                    removed.content.trimmingCharacters(in: .whitespaces) == added.content.trimmingCharacters(in: .whitespaces)
+
+                byOldLine[hunk.filePath, default: [:]][oldNum] = PairedModification(counterpartLineNumber: newNum, isSurroundingWhitespaceOnly: isSurroundingWhitespaceOnly)
+                byNewLine[hunk.filePath, default: [:]][newNum] = PairedModification(counterpartLineNumber: oldNum, isSurroundingWhitespaceOnly: isSurroundingWhitespaceOnly)
             }
         }
     }

@@ -355,6 +355,67 @@ private func makeEffectiveResult(
         #expect(added?.contentChange == .modified)
         #expect(added?.pairing?.role == .after)
     }
+
+    @Test func leadingWhitespaceOnlyPairFlagged() {
+        // Arrange — leading-space removal is surrounding-whitespace-only.
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("file.swift", oldStart: 1, oldLength: 1, newStart: 1, newLength: 1,
+                         content: "@@ -1,1 +1,1 @@\n-    foo()\n+foo()")
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [])
+
+        // Assert — both sides of the pair carry the flag
+        let removed = classified.first { $0.diffType == .removed }
+        let added = classified.first { $0.diffType == .added }
+        #expect(removed?.isSurroundingWhitespaceOnlyChange == true)
+        #expect(added?.isSurroundingWhitespaceOnlyChange == true)
+    }
+
+    @Test func interiorWhitespaceChangePairNotFlagged() {
+        // Arrange — interior whitespace change ("* parentView" vs "*parentView") is NOT surrounding-whitespace-only.
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("file.h", oldStart: 1, oldLength: 1, newStart: 1, newLength: 1,
+                         content: "@@ -1,1 +1,1 @@\n-@property (weak) RouteEditIPadView * parentView;\n+@property (weak) RouteEditIPadView *parentView;")
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [])
+
+        // Assert — interior whitespace change: flag is false on both sides
+        let removed = classified.first { $0.diffType == .removed }
+        let added = classified.first { $0.diffType == .added }
+        #expect(removed?.isSurroundingWhitespaceOnlyChange == false)
+        #expect(added?.isSurroundingWhitespaceOnlyChange == false)
+    }
+
+    @Test func genuinelyNewLineNotFlagged() {
+        // Arrange — unpaired added line
+        let original = GitDiff(
+            rawContent: "",
+            hunks: [
+                makeHunk("file.swift", oldStart: 1, oldLength: 0, newStart: 1, newLength: 1,
+                         content: "@@ -1,0 +1,1 @@\n+newLine()")
+            ],
+            commitHash: ""
+        )
+
+        // Act
+        let classified = classifyLines(originalDiff: original, effectiveResults: [])
+
+        // Assert
+        let added = classified.first { $0.diffType == .added }
+        #expect(added?.isSurroundingWhitespaceOnlyChange == false)
+    }
 }
 
 // MARK: - Tests: PRHunk derived properties
