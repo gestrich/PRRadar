@@ -92,6 +92,18 @@ public enum PhaseOutputParser {
         )
     }
 
+    /// Load the fine-grained effective diff (moved lines stripped, hunks split) from disk.
+    public static func loadEffectiveDiff(
+        config: RepositoryConfiguration,
+        prNumber: Int,
+        commitHash: String?
+    ) -> GitDiff? {
+        try? parsePhaseOutput(
+            config: config, prNumber: prNumber, phase: .diff,
+            filename: DataPathsService.effectiveDiffParsedJSONFilename, commitHash: commitHash
+        )
+    }
+
     // MARK: - Subdirectory Variants
 
     /// Decode a single JSON file from a phase subdirectory.

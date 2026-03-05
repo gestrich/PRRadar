@@ -75,6 +75,7 @@ public struct LoadPRDetailUseCase: Sendable {
             phaseStatuses: phaseStatuses,
             syncSnapshot: syncSnapshot,
             prDiff: syncSnapshot?.prDiff,
+            storedEffectiveDiff: PhaseOutputParser.loadEffectiveDiff(config: config, prNumber: prNumber, commitHash: resolvedCommit),
             preparation: preparation,
             analysis: analysis,
             report: report,

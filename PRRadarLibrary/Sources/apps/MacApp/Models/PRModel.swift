@@ -66,7 +66,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     var effectiveDiff: GitDiff? {
-        prDiff?.toEffectiveGitDiff()
+        detail?.storedEffectiveDiff ?? prDiff?.toEffectiveGitDiff()
     }
 
     var moveReport: MoveReport? {
