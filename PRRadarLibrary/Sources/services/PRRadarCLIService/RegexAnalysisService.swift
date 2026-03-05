@@ -31,7 +31,7 @@ public struct RegexAnalysisService: Sendable {
 
         let linesToCheck = hunks.flatMap {
             $0.relevantLines(newCodeLinesOnly: task.rule.newCodeLinesOnly)
-        }
+        }.filter { !$0.isSurroundingWhitespaceOnlyChange }
 
         let comment = task.rule.violationMessage ?? task.rule.description
 

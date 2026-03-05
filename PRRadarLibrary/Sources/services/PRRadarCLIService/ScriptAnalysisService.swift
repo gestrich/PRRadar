@@ -104,14 +104,19 @@ public struct ScriptAnalysisService: Sendable {
             ))
         }
 
-        // Post-filter against changed lines
+        // Post-filter against changed lines, excluding surrounding-whitespace-only modifications
         let relevantLineNumbers = Set(hunks.flatMap {
             $0.relevantLineNumbers(newCodeLinesOnly: task.rule.newCodeLinesOnly)
         })
+        let whitespaceOnlyLineNumbers = Set(hunks.flatMap {
+            $0.lines.filter { $0.isSurroundingWhitespaceOnlyChange }
+                .compactMap { $0.newLineNumber ?? $0.oldLineNumber }
+        })
+        let filteredLineNumbers = relevantLineNumbers.subtracting(whitespaceOnlyLineNumbers)
 
         let violations = rawViolations.filter { violation in
             guard let lineNumber = violation.lineNumber else { return false }
-            return relevantLineNumbers.contains(lineNumber)
+            return filteredLineNumbers.contains(lineNumber)
         }
 
         let durationMs = Int((Date().timeIntervalSinceReferenceDate - startTime) * 1000)

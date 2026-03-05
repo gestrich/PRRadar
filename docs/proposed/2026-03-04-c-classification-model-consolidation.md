@@ -488,7 +488,10 @@ Add `isSurroundingWhitespaceOnlyChange: Bool` to `PRLine`. This flag is `true` w
 - Add `isSurroundingWhitespaceOnlyChange: Bool` to `PRLine` (default `false`)
 - Record `isSurroundingWhitespaceOnly: Bool` in `PairedModification` (computed during `buildPairedModifications`) and propagate to `PRLine` in `classifyLines()`
 
-### - [ ] Phase 11: Suppress surrounding-whitespace-only lines in regex and script analysis
+### - [x] Phase 11: Suppress surrounding-whitespace-only lines in regex and script analysis
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Filtered at the service layer rather than changing `PRHunk`'s API. `RegexAnalysisService` chains `.filter { !$0.isSurroundingWhitespaceOnlyChange }` on `linesToCheck`. `ScriptAnalysisService` computes `whitespaceOnlyLineNumbers` and subtracts from `filteredLineNumbers` before the violation post-filter. AI rules are unaffected (they receive raw diff text).
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
