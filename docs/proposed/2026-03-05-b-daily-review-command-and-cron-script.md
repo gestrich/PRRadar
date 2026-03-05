@@ -100,7 +100,10 @@ Also add `scripts/daily-review.sh` to `.gitignore` so personal config values are
 
 The script is intentionally simple — Bill fills in the real `--config` value (and optionally `--comment`) before first use.
 
-## - [ ] Phase 4: Document cron / launchd setup in a comment block in the script
+## - [x] Phase 4: Document cron / launchd setup in a comment block in the script
+
+**Skills used**: none
+**Principles applied**: Both cron and launchd options documented; launchd plist template included inline so no separate file needed
 
 Add a comment at the top of `daily-review.sh` explaining how to wire it up:
 
