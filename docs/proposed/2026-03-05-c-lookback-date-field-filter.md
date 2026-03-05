@@ -138,7 +138,10 @@ Update the feature layer to accept the unified filter:
 2. **`FetchPRListUseCase.execute()`** — replace `since: Date?` + `state: PRState?` with `filter: PRFilter`. Pass to `gitHub.listPullRequests(limit:filter:)`
 3. Update log messages to use `filter.dateFilter?.fieldLabel` (e.g., "Fetching PRs updated since ..." vs "Fetching PRs created since ...")
 
-## - [ ] Phase 3: Build `PRFilter` in CLI commands
+## - [x] Phase 3: Build `PRFilter` in CLI commands
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: All date/state parsing pushed to the CLI edge via `PRFilterOptions` ParsableArguments. Commands use `@OptionGroup` for shared filter options — one place to maintain. Mutual exclusivity validation prevents misconfiguration.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

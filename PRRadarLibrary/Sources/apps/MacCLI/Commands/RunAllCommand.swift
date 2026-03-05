@@ -7,14 +7,10 @@ import PRReviewFeature
 struct RunAllCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "run-all",
-        abstract: "Run the full pipeline for all PRs created since a date or within a lookback window"
+        abstract: "Run the full pipeline for all PRs matching a date and state filter"
     )
 
-    @Option(name: .long, help: "Date in YYYY-MM-DD format (required unless --lookback-hours is provided)")
-    var since: String?
-
-    @Option(name: .long, help: "Run pipeline for PRs created in the last N hours")
-    var lookbackHours: Int?
+    @OptionGroup var filterOptions: PRFilterOptions
 
     @Option(name: .long, help: "Named configuration from settings")
     var config: String?
@@ -40,9 +36,6 @@ struct RunAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Maximum number of PRs to process")
     var limit: String?
 
-    @Option(name: .long, help: "PR state filter (open, draft, closed, merged, all). Default: all")
-    var state: String?
-
     @Option(name: .long, help: "Diff source: 'git' (local git history) or 'github-api' (GitHub REST API)")
     var diffSource: DiffSource?
 
@@ -56,20 +49,10 @@ struct RunAllCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
-        let dateFilter: PRDateFilter?
-        if let since {
-            guard let date = parseDateString(since) else {
-                throw ValidationError("Invalid date format for --since: \(since). Use YYYY-MM-DD.")
-            }
-            dateFilter = .createdSince(date)
-        } else if let hours = lookbackHours {
-            dateFilter = .createdSince(Date.now.addingTimeInterval(-Double(hours) * 3600))
-        } else {
-            throw ValidationError("Either --since or --lookback-hours must be provided")
+        let prFilter = try filterOptions.buildFilter()
+        guard prFilter.dateFilter != nil else {
+            throw ValidationError("A date filter is required. Use --since, --lookback-hours, --updated-since, or --updated-lookback-hours.")
         }
-
-        let stateFilter: PRState? = try parseStateFilter(state)
-        let prFilter = PRFilter(dateFilter: dateFilter, state: stateFilter)
 
         let prRadarConfig = try resolveConfig(
             configName: config,

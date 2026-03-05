@@ -10,6 +10,8 @@ struct RefreshCommand: AsyncParsableCommand {
         abstract: "Fetch recent PRs from GitHub"
     )
 
+    @OptionGroup var filterOptions: PRFilterOptions
+
     @Option(name: .long, help: "Named configuration from settings")
     var config: String?
 
@@ -22,15 +24,14 @@ struct RefreshCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Maximum number of PRs to fetch")
     var limit: String?
 
-    @Option(name: .long, help: "PR state filter (open, draft, closed, merged, all). Default: open")
-    var state: String?
-
     @Flag(name: .long, help: "Output results as JSON")
     var json: Bool = false
 
     func run() async throws {
-        let stateFilter: PRState? = try parseStateFilter(state) ?? .open
-        let prFilter = PRFilter(state: stateFilter)
+        var prFilter = try filterOptions.buildFilter()
+        if prFilter.state == nil {
+            prFilter.state = .open
+        }
 
         let prRadarConfig = try resolveConfig(
             configName: config,
