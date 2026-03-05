@@ -43,6 +43,9 @@ struct RunAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Diff source: 'git' (local git history) or 'github-api' (GitHub REST API)")
     var diffSource: DiffSource?
 
+    @Option(name: .long, help: "Analysis mode: regex, script, ai, or all (default: all)")
+    var mode: AnalysisMode = .all
+
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
 
@@ -67,7 +70,8 @@ struct RunAllCommand: AsyncParsableCommand {
             repo: repo,
             comment: comment,
             limit: limit,
-            state: stateFilter
+            state: stateFilter,
+            analysisMode: mode
         ) {
             switch progress {
             case .running:

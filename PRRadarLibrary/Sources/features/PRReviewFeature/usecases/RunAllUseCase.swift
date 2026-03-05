@@ -23,7 +23,8 @@ public struct RunAllUseCase: Sendable {
         repo: String? = nil,
         comment: Bool = false,
         limit: String? = nil,
-        state: PRState? = nil
+        state: PRState? = nil,
+        analysisMode: AnalysisMode = .all
     ) -> AsyncThrowingStream<PhaseProgress<RunAllOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
@@ -62,7 +63,8 @@ public struct RunAllUseCase: Sendable {
                             prNumber: prNumber,
                             rulesDir: rulesDir,
                             noDryRun: comment,
-                            minScore: minScore
+                            minScore: minScore,
+                            analysisMode: analysisMode
                         ) {
                             switch progress {
                             case .running: break

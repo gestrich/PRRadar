@@ -25,7 +25,8 @@ public struct RunPipelineUseCase: Sendable {
         prNumber: Int,
         rulesDir: String,
         noDryRun: Bool = false,
-        minScore: String? = nil
+        minScore: String? = nil,
+        analysisMode: AnalysisMode = .all
     ) -> AsyncThrowingStream<PhaseProgress<RunPipelineOutput>, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.running(phase: .diff))
@@ -96,7 +97,7 @@ public struct RunPipelineUseCase: Sendable {
                     continuation.yield(.log(text: "\n=== Phase 3: Analyzing code ===\n"))
                     let evalUseCase = AnalyzeUseCase(config: config)
                     var evalCompleted = false
-                    let analyzeRequest = PRReviewRequest(prNumber: prNumber, commitHash: commitHash)
+                    let analyzeRequest = PRReviewRequest(prNumber: prNumber, commitHash: commitHash, analysisMode: analysisMode)
                     for try await progress in evalUseCase.execute(request: analyzeRequest) {
                         switch progress {
                         case .running: break

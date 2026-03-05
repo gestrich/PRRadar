@@ -17,7 +17,10 @@ The bash script will live in the repo (e.g. `scripts/daily-review.sh`) but be gi
 
 ## Phases
 
-## - [ ] Phase 1: Add `--mode` threading through `RunPipelineUseCase` and `RunAllUseCase`
+## - [x] Phase 1: Add `--mode` threading through `RunPipelineUseCase` and `RunAllUseCase`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `analysisMode` with default `.all` to preserve backwards compatibility; threaded through all three files with no new files created
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
