@@ -226,32 +226,39 @@ private struct LineInfoRow: View {
     var badge: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .top, spacing: 12) {
+            // Left: label + description
+            VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.primary)
+                if let description {
+                    Text(description)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(minWidth: 80, maxWidth: 120, alignment: .leading)
+
+            // Right: value + optional badge
+            VStack(alignment: .leading, spacing: 3) {
+                Text(value)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(valueColor)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let badge {
                     Text(badge)
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.5))
+                        .background(Color.secondary.opacity(0.15))
                         .clipShape(Capsule())
                 }
             }
-            if let description {
-                Text(description)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Text(value)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(valueColor)
-                .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
