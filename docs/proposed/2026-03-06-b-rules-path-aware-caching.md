@@ -66,9 +66,10 @@ Two changes:
 
 Verify: existing cache lookups still work after the task ID format change (cache matches on blob hashes, not task IDs, so this should be fine — but the file names in the evaluate directory use task IDs, so prior cached results will miss. Acceptable since no backwards compatibility is required).
 
-## - [ ] Phase 2: Skip focus area regeneration when already present
+## - [x] Phase 2: Skip focus area regeneration when already present
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Check for existing `data-*.json` files in the commit-scoped focus-areas directory before invoking AI; load from disk when present
 
 Focus areas depend on the diff, not on which rules are loaded. In `PrepareUseCase`, check if the focus-areas subdirectory already contains output files for the current commit. If so, skip the Haiku AI call and load existing focus areas from disk.
 
