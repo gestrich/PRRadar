@@ -65,7 +65,7 @@ public struct RunPipelineUseCase: Sendable {
                     continuation.yield(.running(phase: .prepare))
                     continuation.yield(.log(text: "\n=== Phase 2: Preparing evaluation tasks ===\n"))
                     let rulesUseCase = PrepareUseCase(config: config)
-                    var rulesCompleted = false
+                    var prepareOutput: PrepareOutput?
                     for try await progress in rulesUseCase.execute(prNumber: prNumber, rulesDir: rulesDir, commitHash: commitHash) {
                         switch progress {
                         case .running(let phase):
@@ -78,15 +78,15 @@ public struct RunPipelineUseCase: Sendable {
                         case .prepareToolUse(let name):
                             continuation.yield(.prepareToolUse(name: name))
                         case .taskEvent: break
-                        case .completed:
-                            rulesCompleted = true
+                        case .completed(let output):
+                            prepareOutput = output
                         case .failed(let error, let logs):
                             continuation.yield(.failed(error: "Rules phase failed: \(error)", logs: logs))
                             continuation.finish()
                             return
                         }
                     }
-                    guard rulesCompleted else {
+                    guard let prepareOutput else {
                         continuation.yield(.failed(error: "Rules phase produced no output", logs: ""))
                         continuation.finish()
                         return
@@ -97,7 +97,7 @@ public struct RunPipelineUseCase: Sendable {
                     continuation.yield(.log(text: "\n=== Phase 3: Analyzing code ===\n"))
                     let evalUseCase = AnalyzeUseCase(config: config)
                     var evalCompleted = false
-                    let analyzeRequest = PRReviewRequest(prNumber: prNumber, commitHash: commitHash, analysisMode: analysisMode)
+                    let analyzeRequest = PRReviewRequest(prNumber: prNumber, commitHash: commitHash, analysisMode: analysisMode, tasks: prepareOutput.tasks)
                     for try await progress in evalUseCase.execute(request: analyzeRequest) {
                         switch progress {
                         case .running: break

@@ -578,7 +578,7 @@ final class PRModel: Identifiable, Hashable {
         let tasks = preparation?.tasks ?? []
         inProgressAnalysis = PRReviewResult(streaming: tasks)
         let useCase = AnalyzeUseCase(config: config)
-        let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash)
+        let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash, tasks: tasks)
 
         do {
             for try await progress in useCase.execute(request: request) {
@@ -614,7 +614,8 @@ final class PRModel: Identifiable, Hashable {
         for key in evaluations.keys { evaluations[key]?.accumulator = nil }
 
         let useCase = AnalyzeUseCase(config: config)
-        let request = PRReviewRequest(prNumber: prNumber, filter: filter, commitHash: currentCommitHash, analysisMode: analysisMode)
+        let tasks = preparation?.tasks ?? []
+        let request = PRReviewRequest(prNumber: prNumber, filter: filter, commitHash: currentCommitHash, analysisMode: analysisMode, tasks: tasks)
 
         do {
             for try await progress in useCase.execute(request: request) {

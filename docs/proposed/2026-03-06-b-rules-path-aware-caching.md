@@ -75,7 +75,10 @@ Focus areas depend on the diff, not on which rules are loaded. In `PrepareUseCas
 
 This saves real money on consecutive runs with different rule directories (or re-runs of the same directory).
 
-## - [ ] Phase 3: Feed prepare's tasks directly to analyze in the pipeline
+## - [x] Phase 3: Feed prepare's tasks directly to analyze in the pipeline
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Callers always provide tasks — no internal disk-loading fallback in the use case; keeps AnalyzeUseCase a pure orchestrator
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
