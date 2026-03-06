@@ -109,11 +109,12 @@ final class PRModel: Identifiable, Hashable {
         return result
     }
 
+    var pendingCommentCount: Int {
+        reviewComments.filter { $0.state == .new && !submittedCommentIds.contains($0.id) }.count
+    }
+
     var hasPendingComments: Bool {
-        guard case .loaded(let violationCount, _, _) = analysisState, violationCount > 0 else {
-            return false
-        }
-        return !isPhaseCompleted(.report) || comments == nil
+        pendingCommentCount > 0
     }
 
     func updateMetadata(_ newMetadata: PRMetadata) {

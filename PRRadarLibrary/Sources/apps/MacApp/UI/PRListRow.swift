@@ -68,9 +68,9 @@ struct PRListRow: View {
         switch prModel.analysisState {
         case .loading, .unavailable:
             EmptyView()
-        case .loaded(let violationCount, _, _):
-            if violationCount > 0 {
-                Text("\(violationCount)")
+        case .loaded:
+            if prModel.pendingCommentCount > 0 {
+                Text("\(prModel.pendingCommentCount)")
                     .font(.caption2.bold())
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
