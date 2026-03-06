@@ -52,14 +52,18 @@ public struct RepositoryConfiguration: Sendable {
 
     public var resolvedDefaultRulesDir: String {
         guard let defaultPath = defaultRulePath else { return "" }
-        return PathUtilities.resolve(defaultPath.path, relativeTo: repoPath)
+        return resolvedRulesDir(for: defaultPath)
+    }
+
+    public func resolvedRulesDir(for rulePath: RulePath) -> String {
+        PathUtilities.resolve(rulePath.path, relativeTo: repoPath)
     }
 
     public func resolvedRulesDir(named name: String) -> String? {
         guard let rulePath = rulePaths.first(where: { $0.name == name }) else {
             return nil
         }
-        return PathUtilities.resolve(rulePath.path, relativeTo: repoPath)
+        return resolvedRulesDir(for: rulePath)
     }
 
     public var resolvedOutputDir: String {
