@@ -16,6 +16,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let violationRegex: String?
     public let violationMessage: String?
     public let violationScript: String?
+    public let rulesDir: String
 
     public var analysisType: RuleAnalysisType {
         if violationScript != nil { return .script }
@@ -35,7 +36,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         newCodeLinesOnly: Bool = false,
         violationRegex: String? = nil,
         violationMessage: String? = nil,
-        violationScript: String? = nil
+        violationScript: String? = nil,
+        rulesDir: String
     ) {
         self.name = name
         self.description = description
@@ -49,6 +51,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         self.violationRegex = violationRegex
         self.violationMessage = violationMessage
         self.violationScript = violationScript
+        self.rulesDir = rulesDir
     }
 
     enum CodingKeys: String, CodingKey {
@@ -64,6 +67,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case violationRegex = "violation_regex"
         case violationMessage = "violation_message"
         case violationScript = "violation_script"
+        case rulesDir = "rules_dir"
     }
 
     public init(from decoder: Decoder) throws {
@@ -80,6 +84,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         violationRegex = try container.decodeIfPresent(String.self, forKey: .violationRegex)
         violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
         violationScript = try container.decodeIfPresent(String.self, forKey: .violationScript)
+        rulesDir = try container.decode(String.self, forKey: .rulesDir)
     }
 }
 
@@ -122,7 +127,7 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
         return lhs.rule.name < rhs.rule.name
     }
 
-    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil) -> RuleRequest {
+    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil, rulesDir: String) -> RuleRequest {
         let taskId = "\(rule.name)_\(focusArea.focusId)"
         let taskRule = TaskRule(
             name: rule.name,
@@ -136,7 +141,8 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
             newCodeLinesOnly: rule.newCodeLinesOnly,
             violationRegex: rule.violationRegex,
             violationMessage: rule.violationMessage,
-            violationScript: rule.violationScript
+            violationScript: rule.violationScript,
+            rulesDir: rulesDir
         )
         return RuleRequest(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
     }

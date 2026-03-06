@@ -32,7 +32,7 @@ public struct TaskCreatorService: Sendable {
     ///   - prDiff: Unified diff data (hunks for grep matching, commit hash for blob lookups)
     ///   - rulesDir: Path to the rules directory (for rule blob hash lookups)
     /// - Returns: List of evaluation tasks
-    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], prDiff: PRDiff, rulesDir: String? = nil) async throws -> [RuleRequest] {
+    public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], prDiff: PRDiff, rulesDir: String) async throws -> [RuleRequest] {
         let commit = prDiff.commitHash
         let deletedFiles = prDiff.toGitDiff().deletedFiles
         var blobHashCache: [String: String] = [:]
@@ -66,7 +66,7 @@ public struct TaskCreatorService: Sendable {
                     rule: rule, rulesRepoInfo: rulesRepoInfo, cache: &ruleBlobHashCache
                 )
 
-                let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: blobHash, ruleBlobHash: ruleBlobHash)
+                let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: blobHash, ruleBlobHash: ruleBlobHash, rulesDir: rulesDir)
                 tasks.append(task)
             }
         }
@@ -88,7 +88,7 @@ public struct TaskCreatorService: Sendable {
         focusAreas: [FocusArea],
         prDiff: PRDiff,
         outputDir: String,
-        rulesDir: String? = nil
+        rulesDir: String
     ) async throws -> [RuleRequest] {
         let tasks = try await createTasks(rules: rules, focusAreas: focusAreas, prDiff: prDiff, rulesDir: rulesDir)
 

@@ -151,7 +151,10 @@ Ensure rule paths that are absolute (e.g., `/Users/bill/shared-rules/`) are used
 - `PRRadarLibrary/Sources/sdks/EnvironmentSDK/PathUtilities.swift` (verify only)
 - `PRRadarLibrary/Sources/services/PRRadarCLIService/RuleLoaderService.swift` (verify only)
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Made `TaskRule.rulesDir` a required non-optional field for script path resolution; updated all test files to provide `rulesDir`; `ScriptAnalysisService` resolves scripts relative to `rulesDir` via `PathUtilities.resolve`
 
 **Skills to read**: `swift-testing`
 

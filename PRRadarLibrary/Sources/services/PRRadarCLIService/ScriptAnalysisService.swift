@@ -1,3 +1,4 @@
+import EnvironmentSDK
 import Foundation
 import PRRadarModels
 
@@ -18,7 +19,7 @@ public struct ScriptAnalysisService: Sendable {
         let startTime = Date().timeIntervalSinceReferenceDate
         let analysisMethod = AnalysisMethod.script(path: scriptPath)
 
-        let resolvedPath = repoPath + "/" + scriptPath
+        let resolvedPath = PathUtilities.resolve(scriptPath, relativeTo: task.rule.rulesDir)
 
         // Verify script exists
         let fileManager = FileManager.default

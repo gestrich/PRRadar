@@ -64,7 +64,8 @@ struct PRReviewResultModelsUsedTests {
             name: "test-rule",
             description: "A test rule",
             category: "test",
-            content: "test content"
+            content: "test content",
+            rulesDir: "/tmp/rules"
         )
         let focusArea = FocusArea(
             focusId: "\(taskId)-focus",

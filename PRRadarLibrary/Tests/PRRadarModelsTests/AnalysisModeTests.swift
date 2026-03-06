@@ -16,7 +16,8 @@ struct AnalysisModeTests {
                 category: "test",
                 content: "Rule content",
                 violationRegex: violationRegex,
-                violationScript: violationScript
+                violationScript: violationScript,
+                rulesDir: "/tmp/rules"
             ),
             focusArea: FocusArea(
                 focusId: "focus-1",

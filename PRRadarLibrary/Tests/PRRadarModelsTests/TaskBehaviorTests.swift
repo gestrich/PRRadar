@@ -15,7 +15,8 @@ struct TaskBehaviorTests {
             category: "reliability",
             model: "claude-sonnet-4-20250514",
             content: "Rule body",
-            documentationLink: "https://example.com"
+            documentationLink: "https://example.com",
+            rulesDir: "/tmp/rules"
         )
 
         #expect(rule.name == "error-handling")
@@ -32,7 +33,8 @@ struct TaskBehaviorTests {
             name: "test",
             description: "test",
             category: "test",
-            content: "test content"
+            content: "test content",
+            rulesDir: "/tmp/rules"
         )
 
         #expect(rule.model == nil)
@@ -47,7 +49,8 @@ struct TaskBehaviorTests {
             name: "test-rule",
             description: "Test",
             category: "test",
-            content: "Content"
+            content: "Content",
+            rulesDir: "/tmp/rules"
         )
         let focusArea = FocusArea(
             focusId: "method-main-foo-1-10",
@@ -101,7 +104,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6", rulesDir: "/tmp/rules")
 
         // Task ID is rule name + focus ID
         #expect(task.taskId == "error-handling_method-main-fetch-10-20")
@@ -142,7 +145,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef", rulesDir: "/tmp/rules")
 
         #expect(task.taskId == "simple_file-test-1-5")
         #expect(task.rule.model == nil)
@@ -163,7 +166,8 @@ struct TaskBehaviorTests {
             content: "Rule body",
             documentationLink: "https://example.com",
             relevantClaudeSkill: "swift-testing",
-            ruleUrl: "https://github.com/org/rules"
+            ruleUrl: "https://github.com/org/rules",
+            rulesDir: "/tmp/rules"
         )
         let focusArea = FocusArea(
             focusId: "method-main-fetch-10-20",

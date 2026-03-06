@@ -72,7 +72,7 @@ struct LoadPRDetailUseCaseTests {
         // Prepare: tasks
         let task = RuleRequest(
             taskId: "t1",
-            rule: TaskRule(name: "test-rule", description: "A test rule", category: "test", content: "Rule content"),
+            rule: TaskRule(name: "test-rule", description: "A test rule", category: "test", content: "Rule content", rulesDir: "/tmp/rules"),
             focusArea: focusArea,
             gitBlobHash: "abc123",
             ruleBlobHash: "def456"
@@ -229,7 +229,7 @@ struct LoadPRDetailUseCaseTests {
         let focusArea = FocusArea(focusId: "f1", filePath: "file.swift", startLine: 1, endLine: 10, description: "test focus", hunkIndex: 0, hunkContent: "@@ content")
         let task = RuleRequest(
             taskId: "t1",
-            rule: TaskRule(name: "test-rule", description: "A test rule", category: "test", content: "Rule content"),
+            rule: TaskRule(name: "test-rule", description: "A test rule", category: "test", content: "Rule content", rulesDir: "/tmp/rules"),
             focusArea: focusArea,
             gitBlobHash: "abc123",
             ruleBlobHash: "def456"

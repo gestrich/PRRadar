@@ -39,7 +39,8 @@ private func makeTaskRule(
     violationRegex: String? = nil,
     violationMessage: String? = nil,
     violationScript: String? = nil,
-    newCodeLinesOnly: Bool = false
+    newCodeLinesOnly: Bool = false,
+    rulesDir: String = ""
 ) -> TaskRule {
     TaskRule(
         name: name,
@@ -49,7 +50,8 @@ private func makeTaskRule(
         newCodeLinesOnly: newCodeLinesOnly,
         violationRegex: violationRegex,
         violationMessage: violationMessage,
-        violationScript: violationScript
+        violationScript: violationScript,
+        rulesDir: rulesDir
     )
 }
 
@@ -200,7 +202,8 @@ struct RuleAnalysisTypeTests {
         // Arrange — both set (Phase 2 validation prevents this in YAML, but test the precedence)
         let rule = TaskRule(
             name: "test", description: "d", category: "c", content: "body",
-            violationRegex: "pattern", violationScript: "scripts/check.sh"
+            violationRegex: "pattern", violationScript: "scripts/check.sh",
+            rulesDir: "/tmp/rules"
         )
 
         // Assert
@@ -479,7 +482,8 @@ struct ReviewRuleScriptParsingTests {
         // Arrange
         let rule = TaskRule(
             name: "test", description: "d", category: "c", content: "body",
-            violationScript: "scripts/check.sh"
+            violationScript: "scripts/check.sh",
+            rulesDir: "/tmp/rules"
         )
 
         // Act
@@ -505,7 +509,7 @@ struct ReviewRuleScriptParsingTests {
         )
 
         // Act
-        let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc")
+        let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc", rulesDir: "/tmp/rules")
 
         // Assert
         #expect(request.rule.analysisType == .script)
@@ -805,7 +809,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(description: "Default message", violationScript: scriptPath)
+        let rule = makeTaskRule(description: "Default message", violationScript: scriptPath, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule, filePath: "Calculator.swift", startLine: 1, endLine: 100)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "import A", contentChange: .added, newLineNumber: 15),
@@ -838,7 +842,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: "")
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: scriptPath)
+        let rule = makeTaskRule(violationScript: scriptPath, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule)
 
         // Act
@@ -858,7 +862,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: "", exitCode: 1, stderr: "Script failed")
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: scriptPath)
+        let rule = makeTaskRule(violationScript: scriptPath, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule)
 
         // Act
@@ -879,7 +883,7 @@ struct ScriptAnalysisServiceTests {
         try? FileManager.default.createDirectory(at: repoDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: repoDir) }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: "scripts/nonexistent.sh")
+        let rule = makeTaskRule(violationScript: "scripts/nonexistent.sh", rulesDir: repoDir.path)
         let task = makeRuleRequest(rule: rule)
 
         // Act
@@ -905,7 +909,7 @@ struct ScriptAnalysisServiceTests {
         defer { try? FileManager.default.removeItem(at: repoDir) }
 
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: "scripts/check.sh")
+        let rule = makeTaskRule(violationScript: "scripts/check.sh", rulesDir: repoDir.path)
         let task = makeRuleRequest(rule: rule)
 
         // Act
@@ -926,7 +930,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: scriptPath)
+        let rule = makeTaskRule(violationScript: scriptPath, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "changed line", contentChange: .added, newLineNumber: 15),
@@ -952,7 +956,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: true)
+        let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: true, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
@@ -979,7 +983,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: false)
+        let rule = makeTaskRule(violationScript: scriptPath, newCodeLinesOnly: false, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule)
         let hunks = [makePRHunk(lines: [
             makePRLine(content: "added", contentChange: .added, newLineNumber: 10),
@@ -1008,7 +1012,7 @@ struct ScriptAnalysisServiceTests {
         let (scriptPath, repoPath, cleanup) = try createTempScript(content: scriptOutput)
         defer { cleanup() }
         let service = ScriptAnalysisService()
-        let rule = makeTaskRule(violationScript: scriptPath)
+        let rule = makeTaskRule(violationScript: scriptPath, rulesDir: repoPath)
         let task = makeRuleRequest(rule: rule)
 
         // Act

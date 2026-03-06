@@ -18,7 +18,8 @@ struct RuleFilterTests {
                 name: ruleName,
                 description: "Test rule",
                 category: "test",
-                content: "Rule content"
+                content: "Rule content",
+                rulesDir: "/tmp/rules"
             ),
             focusArea: FocusArea(
                 focusId: focusId,

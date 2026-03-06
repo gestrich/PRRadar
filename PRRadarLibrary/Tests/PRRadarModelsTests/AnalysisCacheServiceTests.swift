@@ -28,7 +28,8 @@ struct AnalysisCacheServiceTests {
                 name: "rule-\(id)",
                 description: "Test rule",
                 category: "test",
-                content: "Rule content"
+                content: "Rule content",
+                rulesDir: "/tmp/rules"
             ),
             focusArea: FocusArea(
                 focusId: "focus-\(id)",

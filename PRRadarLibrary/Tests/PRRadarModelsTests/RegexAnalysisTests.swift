@@ -46,7 +46,8 @@ private func makeTaskRule(
         content: "Rule body",
         newCodeLinesOnly: newCodeLinesOnly,
         violationRegex: violationRegex,
-        violationMessage: violationMessage
+        violationMessage: violationMessage,
+        rulesDir: "/tmp/rules"
     )
 }
 
@@ -701,7 +702,7 @@ struct PipelineRoutingTests {
     @Test("TaskRule.analysisType is .regex when violationRegex is set")
     func analysisTypeRegex() {
         // Arrange
-        let rule = TaskRule(name: "r", description: "d", category: "c", content: "b", violationRegex: "pattern")
+        let rule = TaskRule(name: "r", description: "d", category: "c", content: "b", violationRegex: "pattern", rulesDir: "/tmp/rules")
 
         // Assert
         #expect(rule.analysisType == .regex)
@@ -710,7 +711,7 @@ struct PipelineRoutingTests {
     @Test("TaskRule.analysisType is .ai when violationRegex is nil")
     func analysisTypeAI() {
         // Arrange
-        let rule = TaskRule(name: "r", description: "d", category: "c", content: "b")
+        let rule = TaskRule(name: "r", description: "d", category: "c", content: "b", rulesDir: "/tmp/rules")
 
         // Assert
         #expect(rule.analysisType == .ai)
@@ -734,7 +735,7 @@ struct PipelineRoutingTests {
         )
 
         // Act
-        let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc")
+        let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc", rulesDir: "/tmp/rules")
 
         // Assert
         #expect(request.rule.analysisType == .regex)
@@ -751,7 +752,8 @@ struct PipelineRoutingTests {
             content: "body",
             newCodeLinesOnly: true,
             violationRegex: "![^=]",
-            violationMessage: "Avoid force unwrapping"
+            violationMessage: "Avoid force unwrapping",
+            rulesDir: "/tmp/rules"
         )
 
         // Act

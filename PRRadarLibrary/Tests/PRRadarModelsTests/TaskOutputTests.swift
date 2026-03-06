@@ -16,7 +16,8 @@ struct TaskOutputTests {
             "category": "reliability",
             "model": "claude-sonnet-4-20250514",
             "content": "# Error Handling Rule\\n\\nEnsure all errors are caught...",
-            "documentation_link": "https://docs.example.com/errors"
+            "documentation_link": "https://docs.example.com/errors",
+            "rules_dir": "/tmp/rules"
         }
         """.data(using: .utf8)!
 
@@ -37,7 +38,8 @@ struct TaskOutputTests {
             "description": "Naming conventions",
             "category": "style",
             "model": null,
-            "content": "Use descriptive names"
+            "content": "Use descriptive names",
+            "rules_dir": "/tmp/rules"
         }
         """.data(using: .utf8)!
 
@@ -59,7 +61,8 @@ struct TaskOutputTests {
                 "description": "Check error handling",
                 "category": "reliability",
                 "model": "claude-sonnet-4-20250514",
-                "content": "Ensure proper error handling..."
+                "content": "Ensure proper error handling...",
+                "rules_dir": "/tmp/rules"
             },
             "focus_area": {
                 "focus_id": "method-handler_py-process-10-25",
@@ -96,7 +99,8 @@ struct TaskOutputTests {
                 "category": "documentation",
                 "model": null,
                 "content": "All public APIs need docs",
-                "documentation_link": "https://example.com/docs-guide"
+                "documentation_link": "https://example.com/docs-guide",
+                "rules_dir": "/tmp/rules"
             },
             "focus_area": {
                 "focus_id": "file-readme-1-100",
@@ -129,7 +133,8 @@ struct TaskOutputTests {
                 "description": "Test",
                 "category": "test",
                 "model": null,
-                "content": "Test content"
+                "content": "Test content",
+                "rules_dir": "/tmp/rules"
             },
             "focus_area": {
                 "focus_id": "test-focus",
@@ -160,7 +165,8 @@ struct TaskOutputTests {
                 "description": "Test",
                 "category": "test",
                 "model": null,
-                "content": "Test content"
+                "content": "Test content",
+                "rules_dir": "/tmp/rules"
             },
             "focus_area": {
                 "focus_id": "test-focus",
@@ -192,7 +198,8 @@ struct TaskOutputTests {
                 "description": "Test",
                 "category": "test",
                 "model": null,
-                "content": "Test content"
+                "content": "Test content",
+                "rules_dir": "/tmp/rules"
             },
             "focus_area": {
                 "focus_id": "test-focus",
@@ -241,12 +248,12 @@ struct TaskOutputTests {
         )
 
         let taskWithHash = RuleRequest.from(
-            rule: rule, focusArea: focusArea, gitBlobHash: "src123", ruleBlobHash: "rule456"
+            rule: rule, focusArea: focusArea, gitBlobHash: "src123", ruleBlobHash: "rule456", rulesDir: "/tmp/rules"
         )
         #expect(taskWithHash.ruleBlobHash == "rule456")
 
         let taskWithoutHash = RuleRequest.from(
-            rule: rule, focusArea: focusArea, gitBlobHash: "src123"
+            rule: rule, focusArea: focusArea, gitBlobHash: "src123", rulesDir: "/tmp/rules"
         )
         #expect(taskWithoutHash.ruleBlobHash == nil)
     }
