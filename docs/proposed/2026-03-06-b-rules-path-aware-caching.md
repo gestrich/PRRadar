@@ -94,7 +94,10 @@ This ensures:
 - Pipeline (MacApp button / `RunPipelineUseCase`): evaluates only this run's tasks
 - Standalone `analyze` CLI command: evaluates all tasks on disk (useful for "evaluate everything" scenarios)
 
-## - [ ] Phase 4: Make rules output additive
+## - [x] Phase 4: Make rules output additive
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Per-rules-dir files (`rules-<slug>.json`) with merge-on-read in `parseOutput`; centralized filename/path logic in `DataPathsService`
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
