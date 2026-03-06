@@ -51,7 +51,10 @@ With the additive approach, running pathB after pathA:
 
 ## Phases
 
-## - [ ] Phase 1: Make TaskCreatorService additive and handle task ID collisions
+## - [x] Phase 1: Make TaskCreatorService additive and handle task ID collisions
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Additive writes preserve prior rule-dir results; human-readable directory-name slug in task IDs for collision avoidance
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
