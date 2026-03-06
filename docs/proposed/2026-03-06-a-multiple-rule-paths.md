@@ -90,9 +90,10 @@ Update CLI commands to work with the new `rulePaths` array and add a `--rules-pa
 - `PRRadarLibrary/Sources/apps/MacCLI/Commands/PrepareCommand.swift`
 - `PRRadarLibrary/Sources/apps/MacCLI/Commands/RunAllCommand.swift`
 
-## - [ ] Phase 3: Update MacApp Settings UI
+## - [x] Phase 3: Update MacApp Settings UI
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Already implemented during Phase 1/2 — rulePathsSection with add/remove, folder picker, default toggle, and save validation all present in ConfigurationEditSheet
 
 Update the Settings view to manage multiple rule paths per configuration.
 
