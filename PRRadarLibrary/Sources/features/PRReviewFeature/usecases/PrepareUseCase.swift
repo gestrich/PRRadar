@@ -33,23 +33,12 @@ public struct PrepareUseCase: Sendable {
                 do {
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
-                    // Generate focus areas
-                    continuation.yield(.log(text: "Generating focus areas...\n"))
-
                     let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
                     guard let prDiff = diffSnapshot.prDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
                         return
                     }
-
-                    let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
-                    guard let anthropicKey = resolver.getAnthropicKey() else {
-                        throw ClaudeAgentError.missingAPIKey
-                    }
-                    let agentEnv = ClaudeAgentEnvironment.build(anthropicAPIKey: anthropicKey)
-                    let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
-                    let focusGenerator = FocusGeneratorService(agentClient: agentClient)
 
                     let focusDir = DataPathsService.phaseSubdirectory(
                         outputDir: config.resolvedOutputDir,
@@ -59,40 +48,67 @@ public struct PrepareUseCase: Sendable {
                         commitHash: resolvedCommit
                     )
 
-                    let focusResults = try await focusGenerator.generateAllFocusAreas(
-                        hunks: prDiff.toGitDiff().hunks,
-                        prNumber: prNumber,
-                        requestedTypes: [.file],
-                        transcriptDir: focusDir,
-                        onAIText: { text in
-                            continuation.yield(.prepareOutput(text: text))
-                        },
-                        onAIToolUse: { name in
-                            continuation.yield(.prepareToolUse(name: name))
-                        }
-                    )
-                    try FileManager.default.createDirectory(atPath: focusDir, withIntermediateDirectories: true)
+                    let existingFocusFiles = (try? FileManager.default.contentsOfDirectory(atPath: focusDir))?.filter {
+                        $0.hasPrefix(DataPathsService.dataFilePrefix) && $0.hasSuffix(".json")
+                    } ?? []
+
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
                     var allFocusAreas: [FocusArea] = []
                     var totalCost = 0.0
-                    for (focusType, result) in focusResults {
-                        allFocusAreas.append(contentsOf: result.focusAreas)
-                        totalCost += result.generationCostUsd
-                        let typeOutput = FocusAreaTypeOutput(
-                            prNumber: prNumber,
-                            generatedAt: ISO8601DateFormatter().string(from: Date()),
-                            focusType: focusType.rawValue,
-                            focusAreas: result.focusAreas,
-                            totalHunksProcessed: result.totalHunksProcessed,
-                            generationCostUsd: result.generationCostUsd
-                        )
-                        let data = try encoder.encode(typeOutput)
-                        try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(DataPathsService.dataFilePrefix)\(focusType.rawValue).json"))
-                    }
 
-                    continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
+                    if !existingFocusFiles.isEmpty {
+                        continuation.yield(.log(text: "Loading cached focus areas from disk...\n"))
+                        for file in existingFocusFiles {
+                            let filePath = "\(focusDir)/\(file)"
+                            let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
+                            let typeOutput = try JSONDecoder().decode(FocusAreaTypeOutput.self, from: data)
+                            allFocusAreas.append(contentsOf: typeOutput.focusAreas)
+                        }
+                        continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) loaded from cache\n"))
+                    } else {
+                        continuation.yield(.log(text: "Generating focus areas...\n"))
+
+                        let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
+                        guard let anthropicKey = resolver.getAnthropicKey() else {
+                            throw ClaudeAgentError.missingAPIKey
+                        }
+                        let agentEnv = ClaudeAgentEnvironment.build(anthropicAPIKey: anthropicKey)
+                        let agentClient = ClaudeAgentClient(pythonEnvironment: PythonEnvironment(agentScriptPath: config.agentScriptPath), cliClient: CLIClient(), environment: agentEnv)
+                        let focusGenerator = FocusGeneratorService(agentClient: agentClient)
+
+                        let focusResults = try await focusGenerator.generateAllFocusAreas(
+                            hunks: prDiff.toGitDiff().hunks,
+                            prNumber: prNumber,
+                            requestedTypes: [.file],
+                            transcriptDir: focusDir,
+                            onAIText: { text in
+                                continuation.yield(.prepareOutput(text: text))
+                            },
+                            onAIToolUse: { name in
+                                continuation.yield(.prepareToolUse(name: name))
+                            }
+                        )
+                        try FileManager.default.createDirectory(atPath: focusDir, withIntermediateDirectories: true)
+
+                        for (focusType, result) in focusResults {
+                            allFocusAreas.append(contentsOf: result.focusAreas)
+                            totalCost += result.generationCostUsd
+                            let typeOutput = FocusAreaTypeOutput(
+                                prNumber: prNumber,
+                                generatedAt: ISO8601DateFormatter().string(from: Date()),
+                                focusType: focusType.rawValue,
+                                focusAreas: result.focusAreas,
+                                totalHunksProcessed: result.totalHunksProcessed,
+                                generationCostUsd: result.generationCostUsd
+                            )
+                            let data = try encoder.encode(typeOutput)
+                            try data.write(to: URL(fileURLWithPath: "\(focusDir)/\(DataPathsService.dataFilePrefix)\(focusType.rawValue).json"))
+                        }
+
+                        continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
+                    }
 
                     // Load rules
                     guard !rulesDir.isEmpty else {
