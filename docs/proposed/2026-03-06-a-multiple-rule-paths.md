@@ -64,11 +64,12 @@ Add a new `RulePath` model and replace `rulesDir: String` with `rulePaths: [Rule
 - `PRRadarLibrary/Sources/services/PRRadarConfigService/PRRadarConfig.swift`
 - New: `PRRadarLibrary/Sources/services/PRRadarConfigService/RulePath.swift`
 
-## - [ ] Phase 2: Update CLI Commands
+## - [x] Phase 2: Update CLI Commands
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Single `--rules-path-name` option (name-based selection, no ad-hoc path override); `resolveRulesDir` helper in Apps layer; `config add-rules-path` / `config remove-rules-path` subcommands for managing rule paths
 
-Update CLI commands to work with the new `rulePaths` array and add a `--rules-path` option for selecting a named path.
+Update CLI commands to work with the new `rulePaths` array and add a `--rules-path-name` option for selecting a named path.
 
 ### Tasks
 
