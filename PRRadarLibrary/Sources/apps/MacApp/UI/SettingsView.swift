@@ -298,12 +298,17 @@ private struct ConfigurationDetailView: View {
                         .truncationMode(.middle)
                 }
 
-                if !config.rulesDir.isEmpty {
-                    LabeledContent("Rules Dir") {
-                        Text(config.rulesDir)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                if !config.rulePaths.isEmpty {
+                    LabeledContent("Rule Paths") {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            ForEach(config.rulePaths) { rulePath in
+                                let defaultMarker = rulePath.isDefault ? " (default)" : ""
+                                Text("\(rulePath.name): \(rulePath.path)\(defaultMarker)")
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        }
                     }
                 }
 
@@ -358,7 +363,8 @@ private struct ConfigurationEditSheet: View {
             }
 
             pathField(label: "Repo Path", text: $config.repoPath, placeholder: "/path/to/repo")
-            pathField(label: "Rules Dir", text: $config.rulesDir, placeholder: RepositoryConfiguration.defaultRulesDir)
+
+            rulePathsSection
 
             LabeledContent("Credential Account") {
                 if knownAccounts.isEmpty {
@@ -397,13 +403,75 @@ private struct ConfigurationEditSheet: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(config.name.isEmpty || config.repoPath.isEmpty || config.rulesDir.isEmpty || githubAccountText.isEmpty)
+                .disabled(config.name.isEmpty || config.repoPath.isEmpty || config.rulePaths.isEmpty || !config.rulePaths.contains(where: { $0.isDefault }) || githubAccountText.isEmpty)
             }
         }
         .padding()
         .frame(width: 500)
         .onAppear {
             githubAccountText = config.githubAccount
+        }
+    }
+
+    @ViewBuilder
+    private var rulePathsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Rule Paths")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    let newPath = RulePath(name: "rules-\(config.rulePaths.count + 1)", path: "", isDefault: config.rulePaths.isEmpty)
+                    config.rulePaths.append(newPath)
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+
+            ForEach($config.rulePaths) { $rulePath in
+                HStack(spacing: 8) {
+                    TextField("Name", text: $rulePath.name)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 100)
+
+                    HStack {
+                        TextField("Path", text: $rulePath.path)
+                            .textFieldStyle(.roundedBorder)
+                        Button {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            if panel.runModal() == .OK, let url = panel.url {
+                                rulePath.path = url.path
+                            }
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                    }
+
+                    Toggle("Default", isOn: Binding(
+                        get: { rulePath.isDefault },
+                        set: { newValue in
+                            if newValue {
+                                for i in config.rulePaths.indices {
+                                    config.rulePaths[i].isDefault = config.rulePaths[i].id == rulePath.id
+                                }
+                            } else {
+                                rulePath.isDefault = false
+                            }
+                        }
+                    ))
+                    .toggleStyle(.checkbox)
+
+                    Button(role: .destructive) {
+                        config.rulePaths.removeAll { $0.id == rulePath.id }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
         }
     }
 

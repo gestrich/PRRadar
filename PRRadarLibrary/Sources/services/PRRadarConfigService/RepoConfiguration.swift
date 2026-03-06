@@ -4,7 +4,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
     public let id: UUID
     public var name: String
     public var repoPath: String
-    public var rulesDir: String
+    public var rulePaths: [RulePath]
     public var isDefault: Bool
     public var githubAccount: String
     public var diffSource: DiffSource
@@ -12,8 +12,12 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
     public var presentableDescription: String {
         let header = isDefault ? "\(name) (default)" : name
         var lines = [header, "  repo:   \(repoPath)"]
-        if !rulesDir.isEmpty {
-            lines.append("  rules:  \(rulesDir)")
+        if !rulePaths.isEmpty {
+            lines.append("  rule paths:")
+            for rulePath in rulePaths {
+                let defaultMarker = rulePath.isDefault ? " (default)" : ""
+                lines.append("    \(rulePath.name): \(rulePath.path)\(defaultMarker)")
+            }
         }
         lines.append("  credential account: \(githubAccount)")
         lines.append("  diff source: \(diffSource.rawValue)")
@@ -24,7 +28,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         id: UUID = UUID(),
         name: String,
         repoPath: String,
-        rulesDir: String = "",
+        rulePaths: [RulePath] = [],
         isDefault: Bool = false,
         githubAccount: String,
         diffSource: DiffSource = .git
@@ -32,7 +36,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         self.id = id
         self.name = name
         self.repoPath = repoPath
-        self.rulesDir = rulesDir
+        self.rulePaths = rulePaths
         self.isDefault = isDefault
         self.githubAccount = githubAccount
         self.diffSource = diffSource
@@ -43,7 +47,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         repoPath = try container.decode(String.self, forKey: .repoPath)
-        rulesDir = try container.decode(String.self, forKey: .rulesDir)
+        rulePaths = try container.decodeIfPresent([RulePath].self, forKey: .rulePaths) ?? []
         isDefault = try container.decode(Bool.self, forKey: .isDefault)
         githubAccount = try container.decode(String.self, forKey: .githubAccount)
         diffSource = try container.decodeIfPresent(DiffSource.self, forKey: .diffSource) ?? .git

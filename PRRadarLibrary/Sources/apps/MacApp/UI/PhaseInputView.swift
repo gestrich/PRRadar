@@ -128,11 +128,11 @@ struct PhaseInputView: View {
             }
             .font(.caption)
 
-            if !config.rulesDir.isEmpty, showsRulesDir {
+            if let defaultRulePath = config.defaultRulePath, showsRulesDir {
                 HStack(spacing: 4) {
                     Text("Rules:")
                         .foregroundStyle(.secondary)
-                    Text(URL(fileURLWithPath: config.rulesDir).lastPathComponent)
+                    Text(defaultRulePath.name)
                 }
                 .font(.caption)
             }

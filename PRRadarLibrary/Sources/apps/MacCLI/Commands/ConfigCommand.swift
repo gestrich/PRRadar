@@ -58,7 +58,7 @@ struct ConfigCommand: AsyncParsableCommand {
         @Option(name: .long, help: "Path to the repository")
         var repoPath: String
 
-        @Option(name: .long, help: "Rules directory")
+        @Option(name: .long, help: "Rules directory (creates a default rule path)")
         var rulesDir: String = ""
 
         @Option(name: .long, help: "Credential account name for Keychain-stored token lookup (required)")
@@ -70,10 +70,17 @@ struct ConfigCommand: AsyncParsableCommand {
         func run() async throws {
             let saveUseCase = SaveConfigurationUseCase(settingsService: SettingsService())
 
+            let rulePaths: [RulePath]
+            if rulesDir.isEmpty {
+                rulePaths = RepositoryConfiguration.defaultRulePaths
+            } else {
+                let pathName = URL(fileURLWithPath: rulesDir).lastPathComponent
+                rulePaths = [RulePath(name: pathName, path: rulesDir, isDefault: true)]
+            }
             let config = RepositoryConfigurationJSON(
                 name: name,
                 repoPath: repoPath,
-                rulesDir: rulesDir.isEmpty ? RepositoryConfiguration.defaultRulesDir : rulesDir,
+                rulePaths: rulePaths,
                 isDefault: setDefault,
                 githubAccount: githubAccount
             )

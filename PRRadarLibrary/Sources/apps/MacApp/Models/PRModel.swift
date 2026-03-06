@@ -530,7 +530,7 @@ final class PRModel: Identifiable, Hashable {
         let useCase = PrepareUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: config.resolvedRulesDir, commitHash: currentCommitHash) {
+            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: config.resolvedDefaultRulesDir, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break

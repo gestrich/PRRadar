@@ -64,7 +64,7 @@ struct RunAllCommand: AsyncParsableCommand {
 
         for try await progress in useCase.execute(
             filter: prFilter,
-            rulesDir: rulesDir ?? prRadarConfig.resolvedRulesDir,
+            rulesDir: rulesDir ?? prRadarConfig.resolvedDefaultRulesDir,
             minScore: minScore,
             repo: repo,
             comment: comment,

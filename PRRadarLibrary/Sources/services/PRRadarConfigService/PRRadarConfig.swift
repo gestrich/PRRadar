@@ -6,7 +6,7 @@ public struct RepositoryConfiguration: Sendable {
     public let name: String
     public let repoPath: String
     public let outputDir: String
-    public let rulesDir: String
+    public let rulePaths: [RulePath]
     public let agentScriptPath: String
     public let githubAccount: String
     public let diffSource: DiffSource
@@ -16,7 +16,7 @@ public struct RepositoryConfiguration: Sendable {
         name: String,
         repoPath: String,
         outputDir: String,
-        rulesDir: String,
+        rulePaths: [RulePath] = [],
         agentScriptPath: String,
         githubAccount: String,
         diffSource: DiffSource = .git
@@ -25,7 +25,7 @@ public struct RepositoryConfiguration: Sendable {
         self.name = name
         self.repoPath = repoPath
         self.outputDir = outputDir
-        self.rulesDir = rulesDir
+        self.rulePaths = rulePaths
         self.agentScriptPath = agentScriptPath
         self.githubAccount = githubAccount
         self.diffSource = diffSource
@@ -36,18 +36,30 @@ public struct RepositoryConfiguration: Sendable {
         self.name = json.name
         self.repoPath = repoPathOverride ?? json.repoPath
         self.outputDir = outputDirOverride ?? outputDir
-        self.rulesDir = json.rulesDir
+        self.rulePaths = json.rulePaths
         self.agentScriptPath = agentScriptPath
         self.githubAccount = json.githubAccount
         self.diffSource = diffSourceOverride ?? json.diffSource
     }
 
-    public static var defaultRulesDir: String {
-        "code-review-rules"
+    public static var defaultRulePaths: [RulePath] {
+        [RulePath(name: "default", path: "code-review-rules", isDefault: true)]
     }
 
-    public var resolvedRulesDir: String {
-        PathUtilities.resolve(rulesDir, relativeTo: repoPath)
+    public var defaultRulePath: RulePath? {
+        rulePaths.first(where: { $0.isDefault }) ?? rulePaths.first
+    }
+
+    public var resolvedDefaultRulesDir: String {
+        guard let defaultPath = defaultRulePath else { return "" }
+        return PathUtilities.resolve(defaultPath.path, relativeTo: repoPath)
+    }
+
+    public func resolvedRulesDir(named name: String) -> String? {
+        guard let rulePath = rulePaths.first(where: { $0.name == name }) else {
+            return nil
+        }
+        return PathUtilities.resolve(rulePath.path, relativeTo: repoPath)
     }
 
     public var resolvedOutputDir: String {
