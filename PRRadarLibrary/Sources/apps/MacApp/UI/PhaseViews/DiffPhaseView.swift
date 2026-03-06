@@ -161,10 +161,16 @@ struct DiffPhaseView: View {
             if let file = selectedFile {
                 let indexHash = fileIndexHash(for: file, in: diff)
                 HStack {
+                    Text(file)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                        .textSelection(.enabled)
                     if let indexHash {
                         Text(indexHash)
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                             .textSelection(.enabled)
                     }
                     if let taskCount = taskCountsByFile[file], taskCount > 0 {
