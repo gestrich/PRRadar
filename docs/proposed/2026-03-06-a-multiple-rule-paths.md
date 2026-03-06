@@ -134,9 +134,10 @@ Add a rule path selector to the PR review UI so users can choose which rule path
 - `PRRadarLibrary/Sources/apps/MacApp/UI/PhaseInputView.swift`
 - Possibly `PRRadarLibrary/Sources/apps/MacApp/UI/PRDetailView.swift` or similar
 
-## - [ ] Phase 5: Update Path Resolution
+## - [x] Phase 5: Update Path Resolution
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Verification-only phase — confirmed `PathUtilities.resolve` correctly handles absolute, tilde, and relative paths for all rule path consumers (CLI, MacApp, RuleLoaderService)
 
 Ensure rule paths that are absolute (e.g., `/Users/bill/shared-rules/`) are used as-is, while relative paths continue to resolve against the repo path. The existing `PathUtilities.resolve` already handles this, but verify it works correctly for the new multi-path scenario.
 
