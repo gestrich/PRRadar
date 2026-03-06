@@ -83,12 +83,14 @@ public struct AnalyzeUseCase: Sendable {
                     let allResults = evalResult.cached + evalResult.fresh
                     let violationCount = allResults.compactMap(\.success).flatMap(\.violations).count
 
+                    let cumulativeCounts = Self.cumulativeEvalCounts(evalsDir: evalsDir)
+
                     let summary = PRReviewSummary(
                         prNumber: prNumber,
                         evaluatedAt: ISO8601DateFormatter().string(from: Date()),
-                        totalTasks: allResults.count,
-                        violationsFound: violationCount,
-                        totalCostUsd: evalResult.totalCost,
+                        totalTasks: cumulativeCounts.totalTasks,
+                        violationsFound: cumulativeCounts.violationsFound,
+                        totalCostUsd: cumulativeCounts.totalCostUsd,
                         totalDurationMs: evalResult.durationMs
                     )
 
@@ -103,9 +105,9 @@ public struct AnalyzeUseCase: Sendable {
                         prNumber: prNumber,
                         commitHash: resolvedCommit,
                         stats: PhaseStats(
-                            artifactsProduced: allResults.count,
+                            artifactsProduced: cumulativeCounts.totalTasks,
                             durationMs: evalResult.durationMs,
-                            costUsd: evalResult.totalCost
+                            costUsd: cumulativeCounts.totalCostUsd
                         )
                     )
 
@@ -254,6 +256,25 @@ public struct AnalyzeUseCase: Sendable {
     }
 
     // MARK: - Helpers
+
+    private static func cumulativeEvalCounts(evalsDir: String) -> (totalTasks: Int, violationsFound: Int, totalCostUsd: Double) {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: evalsDir) else {
+            return (0, 0, 0.0)
+        }
+        let dataFiles = files.filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
+        var violations = 0
+        var cost = 0.0
+        for file in dataFiles {
+            guard let data = fm.contents(atPath: "\(evalsDir)/\(file)"),
+                  let outcome = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
+            if let s = outcome.success, s.violatesRule {
+                violations += s.violations.count
+            }
+            if let c = outcome.costUsd { cost += c }
+        }
+        return (dataFiles.count, violations, cost)
+    }
 
     private static func buildMergedOutput(
         config: RepositoryConfiguration,

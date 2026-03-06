@@ -168,14 +168,27 @@ public struct PrepareUseCase: Sendable {
                         rulesDir: rulesDir
                     )
 
-                    // Write phase_result.json for prepare phase
+                    // Write phase_result.json with cumulative artifact count across all rule dirs
+                    let tasksDir = DataPathsService.phaseSubdirectory(
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber,
+                        phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir,
+                        commitHash: resolvedCommit
+                    )
+                    let totalTasksOnDisk = Self.countDataFiles(inDirectory: tasksDir)
+                    let rulesSubdir = DataPathsService.phaseSubdirectory(
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber,
+                        phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir,
+                        commitHash: resolvedCommit
+                    )
+                    let totalRulesFiles = Self.countRulesFiles(inDirectory: rulesSubdir)
+
                     try PhaseResultWriter.writeSuccess(
                         phase: .prepare,
                         outputDir: config.resolvedOutputDir,
                         prNumber: prNumber,
                         commitHash: resolvedCommit,
                         stats: PhaseStats(
-                            artifactsProduced: allFocusAreas.count + allRules.count + tasks.count,
+                            artifactsProduced: allFocusAreas.count + totalRulesFiles + totalTasksOnDisk,
                             costUsd: totalCost
                         )
                     )
@@ -191,6 +204,20 @@ public struct PrepareUseCase: Sendable {
                 }
             }
         }
+    }
+
+    // MARK: - Helpers
+
+    private static func countDataFiles(inDirectory dir: String) -> Int {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
+            .filter { $0.hasPrefix(DataPathsService.dataFilePrefix) }
+            .count
+    }
+
+    private static func countRulesFiles(inDirectory dir: String) -> Int {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
+            .filter { DataPathsService.isRulesFile($0) }
+            .count
     }
 
     public static func parseOutput(config: RepositoryConfiguration, prNumber: Int, commitHash: String? = nil) throws -> PrepareOutput {

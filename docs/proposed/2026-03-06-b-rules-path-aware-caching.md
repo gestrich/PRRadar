@@ -105,7 +105,10 @@ Currently `all-rules.json` is overwritten each run. Determine whether any downst
 - Write per-rules-dir files (e.g., `rules-<slug>.json`)
 - Or merge into a combined file
 
-## - [ ] Phase 5: Verify report and status work with merged results
+## - [x] Phase 5: Verify report and status work with merged results
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Cumulative artifact counts from disk ensure status/summary reflect all rule dirs; ReportGeneratorService already reads all eval files naturally
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
