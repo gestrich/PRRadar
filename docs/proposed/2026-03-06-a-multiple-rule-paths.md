@@ -30,9 +30,10 @@ This is a **breaking change** to the settings schema. No backward compatibility 
 
 ## Phases
 
-## - [ ] Phase 1: Add RulePath Model and Update Config Models
+## - [x] Phase 1: Add RulePath Model and Update Config Models
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: RulePath model in Services layer; defaultRulePath/resolvedDefaultRulesDir on RepositoryConfiguration; validation in PrepareUseCase (Features layer) not App layer; no hardcoded values outside defaultRulePaths static
 
 Add a new `RulePath` model and replace `rulesDir: String` with `rulePaths: [RulePath]` in the configuration models.
 
