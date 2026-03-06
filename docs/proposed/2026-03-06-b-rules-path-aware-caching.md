@@ -116,7 +116,10 @@ Currently `all-rules.json` is overwritten each run. Determine whether any downst
 - `status` command should show total tasks across all rule dirs
 - Verify `summary.json` stats reflect the full merged set
 
-## - [ ] Phase 6: Validation
+## - [x] Phase 6: Validation
+
+**Skills used**: `swift-testing`, `pr-radar-verify-work`
+**Principles applied**: Arrange-Act-Assert pattern with `#expect` macro; integration test via CLI against test repo with two rule directories confirming additive writes, focus area caching, task ID collision avoidance, and report merging
 
 **Skills to read**: `swift-testing`, `pr-radar-verify-work`
 
