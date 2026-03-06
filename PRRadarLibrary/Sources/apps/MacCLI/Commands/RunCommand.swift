@@ -12,8 +12,8 @@ struct RunCommand: AsyncParsableCommand {
 
     @OptionGroup var options: CLIOptions
 
-    @Option(name: .long, help: "Path to rules directory")
-    var rulesDir: String?
+    @Option(name: .long, help: "Rule path name (uses the default rule path if omitted)")
+    var rulesPathName: String?
 
     @Flag(name: .long, help: "Post comments without dry-run")
     var noDryRun: Bool = false
@@ -38,7 +38,7 @@ struct RunCommand: AsyncParsableCommand {
 
         for try await progress in useCase.execute(
             prNumber: options.prNumber,
-            rulesDir: rulesDir ?? config.resolvedDefaultRulesDir,
+            rulesDir: try resolveRulesDir(rulesPathName: rulesPathName, config: config),
             noDryRun: noDryRun,
             minScore: minScore
         ) {

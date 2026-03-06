@@ -127,6 +127,17 @@ func parseStateFilter(_ value: String?) throws -> PRState? {
     return parsed
 }
 
+func resolveRulesDir(rulesPathName: String?, config: RepositoryConfiguration) throws -> String {
+    guard let rulesPathName else {
+        return config.resolvedDefaultRulesDir
+    }
+    guard let resolved = config.resolvedRulesDir(named: rulesPathName) else {
+        let available = config.rulePaths.map(\.name).joined(separator: ", ")
+        throw ValidationError("Rule path '\(rulesPathName)' not found. Available: \(available)")
+    }
+    return resolved
+}
+
 func printError(_ message: String) {
     FileHandle.standardError.write(Data((message + "\n").utf8))
 }

@@ -21,8 +21,8 @@ struct RunAllCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Output directory for phase results")
     var outputDir: String?
 
-    @Option(name: .long, help: "Path to rules directory")
-    var rulesDir: String?
+    @Option(name: .long, help: "Rule path name (uses the default rule path if omitted)")
+    var rulesPathName: String?
 
     @Option(name: .long, help: "Minimum violation score")
     var minScore: String?
@@ -64,7 +64,7 @@ struct RunAllCommand: AsyncParsableCommand {
 
         for try await progress in useCase.execute(
             filter: prFilter,
-            rulesDir: rulesDir ?? prRadarConfig.resolvedDefaultRulesDir,
+            rulesDir: try resolveRulesDir(rulesPathName: rulesPathName, config: prRadarConfig),
             minScore: minScore,
             repo: repo,
             comment: comment,

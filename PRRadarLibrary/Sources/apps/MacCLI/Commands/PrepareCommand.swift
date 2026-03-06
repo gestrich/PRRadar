@@ -11,8 +11,8 @@ struct PrepareCommand: AsyncParsableCommand {
 
     @OptionGroup var options: CLIOptions
 
-    @Option(name: .long, help: "Path to rules directory")
-    var rulesDir: String?
+    @Option(name: .long, help: "Rule path name (uses the default rule path if omitted)")
+    var rulesPathName: String?
 
     @Flag(name: .long, help: "Suppress AI output (show only status logs)")
     var quiet: Bool = false
@@ -29,7 +29,8 @@ struct PrepareCommand: AsyncParsableCommand {
 
         var result: PrepareOutput?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: rulesDir ?? config.resolvedDefaultRulesDir, commitHash: options.commit) {
+        let resolvedRules = try resolveRulesDir(rulesPathName: rulesPathName, config: config)
+        for try await progress in useCase.execute(prNumber: options.prNumber, rulesDir: resolvedRules, commitHash: options.commit) {
             switch progress {
             case .running(let phase):
                 if !options.json {

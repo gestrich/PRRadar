@@ -7,7 +7,7 @@ struct ConfigCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "config",
         abstract: "Manage saved configurations",
-        subcommands: [AddCommand.self, ListCommand.self, RemoveCommand.self, SetDefaultCommand.self, CredentialsCommand.self, SettingsCommand.self],
+        subcommands: [AddCommand.self, AddRulesPathCommand.self, CredentialsCommand.self, ListCommand.self, RemoveCommand.self, RemoveRulesPathCommand.self, SetDefaultCommand.self, SettingsCommand.self],
         defaultSubcommand: ListCommand.self
     )
 
@@ -140,6 +140,94 @@ struct ConfigCommand: AsyncParsableCommand {
 
             _ = try setDefaultUseCase.execute(id: config.id)
             print("Configuration '\(name)' set as default.")
+        }
+    }
+
+    struct AddRulesPathCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "add-rules-path",
+            abstract: "Add a rule path to a configuration"
+        )
+
+        @Argument(help: "Configuration name")
+        var configName: String
+
+        @Option(name: .long, help: "Name for the rule path")
+        var name: String
+
+        @Option(name: .long, help: "Path to the rules directory")
+        var path: String
+
+        @Flag(name: .long, help: "Set as the default rule path")
+        var setDefault: Bool = false
+
+        func run() async throws {
+            let settingsService = SettingsService()
+            let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
+            let saveUseCase = SaveConfigurationUseCase(settingsService: settingsService)
+
+            let settings = loadUseCase.execute()
+
+            guard var config = settings.configurations.first(where: { $0.name == configName }) else {
+                throw ValidationError("Configuration '\(configName)' not found.")
+            }
+
+            guard !config.rulePaths.contains(where: { $0.name == name }) else {
+                throw ValidationError("Rule path '\(name)' already exists in configuration '\(configName)'.")
+            }
+
+            if setDefault {
+                for i in config.rulePaths.indices {
+                    config.rulePaths[i].isDefault = false
+                }
+            }
+
+            let isDefault = setDefault || config.rulePaths.isEmpty
+            let rulePath = RulePath(name: name, path: path, isDefault: isDefault)
+            config.rulePaths.append(rulePath)
+
+            _ = try saveUseCase.execute(config: config)
+            let defaultLabel = isDefault ? " (default)" : ""
+            print("Added rule path '\(name)'\(defaultLabel) to configuration '\(configName)'.")
+        }
+    }
+
+    struct RemoveRulesPathCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "remove-rules-path",
+            abstract: "Remove a rule path from a configuration"
+        )
+
+        @Argument(help: "Configuration name")
+        var configName: String
+
+        @Option(name: .long, help: "Name of the rule path to remove")
+        var name: String
+
+        func run() async throws {
+            let settingsService = SettingsService()
+            let loadUseCase = LoadSettingsUseCase(settingsService: settingsService)
+            let saveUseCase = SaveConfigurationUseCase(settingsService: settingsService)
+
+            let settings = loadUseCase.execute()
+
+            guard var config = settings.configurations.first(where: { $0.name == configName }) else {
+                throw ValidationError("Configuration '\(configName)' not found.")
+            }
+
+            guard let index = config.rulePaths.firstIndex(where: { $0.name == name }) else {
+                throw ValidationError("Rule path '\(name)' not found in configuration '\(configName)'.")
+            }
+
+            let wasDefault = config.rulePaths[index].isDefault
+            config.rulePaths.remove(at: index)
+
+            if wasDefault, let first = config.rulePaths.indices.first {
+                config.rulePaths[first].isDefault = true
+            }
+
+            _ = try saveUseCase.execute(config: config)
+            print("Removed rule path '\(name)' from configuration '\(configName)'.")
         }
     }
 }
