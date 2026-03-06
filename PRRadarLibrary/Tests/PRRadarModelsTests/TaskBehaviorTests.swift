@@ -106,8 +106,9 @@ struct TaskBehaviorTests {
 
         let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6", rulesDir: "/tmp/rules")
 
-        // Task ID is rule name + focus ID
-        #expect(task.taskId == "error-handling_method-main-fetch-10-20")
+        // Task ID is rule name + focus ID + rules dir hash
+        let expectedDirHash = RuleRequest.rulesDirSlug("/tmp/rules")
+        #expect(task.taskId == "error-handling_method-main-fetch-10-20_\(expectedDirHash)")
 
         // TaskRule contains subset of ReviewRule fields
         #expect(task.rule.name == "error-handling")
@@ -147,7 +148,8 @@ struct TaskBehaviorTests {
 
         let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef", rulesDir: "/tmp/rules")
 
-        #expect(task.taskId == "simple_file-test-1-5")
+        let expectedDirHash = RuleRequest.rulesDirSlug("/tmp/rules")
+        #expect(task.taskId == "simple_file-test-1-5_\(expectedDirHash)")
         #expect(task.rule.model == nil)
         #expect(task.rule.documentationLink == nil)
         #expect(task.gitBlobHash == "deadbeef")

@@ -127,8 +127,13 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
         return lhs.rule.name < rhs.rule.name
     }
 
+    public static func rulesDirSlug(_ rulesDir: String) -> String {
+        URL(fileURLWithPath: rulesDir).lastPathComponent
+    }
+
     public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil, rulesDir: String) -> RuleRequest {
-        let taskId = "\(rule.name)_\(focusArea.focusId)"
+        let slug = rulesDirSlug(rulesDir)
+        let taskId = "\(rule.name)_\(focusArea.focusId)_\(slug)"
         let taskRule = TaskRule(
             name: rule.name,
             description: rule.description,

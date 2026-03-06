@@ -95,14 +95,6 @@ public struct TaskCreatorService: Sendable {
         let tasksDir = "\(outputDir)/\(DataPathsService.prepareTasksSubdir)"
         try DataPathsService.ensureDirectoryExists(at: tasksDir)
 
-        // Remove stale task files from previous runs before writing new ones
-        let fm = FileManager.default
-        if let existing = try? fm.contentsOfDirectory(atPath: tasksDir) {
-            for file in existing where file.hasPrefix(DataPathsService.dataFilePrefix) {
-                try? fm.removeItem(atPath: "\(tasksDir)/\(file)")
-            }
-        }
-
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
