@@ -34,6 +34,7 @@ public struct TaskCreatorService: Sendable {
     /// - Returns: List of evaluation tasks
     public func createTasks(rules: [ReviewRule], focusAreas: [FocusArea], prDiff: PRDiff, rulesDir: String? = nil) async throws -> [RuleRequest] {
         let commit = prDiff.commitHash
+        let deletedFiles = prDiff.toGitDiff().deletedFiles
         var blobHashCache: [String: String] = [:]
         var ruleBlobHashCache: [String: String] = [:]
         var tasks: [RuleRequest] = []
@@ -47,12 +48,16 @@ public struct TaskCreatorService: Sendable {
 
                 let filePath = focusArea.filePath
                 if blobHashCache[filePath] == nil {
-                    do {
-                        blobHashCache[filePath] = try await historyProvider.getBlobHash(
-                            commit: commit, filePath: filePath
-                        )
-                    } catch {
-                        blobHashCache[filePath] = "\(commit):\(filePath)"
+                    if deletedFiles.contains(filePath) {
+                        blobHashCache[filePath] = "\(commit):deleted:\(filePath)"
+                    } else {
+                        do {
+                            blobHashCache[filePath] = try await historyProvider.getBlobHash(
+                                commit: commit, filePath: filePath
+                            )
+                        } catch {
+                            blobHashCache[filePath] = "\(commit):\(filePath)"
+                        }
                     }
                 }
                 let blobHash = blobHashCache[filePath]!

@@ -302,9 +302,15 @@ public struct PRAcquisitionService: Sendable {
 
         var oldFiles: [String: String] = [:]
         var newFiles: [String: String] = [:]
+        let deleted = gitDiff.deletedFiles
+        let added = gitDiff.newFiles
         for filePath in gitDiff.uniqueFiles {
-            oldFiles[filePath] = try? await historyProvider.getFileContent(commit: mergeBase, filePath: filePath)
-            newFiles[filePath] = try? await historyProvider.getFileContent(commit: headCommit, filePath: filePath)
+            if !added.contains(filePath) {
+                oldFiles[filePath] = try? await historyProvider.getFileContent(commit: mergeBase, filePath: filePath)
+            }
+            if !deleted.contains(filePath) {
+                newFiles[filePath] = try? await historyProvider.getFileContent(commit: headCommit, filePath: filePath)
+            }
         }
 
         let result = try await runEffectiveDiffPipeline(

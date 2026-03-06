@@ -94,6 +94,14 @@ public struct DiffLine: Sendable {
         URL(fileURLWithPath: filePath).pathExtension
     }
 
+    public var isDeletedFile: Bool {
+        rawHeader.contains { $0.hasPrefix("deleted file") }
+    }
+
+    public var isNewFile: Bool {
+        rawHeader.contains { $0.hasPrefix("new file") }
+    }
+
     /// Get just the diff lines (without headers or @@ lines)
     public var diffLines: [String] {
         let lines = content.components(separatedBy: .newlines)

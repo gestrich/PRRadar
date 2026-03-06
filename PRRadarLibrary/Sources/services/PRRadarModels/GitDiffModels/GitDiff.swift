@@ -160,6 +160,14 @@ import Foundation
         Array(Set(hunks.map(\.filePath))).sorted()
     }
 
+    public var deletedFiles: Set<String> {
+        Set(hunks.filter(\.isDeletedFile).map(\.filePath))
+    }
+
+    public var newFiles: Set<String> {
+        Set(hunks.filter(\.isNewFile).map(\.filePath))
+    }
+
     private static func extractFilePath(from line: String) -> String? {
         let quotedPattern = #"diff --git "?a/([^"]*)"? "?b/([^"]*)"?"#
         if let regex = try? NSRegularExpression(pattern: quotedPattern, options: []) {
