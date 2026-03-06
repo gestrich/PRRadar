@@ -67,7 +67,7 @@ struct LoadPRDetailUseCaseTests {
 
         // Prepare: rules
         let rule = ReviewRule(name: "test-rule", filePath: "rules/test.md", description: "A test rule", category: "test", content: "Rule content")
-        try writeJSON([rule], to: "\(prepareRulesDir)/\(DataPathsService.allRulesFilename)")
+        try writeJSON([rule], to: "\(prepareRulesDir)/\(DataPathsService.rulesFilename(forSlug: "test"))")
 
         // Prepare: tasks
         let task = RuleRequest(

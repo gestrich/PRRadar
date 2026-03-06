@@ -123,16 +123,12 @@ public struct PrepareUseCase: Sendable {
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesDir)
 
-                    let rulesOutputDir = DataPathsService.phaseSubdirectory(
-                        outputDir: config.resolvedOutputDir,
-                        prNumber: prNumber,
-                        phase: .prepare,
-                        subdirectory: DataPathsService.prepareRulesSubdir,
-                        commitHash: resolvedCommit
-                    )
-                    try FileManager.default.createDirectory(atPath: rulesOutputDir, withIntermediateDirectories: true)
                     let rulesData = try encoder.encode(allRules)
-                    try rulesData.write(to: URL(fileURLWithPath: "\(rulesOutputDir)/\(DataPathsService.allRulesFilename)"))
+                    let rulesFilePath = try DataPathsService.rulesFilePath(
+                        outputDir: config.resolvedOutputDir, prNumber: prNumber,
+                        rulesDir: rulesDir, commitHash: resolvedCommit
+                    )
+                    try rulesData.write(to: URL(fileURLWithPath: rulesFilePath))
 
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
@@ -212,9 +208,21 @@ public struct PrepareUseCase: Sendable {
             allFocusAreas.append(contentsOf: typeOutput.focusAreas)
         }
 
-        let rules: [ReviewRule] = try PhaseOutputParser.parsePhaseOutput(
-            config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: DataPathsService.allRulesFilename, commitHash: resolvedCommit
+        let rulesFiles = PhaseOutputParser.listRulesFiles(
+            config: config, prNumber: prNumber, commitHash: resolvedCommit
         )
+
+        guard !focusFiles.isEmpty || !rulesFiles.isEmpty else {
+            throw NSError(domain: "PrepareUseCase", code: 1, userInfo: [NSLocalizedDescriptionKey: "No prepare output found"])
+        }
+
+        var rules: [ReviewRule] = []
+        for file in rulesFiles {
+            let fileRules: [ReviewRule] = try PhaseOutputParser.parsePhaseOutput(
+                config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, filename: file, commitHash: resolvedCommit
+            )
+            rules.append(contentsOf: fileRules)
+        }
 
         let tasks: [RuleRequest] = try PhaseOutputParser.parseAllPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareTasksSubdir, commitHash: resolvedCommit

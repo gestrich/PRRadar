@@ -77,6 +77,34 @@ public enum DataPathsService {
 
     // MARK: - Prepare Phase Filenames
     public static let allRulesFilename = "all-rules.json"
+    public static let rulesFilePrefix = "rules-"
+
+    public static func rulesFilename(forSlug slug: String) -> String {
+        "\(rulesFilePrefix)\(slug).json"
+    }
+
+    public static func isRulesFile(_ filename: String) -> Bool {
+        filename.hasPrefix(rulesFilePrefix) && filename.hasSuffix(".json")
+    }
+
+    public static func rulesFilename(forRulesDir rulesDir: String) -> String {
+        rulesFilename(forSlug: RuleRequest.rulesDirSlug(rulesDir))
+    }
+
+    public static func rulesFilePath(
+        outputDir: String,
+        prNumber: Int,
+        rulesDir: String,
+        commitHash: String? = nil
+    ) throws -> String {
+        let dir = phaseSubdirectory(
+            outputDir: outputDir, prNumber: prNumber,
+            phase: .prepare, subdirectory: prepareRulesSubdir,
+            commitHash: commitHash
+        )
+        try ensureDirectoryExists(at: dir)
+        return "\(dir)/\(rulesFilename(forRulesDir: rulesDir))"
+    }
 
     // MARK: - Analyze / Report Phase Filenames
     public static let summaryJSONFilename = "summary.json"

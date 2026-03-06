@@ -130,6 +130,16 @@ public enum PhaseOutputParser {
         OutputFileReader.files(in: config, prNumber: prNumber, phase: phase, subdirectory: subdirectory, commitHash: commitHash)
     }
 
+    /// List per-rules-dir JSON files in the prepare/rules subdirectory.
+    public static func listRulesFiles(
+        config: RepositoryConfiguration,
+        prNumber: Int,
+        commitHash: String? = nil
+    ) -> [String] {
+        listPhaseFiles(config: config, prNumber: prNumber, phase: .prepare, subdirectory: DataPathsService.prepareRulesSubdir, commitHash: commitHash)
+            .filter { DataPathsService.isRulesFile($0) }
+    }
+
     /// Read raw file data from a phase subdirectory.
     public static func readPhaseFile(
         config: RepositoryConfiguration,
