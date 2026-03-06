@@ -28,3 +28,4 @@ code-reviews/
 
 # Personal cron/daily-review script (contains personal config values)
 scripts/daily-review.sh
+scripts/run-pr-radar.sh

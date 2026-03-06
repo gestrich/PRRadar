@@ -56,6 +56,6 @@ public struct GitHubServiceFactory: Sendable {
     }
 
     public static func createGitOps() -> GitOperationsService {
-        GitOperationsService(client: CLIClient())
+        GitOperationsService(client: CLIClient(printOutput: false))
     }
 }
