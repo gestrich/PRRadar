@@ -112,9 +112,10 @@ Update the Settings view to manage multiple rule paths per configuration.
 - `PRRadarLibrary/Sources/apps/MacApp/UI/SettingsView.swift`
 - `PRRadarLibrary/Sources/apps/MacApp/Models/SettingsModel.swift`
 
-## - [ ] Phase 4: Update MacApp PR Review Flow
+## - [x] Phase 4: Update MacApp PR Review Flow
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Stored `selectedRulePath: RulePath?` on PRModel (not ID); added `resolvedRulesDir(for:)` to RepositoryConfiguration to avoid redundant lookups; picker in diff toolbar using `@Bindable` binding
 
 Add a rule path selector to the PR review UI so users can choose which rule path to use at runtime.
 
