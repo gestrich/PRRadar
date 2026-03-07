@@ -295,6 +295,12 @@ struct DiffPhaseView: View {
             }
 
             Button {
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .scriptOnly)
+            } label: {
+                Label("Run All Script Rules", systemImage: "terminal")
+            }
+
+            Button {
                 prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .aiOnly)
             } label: {
                 Label("Run All AI Rules", systemImage: "brain")
@@ -328,6 +334,12 @@ struct DiffPhaseView: View {
                 prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .regexOnly)
             } label: {
                 Label("Run All Regex Rules", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+
+            Button {
+                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .scriptOnly)
+            } label: {
+                Label("Run All Script Rules", systemImage: "terminal")
             }
 
             Button {
