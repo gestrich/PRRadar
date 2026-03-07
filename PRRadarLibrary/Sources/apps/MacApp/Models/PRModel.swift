@@ -29,7 +29,17 @@ final class PRModel: Identifiable, Hashable {
     private(set) var reviewComments: [ReviewComment] = []
     private var prepareAccumulator: LiveTranscriptAccumulator?
     private(set) var operationMode: OperationMode = .idle
+    var currentViolationIndex: Int = -1
+    var violationCount: Int = 0
+    var pendingViolationNavigation: ViolationNavigation?
     private var refreshTask: Task<Void, Never>?
+
+    enum ViolationNavigation: Equatable {
+        case first
+        case last
+        case next
+        case previous
+    }
 
     // MARK: - Forwarding Properties
 

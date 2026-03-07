@@ -48,6 +48,16 @@ struct ReviewDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .onAppear {
+            if prModel.pendingViolationNavigation != nil {
+                selectedNavPhase = .diff
+            }
+        }
+        .onChange(of: prModel.pendingViolationNavigation) { _, newValue in
+            if newValue != nil {
+                selectedNavPhase = .diff
+            }
+        }
     }
 
     // MARK: - PR Header

@@ -220,6 +220,7 @@ public struct ContentView: View {
         VStack(spacing: 0) {
             if allPRs != nil {
                 prListFilterBar
+                prViolationNavigationBar
                 Divider()
                 if filteredPRModels.isEmpty {
                     ContentUnavailableView(
@@ -376,6 +377,109 @@ public struct ContentView: View {
         .controlSize(.small)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
+    }
+
+    // MARK: - PR Violation Navigation
+
+    private var prsWithViolations: [PRModel] {
+        filteredPRModels.filter { $0.pendingCommentCount > 0 }
+    }
+
+    @ViewBuilder
+    private var prViolationNavigationBar: some View {
+        let violationPRs = prsWithViolations
+        if !violationPRs.isEmpty {
+            HStack(spacing: 6) {
+                Button {
+                    navigatePRViolation(by: -1)
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .disabled(!canNavigatePRViolation(by: -1))
+
+                Text("\(violationPRs.count) PRs with violations")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    navigatePRViolation(by: 1)
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.body)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .disabled(!canNavigatePRViolation(by: 1))
+
+                Spacer()
+            }
+            .controlSize(.small)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+        }
+    }
+
+    private var previousViolationPR: PRModel? {
+        let violationPRs = prsWithViolations
+        guard let current = selectedPR,
+              let currentIndex = violationPRs.firstIndex(of: current)
+        else {
+            return nil
+        }
+        let prev = currentIndex - 1
+        return prev >= 0 ? violationPRs[prev] : nil
+    }
+
+    private var nextViolationPR: PRModel? {
+        let violationPRs = prsWithViolations
+        guard !violationPRs.isEmpty else { return nil }
+        guard let current = selectedPR else {
+            return violationPRs.first
+        }
+        guard let currentIndex = violationPRs.firstIndex(of: current) else {
+            return violationPRs.first
+        }
+        let next = currentIndex + 1
+        return next < violationPRs.count ? violationPRs[next] : nil
+    }
+
+    private func canNavigatePRViolation(by delta: Int) -> Bool {
+        guard let pr = selectedPR else {
+            return !prsWithViolations.isEmpty
+        }
+        if delta > 0 {
+            return pr.currentViolationIndex < pr.violationCount - 1 || nextViolationPR != nil
+        } else {
+            return pr.currentViolationIndex > 0 || previousViolationPR != nil
+        }
+    }
+
+    private func navigatePRViolation(by delta: Int) {
+        guard let pr = selectedPR else {
+            if let first = prsWithViolations.first {
+                selectedPR = first
+                first.pendingViolationNavigation = .first
+            }
+            return
+        }
+
+        let canAdvanceWithinPR = delta > 0
+            ? pr.currentViolationIndex < pr.violationCount - 1
+            : pr.currentViolationIndex > 0
+
+        if canAdvanceWithinPR {
+            pr.pendingViolationNavigation = delta > 0 ? .next : .previous
+        } else {
+            let target = delta > 0 ? nextViolationPR : previousViolationPR
+            guard let target else { return }
+            selectedPR = target
+            target.pendingViolationNavigation = delta > 0 ? .first : .last
+        }
     }
 
     // MARK: - Column 3: Detail

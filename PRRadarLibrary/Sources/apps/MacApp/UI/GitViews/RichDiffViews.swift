@@ -605,6 +605,7 @@ struct AnnotatedHunkContentView: View {
                         case .new:
                             if let pending = rc.pending {
                                 InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg)
+                                    .id(rc.id)
                             }
                         case .redetected:
                             if let posted = rc.posted {
@@ -676,6 +677,7 @@ struct AnnotatedDiffContentView: View {
     let commentMapping: DiffCommentMapping
     let searchQuery: String
     var prModel: PRModel
+    @Binding var scrollToCommentID: String?
     var onMoveTapped: ((MoveDetail) -> Void)?
     var onSelectRulesForFile: ((String) -> Void)?
 
@@ -685,6 +687,7 @@ struct AnnotatedDiffContentView: View {
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
         prModel: PRModel,
+        scrollToCommentID: Binding<String?> = .constant(nil),
         onMoveTapped: ((MoveDetail) -> Void)? = nil,
         onSelectRulesForFile: ((String) -> Void)? = nil
     ) {
@@ -693,6 +696,7 @@ struct AnnotatedDiffContentView: View {
         self.commentMapping = commentMapping
         self.searchQuery = searchQuery
         self.prModel = prModel
+        self._scrollToCommentID = scrollToCommentID
         self.onMoveTapped = onMoveTapped
         self.onSelectRulesForFile = onSelectRulesForFile
     }
@@ -706,57 +710,68 @@ struct AnnotatedDiffContentView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                if !commentMapping.unmatchedNoFile.isEmpty {
-                    fileLevelSection(commentMapping.unmatchedNoFile, title: "General Comments")
-                }
-
-                ForEach(displayDiff.changedFiles, id: \.self) { filePath in
-                    let hunks = displayDiff.getHunks(byFilePath: filePath)
-                    let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
-
-                    if let oldPath {
-                        RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
-                    } else {
-                        Text(filePath)
-                            .font(.system(.body, design: .monospaced))
-                            .fontWeight(.bold)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(nsColor: .windowBackgroundColor))
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !commentMapping.unmatchedNoFile.isEmpty {
+                        fileLevelSection(commentMapping.unmatchedNoFile, title: "General Comments")
                     }
 
-                    if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
-                        PureRenameContentView()
-                    }
+                    ForEach(displayDiff.changedFiles, id: \.self) { filePath in
+                        let hunks = displayDiff.getHunks(byFilePath: filePath)
+                        let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
 
-                    if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty {
-                        fileLevelSection(fileLevel)
-                    }
-
-                    ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
-                        HunkHeaderView(hunk: hunk) {
-                            hunkActions(for: hunk)
+                        if let oldPath {
+                            RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
+                        } else {
+                            Text(filePath)
+                                .font(.system(.body, design: .monospaced))
+                                .fontWeight(.bold)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(nsColor: .windowBackgroundColor))
                         }
-                        let prHunk = findPRHunk(for: hunk)
-                            ?? PRHunk.fromHunk(hunk)
-                        AnnotatedHunkContentView(
-                            hunk: prHunk,
-                            moves: prDiff.moves,
-                            commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
-                            searchQuery: searchQuery,
-                            prModel: prModel,
-                            onMoveTapped: onMoveTapped,
-                            onSelectRules: onSelectRulesForFile.map { callback in { callback(filePath) } }
-                        )
+
+                        if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
+                            PureRenameContentView()
+                        }
+
+                        if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty {
+                            fileLevelSection(fileLevel)
+                        }
+
+                        ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
+                            HunkHeaderView(hunk: hunk) {
+                                hunkActions(for: hunk)
+                            }
+                            let prHunk = findPRHunk(for: hunk)
+                                ?? PRHunk.fromHunk(hunk)
+                            AnnotatedHunkContentView(
+                                hunk: prHunk,
+                                moves: prDiff.moves,
+                                commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
+                                searchQuery: searchQuery,
+                                prModel: prModel,
+                                onMoveTapped: onMoveTapped,
+                                onSelectRules: onSelectRulesForFile.map { callback in { callback(filePath) } }
+                            )
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .textBackgroundColor))
+            .task(id: scrollToCommentID) {
+                guard let id = scrollToCommentID else { return }
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(id, anchor: .center)
+                }
+                scrollToCommentID = nil
+            }
         }
-        .background(Color(nsColor: .textBackgroundColor))
     }
 
     @ViewBuilder
@@ -775,6 +790,7 @@ struct AnnotatedDiffContentView: View {
                 case .new:
                     if let pending = rc.pending {
                         InlineCommentView(comment: pending, prModel: prModel)
+                            .id(rc.id)
                     }
                 case .redetected:
                     if let posted = rc.posted {

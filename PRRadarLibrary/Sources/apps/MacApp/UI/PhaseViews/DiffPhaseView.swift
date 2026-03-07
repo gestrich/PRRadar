@@ -15,6 +15,7 @@ struct DiffPhaseView: View {
     @State private var rulePickerFile: String?
     @State private var rulePickerSets: [RuleSetGroup] = []
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
+    @State private var scrollToCommentID: String?
 
     private var reviewComments: [ReviewComment] { prModel.reviewComments }
     private var evaluationSummary: PRReviewSummary? { prModel.analysis?.summary }
@@ -31,8 +32,11 @@ struct DiffPhaseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PhaseSummaryBar(items: summaryItems(for: fullDiff))
-                .padding(8)
+            HStack(spacing: 8) {
+                PhaseSummaryBar(items: summaryItems(for: fullDiff))
+                violationNavigationButtons
+            }
+            .padding(8)
 
             HSplitView {
                 fileList(for: fullDiff)
@@ -45,6 +49,16 @@ struct DiffPhaseView: View {
             if selectedFile == nil {
                 selectedFile = fullDiff.changedFiles.first
             }
+            syncViolationCount()
+            consumePendingNavigation()
+        }
+        .onChange(of: prModel.pendingViolationNavigation) { _, newValue in
+            if newValue != nil {
+                consumePendingNavigation()
+            }
+        }
+        .onChange(of: orderedViolations.count) { _, _ in
+            syncViolationCount()
         }
     }
 
@@ -206,6 +220,7 @@ struct DiffPhaseView: View {
                 displayDiff: filtered,
                 commentMapping: commentMapping(for: diff),
                 prModel: prModel,
+                scrollToCommentID: $scrollToCommentID,
                 onMoveTapped: onMoveTapped,
                 onSelectRulesForFile: { file in
                     rulePickerFile = file
@@ -522,6 +537,108 @@ struct DiffPhaseView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(.green, in: Capsule())
+    }
+
+    // MARK: - Violation Navigation
+
+    private struct ViolationLocation {
+        let file: String
+        let commentID: String
+    }
+
+    private var orderedViolations: [ViolationLocation] {
+        let mapping = commentMapping(for: fullDiff)
+        var result: [ViolationLocation] = []
+        for file in fullDiff.changedFiles {
+            if let lineMap = mapping.byFileAndLine[file] {
+                for line in lineMap.keys.sorted() {
+                    for comment in lineMap[line]! where comment.state == .new {
+                        result.append(ViolationLocation(file: file, commentID: comment.id))
+                    }
+                }
+            }
+            if let fileLevel = mapping.unmatchedByFile[file] {
+                for comment in fileLevel where comment.state == .new {
+                    result.append(ViolationLocation(file: file, commentID: comment.id))
+                }
+            }
+        }
+        return result
+    }
+
+    @ViewBuilder
+    private var violationNavigationButtons: some View {
+        let violations = orderedViolations
+        if !violations.isEmpty {
+            HStack(spacing: 6) {
+                Button { navigateViolation(by: -1) } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .disabled(prModel.currentViolationIndex <= 0)
+
+                Text(prModel.currentViolationIndex >= 0
+                    ? "\(prModel.currentViolationIndex + 1) of \(violations.count)"
+                    : "\(violations.count)")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+
+                Button { navigateViolation(by: 1) } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.body)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .disabled(prModel.currentViolationIndex >= violations.count - 1)
+            }
+        }
+    }
+
+    private func syncViolationCount() {
+        prModel.violationCount = orderedViolations.count
+    }
+
+    private func consumePendingNavigation() {
+        guard let nav = prModel.pendingViolationNavigation else { return }
+        prModel.pendingViolationNavigation = nil
+        switch nav {
+        case .first:
+            prModel.currentViolationIndex = -1
+            navigateViolation(by: 1)
+        case .last:
+            prModel.currentViolationIndex = orderedViolations.count
+            navigateViolation(by: -1)
+        case .next:
+            navigateViolation(by: 1)
+        case .previous:
+            navigateViolation(by: -1)
+        }
+    }
+
+    private func navigateViolation(by delta: Int) {
+        let violations = orderedViolations
+        guard !violations.isEmpty else { return }
+
+        let newIndex: Int
+        if prModel.currentViolationIndex < 0 {
+            newIndex = delta > 0 ? 0 : violations.count - 1
+        } else {
+            newIndex = prModel.currentViolationIndex + delta
+        }
+
+        guard newIndex >= 0, newIndex < violations.count else { return }
+        prModel.currentViolationIndex = newIndex
+
+        let violation = violations[newIndex]
+        if violation.file != selectedFile {
+            selectedFile = violation.file
+        }
+        scrollToCommentID = violation.commentID
     }
 
     @ViewBuilder
