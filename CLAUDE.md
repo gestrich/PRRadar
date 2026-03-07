@@ -111,6 +111,7 @@ Proactively use these skills when writing or modifying Swift code in this projec
 - `/xcode-sim-automation:creating-automated-screenshots` — Create automated screenshot tests for PRRadar MacApp views. Use when capturing UI images, testing view rendering, or generating visual documentation.
 - `/pr-radar-todo` — Add an item to the project TODO list (`docs/proposed/TODO.md`) with t-shirt size categorization.
 - `/pr-radar-add-rule` — Create a new code review rule. Use when adding rules, violation checks, or patterns to detect in PRs.
+- `/pr-radar-debug` — Debugging context for the two configured repos (`ios` and `test-repo`). Use when debugging issues Bill reports, finding available configurations, locating rule directories, inspecting pipeline output, or reproducing Mac app issues via CLI.
 
 ## Plugin Mode
 
