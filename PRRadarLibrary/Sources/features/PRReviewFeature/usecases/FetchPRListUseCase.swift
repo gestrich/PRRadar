@@ -25,7 +25,7 @@ public struct FetchPRListUseCase: Sendable {
 
                     continuation.yield(.log(text: "Fetching PRs from GitHub...\n"))
 
-                    let limitNum = Int(limit ?? "30") ?? 30
+                    let limitNum = limit.flatMap(Int.init) ?? 300
 
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
