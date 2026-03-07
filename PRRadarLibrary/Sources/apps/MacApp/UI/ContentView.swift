@@ -260,6 +260,7 @@ public struct ContentView: View {
                     Button(state.displayName) { selectedPRStateString = state.rawValue }
                 }
             }
+            .fixedSize()
             .accessibilityIdentifier("stateFilter")
             .help("Filter by PR state")
 
@@ -333,10 +334,10 @@ public struct ContentView: View {
                 newPRNumber = ""
                 showNewReview = true
             } label: {
-                Image(systemName: "plus")
+                Image(systemName: "magnifyingglass")
             }
             .accessibilityIdentifier("newReviewButton")
-            .help("Start a new PR review")
+            .help("Search for a PR by number")
             .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
                 newReviewPopover
             }
