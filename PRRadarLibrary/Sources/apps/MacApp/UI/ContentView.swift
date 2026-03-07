@@ -284,6 +284,7 @@ public struct ContentView: View {
                                 .monospacedDigit()
                         }
                     }
+                    .fixedSize()
                 } else {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -311,6 +312,7 @@ public struct ContentView: View {
                                 .monospacedDigit()
                         }
                     }
+                    .fixedSize()
                 } else {
                     Image(systemName: "sparkles")
                 }
