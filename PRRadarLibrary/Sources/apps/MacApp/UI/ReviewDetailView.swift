@@ -227,34 +227,10 @@ struct ReviewDetailView: View {
             compactPhaseButton(phase: .analyze, label: "Analyze", icon: "checkmark.shield")
                 .accessibilityIdentifier("analyzeButton")
             Spacer()
-            rulePathPicker
             commitPicker
         }
         .padding(.horizontal)
         .padding(.vertical, 6)
-    }
-
-    @ViewBuilder
-    private var rulePathPicker: some View {
-        @Bindable var pr = prModel
-        let paths = prModel.config.rulePaths
-        if paths.count > 1 {
-            Picker("Rules", selection: $pr.selectedRulePath) {
-                ForEach(paths) { rulePath in
-                    Text(rulePath.name).tag(Optional(rulePath))
-                }
-            }
-            .pickerStyle(.menu)
-            .fixedSize()
-            .accessibilityIdentifier("rulePathPicker")
-        } else if let rulePath = paths.first {
-            HStack(spacing: 4) {
-                Text("Rules:")
-                    .foregroundStyle(.secondary)
-                Text(rulePath.name)
-            }
-            .font(.caption)
-        }
     }
 
     @ViewBuilder

@@ -55,6 +55,10 @@ public struct RepositoryConfiguration: Sendable {
         return resolvedRulesDir(for: defaultPath)
     }
 
+    public var allResolvedRulesDirs: [String] {
+        rulePaths.map { resolvedRulesDir(for: $0) }
+    }
+
     public func resolvedRulesDir(for rulePath: RulePath) -> String {
         PathUtilities.resolve(rulePath.path, relativeTo: repoPath)
     }

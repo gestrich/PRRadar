@@ -26,7 +26,11 @@ public struct PrepareUseCase: Sendable {
     }
 
     public func execute(prNumber: Int, rulesDir: String, commitHash: String? = nil, historyProvider: GitHistoryProvider? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
-        AsyncThrowingStream { continuation in
+        execute(prNumber: prNumber, rulesDirs: [rulesDir], commitHash: commitHash, historyProvider: historyProvider)
+    }
+
+    public func execute(prNumber: Int, rulesDirs: [String], commitHash: String? = nil, historyProvider: GitHistoryProvider? = nil) -> AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error> {
+        AsyncThrowingStream<PhaseProgress<PrepareOutput>, Error>(PhaseProgress<PrepareOutput>.self) { continuation in
             continuation.yield(.running(phase: .prepare))
 
             Task {
@@ -110,25 +114,32 @@ public struct PrepareUseCase: Sendable {
                         continuation.yield(.log(text: "Focus areas: \(allFocusAreas.count) generated\n"))
                     }
 
-                    // Load rules
-                    guard !rulesDir.isEmpty else {
+                    // Load rules from all directories
+                    let validRulesDirs = rulesDirs.filter { !$0.isEmpty }
+                    guard !validRulesDirs.isEmpty else {
                         continuation.yield(.failed(error: "No rules directory specified", logs: ""))
                         continuation.finish()
                         return
                     }
 
-                    continuation.yield(.log(text: "Loading rules from \(rulesDir)...\n"))
-
                     let gitOps = GitHubServiceFactory.createGitOps()
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
-                    let allRules = try await ruleLoader.loadAllRules(rulesDir: rulesDir)
+                    var allRules: [ReviewRule] = []
+                    var rulesByDir: [(rulesDir: String, rules: [ReviewRule])] = []
 
-                    let rulesData = try encoder.encode(allRules)
-                    let rulesFilePath = try DataPathsService.rulesFilePath(
-                        outputDir: config.resolvedOutputDir, prNumber: prNumber,
-                        rulesDir: rulesDir, commitHash: resolvedCommit
-                    )
-                    try rulesData.write(to: URL(fileURLWithPath: rulesFilePath))
+                    for rulesDir in validRulesDirs {
+                        continuation.yield(.log(text: "Loading rules from \(rulesDir)...\n"))
+                        let rules = try await ruleLoader.loadAllRules(rulesDir: rulesDir)
+                        allRules.append(contentsOf: rules)
+                        rulesByDir.append((rulesDir, rules))
+
+                        let rulesData = try encoder.encode(rules)
+                        let rulesFilePath = try DataPathsService.rulesFilePath(
+                            outputDir: config.resolvedOutputDir, prNumber: prNumber,
+                            rulesDir: rulesDir, commitHash: resolvedCommit
+                        )
+                        try rulesData.write(to: URL(fileURLWithPath: rulesFilePath))
+                    }
 
                     continuation.yield(.log(text: "Rules loaded: \(allRules.count)\n"))
 
@@ -160,13 +171,18 @@ public struct PrepareUseCase: Sendable {
                         phase: .prepare,
                         commitHash: resolvedCommit
                     )
-                    let tasks = try await taskCreator.createAndWriteTasks(
-                        rules: allRules,
-                        focusAreas: allFocusAreas,
-                        prDiff: prDiff,
-                        outputDir: prepareDir,
-                        rulesDir: rulesDir
-                    )
+
+                    var allTasks: [RuleRequest] = []
+                    for (rulesDir, rules) in rulesByDir {
+                        let tasks = try await taskCreator.createAndWriteTasks(
+                            rules: rules,
+                            focusAreas: allFocusAreas,
+                            prDiff: prDiff,
+                            outputDir: prepareDir,
+                            rulesDir: rulesDir
+                        )
+                        allTasks.append(contentsOf: tasks)
+                    }
 
                     // Write phase_result.json with cumulative artifact count across all rule dirs
                     let tasksDir = DataPathsService.phaseSubdirectory(
@@ -193,9 +209,9 @@ public struct PrepareUseCase: Sendable {
                         )
                     )
 
-                    continuation.yield(.log(text: "Tasks created: \(tasks.count)\n"))
+                    continuation.yield(.log(text: "Tasks created: \(allTasks.count)\n"))
 
-                    let output = PrepareOutput(focusAreas: allFocusAreas, rules: allRules, tasks: tasks)
+                    let output = PrepareOutput(focusAreas: allFocusAreas, rules: allRules, tasks: allTasks)
                     continuation.yield(.completed(output: output))
                     continuation.finish()
                 } catch {

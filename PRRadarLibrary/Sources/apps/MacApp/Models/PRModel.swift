@@ -13,8 +13,6 @@ final class PRModel: Identifiable, Hashable {
 
     nonisolated let id: Int
 
-    var selectedRulePath: RulePath?
-
     private(set) var analysisState: AnalysisState = .loading
     private(set) var detailLoaded = false
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
@@ -50,16 +48,10 @@ final class PRModel: Identifiable, Hashable {
         self.id = metadata.id
         self.metadata = metadata
         self.config = config
-        self.selectedRulePath = config.defaultRulePath
         Task { reloadDetail() }
     }
 
     // MARK: - Computed Properties
-
-    var resolvedSelectedRulesDir: String {
-        guard let rulePath = selectedRulePath else { return config.resolvedDefaultRulesDir }
-        return config.resolvedRulesDir(for: rulePath)
-    }
 
     var prNumber: Int {
         metadata.number
@@ -355,6 +347,7 @@ final class PRModel: Identifiable, Hashable {
             await runPhase(phase)
             if case .failed = stateFor(phase) { break }
         }
+        reloadReviewComments()
         return isPhaseCompleted(.report)
     }
 
@@ -547,7 +540,7 @@ final class PRModel: Identifiable, Hashable {
         let useCase = PrepareUseCase(config: config)
 
         do {
-            for try await progress in useCase.execute(prNumber: prNumber, rulesDir: resolvedSelectedRulesDir, commitHash: currentCommitHash) {
+            for try await progress in useCase.execute(prNumber: prNumber, rulesDirs: config.allResolvedRulesDirs, commitHash: currentCommitHash) {
                 switch progress {
                 case .running:
                     break
