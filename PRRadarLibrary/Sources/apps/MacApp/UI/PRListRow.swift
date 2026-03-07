@@ -65,22 +65,17 @@ struct PRListRow: View {
 
     @ViewBuilder
     private var analysisBadge: some View {
-        switch prModel.analysisState {
-        case .loading, .unavailable:
-            EmptyView()
-        case .loaded:
-            if prModel.pendingCommentCount > 0 {
-                Text("\(prModel.pendingCommentCount)")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(.orange, in: Capsule())
-            } else {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.green)
-            }
+        if prModel.pendingCommentCount > 0 {
+            Text("\(prModel.pendingCommentCount)")
+                .font(.caption2.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(.orange, in: Capsule())
+        } else if case .loaded = prModel.analysisState {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption2)
+                .foregroundStyle(.green)
         }
     }
 
