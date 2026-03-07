@@ -98,6 +98,7 @@ public struct GitHubService: Sendable {
         var page = 1
         let perPage = 100
         let formatter = ISO8601DateFormatter()
+        let baseBranch = filter.baseBranch?.isEmpty == false ? filter.baseBranch : nil
 
         while true {
             let prs = try await octokitClient.listPullRequests(
@@ -106,6 +107,7 @@ public struct GitHubService: Sendable {
                 state: openness,
                 sort: sort,
                 direction: .desc,
+                base: baseBranch,
                 page: String(page),
                 perPage: String(perPage)
             )
@@ -155,10 +157,13 @@ public struct GitHubService: Sendable {
             page += 1
         }
 
-        let result = Array(allPRs.prefix(limit))
+        var result = Array(allPRs.prefix(limit))
 
         if let state = filter.state {
-            return result.filter { $0.enhancedState == state }
+            result = result.filter { $0.enhancedState == state }
+        }
+        if let authorLogin = filter.authorLogin, !authorLogin.isEmpty {
+            result = result.filter { $0.author?.login == authorLogin }
         }
         return result
     }

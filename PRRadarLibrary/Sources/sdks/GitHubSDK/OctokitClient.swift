@@ -185,6 +185,7 @@ public struct OctokitClient: Sendable {
         state: Openness = .open,
         sort: SortType = .created,
         direction: SortDirection = .desc,
+        base: String? = nil,
         page: String? = nil,
         perPage: String? = nil
     ) async throws -> [PullRequest] {
@@ -193,6 +194,7 @@ public struct OctokitClient: Sendable {
             URLQueryItem(name: "sort", value: sort.rawValue),
             URLQueryItem(name: "direction", value: direction.rawValue),
         ]
+        if let base { queryItems.append(URLQueryItem(name: "base", value: base)) }
         if let page { queryItems.append(URLQueryItem(name: "page", value: page)) }
         if let perPage { queryItems.append(URLQueryItem(name: "per_page", value: perPage)) }
         return try await getJSON(path: "repos/\(owner)/\(repository)/pulls", queryItems: queryItems)

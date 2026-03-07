@@ -202,12 +202,12 @@ final class AllPRsModel {
 
     // MARK: - Filtering
 
-    func filteredPRModels(since: Date? = nil, state prState: PRState? = nil) -> [PRModel] {
+    func filteredPRModels(since: Date? = nil, state prState: PRState? = nil, baseBranch: String? = nil, authorLogin: String? = nil) -> [PRModel] {
         guard let models = currentPRModels else { return [] }
-        return filteredPRs(models, since: since, state: prState)
+        return filteredPRs(models, since: since, state: prState, baseBranch: baseBranch, authorLogin: authorLogin)
     }
 
-    func filteredPRs(_ models: [PRModel], since: Date? = nil, state prState: PRState? = nil) -> [PRModel] {
+    func filteredPRs(_ models: [PRModel], since: Date? = nil, state prState: PRState? = nil, baseBranch: String? = nil, authorLogin: String? = nil) -> [PRModel] {
         var result = models
         if let since {
             let fractional = ISO8601DateFormatter()
@@ -224,6 +224,12 @@ final class AllPRsModel {
             result = result.filter { pr in
                 PRState(rawValue: pr.metadata.state.uppercased()) == prState
             }
+        }
+        if let baseBranch, !baseBranch.isEmpty {
+            result = result.filter { $0.metadata.baseRefName == baseBranch }
+        }
+        if let authorLogin, !authorLogin.isEmpty {
+            result = result.filter { $0.metadata.author.login == authorLogin }
         }
         if showOnlyWithPendingComments {
             result = result.filter { $0.hasPendingComments }

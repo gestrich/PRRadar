@@ -5,10 +5,14 @@ import Foundation
 public struct PRFilter: Sendable {
     public var dateFilter: PRDateFilter?
     public var state: PRState?
+    public var baseBranch: String?
+    public var authorLogin: String?
 
-    public init(dateFilter: PRDateFilter? = nil, state: PRState? = nil) {
+    public init(dateFilter: PRDateFilter? = nil, state: PRState? = nil, baseBranch: String? = nil, authorLogin: String? = nil) {
         self.dateFilter = dateFilter
         self.state = state
+        self.baseBranch = baseBranch
+        self.authorLogin = authorLogin
     }
 }
 

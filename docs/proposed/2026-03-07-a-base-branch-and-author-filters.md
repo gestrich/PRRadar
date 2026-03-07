@@ -48,7 +48,10 @@ Additionally, the base branch should appear in PR list displays and report outpu
 - Manually update existing config files: `develop` for the iOS repo, `main` for PRRadar-DemoApp
 - Update the config `list` CLI command output to show the new field if desired
 
-## - [ ] Phase 3: Extend filter logic with base branch and author
+## - [x] Phase 3: Extend filter logic with base branch and author
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `baseBranch` and `authorLogin` to the shared `PRFilter` model in the services layer. `baseBranch` is passed to the GitHub API `base` query parameter for server-side filtering; `authorLogin` is filtered client-side since the list PRs endpoint doesn't support it. Mac app `AllPRsModel.filteredPRs()` also filters locally for both fields (used on cached data).
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
