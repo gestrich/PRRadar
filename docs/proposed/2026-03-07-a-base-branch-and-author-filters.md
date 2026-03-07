@@ -90,9 +90,10 @@ Additionally, the base branch should appear in PR list displays and report outpu
   - Include an "All" option that clears the filter
 - Wire both filters to `filteredPRs()` in `AllPRsModel`
 
-## - [ ] Phase 6: Display base branch in PR list and reports
+## - [x] Phase 6: Display base branch in PR list and reports
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`, `swift-app-architecture:swift-architecture`
+**Principles applied**: Centralized `gh-pr.json` loading into `PRDiscoveryService.loadGitHubPR()` shared helper, eliminating 5 duplicate decode patterns. Added `DataPathsService.ghPRFilePath()` for reusable path construction. `StatusCommand` now uses `LoadPRDetailUseCase` instead of manual status assembly. Added `baseRefName` to `PRDetail` so callers don't need separate metadata loading.
 
 - Display base branch in the PR Summary view (not in `PRListRow`)
 - Add `baseRefName` field to `ReviewReport` (populated from `PRMetadata`)
