@@ -22,6 +22,7 @@ public struct ContentView: View {
     @State private var analyzePRRuleSets: [RuleSetGroup] = []
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
+    @State private var isLoadingPR = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("selectedPRState") private var selectedPRStateString: String = "OPEN"
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
@@ -162,12 +163,23 @@ public struct ContentView: View {
         .onChange(of: selectedPR) { old, new in
             old?.cancelRefresh()
             if let pr = new {
-                pr.loadDetail()
-                Task { await pr.refreshDiff() }
+                isLoadingPR = true
                 savedPRNumber = pr.metadata.number
+                Task {
+                    pr.loadDetail()
+                    await pr.refreshDiff()
+                    isLoadingPR = false
+                }
             } else {
+                isLoadingPR = false
                 savedPRNumber = 0
             }
+        }
+        .background {
+            ArrowKeyListener(
+                onLeft: { canNavigatePRViolation(by: -1) ? { navigatePRViolation(by: -1) } : nil },
+                onRight: { canNavigatePRViolation(by: 1) ? { navigatePRViolation(by: 1) } : nil }
+            )
         }
         .task {
             if savedPRNumber != 0, let pr = currentPRModels.first(where: { $0.metadata.number == savedPRNumber }) {
@@ -491,6 +503,20 @@ public struct ContentView: View {
                 ReviewDetailView()
                     .environment(selectedPR)
                     .id(selectedPR.metadata.number)
+                    .overlay {
+                        if isLoadingPR {
+                            ZStack {
+                                Color(.windowBackgroundColor)
+                                VStack(spacing: 12) {
+                                    ProgressView()
+                                        .controlSize(.large)
+                                    Text("Loading PR #\(selectedPR.prNumber)...")
+                                        .font(.headline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
             } else {
                 ContentUnavailableView(
                     "Select a Pull Request",

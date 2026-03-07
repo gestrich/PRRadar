@@ -67,6 +67,11 @@ final class PRModel: Identifiable, Hashable {
         metadata.number
     }
 
+    var isLoadingDetail: Bool {
+        if case .running = phaseStates[.diff] { return syncSnapshot == nil }
+        return false
+    }
+
     var prDiff: PRDiff? {
         detail?.prDiff
     }
