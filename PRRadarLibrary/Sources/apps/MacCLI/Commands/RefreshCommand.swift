@@ -62,6 +62,7 @@ struct RefreshCommand: AsyncParsableCommand {
                             "author": pr.author.login,
                             "state": pr.state,
                             "branch": pr.headRefName,
+                            "baseBranch": pr.baseRefName as Any,
                         ] as [String: Any]
                     }
                     let data = try JSONSerialization.data(withJSONObject: encoded, options: [.prettyPrinted, .sortedKeys])
