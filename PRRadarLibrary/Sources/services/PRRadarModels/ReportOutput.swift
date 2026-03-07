@@ -108,6 +108,7 @@ public struct ReportSummary: Codable, Sendable {
 /// Full review report, matching Python's ReviewReport.to_dict()
 public struct ReviewReport: Codable, Sendable {
     public let prNumber: Int
+    public let baseRefName: String?
     public let generatedAt: String
     public let minScoreThreshold: Int
     public let summary: ReportSummary
@@ -115,12 +116,14 @@ public struct ReviewReport: Codable, Sendable {
 
     public init(
         prNumber: Int,
+        baseRefName: String? = nil,
         generatedAt: String,
         minScoreThreshold: Int,
         summary: ReportSummary,
         violations: [ViolationRecord]
     ) {
         self.prNumber = prNumber
+        self.baseRefName = baseRefName
         self.generatedAt = generatedAt
         self.minScoreThreshold = minScoreThreshold
         self.summary = summary
@@ -129,6 +132,7 @@ public struct ReviewReport: Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case prNumber = "pr_number"
+        case baseRefName = "base_ref_name"
         case generatedAt = "generated_at"
         case minScoreThreshold = "min_score_threshold"
         case summary
@@ -140,7 +144,11 @@ public struct ReviewReport: Codable, Sendable {
     public func toMarkdown() -> String {
         var lines: [String] = []
 
-        lines.append("# Code Review Report: PR #\(prNumber)")
+        if let baseRefName {
+            lines.append("# Code Review Report: PR #\(prNumber) → \(baseRefName)")
+        } else {
+            lines.append("# Code Review Report: PR #\(prNumber)")
+        }
         lines.append("")
         lines.append("Generated: \(generatedAt)")
         lines.append("Minimum Score Threshold: \(minScoreThreshold)")

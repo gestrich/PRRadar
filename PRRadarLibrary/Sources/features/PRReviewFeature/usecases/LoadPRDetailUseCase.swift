@@ -13,6 +13,7 @@ public struct LoadPRDetailUseCase: Sendable {
 
     public func execute(prNumber: Int, commitHash: String? = nil) -> PRDetail {
         let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+        let ghPR = PRDiscoveryService.loadGitHubPR(outputDir: config.resolvedOutputDir, prNumber: prNumber)
 
         let syncSnapshot: SyncSnapshot? = {
             let snapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
@@ -71,6 +72,7 @@ public struct LoadPRDetailUseCase: Sendable {
 
         return PRDetail(
             commitHash: resolvedCommit,
+            baseRefName: ghPR?.baseRefName,
             availableCommits: availableCommits,
             phaseStatuses: phaseStatuses,
             syncSnapshot: syncSnapshot,

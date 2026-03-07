@@ -44,9 +44,12 @@ public struct GenerateReportUseCase: Sendable {
                         subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: resolvedCommit
                     )
 
+                    let baseRefName = PRDiscoveryService.loadGitHubPR(outputDir: config.resolvedOutputDir, prNumber: prNumber)?.baseRefName
+
                     let reportService = ReportGeneratorService()
                     let report = try reportService.generateReport(
                         prNumber: prNumber,
+                        baseRefName: baseRefName,
                         minScore: scoreThreshold,
                         evalsDir: evalsDir,
                         tasksDir: tasksDir,

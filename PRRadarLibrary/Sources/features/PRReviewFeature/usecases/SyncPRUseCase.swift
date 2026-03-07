@@ -64,14 +64,7 @@ public struct SyncPRUseCase: Sendable {
 
     /// Resolve the commit hash from metadata/gh-pr.json, or scan analysis/ for the latest commit directory.
     public static func resolveCommitHash(config: RepositoryConfiguration, prNumber: Int) -> String? {
-        let metadataDir = DataPathsService.phaseDirectory(
-            outputDir: config.resolvedOutputDir,
-            prNumber: prNumber,
-            phase: .metadata
-        )
-        let ghPRPath = "\(metadataDir)/gh-pr.json"
-        if let data = FileManager.default.contents(atPath: ghPRPath),
-           let pr = try? JSONDecoder().decode(GitHubPullRequest.self, from: data),
+        if let pr = PRDiscoveryService.loadGitHubPR(outputDir: config.resolvedOutputDir, prNumber: prNumber),
            let fullHash = pr.headRefOid {
             return String(fullHash.prefix(7))
         }

@@ -15,6 +15,7 @@ public struct ReportGeneratorService: Sendable {
     ///   - focusAreasDir: Directory containing focus area files
     public func generateReport(
         prNumber: Int,
+        baseRefName: String? = nil,
         minScore: Int,
         evalsDir: String,
         tasksDir: String,
@@ -41,6 +42,7 @@ public struct ReportGeneratorService: Sendable {
 
         return ReviewReport(
             prNumber: prNumber,
+            baseRefName: baseRefName,
             generatedAt: formatter.string(from: Date()),
             minScoreThreshold: minScore,
             summary: summary,

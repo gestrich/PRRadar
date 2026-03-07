@@ -120,6 +120,14 @@ public enum DataPathsService {
         "\(outputDir)/\(prNumber)/\(metadataDirectoryName)"
     }
 
+    /// Path to the GitHub PR metadata file: `<output>/<prNumber>/metadata/gh-pr.json`
+    public static func ghPRFilePath(
+        outputDir: String,
+        prNumber: Int
+    ) -> String {
+        "\(metadataDirectory(outputDir: outputDir, prNumber: prNumber))/\(ghPRFilename)"
+    }
+
     /// Commit-level analysis root: `<output>/<prNumber>/analysis/<commitHash>/`
     public static func analysisDirectory(
         outputDir: String,

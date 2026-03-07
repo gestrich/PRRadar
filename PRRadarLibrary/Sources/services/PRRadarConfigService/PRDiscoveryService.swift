@@ -16,26 +16,22 @@ public enum PRDiscoveryService {
         let prs: [PRMetadata] = contents.compactMap { dirName in
             guard let prNumber = Int(dirName) else { return nil }
 
-            let metadataDir = DataPathsService.metadataDirectory(outputDir: expandedPath, prNumber: prNumber)
-            let ghPRPath = "\(metadataDir)/gh-pr.json"
-
-            guard fileManager.fileExists(atPath: ghPRPath),
-                  let data = fileManager.contents(atPath: ghPRPath)
-            else {
-                return repoSlug == nil ? PRMetadata.fallback(number: prNumber) : nil
-            }
-            
             let metadata: PRMetadata
-            if let ghPR = try? JSONDecoder().decode(GitHubPullRequest.self, from: data),
+            if let ghPR = loadGitHubPR(outputDir: expandedPath, prNumber: prNumber),
                let converted = try? ghPR.toPRMetadata() {
                 metadata = converted
-            } else if let prMeta = try? JSONDecoder().decode(PRMetadata.self, from: data) {
-                metadata = prMeta
             } else {
-                return repoSlug == nil ? PRMetadata.fallback(number: prNumber) : nil
+                let ghPRPath = DataPathsService.ghPRFilePath(outputDir: expandedPath, prNumber: prNumber)
+                if let data = fileManager.contents(atPath: ghPRPath),
+                   let prMeta = try? JSONDecoder().decode(PRMetadata.self, from: data) {
+                    metadata = prMeta
+                } else {
+                    return repoSlug == nil ? PRMetadata.fallback(number: prNumber) : nil
+                }
             }
 
             if let repoSlug {
+                let metadataDir = DataPathsService.metadataDirectory(outputDir: expandedPath, prNumber: prNumber)
                 let ghRepoPath = "\(metadataDir)/gh-repo.json"
                 guard let repoData = fileManager.contents(atPath: ghRepoPath),
                       let repoJSON = try? JSONSerialization.jsonObject(with: repoData) as? [String: Any],
@@ -55,6 +51,12 @@ public enum PRDiscoveryService {
 
     public static func discoverPR(number: Int, outputDir: String) -> PRMetadata? {
         discoverPRs(outputDir: outputDir).first(where: { $0.number == number })
+    }
+
+    public static func loadGitHubPR(outputDir: String, prNumber: Int) -> GitHubPullRequest? {
+        let ghPRPath = DataPathsService.ghPRFilePath(outputDir: outputDir, prNumber: prNumber)
+        guard let data = FileManager.default.contents(atPath: ghPRPath) else { return nil }
+        return try? JSONDecoder().decode(GitHubPullRequest.self, from: data)
     }
 
     public static func repoSlug(fromRepoPath repoPath: String) -> String? {

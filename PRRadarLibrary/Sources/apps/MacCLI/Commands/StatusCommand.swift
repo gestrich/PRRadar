@@ -16,13 +16,7 @@ struct StatusCommand: AsyncParsableCommand {
     func run() async throws {
         let config = try resolveConfigFromOptions(options)
 
-        let commitHash = options.commit ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: options.prNumber)
-
-        let allStatuses = DataPathsService.allPhaseStatuses(
-            outputDir: config.resolvedOutputDir,
-            prNumber: options.prNumber,
-            commitHash: commitHash
-        )
+        let detail = LoadPRDetailUseCase(config: config).execute(prNumber: options.prNumber, commitHash: options.commit)
 
         struct DisplayStatus {
             let phase: PRRadarPhase
@@ -32,7 +26,7 @@ struct StatusCommand: AsyncParsableCommand {
 
         var statuses: [DisplayStatus] = []
         for phase in PRRadarPhase.allCases {
-            let phaseStatus = allStatuses[phase]!
+            let phaseStatus = detail.phaseStatuses[phase]!
             let statusText: String
             if !phaseStatus.exists {
                 statusText = "not started"
@@ -50,12 +44,11 @@ struct StatusCommand: AsyncParsableCommand {
             ))
         }
 
-        let availableCommits = listAvailableCommits(outputDir: config.resolvedOutputDir, prNumber: options.prNumber)
-
         if options.json {
             var jsonOutput: [String: Any] = [:]
-            if let commitHash { jsonOutput["commitHash"] = commitHash }
-            jsonOutput["availableCommits"] = availableCommits
+            if let commitHash = detail.commitHash { jsonOutput["commitHash"] = commitHash }
+            if let baseRefName = detail.baseRefName { jsonOutput["baseRefName"] = baseRefName }
+            jsonOutput["availableCommits"] = detail.availableCommits
             var phases: [[String: Any]] = []
             for s in statuses {
                 phases.append([
@@ -68,10 +61,11 @@ struct StatusCommand: AsyncParsableCommand {
             let data = try JSONSerialization.data(withJSONObject: jsonOutput, options: [.prettyPrinted, .sortedKeys])
             print(String(data: data, encoding: .utf8)!)
         } else {
-            if let commitHash {
-                print("Pipeline status for PR #\(options.prNumber) @ \(commitHash):")
+            let branchSuffix = detail.baseRefName.map { " → \($0)" } ?? ""
+            if let commitHash = detail.commitHash {
+                print("Pipeline status for PR #\(options.prNumber)\(branchSuffix) @ \(commitHash):")
             } else {
-                print("Pipeline status for PR #\(options.prNumber):")
+                print("Pipeline status for PR #\(options.prNumber)\(branchSuffix):")
             }
             print("")
             print("  \("Phase".padding(toLength: 30, withPad: " ", startingAt: 0))  \("Status".padding(toLength: 12, withPad: " ", startingAt: 0))  Artifacts")
@@ -86,22 +80,14 @@ struct StatusCommand: AsyncParsableCommand {
                 }
                 print("  \(statusIcon) \(s.phase.rawValue.padding(toLength: 28, withPad: " ", startingAt: 0))  \(s.status.padding(toLength: 12, withPad: " ", startingAt: 0))  \(s.fileCount)")
             }
-            if availableCommits.count > 1 {
+            if detail.availableCommits.count > 1 {
                 print("\n  Available commits:")
-                for c in availableCommits {
-                    let marker = (c == commitHash) ? " (current)" : ""
+                for c in detail.availableCommits {
+                    let marker = (c == detail.commitHash) ? " (current)" : ""
                     print("    \(c)\(marker)")
                 }
             }
         }
-    }
-
-    private func listAvailableCommits(outputDir: String, prNumber: Int) -> [String] {
-        let analysisRoot = "\(outputDir)/\(prNumber)/\(DataPathsService.analysisDirectoryName)"
-        guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: analysisRoot) else {
-            return []
-        }
-        return dirs.filter { !$0.hasPrefix(".") }.sorted()
     }
 }
 

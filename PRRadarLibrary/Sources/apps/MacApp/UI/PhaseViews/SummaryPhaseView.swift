@@ -43,8 +43,12 @@ struct SummaryPhaseView: View {
                 }
 
                 if !metadata.headRefName.isEmpty {
-                    Label(metadata.headRefName, systemImage: "arrow.triangle.branch")
-                        .font(.system(.body, design: .monospaced))
+                    Label {
+                        Text("\(metadata.headRefName) → \(metadata.baseRefName)")
+                    } icon: {
+                        Image(systemName: "arrow.triangle.branch")
+                    }
+                    .font(.system(.body, design: .monospaced))
                 }
 
                 if !metadata.state.isEmpty {

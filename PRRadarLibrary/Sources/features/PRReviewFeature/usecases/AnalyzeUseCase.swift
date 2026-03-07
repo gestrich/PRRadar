@@ -266,14 +266,7 @@ public struct AnalyzeUseCase: Sendable {
         prNumber: Int,
         continuation: AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error>.Continuation
     ) async throws {
-        let metadataDir = DataPathsService.phaseDirectory(
-            outputDir: config.resolvedOutputDir,
-            prNumber: prNumber,
-            phase: .metadata
-        )
-        let ghPRPath = "\(metadataDir)/\(DataPathsService.ghPRFilename)"
-        guard let data = FileManager.default.contents(atPath: ghPRPath),
-              let pr = try? JSONDecoder().decode(GitHubPullRequest.self, from: data),
+        guard let pr = PRDiscoveryService.loadGitHubPR(outputDir: config.resolvedOutputDir, prNumber: prNumber),
               let fullHash = pr.headRefOid else {
             continuation.yield(.log(text: "Warning: Could not read head commit from metadata — skipping checkout\n"))
             return

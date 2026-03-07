@@ -3,6 +3,7 @@ import PRRadarModels
 
 public struct PRDetail: Sendable {
     public let commitHash: String?
+    public let baseRefName: String?
     public let availableCommits: [String]
     public let phaseStatuses: [PRRadarPhase: PhaseStatus]
     public let syncSnapshot: SyncSnapshot?
@@ -20,6 +21,7 @@ public struct PRDetail: Sendable {
 
     public init(
         commitHash: String?,
+        baseRefName: String? = nil,
         availableCommits: [String],
         phaseStatuses: [PRRadarPhase: PhaseStatus],
         syncSnapshot: SyncSnapshot?,
@@ -36,6 +38,7 @@ public struct PRDetail: Sendable {
         reviewComments: [ReviewComment]
     ) {
         self.commitHash = commitHash
+        self.baseRefName = baseRefName
         self.availableCommits = availableCommits
         self.phaseStatuses = phaseStatuses
         self.syncSnapshot = syncSnapshot
