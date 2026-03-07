@@ -251,6 +251,75 @@ struct ReportOutputTests {
         #expect(original.violations[0].ruleName == decoded.violations[0].ruleName)
     }
 
+    // MARK: - toMarkdown with baseRefName
+
+    @Test("toMarkdown includes base branch when present")
+    func toMarkdownWithBaseRefName() {
+        // Arrange
+        let report = ReviewReport(
+            prNumber: 42,
+            baseRefName: "main",
+            generatedAt: "2025-03-01T12:00:00Z",
+            minScoreThreshold: 5,
+            summary: ReportSummary(totalTasksEvaluated: 0, violationsFound: 0, highestSeverity: 0, totalCostUsd: 0, bySeverity: [:], byFile: [:], byRule: [:]),
+            violations: []
+        )
+
+        // Act
+        let markdown = report.toMarkdown()
+
+        // Assert
+        #expect(markdown.contains("PR #42 → main"))
+    }
+
+    @Test("toMarkdown omits arrow when baseRefName is nil")
+    func toMarkdownWithoutBaseRefName() {
+        // Arrange
+        let report = ReviewReport(
+            prNumber: 42,
+            generatedAt: "2025-03-01T12:00:00Z",
+            minScoreThreshold: 5,
+            summary: ReportSummary(totalTasksEvaluated: 0, violationsFound: 0, highestSeverity: 0, totalCostUsd: 0, bySeverity: [:], byFile: [:], byRule: [:]),
+            violations: []
+        )
+
+        // Act
+        let markdown = report.toMarkdown()
+
+        // Assert
+        #expect(markdown.contains("PR #42\n"))
+        #expect(!markdown.contains("→"))
+    }
+
+    @Test("ReviewReport decodes baseRefName from JSON")
+    func decodesBaseRefName() throws {
+        // Arrange
+        let json = """
+        {
+            "pr_number": 10,
+            "base_ref_name": "develop",
+            "generated_at": "2025-03-01T12:00:00Z",
+            "min_score_threshold": 5,
+            "summary": {
+                "total_tasks_evaluated": 0,
+                "violations_found": 0,
+                "highest_severity": 0,
+                "total_cost_usd": 0,
+                "by_severity": {},
+                "by_file": {},
+                "by_rule": {}
+            },
+            "violations": []
+        }
+        """.data(using: .utf8)!
+
+        // Act
+        let report = try JSONDecoder().decode(ReviewReport.self, from: json)
+
+        // Assert
+        #expect(report.baseRefName == "develop")
+    }
+
     // MARK: - AnyCodableValue
 
     @Test("AnyCodableValue decodes all supported types")

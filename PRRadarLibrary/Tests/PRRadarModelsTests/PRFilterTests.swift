@@ -158,6 +158,63 @@ struct PRFilterTests {
         #expect(filter.dateFilter?.requiresClosedAPIState == true)
     }
 
+    // MARK: - Base branch filtering
+
+    @Test("PRFilter stores baseBranch")
+    func baseBranchFilter() {
+        // Arrange
+        let filter = PRFilter(state: .open, baseBranch: "main")
+
+        // Assert
+        #expect(filter.baseBranch == "main")
+    }
+
+    @Test("PRFilter with nil baseBranch has no branch constraint")
+    func nilBaseBranch() {
+        // Arrange
+        let filter = PRFilter(state: .open)
+
+        // Assert
+        #expect(filter.baseBranch == nil)
+    }
+
+    // MARK: - Author filtering
+
+    @Test("PRFilter stores authorLogin")
+    func authorLoginFilter() {
+        // Arrange
+        let filter = PRFilter(authorLogin: "octocat")
+
+        // Assert
+        #expect(filter.authorLogin == "octocat")
+    }
+
+    @Test("PRFilter with nil authorLogin has no author constraint")
+    func nilAuthorLogin() {
+        // Arrange
+        let filter = PRFilter()
+
+        // Assert
+        #expect(filter.authorLogin == nil)
+    }
+
+    @Test("PRFilter composes all fields together")
+    func composesAllFields() {
+        // Arrange
+        let filter = PRFilter(
+            dateFilter: .createdSince(referenceDate),
+            state: .open,
+            baseBranch: "develop",
+            authorLogin: "dev-user"
+        )
+
+        // Assert
+        #expect(filter.dateFilter != nil)
+        #expect(filter.state == .open)
+        #expect(filter.baseBranch == "develop")
+        #expect(filter.authorLogin == "dev-user")
+    }
+
     // MARK: - Early stop behavior
 
     @Test("early stop uses createdAt for createdSince")
