@@ -4,6 +4,18 @@ import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
+struct AuthorOption {
+    let login: String
+    let name: String
+
+    var displayLabel: String {
+        if name.isEmpty || name == login {
+            return login
+        }
+        return "\(name) (\(login))"
+    }
+}
+
 @Observable
 @MainActor
 final class AllPRsModel {
@@ -82,7 +94,7 @@ final class AllPRsModel {
 
     // MARK: - Refresh from GitHub
 
-    func refresh(since: Date? = nil, state prState: PRState? = nil) async {
+    func refresh(filter: PRFilter = PRFilter()) async {
         let prior = currentPRModels
         self.state = .refreshing(prior ?? [])
         refreshAllState = .running(logs: "Fetching PR list from GitHub...\n", current: 0, total: 0)
@@ -90,8 +102,7 @@ final class AllPRsModel {
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
-        let dateFilter: PRDateFilter? = since.map { .createdSince($0) }
-        let prFilter = PRFilter(dateFilter: dateFilter, state: prState)
+        let prFilter = filter
 
         var updatedMetadata: [PRMetadata]?
         do {
@@ -133,7 +144,7 @@ final class AllPRsModel {
         }
         self.state = .ready(mergedModels)
 
-        let prsToRefresh = filteredPRs(mergedModels, since: since, state: prState)
+        let prsToRefresh = filteredPRs(mergedModels, filter: filter)
         let total = prsToRefresh.count
         appendRefreshLog("Found \(metadata.count) PRs, refreshing \(total)...\n")
         refreshAllState = .running(logs: refreshAllLogs, current: 0, total: total)
@@ -162,10 +173,10 @@ final class AllPRsModel {
 
     // MARK: - Analyze All
 
-    func analyzeAll(since: Date, state prState: PRState? = nil, ruleFilePaths: [String]? = nil) async {
+    func analyzeAll(filter: PRFilter, ruleFilePaths: [String]? = nil) async {
         guard let models = currentPRModels else { return }
 
-        let prsToAnalyze = filteredPRs(models, since: since, state: prState)
+        let prsToAnalyze = filteredPRs(models, filter: filter)
         let total = prsToAnalyze.count
 
         analyzeAllState = .running(logs: "Analyzing \(total) PRs...\n", current: 0, total: total)
@@ -202,14 +213,29 @@ final class AllPRsModel {
 
     // MARK: - Filtering
 
-    func filteredPRModels(since: Date? = nil, state prState: PRState? = nil, baseBranch: String? = nil, authorLogin: String? = nil) -> [PRModel] {
+    func filteredPRModels(filter: PRFilter) -> [PRModel] {
         guard let models = currentPRModels else { return [] }
-        return filteredPRs(models, since: since, state: prState, baseBranch: baseBranch, authorLogin: authorLogin)
+        return filteredPRs(models, filter: config.resolvedFilter(filter))
     }
 
-    func filteredPRs(_ models: [PRModel], since: Date? = nil, state prState: PRState? = nil, baseBranch: String? = nil, authorLogin: String? = nil) -> [PRModel] {
+    var availableAuthors: [AuthorOption] {
+        guard let models = currentPRModels else { return [] }
+        let prAuthors = models.map { AuthorOption(login: $0.metadata.author.login, name: $0.metadata.author.name) }
+        let cache = AuthorCacheService().load()
+        let cacheAuthors = cache.entries.values.map { AuthorOption(login: $0.login, name: $0.name) }
+        var seen = Set<String>()
+        var result: [AuthorOption] = []
+        for author in prAuthors + cacheAuthors {
+            if !author.login.isEmpty && seen.insert(author.login).inserted {
+                result.append(author)
+            }
+        }
+        return result.sorted { $0.displayLabel.localizedCaseInsensitiveCompare($1.displayLabel) == .orderedAscending }
+    }
+
+    func filteredPRs(_ models: [PRModel], filter: PRFilter = PRFilter()) -> [PRModel] {
         var result = models
-        if let since {
+        if let since = filter.dateFilter?.date {
             let fractional = ISO8601DateFormatter()
             fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             let standard = ISO8601DateFormatter()
@@ -220,15 +246,15 @@ final class AllPRsModel {
                 return date >= since
             }
         }
-        if let prState {
+        if let prState = filter.state {
             result = result.filter { pr in
                 PRState(rawValue: pr.metadata.state.uppercased()) == prState
             }
         }
-        if let baseBranch, !baseBranch.isEmpty {
+        if let baseBranch = filter.baseBranch, !baseBranch.isEmpty {
             result = result.filter { $0.metadata.baseRefName == baseBranch }
         }
-        if let authorLogin, !authorLogin.isEmpty {
+        if let authorLogin = filter.authorLogin, !authorLogin.isEmpty {
             result = result.filter { $0.metadata.author.login == authorLogin }
         }
         if showOnlyWithPendingComments {

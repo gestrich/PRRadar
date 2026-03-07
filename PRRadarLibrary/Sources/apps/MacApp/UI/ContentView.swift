@@ -23,8 +23,10 @@ public struct ContentView: View {
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
-    @AppStorage("selectedPRState") private var selectedPRStateString: String = "ALL"
+    @AppStorage("selectedPRState") private var selectedPRStateString: String = "OPEN"
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
+    @AppStorage("baseBranchFilter") private var baseBranchFilter: String = ""
+    @AppStorage("authorFilter") private var authorFilter: String = ""
 
     public init() {}
 
@@ -245,102 +247,129 @@ public struct ContentView: View {
     }
 
     private var prListFilterBar: some View {
-        HStack(spacing: 6) {
-            Menu("\(daysLookBack)d") {
-                ForEach([1, 7, 14, 30, 60, 90], id: \.self) { days in
-                    Button("\(days) days") { daysLookBack = days }
+        VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                Menu("\(daysLookBack)d") {
+                    ForEach([1, 7, 14, 30, 60, 90], id: \.self) { days in
+                        Button("\(days) days") { daysLookBack = days }
+                    }
+                }
+                .accessibilityIdentifier("daysFilter")
+                .help("Days to look back")
+
+                Menu(stateFilterLabel) {
+                    ForEach(PRState.allCases, id: \.self) { state in
+                        Button(state.displayName) { selectedPRStateString = state.rawValue }
+                    }
+                }
+                .fixedSize()
+                .accessibilityIdentifier("stateFilter")
+                .help("Filter by PR state")
+
+                Toggle(isOn: Binding(
+                    get: { allPRs?.showOnlyWithPendingComments ?? false },
+                    set: { allPRs?.showOnlyWithPendingComments = $0 }
+                )) {
+                    Image(systemName: "text.bubble")
+                }
+                .accessibilityIdentifier("pendingCommentsToggle")
+                .help("Show only PRs with pending comments")
+                .toggleStyle(.button)
+
+                Button {
+                    if let model = allPRs, model.refreshAllState.isRunning {
+                        showRefreshProgress = true
+                    } else {
+                        Task { await allPRs?.refresh(filter: buildFilter()) }
+                    }
+                } label: {
+                    if let model = allPRs, model.refreshAllState.isRunning {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            if let progressText = model.refreshAllState.progressText {
+                                Text(progressText)
+                                    .font(.caption)
+                                    .monospacedDigit()
+                            }
+                        }
+                        .fixedSize()
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .accessibilityIdentifier("refreshListButton")
+                .help(allPRs?.refreshAllState.isRunning == true ? "Show progress" : "Refresh PR list")
+
+                Spacer()
+
+                Button {
+                    if let model = allPRs, model.analyzeAllState.isRunning {
+                        showAnalyzeAllProgress = true
+                    } else {
+                        analyzeAllRuleSets = []
+                        showAnalyzeAll = true
+                    }
+                } label: {
+                    if let model = allPRs, model.analyzeAllState.isRunning {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            if let progressText = model.analyzeAllState.progressText {
+                                Text(progressText)
+                                    .font(.caption)
+                                    .monospacedDigit()
+                            }
+                        }
+                        .fixedSize()
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                }
+                .accessibilityIdentifier("analyzeAllButton")
+                .help(allPRs?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
+                .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
+                    analyzeAllPopover
+                }
+
+                Button {
+                    newPRNumber = ""
+                    showNewReview = true
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityIdentifier("newReviewButton")
+                .help("Search for a PR by number")
+                .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
+                    newReviewPopover
                 }
             }
-            .accessibilityIdentifier("daysFilter")
-            .help("Days to look back")
 
-            Menu(stateFilterLabel) {
-                Button("All") { selectedPRStateString = "ALL" }
-                Divider()
-                ForEach(PRState.allCases, id: \.self) { state in
-                    Button(state.displayName) { selectedPRStateString = state.rawValue }
+            HStack(spacing: 6) {
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .foregroundStyle(.secondary)
+                    TextField("Base branch", text: $baseBranchFilter)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 100)
                 }
-            }
-            .fixedSize()
-            .accessibilityIdentifier("stateFilter")
-            .help("Filter by PR state")
+                .accessibilityIdentifier("baseBranchFilter")
+                .help("Filter by base branch (empty = config default)")
 
-            Toggle(isOn: Binding(
-                get: { allPRs?.showOnlyWithPendingComments ?? false },
-                set: { allPRs?.showOnlyWithPendingComments = $0 }
-            )) {
-                Image(systemName: "text.bubble")
-            }
-            .accessibilityIdentifier("pendingCommentsToggle")
-            .help("Show only PRs with pending comments")
-            .toggleStyle(.button)
-
-            Button {
-                if let model = allPRs, model.refreshAllState.isRunning {
-                    showRefreshProgress = true
-                } else {
-                    Task { await allPRs?.refresh(since: sinceDate, state: selectedPRStateFilter) }
-                }
-            } label: {
-                if let model = allPRs, model.refreshAllState.isRunning {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .controlSize(.small)
-                        if let progressText = model.refreshAllState.progressText {
-                            Text(progressText)
-                                .font(.caption)
-                                .monospacedDigit()
+                Menu(authorFilterLabel) {
+                    Button("All Authors") { authorFilter = "" }
+                    if !availableAuthors.isEmpty {
+                        Divider()
+                        ForEach(availableAuthors, id: \.login) { author in
+                            Button(author.displayLabel) { authorFilter = author.login }
                         }
                     }
-                    .fixedSize()
-                } else {
-                    Image(systemName: "arrow.clockwise")
                 }
-            }
-            .accessibilityIdentifier("refreshListButton")
-            .help(allPRs?.refreshAllState.isRunning == true ? "Show progress" : "Refresh PR list")
+                .fixedSize()
+                .accessibilityIdentifier("authorFilter")
+                .help("Filter by PR author")
 
-            Spacer()
-
-            Button {
-                if let model = allPRs, model.analyzeAllState.isRunning {
-                    showAnalyzeAllProgress = true
-                } else {
-                    analyzeAllRuleSets = []
-                    showAnalyzeAll = true
-                }
-            } label: {
-                if let model = allPRs, model.analyzeAllState.isRunning {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .controlSize(.small)
-                        if let progressText = model.analyzeAllState.progressText {
-                            Text(progressText)
-                                .font(.caption)
-                                .monospacedDigit()
-                        }
-                    }
-                    .fixedSize()
-                } else {
-                    Image(systemName: "sparkles")
-                }
-            }
-            .accessibilityIdentifier("analyzeAllButton")
-            .help(allPRs?.analyzeAllState.isRunning == true ? "Show progress" : "Analyze all PRs since a date")
-            .popover(isPresented: $showAnalyzeAll, arrowEdge: .bottom) {
-                analyzeAllPopover
-            }
-
-            Button {
-                newPRNumber = ""
-                showNewReview = true
-            } label: {
-                Image(systemName: "magnifyingglass")
-            }
-            .accessibilityIdentifier("newReviewButton")
-            .help("Search for a PR by number")
-            .popover(isPresented: $showNewReview, arrowEdge: .bottom) {
-                newReviewPopover
+                Spacer()
             }
         }
         .controlSize(.small)
@@ -425,10 +454,9 @@ public struct ContentView: View {
             onLoad: { analyzeAllRuleSets = await loadRuleSets() },
             onStart: { selectedRules in
                 saveRuleFilePaths(selectedRules)
-                let state = selectedPRStateFilter
                 let ruleFilePaths = selectedRules.map(\.filePath)
                 showAnalyzeAll = false
-                Task { await allPRs?.analyzeAll(since: sinceDate, state: state, ruleFilePaths: ruleFilePaths) }
+                Task { await allPRs?.analyzeAll(filter: buildFilter(), ruleFilePaths: ruleFilePaths) }
             },
             onCancel: { showAnalyzeAll = false }
         )
@@ -517,13 +545,12 @@ public struct ContentView: View {
         .padding()
     }
 
-    private var selectedPRStateFilter: PRState? {
-        if selectedPRStateString == "ALL" { return nil }
-        return PRState(rawValue: selectedPRStateString)
+    private var selectedPRStateFilter: PRState {
+        PRState(rawValue: selectedPRStateString) ?? .open
     }
 
     private var stateFilterLabel: String {
-        selectedPRStateFilter?.displayName ?? "All"
+        selectedPRStateFilter.displayName
     }
 
     private var sinceDate: Date {
@@ -552,7 +579,31 @@ public struct ContentView: View {
     }
 
     private var filteredPRModels: [PRModel] {
-        allPRs?.filteredPRModels(since: sinceDate, state: selectedPRStateFilter) ?? []
+        allPRs?.filteredPRModels(filter: buildFilter()) ?? []
+    }
+
+    private func buildFilter() -> PRFilter {
+        let dateFilter: PRDateFilter? = .createdSince(sinceDate)
+        let baseBranch: String? = baseBranchFilter.isEmpty ? nil : baseBranchFilter
+        let author: String? = authorFilter.isEmpty ? nil : authorFilter
+        return PRFilter(
+            dateFilter: dateFilter,
+            state: selectedPRStateFilter,
+            baseBranch: baseBranch,
+            authorLogin: author
+        )
+    }
+
+    private var authorFilterLabel: String {
+        guard !authorFilter.isEmpty else { return "All Authors" }
+        if let match = allPRs?.availableAuthors.first(where: { $0.login == authorFilter }) {
+            return match.displayLabel
+        }
+        return authorFilter
+    }
+
+    private var availableAuthors: [AuthorOption] {
+        allPRs?.availableAuthors ?? []
     }
 
     private var isPRActionDisabled: Bool {
