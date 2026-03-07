@@ -1,4 +1,6 @@
+import PRRadarConfigService
 import PRRadarModels
+import PRReviewFeature
 import SwiftUI
 
 struct DiffPhaseView: View {
@@ -10,6 +12,9 @@ struct DiffPhaseView: View {
 
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
+    @State private var rulePickerFile: String?
+    @State private var rulePickerSets: [RuleSetGroup] = []
+    @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
 
     private var reviewComments: [ReviewComment] { prModel.reviewComments }
     private var evaluationSummary: PRReviewSummary? { prModel.analysis?.summary }
@@ -201,7 +206,11 @@ struct DiffPhaseView: View {
                 displayDiff: filtered,
                 commentMapping: commentMapping(for: diff),
                 prModel: prModel,
-                onMoveTapped: onMoveTapped
+                onMoveTapped: onMoveTapped,
+                onSelectRulesForFile: { file in
+                    rulePickerFile = file
+                    rulePickerSets = []
+                }
             )
             .id(selectedFile)
         }
@@ -212,6 +221,12 @@ struct DiffPhaseView: View {
             if let file = showTasksForFile {
                 tasksSheet(for: file)
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { rulePickerFile != nil },
+            set: { if !$0 { rulePickerFile = nil } }
+        )) {
+            rulePickerSheet
         }
     }
 
@@ -280,42 +295,11 @@ struct DiffPhaseView: View {
     @ViewBuilder
     private func fileContextMenu(for file: String) -> some View {
         if canRunSelectiveEvaluation {
-            let rules = rulesForFile(file)
-
             Button {
-                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file))
+                rulePickerFile = file
+                rulePickerSets = []
             } label: {
-                Label("Run All Rules", systemImage: "play.fill")
-            }
-
-            Button {
-                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .regexOnly)
-            } label: {
-                Label("Run All Regex Rules", systemImage: "chevron.left.forwardslash.chevron.right")
-            }
-
-            Button {
-                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .scriptOnly)
-            } label: {
-                Label("Run All Script Rules", systemImage: "terminal")
-            }
-
-            Button {
-                prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file), analysisMode: .aiOnly)
-            } label: {
-                Label("Run All AI Rules", systemImage: "brain")
-            }
-
-            if rules.count > 1 {
-                Menu("Run Rule\u{2026}") {
-                    ForEach(rules, id: \.self) { rule in
-                        Button(rule) {
-                            prModel.startSelectiveAnalysis(
-                                filter: RuleFilter(filePath: file, ruleNames: [rule])
-                            )
-                        }
-                    }
-                }
+                Label("Select Rules & Analyze\u{2026}", systemImage: "sparkles")
             }
         }
     }
@@ -457,6 +441,77 @@ struct DiffPhaseView: View {
             counts[file, default: 0] += comments.filter { $0.state != .new }.count
         }
         return counts
+    }
+
+    // MARK: - Rule Picker Sheet
+
+    @ViewBuilder
+    private var rulePickerSheet: some View {
+        VStack(spacing: 0) {
+            if rulePickerSets.isEmpty {
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Loading rules...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(minWidth: 360, minHeight: 200)
+                .task { rulePickerSets = await loadRuleSets() }
+            } else {
+                Text("Analyze File")
+                    .font(.headline)
+                    .padding(.top, 12)
+                if let file = rulePickerFile {
+                    Text(URL(fileURLWithPath: file).lastPathComponent)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 8)
+                }
+                Divider()
+                RulePickerView(
+                    ruleSets: rulePickerSets,
+                    initialSelectedFilePaths: savedRuleFilePaths,
+                    onStart: { selectedRules in
+                        saveRuleFilePaths(selectedRules)
+                        let ruleFilePaths = selectedRules.map(\.filePath)
+                        let file = rulePickerFile
+                        rulePickerFile = nil
+                        if let file {
+                            prModel.startSelectiveAnalysis(
+                                filter: RuleFilter(filePath: file, ruleFilePaths: ruleFilePaths)
+                            )
+                        }
+                    },
+                    onCancel: { rulePickerFile = nil }
+                )
+            }
+        }
+    }
+
+    private func loadRuleSets() async -> [RuleSetGroup] {
+        do {
+            let loaded = try await LoadRulesUseCase(config: prModel.config).execute()
+            return loaded.map { RuleSetGroup(rulePath: $0.rulePath, rules: $0.rules) }
+        } catch {
+            return []
+        }
+    }
+
+    private var savedRuleFilePaths: Set<String>? {
+        guard !savedRuleFilePathsJSON.isEmpty,
+              let data = savedRuleFilePathsJSON.data(using: .utf8),
+              let paths = try? JSONDecoder().decode([String].self, from: data)
+        else { return nil }
+        return Set(paths)
+    }
+
+    private func saveRuleFilePaths(_ rules: [ReviewRule]) {
+        let paths = rules.map(\.filePath)
+        if let data = try? JSONEncoder().encode(paths),
+           let json = String(data: data, encoding: .utf8) {
+            savedRuleFilePathsJSON = json
+        }
     }
 
     @ViewBuilder

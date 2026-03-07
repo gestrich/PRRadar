@@ -24,6 +24,7 @@ public struct ContentView: View {
     @State private var isDeletingPR = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("selectedPRState") private var selectedPRStateString: String = "ALL"
+    @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
 
     public init() {}
 
@@ -406,6 +407,7 @@ public struct ContentView: View {
             subtitle: selectedPR.map { "PR #\($0.prNumber)" },
             onLoad: { analyzePRRuleSets = await loadRuleSets() },
             onStart: { selectedRules in
+                saveRuleFilePaths(selectedRules)
                 let ruleFilePaths = selectedRules.map(\.filePath)
                 showAnalyzePR = false
                 Task { await selectedPR?.runAnalysis(ruleFilePaths: ruleFilePaths) }
@@ -422,6 +424,7 @@ public struct ContentView: View {
             subtitle: "Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)",
             onLoad: { analyzeAllRuleSets = await loadRuleSets() },
             onStart: { selectedRules in
+                saveRuleFilePaths(selectedRules)
                 let state = selectedPRStateFilter
                 let ruleFilePaths = selectedRules.map(\.filePath)
                 showAnalyzeAll = false
@@ -463,6 +466,7 @@ public struct ContentView: View {
                 Divider()
                 RulePickerView(
                     ruleSets: ruleSets,
+                    initialSelectedFilePaths: savedRuleFilePaths,
                     onStart: onStart,
                     onCancel: onCancel
                 )
@@ -560,6 +564,22 @@ public struct ContentView: View {
         guard let model = allPRs else { return false }
         if case .refreshing = model.state { return true }
         return model.refreshAllState.isRunning
+    }
+
+    private var savedRuleFilePaths: Set<String>? {
+        guard !savedRuleFilePathsJSON.isEmpty,
+              let data = savedRuleFilePathsJSON.data(using: .utf8),
+              let paths = try? JSONDecoder().decode([String].self, from: data)
+        else { return nil }
+        return Set(paths)
+    }
+
+    private func saveRuleFilePaths(_ rules: [ReviewRule]) {
+        let paths = rules.map(\.filePath)
+        if let data = try? JSONEncoder().encode(paths),
+           let json = String(data: data, encoding: .utf8) {
+            savedRuleFilePathsJSON = json
+        }
     }
 }
 

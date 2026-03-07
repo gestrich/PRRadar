@@ -311,6 +311,7 @@ struct DiffLineRowView: View {
     var prLine: PRLine?
     var onAddComment: (() -> Void)?
     var onMoveTapped: (() -> Void)?
+    var onSelectRules: (() -> Void)?
 
     init(
         lineContent: String,
@@ -321,7 +322,8 @@ struct DiffLineRowView: View {
         isMoved: Bool = false,
         prLine: PRLine? = nil,
         onAddComment: (() -> Void)? = nil,
-        onMoveTapped: (() -> Void)? = nil
+        onMoveTapped: (() -> Void)? = nil,
+        onSelectRules: (() -> Void)? = nil
     ) {
         self.lineContent = lineContent
         self.oldLineNumber = oldLineNumber
@@ -332,6 +334,7 @@ struct DiffLineRowView: View {
         self.prLine = prLine
         self.onAddComment = onAddComment
         self.onMoveTapped = onMoveTapped
+        self.onSelectRules = onSelectRules
     }
 
     @State private var isHovering = false
@@ -376,6 +379,13 @@ struct DiffLineRowView: View {
                 if prLine != nil {
                     Button("Line Info") {
                         showLineInfo = true
+                    }
+                }
+                if let onSelectRules {
+                    Button {
+                        onSelectRules()
+                    } label: {
+                        Label("Select Rules & Analyze\u{2026}", systemImage: "sparkles")
                     }
                 }
             }
@@ -559,6 +569,7 @@ struct AnnotatedHunkContentView: View {
     let searchQuery: String
     var prModel: PRModel
     var onMoveTapped: ((MoveDetail) -> Void)?
+    var onSelectRules: (() -> Void)?
 
     @State private var composingCommentLine: (filePath: String, lineNumber: Int)?
 
@@ -581,7 +592,8 @@ struct AnnotatedHunkContentView: View {
                     onAddComment: line.newLineNumber != nil ? {
                         composingCommentLine = (filePath: hunk.filePath, lineNumber: line.newLineNumber!)
                     } : nil,
-                    onMoveTapped: moveDetail.map { detail in { onMoveTapped?(detail) } }
+                    onMoveTapped: moveDetail.map { detail in { onMoveTapped?(detail) } },
+                    onSelectRules: onSelectRules
                 )
 
                 if let newLine = line.newLineNumber,
@@ -665,6 +677,7 @@ struct AnnotatedDiffContentView: View {
     let searchQuery: String
     var prModel: PRModel
     var onMoveTapped: ((MoveDetail) -> Void)?
+    var onSelectRulesForFile: ((String) -> Void)?
 
     init(
         prDiff: PRDiff,
@@ -672,7 +685,8 @@ struct AnnotatedDiffContentView: View {
         commentMapping: DiffCommentMapping,
         searchQuery: String = "",
         prModel: PRModel,
-        onMoveTapped: ((MoveDetail) -> Void)? = nil
+        onMoveTapped: ((MoveDetail) -> Void)? = nil,
+        onSelectRulesForFile: ((String) -> Void)? = nil
     ) {
         self.prDiff = prDiff
         self.displayDiff = displayDiff
@@ -680,6 +694,7 @@ struct AnnotatedDiffContentView: View {
         self.searchQuery = searchQuery
         self.prModel = prModel
         self.onMoveTapped = onMoveTapped
+        self.onSelectRulesForFile = onSelectRulesForFile
     }
 
     private var tasks: [RuleRequest] { prModel.preparation?.tasks ?? [] }
@@ -733,7 +748,8 @@ struct AnnotatedDiffContentView: View {
                             commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
                             searchQuery: searchQuery,
                             prModel: prModel,
-                            onMoveTapped: onMoveTapped
+                            onMoveTapped: onMoveTapped,
+                            onSelectRules: onSelectRulesForFile.map { callback in { callback(filePath) } }
                         )
                     }
                 }

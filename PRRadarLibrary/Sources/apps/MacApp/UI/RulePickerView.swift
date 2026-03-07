@@ -5,6 +5,7 @@ import PRRadarConfigService
 struct RulePickerView: View {
 
     let ruleSets: [RuleSetGroup]
+    let initialSelectedFilePaths: Set<String>?
     let onStart: ([ReviewRule]) -> Void
     let onCancel: () -> Void
 
@@ -12,15 +13,22 @@ struct RulePickerView: View {
 
     init(
         ruleSets: [RuleSetGroup],
+        initialSelectedFilePaths: Set<String>? = nil,
         onStart: @escaping ([ReviewRule]) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.ruleSets = ruleSets
+        self.initialSelectedFilePaths = initialSelectedFilePaths
         self.onStart = onStart
         self.onCancel = onCancel
-        self._selectedFilePaths = State(
-            initialValue: Set(ruleSets.flatMap(\.rules).map(\.filePath))
-        )
+
+        let allPaths = Set(ruleSets.flatMap(\.rules).map(\.filePath))
+        if let saved = initialSelectedFilePaths {
+            let valid = saved.intersection(allPaths)
+            self._selectedFilePaths = State(initialValue: valid.isEmpty ? allPaths : valid)
+        } else {
+            self._selectedFilePaths = State(initialValue: allPaths)
+        }
     }
 
     var body: some View {
@@ -71,11 +79,13 @@ struct RulePickerView: View {
         .listStyle(.sidebar)
     }
 
+    @ViewBuilder
     private func ruleSetHeader(_ ruleSet: RuleSetGroup) -> some View {
-        HStack {
-            let allSelected = ruleSet.rules.allSatisfy { selectedFilePaths.contains($0.filePath) }
-            let noneSelected = ruleSet.rules.allSatisfy { !selectedFilePaths.contains($0.filePath) }
+        let allSelected = ruleSet.rules.allSatisfy { selectedFilePaths.contains($0.filePath) }
+        let noneSelected = ruleSet.rules.allSatisfy { !selectedFilePaths.contains($0.filePath) }
+        let selectedCount = ruleSet.rules.filter { selectedFilePaths.contains($0.filePath) }.count
 
+        HStack(spacing: 6) {
             Toggle(isOn: Binding(
                 get: { allSelected },
                 set: { newValue in
@@ -88,8 +98,14 @@ struct RulePickerView: View {
                     }
                 }
             )) {
-                Text(ruleSet.name)
-                    .font(.subheadline.weight(.semibold))
+                HStack(spacing: 5) {
+                    Image(systemName: "folder.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text(ruleSet.name.uppercased())
+                        .font(.caption.weight(.bold))
+                        .tracking(0.5)
+                }
             }
             .toggleStyle(.checkbox)
             .if(!allSelected && !noneSelected) { view in
@@ -98,9 +114,13 @@ struct RulePickerView: View {
 
             Spacer()
 
-            Text("\(ruleSet.rules.filter { selectedFilePaths.contains($0.filePath) }.count)/\(ruleSet.rules.count)")
-                .font(.caption)
+            Text("\(selectedCount)/\(ruleSet.rules.count)")
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.12))
+                .clipShape(Capsule())
         }
     }
 
