@@ -18,6 +18,8 @@ public struct ContentView: View {
     @State private var showAnalyzeAllProgress = false
     @State private var analyzeAllRuleSets: [RuleSetGroup] = []
     @State private var showRefreshProgress = false
+    @State private var showAnalyzePR = false
+    @State private var analyzePRRuleSets: [RuleSetGroup] = []
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
@@ -60,7 +62,8 @@ public struct ContentView: View {
                 .disabled(isPRActionDisabled)
 
                 Button {
-                    Task { await selectedPR?.runAnalysis() }
+                    analyzePRRuleSets = []
+                    showAnalyzePR = true
                 } label: {
                     if let pr = selectedPR, pr.operationMode == .analyzing {
                         ProgressView()
@@ -72,6 +75,9 @@ public struct ContentView: View {
                 .accessibilityIdentifier("analyzeButton")
                 .help("Analyze PR")
                 .disabled(isPRActionDisabled)
+                .popover(isPresented: $showAnalyzePR, arrowEdge: .bottom) {
+                    analyzePRPopover
+                }
 
                 Button {
                     if let pr = selectedPR {
@@ -392,8 +398,48 @@ public struct ContentView: View {
     }
 
     @ViewBuilder
+    private var analyzePRPopover: some View {
+        rulePickerPopover(
+            ruleSets: analyzePRRuleSets,
+            title: "Analyze PR",
+            subtitle: selectedPR.map { "PR #\($0.prNumber)" },
+            onLoad: { analyzePRRuleSets = await loadRuleSets() },
+            onStart: { selectedRules in
+                let ruleFilePaths = selectedRules.map(\.filePath)
+                showAnalyzePR = false
+                Task { await selectedPR?.runAnalysis(ruleFilePaths: ruleFilePaths) }
+            },
+            onCancel: { showAnalyzePR = false }
+        )
+    }
+
+    @ViewBuilder
     private var analyzeAllPopover: some View {
-        if analyzeAllRuleSets.isEmpty {
+        rulePickerPopover(
+            ruleSets: analyzeAllRuleSets,
+            title: "Analyze All PRs",
+            subtitle: "Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)",
+            onLoad: { analyzeAllRuleSets = await loadRuleSets() },
+            onStart: { selectedRules in
+                let state = selectedPRStateFilter
+                let ruleFilePaths = selectedRules.map(\.filePath)
+                showAnalyzeAll = false
+                Task { await allPRs?.analyzeAll(since: sinceDate, state: state, ruleFilePaths: ruleFilePaths) }
+            },
+            onCancel: { showAnalyzeAll = false }
+        )
+    }
+
+    @ViewBuilder
+    private func rulePickerPopover(
+        ruleSets: [RuleSetGroup],
+        title: String,
+        subtitle: String?,
+        onLoad: @escaping () async -> Void,
+        onStart: @escaping ([ReviewRule]) -> Void,
+        onCancel: @escaping () -> Void
+    ) -> some View {
+        if ruleSets.isEmpty {
             VStack(spacing: 12) {
                 ProgressView()
                 Text("Loading rules...")
@@ -401,40 +447,35 @@ public struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             .padding()
-            .task { await loadRuleSetsForPicker() }
+            .task { await onLoad() }
         } else {
             VStack(spacing: 0) {
-                Text("Analyze All PRs")
+                Text(title)
                     .font(.headline)
                     .padding(.top, 12)
-                Text("Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 8)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 8)
+                }
                 Divider()
                 RulePickerView(
-                    ruleSets: analyzeAllRuleSets,
-                    onStart: { selectedRules in
-                        let state = selectedPRStateFilter
-                        let ruleFilePaths = selectedRules.map(\.filePath)
-                        showAnalyzeAll = false
-                        Task { await allPRs?.analyzeAll(since: sinceDate, state: state, ruleFilePaths: ruleFilePaths) }
-                    },
-                    onCancel: {
-                        showAnalyzeAll = false
-                    }
+                    ruleSets: ruleSets,
+                    onStart: onStart,
+                    onCancel: onCancel
                 )
             }
         }
     }
 
-    private func loadRuleSetsForPicker() async {
-        guard let config = allPRs?.config else { return }
+    private func loadRuleSets() async -> [RuleSetGroup] {
+        guard let config = allPRs?.config else { return [] }
         do {
             let loaded = try await LoadRulesUseCase(config: config).execute()
-            analyzeAllRuleSets = loaded.map { RuleSetGroup(rulePath: $0.rulePath, rules: $0.rules) }
+            return loaded.map { RuleSetGroup(rulePath: $0.rulePath, rules: $0.rules) }
         } catch {
-            analyzeAllRuleSets = []
+            return []
         }
     }
 
