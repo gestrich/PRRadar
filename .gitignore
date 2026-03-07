@@ -14,6 +14,9 @@ Package.resolved
 # OS
 .DS_Store
 
+# Debug logs
+debug.log
+
 # Review output (generated during workflow runs)
 review-output/
 
