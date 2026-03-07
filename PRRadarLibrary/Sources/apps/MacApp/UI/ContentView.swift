@@ -584,14 +584,14 @@ public struct ContentView: View {
     }
 
     private func buildFilter() -> PRFilter {
-        let dateFilter: PRDateFilter? = .createdSince(sinceDate)
-        let baseBranch: String? = baseBranchFilter.isEmpty ? nil : baseBranchFilter
-        let author: String? = authorFilter.isEmpty ? nil : authorFilter
-        return PRFilter(
-            dateFilter: dateFilter,
+        guard let config = allPRs?.config else {
+            return PRFilter(dateFilter: .createdSince(sinceDate), state: selectedPRStateFilter)
+        }
+        return config.makeFilter(
+            dateFilter: .createdSince(sinceDate),
             state: selectedPRStateFilter,
-            baseBranch: baseBranch,
-            authorLogin: author
+            baseBranch: baseBranchFilter.isEmpty ? nil : baseBranchFilter,
+            authorLogin: authorFilter.isEmpty ? nil : authorFilter
         )
     }
 

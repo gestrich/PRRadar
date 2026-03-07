@@ -55,7 +55,7 @@ struct RunAllCommand: AsyncParsableCommand {
             outputDir: outputDir,
             diffSource: diffSource
         )
-        let prFilter = try filterOptions.buildFilter()
+        let prFilter = try filterOptions.buildFilter(config: prRadarConfig)
         guard prFilter.dateFilter != nil else {
             throw ValidationError("A date filter is required. Use --since, --lookback-hours, --updated-since, or --updated-lookback-hours.")
         }

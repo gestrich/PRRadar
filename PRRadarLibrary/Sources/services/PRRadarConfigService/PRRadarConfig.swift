@@ -83,18 +83,23 @@ public struct RepositoryConfiguration: Sendable {
         "\(resolvedOutputDir)/\(prNumber)"
     }
 
-    public func resolvedFilter(_ filter: PRFilter) -> PRFilter {
-        var resolved = filter
-        if let baseBranch = resolved.baseBranch {
-            if baseBranch.lowercased() == "all" || baseBranch.isEmpty {
-                resolved.baseBranch = nil
-            }
+    public func makeFilter(
+        dateFilter: PRDateFilter? = nil,
+        state: PRState? = nil,
+        baseBranch: String? = nil,
+        authorLogin: String? = nil
+    ) -> PRFilter {
+        let resolvedBase: String?
+        if let baseBranch {
+            resolvedBase = (baseBranch.lowercased() == "all" || baseBranch.isEmpty) ? nil : baseBranch
         } else {
-            resolved.baseBranch = defaultBaseBranch
+            resolvedBase = defaultBaseBranch
         }
-        if resolved.state == nil {
-            resolved.state = .open
-        }
-        return resolved
+        return PRFilter(
+            dateFilter: dateFilter,
+            state: state ?? .open,
+            baseBranch: resolvedBase,
+            authorLogin: authorLogin
+        )
     }
 }

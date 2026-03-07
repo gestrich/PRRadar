@@ -37,10 +37,9 @@ public struct RunAllUseCase: Sendable {
                     let stateLabel = filter.state?.displayName ?? "all"
                     continuation.yield(.log(text: "\(dateLabel) (state: \(stateLabel))...\n"))
 
-                    let resolvedFilter = config.resolvedFilter(filter)
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        filter: resolvedFilter
+                        filter: filter
                     )
 
                     continuation.yield(.log(text: "Found \(prs.count) PRs to analyze\n"))

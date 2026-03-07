@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import PRRadarConfigService
 import PRRadarModels
 
 struct PRFilterOptions: ParsableArguments {
@@ -24,7 +25,7 @@ struct PRFilterOptions: ParsableArguments {
     @Option(name: .long, help: "Filter by PR author (GitHub login handle)")
     var author: String?
 
-    func buildFilter() throws -> PRFilter {
+    func buildFilter(config: RepositoryConfiguration) throws -> PRFilter {
         try validateMutualExclusivity()
 
         let dateFilter: PRDateFilter?
@@ -47,7 +48,7 @@ struct PRFilterOptions: ParsableArguments {
         }
 
         let stateFilter: PRState? = try parseStateFilter(state)
-        return PRFilter(dateFilter: dateFilter, state: stateFilter, baseBranch: baseBranch, authorLogin: author)
+        return config.makeFilter(dateFilter: dateFilter, state: stateFilter, baseBranch: baseBranch, authorLogin: author)
     }
 
     private func validateMutualExclusivity() throws {

@@ -34,7 +34,7 @@ struct RefreshCommand: AsyncParsableCommand {
             outputDir: outputDir
         )
 
-        let prFilter = try filterOptions.buildFilter()
+        let prFilter = try filterOptions.buildFilter(config: prRadarConfig)
 
         let useCase = FetchPRListUseCase(config: prRadarConfig)
         let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: prRadarConfig.repoPath)

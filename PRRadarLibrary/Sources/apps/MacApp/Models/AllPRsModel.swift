@@ -78,7 +78,7 @@ final class AllPRsModel {
         self.config = config
         Task {
             await load()
-            await refresh()
+            await refresh(filter: config.makeFilter())
         }
     }
 
@@ -94,7 +94,7 @@ final class AllPRsModel {
 
     // MARK: - Refresh from GitHub
 
-    func refresh(filter: PRFilter = PRFilter()) async {
+    func refresh(filter: PRFilter) async {
         let prior = currentPRModels
         self.state = .refreshing(prior ?? [])
         refreshAllState = .running(logs: "Fetching PR list from GitHub...\n", current: 0, total: 0)
@@ -102,11 +102,9 @@ final class AllPRsModel {
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
-        let prFilter = filter
-
         var updatedMetadata: [PRMetadata]?
         do {
-            for try await progress in useCase.execute(filter: prFilter, repoSlug: slug) {
+            for try await progress in useCase.execute(filter: filter, repoSlug: slug) {
                 switch progress {
                 case .running, .progress:
                     break
@@ -215,7 +213,7 @@ final class AllPRsModel {
 
     func filteredPRModels(filter: PRFilter) -> [PRModel] {
         guard let models = currentPRModels else { return [] }
-        return filteredPRs(models, filter: config.resolvedFilter(filter))
+        return filteredPRs(models, filter: filter)
     }
 
     var availableAuthors: [AuthorOption] {

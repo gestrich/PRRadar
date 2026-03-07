@@ -13,7 +13,7 @@ public struct FetchPRListUseCase: Sendable {
 
     public func execute(
         limit: String? = nil,
-        filter: PRFilter = PRFilter(state: .open),
+        filter: PRFilter,
         repoSlug: String? = nil
     ) -> AsyncThrowingStream<PhaseProgress<[PRMetadata]>, Error> {
         AsyncThrowingStream { continuation in
@@ -27,10 +27,9 @@ public struct FetchPRListUseCase: Sendable {
 
                     let limitNum = limit.flatMap(Int.init) ?? 300
 
-                    let resolvedFilter = config.resolvedFilter(filter)
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        filter: resolvedFilter
+                        filter: filter
                     )
 
                     // Fetch repository info once (needed by PRDiscoveryService when filtering by repoSlug)

@@ -3,8 +3,8 @@ import Testing
 @testable import PRRadarConfigService
 @testable import PRRadarModels
 
-@Suite("RepositoryConfiguration.resolvedFilter")
-struct ResolvedFilterTests {
+@Suite("RepositoryConfiguration.makeFilter")
+struct MakeFilterTests {
 
     let config = RepositoryConfiguration(
         name: "test",
@@ -19,113 +19,59 @@ struct ResolvedFilterTests {
 
     @Test("nil baseBranch defaults to config defaultBaseBranch")
     func nilBaseBranchDefaultsToConfig() {
-        // Arrange
-        let filter = PRFilter()
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.baseBranch == "main")
+        let filter = config.makeFilter()
+        #expect(filter.baseBranch == "main")
     }
 
     @Test("explicit baseBranch overrides config default")
     func explicitBaseBranchOverrides() {
-        // Arrange
-        let filter = PRFilter(baseBranch: "develop")
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.baseBranch == "develop")
+        let filter = config.makeFilter(baseBranch: "develop")
+        #expect(filter.baseBranch == "develop")
     }
 
     @Test("baseBranch 'all' clears filter")
     func baseBranchAllClearsFilter() {
-        // Arrange
-        let filter = PRFilter(baseBranch: "all")
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.baseBranch == nil)
+        let filter = config.makeFilter(baseBranch: "all")
+        #expect(filter.baseBranch == nil)
     }
 
     @Test("baseBranch 'ALL' (case insensitive) clears filter")
     func baseBranchAllUppercaseClearsFilter() {
-        // Arrange
-        let filter = PRFilter(baseBranch: "ALL")
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.baseBranch == nil)
+        let filter = config.makeFilter(baseBranch: "ALL")
+        #expect(filter.baseBranch == nil)
     }
 
     @Test("empty baseBranch clears filter")
     func emptyBaseBranchClearsFilter() {
-        // Arrange
-        let filter = PRFilter(baseBranch: "")
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.baseBranch == nil)
+        let filter = config.makeFilter(baseBranch: "")
+        #expect(filter.baseBranch == nil)
     }
 
     // MARK: - State defaulting
 
     @Test("nil state defaults to .open")
     func nilStateDefaultsToOpen() {
-        // Arrange
-        let filter = PRFilter()
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.state == .open)
+        let filter = config.makeFilter()
+        #expect(filter.state == .open)
     }
 
     @Test("explicit state is preserved")
     func explicitStatePreserved() {
-        // Arrange
-        let filter = PRFilter(state: .merged)
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.state == .merged)
+        let filter = config.makeFilter(state: .merged)
+        #expect(filter.state == .merged)
     }
 
     // MARK: - Author passthrough
 
     @Test("authorLogin passes through unchanged")
     func authorLoginPassthrough() {
-        // Arrange
-        let filter = PRFilter(authorLogin: "octocat")
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.authorLogin == "octocat")
+        let filter = config.makeFilter(authorLogin: "octocat")
+        #expect(filter.authorLogin == "octocat")
     }
 
     @Test("nil authorLogin stays nil")
     func nilAuthorLoginStaysNil() {
-        // Arrange
-        let filter = PRFilter()
-
-        // Act
-        let resolved = config.resolvedFilter(filter)
-
-        // Assert
-        #expect(resolved.authorLogin == nil)
+        let filter = config.makeFilter()
+        #expect(filter.authorLogin == nil)
     }
 }
