@@ -27,7 +27,10 @@ Additionally, the base branch should appear in PR list displays and report outpu
 - `AllPRsModel.filteredPRs()` filters by date, state, and pending comments
 - `ReviewReport.toMarkdown()` shows PR number but no base branch
 
-## - [ ] Phase 1: Add `baseRefName` to `PRMetadata`
+## - [x] Phase 1: Add `baseRefName` to `PRMetadata`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Made `toPRMetadata()` throwing with per-field guard statements instead of silently falling back to empty strings. Consolidated duplicate `PRMetadata` construction in `PRDiscoveryService` to use `toPRMetadata()`. Added `PRMetadataConversionError` for descriptive error messages.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

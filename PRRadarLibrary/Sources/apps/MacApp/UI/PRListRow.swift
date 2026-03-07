@@ -154,6 +154,7 @@ struct PRListRow: View {
                 author: .init(login: "gestrich", name: "Bill Gestrich"),
                 state: "OPEN",
                 headRefName: "feature/three-pane-nav",
+                baseRefName: "main",
                 createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-2 * 86400))
             ),
             config: .init(name: "Preview", repoPath: "", outputDir: "code-reviews", agentScriptPath: "", githubAccount: "preview")

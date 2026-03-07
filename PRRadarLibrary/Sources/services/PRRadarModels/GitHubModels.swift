@@ -203,21 +203,45 @@ public struct GitHubPullRequest: Codable, Sendable {
         }
     }
 
-    public func toPRMetadata() -> PRMetadata {
-        PRMetadata(
+    public func toPRMetadata() throws -> PRMetadata {
+        guard let login = author?.login else {
+            throw PRMetadataConversionError.missingField("author.login", prNumber: number)
+        }
+        guard let headRefName else {
+            throw PRMetadataConversionError.missingField("headRefName", prNumber: number)
+        }
+        guard let baseRefName else {
+            throw PRMetadataConversionError.missingField("baseRefName", prNumber: number)
+        }
+        guard let createdAt else {
+            throw PRMetadataConversionError.missingField("createdAt", prNumber: number)
+        }
+        return PRMetadata(
             number: number,
             title: title,
             body: body,
             author: PRMetadata.Author(
-                login: author?.login ?? "",
+                login: login,
                 name: author?.name ?? ""
             ),
             state: enhancedState.rawValue,
-            headRefName: headRefName ?? "",
-            createdAt: createdAt ?? "",
+            headRefName: headRefName,
+            baseRefName: baseRefName,
+            createdAt: createdAt,
             updatedAt: updatedAt,
             url: url
         )
+    }
+}
+
+public enum PRMetadataConversionError: Error, LocalizedError {
+    case missingField(String, prNumber: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingField(let field, let prNumber):
+            return "PR #\(prNumber): missing required field '\(field)'"
+        }
     }
 }
 

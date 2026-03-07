@@ -121,6 +121,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
     public let author: Author
     public let state: String
     public let headRefName: String
+    public let baseRefName: String
     public let createdAt: String
     public let updatedAt: String?
     public let url: String?
@@ -132,6 +133,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         author: Author,
         state: String,
         headRefName: String,
+        baseRefName: String,
         createdAt: String,
         updatedAt: String? = nil,
         url: String? = nil
@@ -142,6 +144,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         self.author = author
         self.state = state
         self.headRefName = headRefName
+        self.baseRefName = baseRefName
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.url = url
@@ -154,6 +157,7 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
             author: Author(login: "", name: ""),
             state: "",
             headRefName: "",
+            baseRefName: "",
             createdAt: ""
         )
     }

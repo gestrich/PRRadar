@@ -26,21 +26,9 @@ public enum PRDiscoveryService {
             }
             
             let metadata: PRMetadata
-            if let ghPR = try? JSONDecoder().decode(GitHubPullRequest.self, from: data) {
-                metadata = PRMetadata(
-                    number: ghPR.number,
-                    title: ghPR.title,
-                    body: ghPR.body,
-                    author: PRMetadata.Author(
-                        login: ghPR.author?.login ?? "",
-                        name: ghPR.author?.name ?? ""
-                    ),
-                    state: ghPR.enhancedState.rawValue,
-                    headRefName: ghPR.headRefName ?? "",
-                    createdAt: ghPR.createdAt ?? "",
-                    updatedAt: ghPR.updatedAt,
-                    url: ghPR.url
-                )
+            if let ghPR = try? JSONDecoder().decode(GitHubPullRequest.self, from: data),
+               let converted = try? ghPR.toPRMetadata() {
+                metadata = converted
             } else if let prMeta = try? JSONDecoder().decode(PRMetadata.self, from: data) {
                 metadata = prMeta
             } else {
