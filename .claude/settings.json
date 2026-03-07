@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "xcode-sim-automation@gestrich-xcode-sim-automation": true
+    "xcode-sim-automation@gestrich-xcode-sim-automation": true,
+    "skill-creator@claude-plugins-official": true
   }
 }

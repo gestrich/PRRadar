@@ -2,7 +2,7 @@
 description: Prefer descriptive variable names over abbreviations
 category: clarity
 applies_to:
-  file_extensions: [".py", ".js", ".ts", ".swift", ".go"]
+  file_patterns: ["*.py", "*.js", "*.ts", "*.swift", "*.go"]
 ---
 
 # Descriptive Variable Names

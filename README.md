@@ -63,16 +63,51 @@ The only Python code is a minimal bridge script (`pr-radar-mac/bridge/claude_bri
 
 ## Rules
 
-Rules define what PRRadar checks for during reviews. Each rule is a markdown file with YAML frontmatter.
+Rules define what PRRadar checks for during reviews. Each rule is a markdown file with YAML frontmatter that describes what to look for, which files it applies to, and how violations are detected.
+
+### Rule Directories
+
+Rules are organized into directories. Each repository configuration can have multiple named rule paths:
+
+```
+my-rules/
+├── safety/
+│   ├── sql-injection.md
+│   └── xss-prevention.md
+├── apis-apple/
+│   ├── nullability-objc.md
+│   ├── check-generics.sh          # Script referenced by generics rule
+│   └── generics-objc.md
+└── clarity/
+    └── descriptive-names.md
+```
+
+Rule paths are configured per repository. Paths can be relative (resolved against the repo root) or absolute:
+
+```json
+{
+  "name": "my-project",
+  "repoPath": "/path/to/repo",
+  "rulePaths": [
+    { "name": "main", "path": "code-review-rules", "isDefault": true },
+    { "name": "experiment", "path": "/Users/me/Desktop/experimental-rules" }
+  ]
+}
+```
+
+PRRadar recursively scans each rule directory for `.md` files. Subdirectory structure is for organization only — it doesn't affect behavior.
 
 ### Rule Format
+
+Each rule is a markdown file with YAML frontmatter:
 
 ````yaml
 ---
 description: Brief description of what the rule checks
 category: safety
 applies_to:
-  file_extensions: [".swift", ".m", ".h"]
+  file_patterns: ["*.swift", "*.m", "*.h"]
+  exclude_patterns: ["**/Generated/**"]
 grep:
   all: ["async\\s+def"]
   any: ["try", "except"]
@@ -80,26 +115,122 @@ grep:
 
 # Rule Title
 
-Detailed explanation with code examples.
+Detailed explanation of the rule with code examples showing good and
+bad patterns. This content is sent to Claude for AI-evaluated rules.
 ````
 
 ### Frontmatter Fields
 
-| Field | Description |
-|-------|-------------|
-| `description` | Concise summary of what the rule checks |
-| `category` | Groups related rules (e.g., `safety`, `clarity`, `performance`) |
-| `model` | Optional Claude model override for this rule |
-| `applies_to.file_extensions` | File extensions this rule applies to |
-| `grep.all` | Regex patterns that ALL must match in the diff |
-| `grep.any` | Regex patterns where at least ONE must match |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `description` | Yes | Concise summary of what the rule checks |
+| `category` | Yes | Groups related rules (e.g., `safety`, `correctness`, `clarity`) |
+| `applies_to.file_patterns` | No | Glob patterns for files this rule applies to (e.g., `["*.h", "*.m"]`) |
+| `applies_to.exclude_patterns` | No | Glob patterns for files to exclude (e.g., `["**/Tests/**"]`) |
+| `grep.all` | No | Regex patterns that ALL must match in the diff |
+| `grep.any` | No | Regex patterns where at least ONE must match |
+| `model` | No | Claude model override for this rule (AI mode only) |
+| `documentation_link` | No | URL to relevant documentation |
+| `new_code_lines_only` | No | When `true`, only check added lines (not context/removed lines) |
+| `violation_script` | No | Path to a shell script for programmatic violation detection |
+| `violation_regex` | No | Regex pattern for simple pattern-based violation detection |
+| `violation_message` | No | Default message for regex violations |
+| `focus_type` | No | `file` (default) or `method` — controls how the diff is segmented |
 
 ### Filtering Logic
 
 A rule is applied to a diff segment when:
-1. File extension matches `applies_to.file_extensions` (or no filter specified)
-2. AND all `grep.all` patterns match the diff text (or no patterns specified)
-3. AND at least one `grep.any` pattern matches (or no patterns specified)
+1. File path matches `applies_to.file_patterns` (or no patterns specified) AND does not match `exclude_patterns`
+2. AND all `grep.all` regex patterns match the diff text (or none specified)
+3. AND at least one `grep.any` regex pattern matches (or none specified)
+
+File patterns use glob syntax: `*.swift` matches the filename, `**/*.swift` matches any path depth.
+
+### Evaluation Modes
+
+Each rule uses one of three evaluation modes, determined by which frontmatter fields are set:
+
+#### AI Evaluation (default)
+
+When neither `violation_script` nor `violation_regex` is set, PRRadar sends the rule content and diff to Claude for evaluation. The markdown body of the rule serves as the prompt — include code examples, good/bad patterns, and clear criteria.
+
+```yaml
+---
+description: Prefer descriptive variable names over abbreviations
+category: clarity
+applies_to:
+  file_patterns: ["*.swift"]
+---
+
+# Descriptive Variable Names
+
+Variable names should clearly communicate their purpose...
+
+## What to Check
+
+1. Single-letter names outside loop counters
+2. Vowel-removed abbreviations like `usr`, `msg`, `cfg`
+```
+
+AI evaluation uses Claude Sonnet by default. Override with the `model` field.
+
+#### Script Evaluation
+
+Set `violation_script` to a path (relative to the rules directory) to run a shell script that detects violations programmatically. This is faster than AI and fully deterministic.
+
+```yaml
+---
+description: Ensures Objective-C collection types use lightweight generics
+category: correctness
+violation_script: apis-apple/check-generics-objc.sh
+applies_to:
+  file_patterns: ["*.h", "*.m"]
+grep:
+  any: ["NSArray", "NSDictionary", "NSSet"]
+---
+```
+
+The script receives three arguments:
+
+```
+./check-generics-objc.sh FILE START_LINE END_LINE
+```
+
+It must output tab-delimited violations to stdout:
+
+```
+LINE_NUMBER<TAB>CHARACTER_POSITION<TAB>SCORE[<TAB>COMMENT]
+```
+
+| Column | Description |
+|--------|-------------|
+| `LINE_NUMBER` | Line number in the file (positive integer) |
+| `CHARACTER_POSITION` | Column position (0 for line-level) |
+| `SCORE` | Severity 1-10 (10 = most severe) |
+| `COMMENT` | Optional. Falls back to `violation_message` or `description` |
+
+Exit code 0 = success (violations may or may not be present). Non-zero = error.
+
+Only violations on changed lines in the diff are reported. The script can scan broadly — PRRadar handles the filtering.
+
+#### Regex Evaluation
+
+Set `violation_regex` for simple pattern matching without a script. Each regex match on a changed line becomes a violation.
+
+```yaml
+---
+description: Do not use NS_ASSUME_NONNULL_BEGIN
+category: correctness
+violation_regex: "NS_ASSUME_NONNULL_BEGIN"
+violation_message: "Do not use `NS_ASSUME_NONNULL_BEGIN`. Add explicit annotations instead."
+applies_to:
+  file_patterns: ["*.h"]
+grep:
+  any: ["NS_ASSUME_NONNULL_BEGIN"]
+---
+```
+
+`violation_script` and `violation_regex` are mutually exclusive — a rule cannot use both.
 
 ## Pipeline Phases
 
