@@ -214,6 +214,11 @@ public struct AnalyzeUseCase: Sendable {
         var totalCost = 0.0
 
         if !tasksToEvaluate.isEmpty {
+            let needsCheckout = tasksToEvaluate.contains { $0.rule.analysisType != .regex }
+            if needsCheckout {
+                try await checkoutPRCommit(prNumber: prNumber, continuation: continuation)
+            }
+
             let singleTaskUseCase = AnalyzeSingleTaskUseCase(config: config)
             let startTime = Date()
 
@@ -253,6 +258,31 @@ public struct AnalyzeUseCase: Sendable {
         }
 
         return (cached: cachedResults, fresh: freshResults, durationMs: durationMs, totalCost: totalCost)
+    }
+
+    // MARK: - Checkout
+
+    private func checkoutPRCommit(
+        prNumber: Int,
+        continuation: AsyncThrowingStream<PhaseProgress<PRReviewResult>, Error>.Continuation
+    ) async throws {
+        let metadataDir = DataPathsService.phaseDirectory(
+            outputDir: config.resolvedOutputDir,
+            prNumber: prNumber,
+            phase: .metadata
+        )
+        let ghPRPath = "\(metadataDir)/\(DataPathsService.ghPRFilename)"
+        guard let data = FileManager.default.contents(atPath: ghPRPath),
+              let pr = try? JSONDecoder().decode(GitHubPullRequest.self, from: data),
+              let fullHash = pr.headRefOid else {
+            continuation.yield(.log(text: "Warning: Could not read head commit from metadata — skipping checkout\n"))
+            return
+        }
+
+        let gitOps = GitHubServiceFactory.createGitOps()
+        continuation.yield(.log(text: "Checking out PR #\(prNumber) commit \(String(fullHash.prefix(7)))...\n"))
+        try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: config.repoPath)
+        try await gitOps.checkoutCommit(sha: fullHash, repoPath: config.repoPath)
     }
 
     // MARK: - Helpers
