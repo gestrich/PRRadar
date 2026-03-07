@@ -22,7 +22,6 @@ public struct ContentView: View {
     @State private var analyzePRRuleSets: [RuleSetGroup] = []
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
-    @State private var isLoadingPR = false
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("selectedPRState") private var selectedPRStateString: String = "OPEN"
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
@@ -163,15 +162,12 @@ public struct ContentView: View {
         .onChange(of: selectedPR) { old, new in
             old?.cancelRefresh()
             if let pr = new {
-                isLoadingPR = true
                 savedPRNumber = pr.metadata.number
                 Task {
-                    pr.loadDetail()
+                    await pr.loadDetailAsync()
                     await pr.refreshDiff()
-                    isLoadingPR = false
                 }
             } else {
-                isLoadingPR = false
                 savedPRNumber = 0
             }
         }
@@ -499,24 +495,16 @@ public struct ContentView: View {
     @ViewBuilder
     private var detailView: some View {
         if allPRs != nil {
-            if let selectedPR {
-                ReviewDetailView()
-                    .environment(selectedPR)
-                    .id(selectedPR.metadata.number)
-                    .overlay {
-                        if isLoadingPR {
-                            ZStack {
-                                Color(.windowBackgroundColor)
-                                VStack(spacing: 12) {
-                                    ProgressView()
-                                        .controlSize(.large)
-                                    Text("Loading PR #\(selectedPR.prNumber)...")
-                                        .font(.headline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
+            if let pr = selectedPR {
+                if pr.detailLoaded {
+                    ReviewDetailView()
+                        .environment(pr)
+                        .id(pr.metadata.number)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 ContentUnavailableView(
                     "Select a Pull Request",

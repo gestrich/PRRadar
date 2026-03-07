@@ -18,6 +18,7 @@ final class PRModel: Identifiable, Hashable {
     private(set) var phaseStates: [PRRadarPhase: PhaseState] = [:]
 
     private(set) var detail: PRDetail?
+    private(set) var resolvedDiff: ResolvedDiff?
     private var inProgressAnalysis: PRReviewResult?
     private(set) var comments: CommentPhaseOutput?
 
@@ -67,21 +68,16 @@ final class PRModel: Identifiable, Hashable {
         metadata.number
     }
 
-    var isLoadingDetail: Bool {
-        if case .running = phaseStates[.diff] { return syncSnapshot == nil }
-        return false
-    }
-
     var prDiff: PRDiff? {
-        detail?.prDiff
+        resolvedDiff?.prDiff
     }
 
     var fullDiff: GitDiff? {
-        prDiff?.toGitDiff()
+        resolvedDiff?.fullDiff
     }
 
     var effectiveDiff: GitDiff? {
-        detail?.storedEffectiveDiff ?? prDiff?.toEffectiveGitDiff()
+        resolvedDiff?.effectiveDiff
     }
 
     var moveReport: MoveReport? {
@@ -139,6 +135,7 @@ final class PRModel: Identifiable, Hashable {
     func resetAfterDataDeletion(metadata newMetadata: PRMetadata) {
         metadata = newMetadata
         detail = nil
+        resolvedDiff = nil
         inProgressAnalysis = nil
         comments = nil
         reviewComments = []
@@ -164,8 +161,24 @@ final class PRModel: Identifiable, Hashable {
         applyDetail(newDetail)
     }
 
+    private func reloadDetailAsync(commitHash: String? = nil) async {
+        let useCase = LoadPRDetailUseCase(config: config)
+        let prNum = prNumber
+        let commit = commitHash ?? detail?.commitHash
+        let newDetail = await Task.detached {
+            useCase.execute(prNumber: prNum, commitHash: commit)
+        }.value
+        applyDetail(newDetail)
+    }
+
     private func applyDetail(_ newDetail: PRDetail) {
         self.detail = newDetail
+
+        if let prDiff = newDetail.prDiff {
+            resolvedDiff = ResolvedDiff(prDiff: prDiff, storedEffectiveDiff: newDetail.storedEffectiveDiff)
+        } else {
+            resolvedDiff = nil
+        }
 
         for (phase, status) in newDetail.phaseStatuses {
             if case .running = phaseStates[phase] { continue }
@@ -216,6 +229,12 @@ final class PRModel: Identifiable, Hashable {
     func loadDetail() {
         guard !detailLoaded else { return }
         reloadDetail()
+        detailLoaded = true
+    }
+
+    func loadDetailAsync() async {
+        guard !detailLoaded else { return }
+        await reloadDetailAsync()
         detailLoaded = true
     }
 
@@ -748,6 +767,18 @@ final class PRModel: Identifiable, Hashable {
     }
 
     // MARK: - Nested Types
+
+    struct ResolvedDiff {
+        let prDiff: PRDiff
+        let fullDiff: GitDiff
+        let effectiveDiff: GitDiff
+
+        init(prDiff: PRDiff, storedEffectiveDiff: GitDiff?) {
+            self.prDiff = prDiff
+            self.fullDiff = prDiff.toGitDiff()
+            self.effectiveDiff = storedEffectiveDiff ?? prDiff.toEffectiveGitDiff()
+        }
+    }
 
     enum OperationMode {
         case idle
