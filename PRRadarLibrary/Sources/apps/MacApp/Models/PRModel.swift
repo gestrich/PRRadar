@@ -59,7 +59,7 @@ final class PRModel: Identifiable, Hashable {
         self.id = metadata.id
         self.metadata = metadata
         self.config = config
-        Task { reloadDetail() }
+        Task { await reloadDetailAsync() }
     }
 
     // MARK: - Computed Properties
