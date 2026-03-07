@@ -27,9 +27,10 @@ public struct FetchPRListUseCase: Sendable {
 
                     let limitNum = limit.flatMap(Int.init) ?? 300
 
+                    let resolvedFilter = config.resolvedFilter(filter)
                     let prs = try await gitHub.listPullRequests(
                         limit: limitNum,
-                        filter: filter
+                        filter: resolvedFilter
                     )
 
                     // Fetch repository info once (needed by PRDiscoveryService when filtering by repoSlug)

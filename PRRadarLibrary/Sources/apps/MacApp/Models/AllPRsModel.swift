@@ -102,7 +102,7 @@ final class AllPRsModel {
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let useCase = FetchPRListUseCase(config: config)
 
-        let prFilter = config.resolvedFilter(filter)
+        let prFilter = filter
 
         var updatedMetadata: [PRMetadata]?
         do {
