@@ -64,6 +64,9 @@ struct ConfigCommand: AsyncParsableCommand {
         @Option(name: .long, help: "Credential account name for Keychain-stored token lookup (required)")
         var githubAccount: String
 
+        @Option(name: .long, help: "Default base branch for PR filtering (default: main)")
+        var defaultBaseBranch: String = "main"
+
         @Flag(name: .long, help: "Set as default configuration")
         var setDefault: Bool = false
 
@@ -82,7 +85,8 @@ struct ConfigCommand: AsyncParsableCommand {
                 repoPath: repoPath,
                 rulePaths: rulePaths,
                 isDefault: setDefault,
-                githubAccount: githubAccount
+                githubAccount: githubAccount,
+                defaultBaseBranch: defaultBaseBranch
             )
 
             let updated = try saveUseCase.execute(config: config)

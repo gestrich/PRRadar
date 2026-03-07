@@ -38,9 +38,10 @@ Additionally, the base branch should appear in PR list displays and report outpu
 - Update `GitHubPullRequest.toPRMetadata()` in `GitHubModels.swift` to populate `baseRefName` from `self.baseRefName`
 - Update any existing `PRMetadata` initializers / test fixtures
 
-## - [ ] Phase 2: Add `defaultBaseBranch` to config
+## - [x] Phase 2: Add `defaultBaseBranch` to config
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Made `defaultBaseBranch` required with no silent `"main"` fallback in models or Codable decoding — existing configs without the field will fail to decode, surfacing misconfiguration. CLI `config add` defaults to `"main"` as user-facing input only.
 
 - Add `defaultBaseBranch: String` to both `RepositoryConfiguration` and `RepositoryConfigurationJSON` (required, no backward compat needed)
 - Update serialization/deserialization between the two types

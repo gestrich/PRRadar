@@ -45,7 +45,8 @@ struct RepositoryConfigurationRulePathTests {
                 RulePath(name: "local", path: "local-rules", isDefault: true),
             ],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -66,7 +67,8 @@ struct RepositoryConfigurationRulePathTests {
                 RulePath(name: "second", path: "second-rules", isDefault: false),
             ],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -84,7 +86,8 @@ struct RepositoryConfigurationRulePathTests {
             outputDir: "/tmp/output",
             rulePaths: [],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -104,7 +107,8 @@ struct RepositoryConfigurationRulePathTests {
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "shared", path: "/Users/bill/shared-rules", isDefault: true)],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -122,7 +126,8 @@ struct RepositoryConfigurationRulePathTests {
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "local", path: "code-review-rules", isDefault: true)],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -140,7 +145,8 @@ struct RepositoryConfigurationRulePathTests {
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "home", path: "~/shared-rules", isDefault: true)],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -159,7 +165,8 @@ struct RepositoryConfigurationRulePathTests {
             outputDir: "/tmp/output",
             rulePaths: [],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -182,7 +189,8 @@ struct RepositoryConfigurationRulePathTests {
                 RulePath(name: "local", path: "local-rules", isDefault: false),
             ],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act
@@ -200,7 +208,8 @@ struct RepositoryConfigurationRulePathTests {
             outputDir: "/tmp/output",
             rulePaths: [RulePath(name: "shared", path: "/shared/rules", isDefault: true)],
             agentScriptPath: "/tmp/agent.py",
-            githubAccount: "test"
+            githubAccount: "test",
+            defaultBaseBranch: "main"
         )
 
         // Act

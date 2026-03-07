@@ -182,7 +182,7 @@ private struct RepositoriesTabContent: View {
                 HStack(spacing: 6) {
                     Button {
                         isAddingNew = true
-                        editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "", githubAccount: "")
+                        editingConfig = RepositoryConfigurationJSON(name: "", repoPath: "", githubAccount: "", defaultBaseBranch: "main")
                     } label: {
                         Image(systemName: "plus")
                             .frame(width: 14, height: 14)
@@ -312,6 +312,11 @@ private struct ConfigurationDetailView: View {
                     }
                 }
 
+                LabeledContent("Default Base Branch") {
+                    Text(config.defaultBaseBranch)
+                        .foregroundStyle(.secondary)
+                }
+
                 LabeledContent("Credential Account") {
                     Text(config.githubAccount)
                         .foregroundStyle(.secondary)
@@ -364,6 +369,11 @@ private struct ConfigurationEditSheet: View {
 
             pathField(label: "Repo Path", text: $config.repoPath, placeholder: "/path/to/repo")
 
+            LabeledContent("Default Base Branch") {
+                TextField("main", text: $config.defaultBaseBranch)
+                    .textFieldStyle(.roundedBorder)
+            }
+
             rulePathsSection
 
             LabeledContent("Credential Account") {
@@ -403,7 +413,7 @@ private struct ConfigurationEditSheet: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(config.name.isEmpty || config.repoPath.isEmpty || config.rulePaths.isEmpty || !config.rulePaths.contains(where: { $0.isDefault }) || githubAccountText.isEmpty)
+                .disabled(config.name.isEmpty || config.repoPath.isEmpty || config.rulePaths.isEmpty || !config.rulePaths.contains(where: { $0.isDefault }) || githubAccountText.isEmpty || config.defaultBaseBranch.isEmpty)
             }
         }
         .padding()
