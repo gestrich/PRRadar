@@ -254,6 +254,7 @@ public struct ContentView: View {
                         Button("\(days) days") { daysLookBack = days }
                     }
                 }
+                .fixedSize()
                 .accessibilityIdentifier("daysFilter")
                 .help("Days to look back")
 
