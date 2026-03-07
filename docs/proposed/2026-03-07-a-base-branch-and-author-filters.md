@@ -74,9 +74,10 @@ Additionally, the base branch should appear in PR list displays and report outpu
 - When `--base-branch` is explicitly set to `"all"` or empty, skip base branch filtering entirely
 - Wire filters through to wherever PRs are fetched/filtered in CLI commands (e.g., `RunAllCommand`, `StatusCommand`, etc.)
 
-## - [ ] Phase 5: Mac app base branch and author filters
+## - [x] Phase 5: Mac app base branch and author filters
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Refactored all filter methods (`refresh`, `analyzeAll`, `filteredPRModels`, `filteredPRs`) to accept `PRFilter` instead of individual parameters. `filteredPRModels` uses `config.resolvedFilter()` for base branch defaulting. Removed "All" state option so `resolvedFilter` works without conflict. Business logic (`availableAuthors`, `AuthorOption`) lives in `AllPRsModel`, not the view. View builds filter via `buildFilter()` from `@AppStorage` values.
 
 - Add `@AppStorage("baseBranchFilter") private var baseBranchFilter: String = ""` to `ContentView`
   - Empty string means "use config default"; a value overrides it
