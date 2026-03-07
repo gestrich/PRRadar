@@ -1,5 +1,6 @@
 import PRRadarConfigService
 import PRRadarModels
+import PRReviewFeature
 import SwiftUI
 
 public struct ContentView: View {
@@ -15,6 +16,7 @@ public struct ContentView: View {
     @State private var newPRNumber = ""
     @State private var showAnalyzeAll = false
     @State private var showAnalyzeAllProgress = false
+    @State private var analyzeAllRuleSets: [RuleSetGroup] = []
     @State private var showRefreshProgress = false
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
@@ -295,6 +297,7 @@ public struct ContentView: View {
                 if let model = allPRs, model.analyzeAllState.isRunning {
                     showAnalyzeAllProgress = true
                 } else {
+                    analyzeAllRuleSets = []
                     showAnalyzeAll = true
                 }
             } label: {
@@ -388,22 +391,49 @@ public struct ContentView: View {
 
     @ViewBuilder
     private var analyzeAllPopover: some View {
-        VStack(spacing: 12) {
-            Text("Analyze All PRs")
-                .font(.headline)
-
-            Text("Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Button("Start") {
-                let state = selectedPRStateFilter
-                showAnalyzeAll = false
-                Task { await allPRs?.analyzeAll(since: sinceDate, state: state) }
+        if analyzeAllRuleSets.isEmpty {
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Loading rules...")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .keyboardShortcut(.defaultAction)
+            .padding()
+            .task { await loadRuleSetsForPicker() }
+        } else {
+            VStack(spacing: 0) {
+                Text("Analyze All PRs")
+                    .font(.headline)
+                    .padding(.top, 12)
+                Text("Last \(daysLookBack) days \u{00B7} State: \(stateFilterLabel)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 8)
+                Divider()
+                RulePickerView(
+                    ruleSets: analyzeAllRuleSets,
+                    onStart: { selectedRules in
+                        let state = selectedPRStateFilter
+                        let ruleFilePaths = selectedRules.map(\.filePath)
+                        showAnalyzeAll = false
+                        Task { await allPRs?.analyzeAll(since: sinceDate, state: state, ruleFilePaths: ruleFilePaths) }
+                    },
+                    onCancel: {
+                        showAnalyzeAll = false
+                    }
+                )
+            }
         }
-        .padding()
+    }
+
+    private func loadRuleSetsForPicker() async {
+        guard let config = allPRs?.config else { return }
+        do {
+            let loaded = try await LoadRulesUseCase(config: config).execute()
+            analyzeAllRuleSets = loaded.map { RuleSetGroup(rulePath: $0.rulePath, rules: $0.rules) }
+        } catch {
+            analyzeAllRuleSets = []
+        }
     }
 
     @ViewBuilder

@@ -162,7 +162,7 @@ final class AllPRsModel {
 
     // MARK: - Analyze All
 
-    func analyzeAll(since: Date, state prState: PRState? = nil) async {
+    func analyzeAll(since: Date, state prState: PRState? = nil, ruleFilePaths: [String]? = nil) async {
         guard let models = currentPRModels else { return }
 
         let prsToAnalyze = filteredPRs(models, since: since, state: prState)
@@ -183,7 +183,7 @@ final class AllPRsModel {
                 )
             }
 
-            if await pr.runAnalysis() {
+            if await pr.runAnalysis(ruleFilePaths: ruleFilePaths) {
                 analyzedCount += 1
             } else {
                 failedCount += 1

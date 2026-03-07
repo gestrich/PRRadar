@@ -203,7 +203,7 @@ final class PRModel: Identifiable, Hashable {
 
     private func reloadReviewComments() {
         reviewComments = FetchReviewCommentsUseCase(config: config)
-            .execute(prNumber: prNumber, commitHash: currentCommitHash)
+            .execute(prNumber: prNumber, minScore: 1, commitHash: currentCommitHash)
     }
 
     func loadDetail() {
@@ -337,12 +337,20 @@ final class PRModel: Identifiable, Hashable {
     }
 
     @discardableResult
-    func runAnalysis() async -> Bool {
+    func runAnalysis(ruleFilePaths: [String]? = nil) async -> Bool {
         loadDetail()
         operationMode = .analyzing
         defer { operationMode = .idle }
-        let phases: [PRRadarPhase] = [.prepare, .analyze, .report]
+
+        let phases: [PRRadarPhase] = [.diff, .prepare, .analyze, .report]
         for phase in phases {
+            if phase == .analyze, let ruleFilePaths {
+                let filter = RuleFilter(ruleFilePaths: ruleFilePaths)
+                startPhase(.analyze)
+                await runFilteredAnalysis(filter: filter)
+                completePhase(.analyze)
+                continue
+            }
             guard canRunPhase(phase) else { break }
             await runPhase(phase)
             if case .failed = stateFor(phase) { break }
@@ -445,6 +453,7 @@ final class PRModel: Identifiable, Hashable {
         let fetchUseCase = FetchReviewCommentsUseCase(config: config)
         if let updated = try? await fetchUseCase.execute(
             prNumber: prNumber,
+            minScore: 1,
             commitHash: currentCommitHash,
             cachedOnly: false
         ) {
