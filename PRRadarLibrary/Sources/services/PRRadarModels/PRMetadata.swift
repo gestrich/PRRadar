@@ -14,6 +14,7 @@ public struct PRFilter: Sendable {
         self.baseBranch = baseBranch
         self.authorLogin = authorLogin
     }
+
 }
 
 public enum PRDateFilter: Sendable {

@@ -28,16 +28,13 @@ struct RefreshCommand: AsyncParsableCommand {
     var json: Bool = false
 
     func run() async throws {
-        var prFilter = try filterOptions.buildFilter()
-        if prFilter.state == nil {
-            prFilter.state = .open
-        }
-
         let prRadarConfig = try resolveConfig(
             configName: config,
             repoPath: repoPath,
             outputDir: outputDir
         )
+
+        let prFilter = prRadarConfig.resolvedFilter(try filterOptions.buildFilter())
 
         let useCase = FetchPRListUseCase(config: prRadarConfig)
         let repoSlug = PRDiscoveryService.repoSlug(fromRepoPath: prRadarConfig.repoPath)

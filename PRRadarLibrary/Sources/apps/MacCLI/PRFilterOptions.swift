@@ -18,6 +18,12 @@ struct PRFilterOptions: ParsableArguments {
     @Option(name: .long, help: "PR state filter: open, draft, closed, merged, all")
     var state: String?
 
+    @Option(name: .long, help: "Filter by target branch (default: config's defaultBaseBranch, use 'all' to skip)")
+    var baseBranch: String?
+
+    @Option(name: .long, help: "Filter by PR author (GitHub login handle)")
+    var author: String?
+
     func buildFilter() throws -> PRFilter {
         try validateMutualExclusivity()
 
@@ -41,7 +47,7 @@ struct PRFilterOptions: ParsableArguments {
         }
 
         let stateFilter: PRState? = try parseStateFilter(state)
-        return PRFilter(dateFilter: dateFilter, state: stateFilter)
+        return PRFilter(dateFilter: dateFilter, state: stateFilter, baseBranch: baseBranch, authorLogin: author)
     }
 
     private func validateMutualExclusivity() throws {

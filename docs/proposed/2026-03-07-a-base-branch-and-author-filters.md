@@ -60,7 +60,10 @@ Additionally, the base branch should appear in PR list displays and report outpu
 - When `authorLogin` is non-nil and non-empty, filter PRs where `metadata.author.login == authorLogin`
 - If the filter logic is duplicated between CLI and Mac app, consider whether it should be consolidated into the services layer
 
-## - [ ] Phase 4: CLI `--base-branch` and `--author` options
+## - [x] Phase 4: CLI `--base-branch` and `--author` options
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added `--base-branch` and `--author` options to `PRFilterOptions`. Filter resolution (defaulting baseBranch from config, defaulting state to `.open`, handling `"all"` to skip filtering) centralized in `RepositoryConfiguration.resolvedFilter(_:)` so callers can't forget defaults.
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

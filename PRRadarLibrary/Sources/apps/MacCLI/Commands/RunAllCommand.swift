@@ -49,17 +49,17 @@ struct RunAllCommand: AsyncParsableCommand {
     var verbose: Bool = false
 
     func run() async throws {
-        let prFilter = try filterOptions.buildFilter()
-        guard prFilter.dateFilter != nil else {
-            throw ValidationError("A date filter is required. Use --since, --lookback-hours, --updated-since, or --updated-lookback-hours.")
-        }
-
         let prRadarConfig = try resolveConfig(
             configName: config,
             repoPath: repoPath,
             outputDir: outputDir,
             diffSource: diffSource
         )
+        let prFilter = prRadarConfig.resolvedFilter(try filterOptions.buildFilter())
+        guard prFilter.dateFilter != nil else {
+            throw ValidationError("A date filter is required. Use --since, --lookback-hours, --updated-since, or --updated-lookback-hours.")
+        }
+
         let useCase = RunAllUseCase(config: prRadarConfig)
 
         for try await progress in useCase.execute(

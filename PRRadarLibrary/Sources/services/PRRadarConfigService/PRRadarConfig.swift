@@ -1,5 +1,6 @@
 import EnvironmentSDK
 import Foundation
+import PRRadarModels
 
 public struct RepositoryConfiguration: Sendable {
     public let id: UUID
@@ -80,5 +81,20 @@ public struct RepositoryConfiguration: Sendable {
 
     public func prDataDirectory(for prNumber: Int) -> String {
         "\(resolvedOutputDir)/\(prNumber)"
+    }
+
+    public func resolvedFilter(_ filter: PRFilter) -> PRFilter {
+        var resolved = filter
+        if let baseBranch = resolved.baseBranch {
+            if baseBranch.lowercased() == "all" || baseBranch.isEmpty {
+                resolved.baseBranch = nil
+            }
+        } else {
+            resolved.baseBranch = defaultBaseBranch
+        }
+        if resolved.state == nil {
+            resolved.state = .open
+        }
+        return resolved
     }
 }
