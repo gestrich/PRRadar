@@ -2,7 +2,7 @@ import PRRadarConfigService
 import PRRadarModels
 import SwiftUI
 
-struct AITranscriptView: View {
+struct EvaluationOutputView: View {
 
     @Environment(PRModel.self) private var prModel
 
@@ -73,6 +73,22 @@ struct AITranscriptView: View {
         return nil
     }
 
+    private func modeBadgeLabel(for output: EvaluationOutput) -> String {
+        switch output.mode {
+        case .ai: "AI"
+        case .regex: "Regex"
+        case .script: "Script"
+        }
+    }
+
+    private func modeBadgeColor(for output: EvaluationOutput) -> Color {
+        switch output.mode {
+        case .ai: .blue
+        case .regex: .purple
+        case .script: .orange
+        }
+    }
+
     var body: some View {
         if phases.isEmpty {
             ContentUnavailableView(
@@ -116,7 +132,7 @@ struct AITranscriptView: View {
         HStack(spacing: 8) {
             ProgressView()
                 .controlSize(.small)
-            Text("AI is running...")
+            Text("Evaluating...")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -203,9 +219,21 @@ struct AITranscriptView: View {
     @ViewBuilder
     private func outputRow(_ output: EvaluationOutput) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(rowLabel(for: output))
-                .font(.system(.body, design: .monospaced))
-                .lineLimit(1)
+            HStack(spacing: 6) {
+                Text(rowLabel(for: output))
+                    .font(.system(.body, design: .monospaced))
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text(modeBadgeLabel(for: output))
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(modeBadgeColor(for: output).opacity(0.15))
+                    .foregroundStyle(modeBadgeColor(for: output))
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
 
             if isStreaming {
                 Text("\(output.entries.count) entries")
@@ -213,6 +241,10 @@ struct AITranscriptView: View {
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 8) {
+                    Text(DurationFormatter.format(milliseconds: output.durationMs))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     if let model = modelName(for: output) {
                         Text(model)
                             .font(.caption)
@@ -256,13 +288,23 @@ struct AITranscriptView: View {
                 headerItem("Entries", "\(output.entries.count)")
                 headerItem("Started", output.startedAt)
             } else {
-                if let model = modelName(for: output) {
-                    headerItem("Model", model)
+                headerItem("Mode", modeBadgeLabel(for: output))
+
+                switch output.source {
+                case .ai(let model, _):
+                    headerItem("Model", displayName(forModelId: model))
+                case .regex(let pattern):
+                    headerItem("Pattern", pattern)
+                case .script(let path):
+                    headerItem("Script", (path as NSString).lastPathComponent)
                 }
-                headerItem("Duration", "\(output.durationMs)ms")
+
+                headerItem("Duration", DurationFormatter.format(milliseconds: output.durationMs))
+
                 if output.costUsd > 0 {
                     headerItem("Cost", String(format: "$%.4f", output.costUsd))
                 }
+
                 headerItem("Started", output.startedAt)
             }
             Spacer()
@@ -276,6 +318,7 @@ struct AITranscriptView: View {
         VStack(spacing: 2) {
             Text(value)
                 .font(.subheadline.bold())
+                .lineLimit(1)
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.secondary)

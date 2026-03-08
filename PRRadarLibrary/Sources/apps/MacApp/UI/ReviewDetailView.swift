@@ -8,7 +8,7 @@ struct ReviewDetailView: View {
     @Environment(PRModel.self) private var prModel
     @State private var selectedNavPhase: NavigationPhase = .summary
     @State private var showEffectiveDiff = false
-    @State private var showAIOutput = false
+    @State private var showEvaluationOutput = false
     @State private var effectiveDiffInitialMove: MoveDetail?
 
     var body: some View {
@@ -108,21 +108,21 @@ struct ReviewDetailView: View {
     private var diffOutputView: some View {
         if let prDiff = prModel.prDiff, let fullDiff = prModel.fullDiff {
             VStack(spacing: 0) {
-                if hasAIOutput || prModel.effectiveDiff != nil {
+                if hasEvaluationOutput || prModel.effectiveDiff != nil {
                     HStack {
-                        if hasAIOutput {
+                        if hasEvaluationOutput {
                             Button {
-                                showAIOutput = true
+                                showEvaluationOutput = true
                             } label: {
                                 HStack(spacing: 4) {
                                     if prModel.isAIPhaseRunning {
                                         ProgressView()
                                             .controlSize(.mini)
                                     }
-                                    Label("AI Output", systemImage: "text.bubble")
+                                    Label("Evaluation Output", systemImage: "text.bubble")
                                 }
                             }
-                            .accessibilityIdentifier("aiOutputButton")
+                            .accessibilityIdentifier("evaluationOutputButton")
                         }
                         Spacer()
                         if prModel.effectiveDiff != nil {
@@ -169,8 +169,8 @@ struct ReviewDetailView: View {
                     .frame(minWidth: 900, minHeight: 600)
                 }
             }
-            .sheet(isPresented: $showAIOutput) {
-                aiOutputView
+            .sheet(isPresented: $showEvaluationOutput) {
+                evaluationOutputView
                     .frame(minWidth: 800, minHeight: 500)
             }
         } else if let files = prModel.syncSnapshot?.files {
@@ -196,13 +196,13 @@ struct ReviewDetailView: View {
         }
     }
 
-    private var hasAIOutput: Bool {
+    private var hasEvaluationOutput: Bool {
         !prModel.allOutputs.isEmpty
     }
 
     @ViewBuilder
-    private var aiOutputView: some View {
-        AITranscriptView(outputsByPhase: prModel.allOutputs, isStreaming: prModel.isAIPhaseRunning)
+    private var evaluationOutputView: some View {
+        EvaluationOutputView(outputsByPhase: prModel.allOutputs, isStreaming: prModel.isAIPhaseRunning)
     }
 
     @ViewBuilder
