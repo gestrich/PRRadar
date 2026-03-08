@@ -5,9 +5,9 @@ import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
-struct TranscriptCommand: AsyncParsableCommand {
+struct OutputCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "transcript",
+        commandName: "output",
         abstract: "View saved evaluation output for a PR"
     )
 

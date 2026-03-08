@@ -145,7 +145,10 @@ Rename `AITranscriptView` to `EvaluationOutputView` (or similar) and update it t
 
 Update `PRModel` to store `[PRRadarPhase: [EvaluationOutput]]` and load from disk accordingly.
 
-## - [ ] Phase 6: Update CLI Transcript Command
+## - [x] Phase 6: Update CLI Transcript Command
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Renamed TranscriptCommand → OutputCommand with `output` subcommand; all evaluation modes (AI/script/regex) already supported from previous phases; kept CLI registration alphabetically sorted
 
 Update `TranscriptCommand` to:
 - List all evaluation outputs (AI, script, regex) — not just AI transcripts
