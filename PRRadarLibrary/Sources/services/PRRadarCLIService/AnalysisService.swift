@@ -267,7 +267,9 @@ public struct AnalysisService: Sendable {
                     break
                 }
                 let focusedHunks = PRHunk.filterForFocusArea(allHunks, focusArea: task.focusArea)
-                result = regexService.analyzeTask(task, pattern: pattern, hunks: focusedHunks)
+                let (regexOutcome, regexOutput) = regexService.analyzeTask(task, pattern: pattern, hunks: focusedHunks)
+                result = regexOutcome
+                try EvaluationOutputWriter.write(regexOutput, to: evalsDir)
 
                 let data = try encoder.encode(result)
                 let resultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"
@@ -286,7 +288,9 @@ public struct AnalysisService: Sendable {
                 }
                 let scriptService = ScriptAnalysisService()
                 let focusedScriptHunks = PRHunk.filterForFocusArea(allHunks, focusArea: task.focusArea)
-                result = scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: focusedScriptHunks)
+                let (scriptOutcome, scriptOutput) = scriptService.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: focusedScriptHunks)
+                result = scriptOutcome
+                try EvaluationOutputWriter.write(scriptOutput, to: evalsDir)
 
                 let scriptData = try encoder.encode(result)
                 let scriptResultPath = "\(evalsDir)/\(DataPathsService.dataFilePrefix)\(task.taskId).json"

@@ -817,7 +817,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -846,7 +846,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .success(let r) = result {
@@ -866,7 +866,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -887,7 +887,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: "scripts/nonexistent.sh", repoPath: repoDir.path, hunks: [])
+        let (result, _) = service.analyzeTask(task, scriptPath: "scripts/nonexistent.sh", repoPath: repoDir.path, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -913,7 +913,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: "scripts/check.sh", repoPath: repoDir.path, hunks: [])
+        let (result, _) = service.analyzeTask(task, scriptPath: "scripts/check.sh", repoPath: repoDir.path, hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -937,7 +937,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -965,7 +965,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert — only line 10 (changeKind == .added) passes
         if case .success(let r) = result {
@@ -993,7 +993,7 @@ struct ScriptAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: hunks)
 
         // Assert — lines 10, 11, 12 pass (changed); line 13 (unchanged) does not
         if case .success(let r) = result {
@@ -1016,7 +1016,7 @@ struct ScriptAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
+        let (result, _) = service.analyzeTask(task, scriptPath: scriptPath, repoPath: repoPath, hunks: [])
 
         // Assert
         if case .error(let e) = result {

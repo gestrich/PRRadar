@@ -219,7 +219,7 @@ struct RegexAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -242,7 +242,7 @@ struct RegexAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "force_unwrap!", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "force_unwrap!", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -267,7 +267,7 @@ struct RegexAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -289,7 +289,7 @@ struct RegexAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -310,7 +310,7 @@ struct RegexAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -331,7 +331,7 @@ struct RegexAnalysisServiceTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "return nil", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -353,7 +353,7 @@ struct RegexAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, pattern: "[invalid", hunks: [])
+        let (result, _) = service.analyzeTask(task, pattern: "[invalid", hunks: [])
 
         // Assert
         if case .error(let e) = result {
@@ -371,7 +371,7 @@ struct RegexAnalysisServiceTests {
         let task = makeRuleRequest(rule: rule)
 
         // Act
-        let result = service.analyzeTask(task, pattern: "return nil", hunks: [])
+        let (result, _) = service.analyzeTask(task, pattern: "return nil", hunks: [])
 
         // Assert
         if case .success(let r) = result {
@@ -402,7 +402,7 @@ struct RegexNewCodeOnlyTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
 
         // Assert — only .new (changeKind == .added) passes; .changedInMove (changeKind == .changed) is excluded
         if case .success(let r) = result {
@@ -429,7 +429,7 @@ struct RegexNewCodeOnlyTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
 
         // Assert
         if case .success(let r) = result {
@@ -451,7 +451,7 @@ struct RegexNewCodeOnlyTests {
         ])]
 
         // Act
-        let result = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
+        let (result, _) = service.analyzeTask(task, pattern: "TODO", hunks: hunks)
 
         // Assert — .added + move passes the filter because changeKind == .added
         if case .success(let r) = result {

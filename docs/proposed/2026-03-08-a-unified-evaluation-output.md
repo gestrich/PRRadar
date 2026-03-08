@@ -70,7 +70,10 @@ struct OutputEntry: Codable, Sendable {
 - File naming: `output-{identifier}.json` and `output-{identifier}.md`
 - Mode-specific metadata uses `EvaluationSource` enum with associated values (`.ai(model:prompt:)`, `.regex(pattern:)`, `.script(path:)`) instead of optional fields
 
-## - [ ] Phase 2: Generate Output for Regex and Script Evaluations
+## - [x] Phase 2: Generate Output for Regex and Script Evaluations
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Services build and return `EvaluationOutput` alongside `RuleOutcome` via tuples; writer placed in Services/PRRadarCLIService as a stateless enum; output entries capture full execution context (pattern/command, matched lines/stdout/stderr, violation summary)
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 

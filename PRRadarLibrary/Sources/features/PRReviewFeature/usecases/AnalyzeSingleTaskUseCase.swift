@@ -46,14 +46,18 @@ public struct AnalyzeSingleTaskUseCase: Sendable {
                         )
                         let hunks = resolvedDiff?.hunks ?? []
                         let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
-                        result = RegexAnalysisService().analyzeTask(task, pattern: pattern, hunks: focusedHunks)
+                        let (outcome, output) = RegexAnalysisService().analyzeTask(task, pattern: pattern, hunks: focusedHunks)
+                        result = outcome
+                        try EvaluationOutputWriter.write(output, to: evalsDir)
                     } else if let scriptPath = task.rule.violationScript {
                         let resolvedDiff = prDiff ?? PhaseOutputParser.loadPRDiff(
                             config: config, prNumber: prNumber, commitHash: resolvedCommit
                         )
                         let hunks = resolvedDiff?.hunks ?? []
                         let focusedHunks = PRHunk.filterForFocusArea(hunks, focusArea: task.focusArea)
-                        result = ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, hunks: focusedHunks)
+                        let (outcome, output) = ScriptAnalysisService().analyzeTask(task, scriptPath: scriptPath, repoPath: config.repoPath, hunks: focusedHunks)
+                        result = outcome
+                        try EvaluationOutputWriter.write(output, to: evalsDir)
                     } else {
                         let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: config.githubAccount)
                         guard let anthropicKey = resolver.getAnthropicKey() else {

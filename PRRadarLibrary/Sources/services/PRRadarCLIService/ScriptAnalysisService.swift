@@ -15,33 +15,49 @@ public struct ScriptAnalysisService: Sendable {
         scriptPath: String,
         repoPath: String,
         hunks: [PRHunk]
-    ) -> RuleOutcome {
-        let startTime = Date().timeIntervalSinceReferenceDate
+    ) -> (outcome: RuleOutcome, output: EvaluationOutput) {
+        let startDate = Date()
+        let startTime = startDate.timeIntervalSinceReferenceDate
+        let startedAt = ISO8601DateFormatter().string(from: startDate)
         let analysisMethod = AnalysisMethod.script(path: scriptPath)
+        var entries: [OutputEntry] = []
 
         let resolvedPath = PathUtilities.resolve(scriptPath, relativeTo: task.rule.rulesDir)
+        let command = "\(resolvedPath) \(task.focusArea.filePath) \(task.focusArea.startLine) \(task.focusArea.endLine)"
+        entries.append(OutputEntry(type: .text, content: command, label: "Command", timestamp: startDate))
+
+        func makeErrorResult(_ errorMessage: String) -> (RuleOutcome, EvaluationOutput) {
+            entries.append(OutputEntry(type: .error, content: errorMessage, timestamp: Date()))
+            let durationMs = Int((Date().timeIntervalSinceReferenceDate - startTime) * 1000)
+            let output = EvaluationOutput(
+                identifier: task.taskId,
+                filePath: task.focusArea.filePath,
+                ruleName: task.rule.name,
+                source: .script(path: scriptPath),
+                startedAt: startedAt,
+                durationMs: durationMs,
+                costUsd: 0,
+                entries: entries
+            )
+            let outcome = RuleOutcome.error(RuleError(
+                taskId: task.taskId,
+                ruleName: task.rule.name,
+                filePath: task.focusArea.filePath,
+                errorMessage: errorMessage,
+                analysisMethod: analysisMethod
+            ))
+            return (outcome, output)
+        }
 
         // Verify script exists
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: resolvedPath) else {
-            return .error(RuleError(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                errorMessage: "Script not found: \(scriptPath)",
-                analysisMethod: analysisMethod
-            ))
+            return makeErrorResult("Script not found: \(scriptPath)")
         }
 
         // Verify script is executable
         guard fileManager.isExecutableFile(atPath: resolvedPath) else {
-            return .error(RuleError(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                errorMessage: "Script is not executable: \(scriptPath)",
-                analysisMethod: analysisMethod
-            ))
+            return makeErrorResult("Script is not executable: \(scriptPath)")
         }
 
         // Launch script
@@ -62,13 +78,7 @@ public struct ScriptAnalysisService: Sendable {
         do {
             try process.run()
         } catch {
-            return .error(RuleError(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                errorMessage: "Failed to launch script '\(scriptPath)': \(error.localizedDescription)",
-                analysisMethod: analysisMethod
-            ))
+            return makeErrorResult("Failed to launch script '\(scriptPath)': \(error.localizedDescription)")
         }
 
         // Read pipe data before waitUntilExit to avoid deadlock when pipe buffer fills
@@ -79,16 +89,17 @@ public struct ScriptAnalysisService: Sendable {
         let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
         let stderr = String(data: stderrData, encoding: .utf8) ?? ""
 
+        if !stdout.isEmpty {
+            entries.append(OutputEntry(type: .text, content: stdout.trimmingCharacters(in: .whitespacesAndNewlines), label: "stdout", timestamp: Date()))
+        }
+        if !stderr.isEmpty {
+            entries.append(OutputEntry(type: .error, content: stderr.trimmingCharacters(in: .whitespacesAndNewlines), timestamp: Date()))
+        }
+
         // Non-zero exit = error
         guard process.terminationStatus == 0 else {
             let message = stderr.isEmpty ? "Script exited with code \(process.terminationStatus)" : stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            return .error(RuleError(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                errorMessage: message,
-                analysisMethod: analysisMethod
-            ))
+            return makeErrorResult(message)
         }
 
         // Parse TSV output (strict mode)
@@ -96,13 +107,7 @@ public struct ScriptAnalysisService: Sendable {
         do {
             rawViolations = try parseScriptOutput(stdout, filePath: task.focusArea.filePath, rule: task.rule)
         } catch {
-            return .error(RuleError(
-                taskId: task.taskId,
-                ruleName: task.rule.name,
-                filePath: task.focusArea.filePath,
-                errorMessage: error.localizedDescription,
-                analysisMethod: analysisMethod
-            ))
+            return makeErrorResult(error.localizedDescription)
         }
 
         // Post-filter against changed lines, excluding surrounding-whitespace-only modifications
@@ -120,6 +125,9 @@ public struct ScriptAnalysisService: Sendable {
             return filteredLineNumbers.contains(lineNumber)
         }
 
+        let violationSummary = violations.isEmpty ? "No violations" : "\(violations.count) violation(s) found"
+        entries.append(OutputEntry(type: .result, content: violationSummary, timestamp: Date()))
+
         let durationMs = Int((Date().timeIntervalSinceReferenceDate - startTime) * 1000)
 
         let result = RuleResult(
@@ -131,7 +139,18 @@ public struct ScriptAnalysisService: Sendable {
             violations: violations
         )
 
-        return .success(result)
+        let output = EvaluationOutput(
+            identifier: task.taskId,
+            filePath: task.focusArea.filePath,
+            ruleName: task.rule.name,
+            source: .script(path: scriptPath),
+            startedAt: startedAt,
+            durationMs: durationMs,
+            costUsd: 0,
+            entries: entries
+        )
+
+        return (.success(result), output)
     }
 
     // MARK: - TSV Parsing
