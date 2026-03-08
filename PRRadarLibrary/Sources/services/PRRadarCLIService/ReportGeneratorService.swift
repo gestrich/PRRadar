@@ -21,18 +21,18 @@ public struct ReportGeneratorService: Sendable {
         tasksDir: String,
         focusAreasDir: String
     ) throws -> ReviewReport {
-        let (violations, totalTasks, totalCost, modelsUsed) = loadViolations(
+        let totals = loadViolations(
             evaluationsDir: evalsDir,
             tasksDir: tasksDir,
             minScore: minScore
         )
 
         let focusAreaCost = loadFocusAreaGenerationCost(focusAreasDir: focusAreasDir)
-        let combinedCost = totalCost + focusAreaCost
+        let combinedCost = totals.totalCost + focusAreaCost
 
-        let summary = calculateSummary(violations: violations, totalTasks: totalTasks, totalCost: combinedCost, modelsUsed: modelsUsed)
+        let summary = calculateSummary(violations: totals.violations, totalTasks: totals.totalTasks, totalCost: combinedCost, modelsUsed: totals.modelsUsed, totalDurationMs: totals.totalDurationMs)
 
-        let sortedViolations = violations.sorted {
+        let sortedViolations = totals.violations.sorted {
             if $0.score != $1.score { return $0.score > $1.score }
             return $0.filePath < $1.filePath
         }
@@ -69,21 +69,28 @@ public struct ReportGeneratorService: Sendable {
 
     // MARK: - Private
 
+    private struct EvaluationTotals {
+        var violations: [ViolationRecord] = []
+        var totalTasks: Int = 0
+        var totalCost: Double = 0.0
+        var modelSet: Set<String> = []
+        var totalDurationMs: Int = 0
+
+        var modelsUsed: [String] { modelSet.sorted() }
+    }
+
     private func loadViolations(
         evaluationsDir: String,
         tasksDir: String,
         minScore: Int
-    ) -> ([ViolationRecord], Int, Double, [String]) {
+    ) -> EvaluationTotals {
         let fm = FileManager.default
-        var violations: [ViolationRecord] = []
-        var totalTasks = 0
-        var totalCost = 0.0
-        var modelSet = Set<String>()
+        var totals = EvaluationTotals()
 
         let taskMetadata = loadTaskMetadata(tasksDir: tasksDir)
 
         guard let evalFiles = try? fm.contentsOfDirectory(atPath: evaluationsDir) else {
-            return (violations, totalTasks, totalCost, [])
+            return totals
         }
 
         for file in evalFiles where file.hasPrefix(DataPathsService.dataFilePrefix) {
@@ -91,11 +98,12 @@ public struct ReportGeneratorService: Sendable {
             guard let data = fm.contents(atPath: path) else { continue }
 
             guard let result = try? JSONDecoder().decode(RuleOutcome.self, from: data) else { continue }
-            totalTasks += 1
-            modelSet.insert(result.analysisMethod.displayName)
+            totals.totalTasks += 1
+            totals.totalDurationMs += result.durationMs
+            totals.modelSet.insert(result.analysisMethod.displayName)
 
             if let cost = result.costUsd {
-                totalCost += cost
+                totals.totalCost += cost
             }
 
             guard let successResult = result.success, successResult.violatesRule else { continue }
@@ -115,7 +123,7 @@ public struct ReportGeneratorService: Sendable {
             }
 
             for v in successResult.violations where v.score >= minScore {
-                violations.append(ViolationRecord(
+                totals.violations.append(ViolationRecord(
                     ruleName: successResult.ruleName,
                     score: v.score,
                     filePath: v.filePath,
@@ -128,7 +136,7 @@ public struct ReportGeneratorService: Sendable {
             }
         }
 
-        return (violations, totalTasks, totalCost, modelSet.sorted())
+        return totals
     }
 
     private func loadFocusAreaGenerationCost(focusAreasDir: String) -> Double {
@@ -163,7 +171,8 @@ public struct ReportGeneratorService: Sendable {
         violations: [ViolationRecord],
         totalTasks: Int,
         totalCost: Double,
-        modelsUsed: [String]
+        modelsUsed: [String],
+        totalDurationMs: Int
     ) -> ReportSummary {
         let highestSeverity = violations.map(\.score).max() ?? 0
 
@@ -212,7 +221,8 @@ public struct ReportGeneratorService: Sendable {
             byFile: byFile,
             byRule: byRule,
             byMethod: byMethod.isEmpty ? nil : byMethod,
-            modelsUsed: modelsUsed
+            modelsUsed: modelsUsed,
+            totalDurationMs: totalDurationMs
         )
     }
 }

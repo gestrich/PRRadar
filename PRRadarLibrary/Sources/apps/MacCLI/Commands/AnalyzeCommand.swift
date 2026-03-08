@@ -120,7 +120,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
                 let modelNames = models.map { displayName(forModelId: $0) }.joined(separator: ", ")
                 print("  Model: \(modelNames)")
             }
-            print("  Duration: \(output.summary.totalDurationMs)ms")
+            print("  Duration: \(output.summary.formattedDuration)")
 
             let violations = output.comments
             if !violations.isEmpty {

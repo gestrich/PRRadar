@@ -24,4 +24,6 @@ public struct PRReviewSummary: Codable, Sendable {
         self.totalCostUsd = totalCostUsd
         self.totalDurationMs = totalDurationMs
     }
+
+    public var formattedDuration: String { DurationFormatter.format(milliseconds: totalDurationMs) }
 }

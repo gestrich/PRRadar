@@ -76,6 +76,7 @@ struct DiffPhaseView: View {
                 .init(label: "Evaluated:", value: "\(summary.totalTasks)"),
                 .init(label: "Violations:", value: "\(summary.violationsFound)"),
                 .init(label: "Cost:", value: String(format: "$%.4f", summary.totalCostUsd)),
+                .init(label: "Duration:", value: summary.formattedDuration),
             ])
             let models = prModel.analysis?.modelsUsed ?? []
             if !models.isEmpty {

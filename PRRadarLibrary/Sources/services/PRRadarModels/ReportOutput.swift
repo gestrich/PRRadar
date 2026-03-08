@@ -56,6 +56,7 @@ public struct ReportSummary: Codable, Sendable {
     public let byRule: [String: Int]
     public let byMethod: [String: [String: [[String: AnyCodableValue]]]]?
     public let modelsUsed: [String]
+    public let totalDurationMs: Int
 
     public init(
         totalTasksEvaluated: Int,
@@ -66,7 +67,8 @@ public struct ReportSummary: Codable, Sendable {
         byFile: [String: Int],
         byRule: [String: Int],
         byMethod: [String: [String: [[String: AnyCodableValue]]]]? = nil,
-        modelsUsed: [String] = []
+        modelsUsed: [String] = [],
+        totalDurationMs: Int = 0
     ) {
         self.totalTasksEvaluated = totalTasksEvaluated
         self.violationsFound = violationsFound
@@ -77,6 +79,7 @@ public struct ReportSummary: Codable, Sendable {
         self.byRule = byRule
         self.byMethod = byMethod
         self.modelsUsed = modelsUsed
+        self.totalDurationMs = totalDurationMs
     }
 
     public init(from decoder: Decoder) throws {
@@ -90,6 +93,7 @@ public struct ReportSummary: Codable, Sendable {
         byRule = try container.decode([String: Int].self, forKey: .byRule)
         byMethod = try container.decodeIfPresent([String: [String: [[String: AnyCodableValue]]]].self, forKey: .byMethod)
         modelsUsed = try container.decodeIfPresent([String].self, forKey: .modelsUsed) ?? []
+        totalDurationMs = try container.decodeIfPresent(Int.self, forKey: .totalDurationMs) ?? 0
     }
 
     enum CodingKeys: String, CodingKey {
@@ -102,7 +106,10 @@ public struct ReportSummary: Codable, Sendable {
         case byRule = "by_rule"
         case byMethod = "by_method"
         case modelsUsed = "models_used"
+        case totalDurationMs = "total_duration_ms"
     }
+
+    public var formattedDuration: String { DurationFormatter.format(milliseconds: totalDurationMs) }
 }
 
 /// Full review report, matching Python's ReviewReport.to_dict()
@@ -163,6 +170,9 @@ public struct ReviewReport: Codable, Sendable {
         }
         if summary.totalCostUsd > 0 {
             lines.append("- **Total Cost:** $\(String(format: "%.4f", summary.totalCostUsd))")
+        }
+        if summary.totalDurationMs > 0 {
+            lines.append("- **Duration:** \(summary.formattedDuration)")
         }
         if !summary.modelsUsed.isEmpty {
             let modelNames = summary.modelsUsed.map { displayName(forModelId: $0) }.joined(separator: ", ")
