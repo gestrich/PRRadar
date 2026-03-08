@@ -159,6 +159,7 @@ final class PRModel: Identifiable, Hashable {
         let newDetail = LoadPRDetailUseCase(config: config)
             .execute(prNumber: prNumber, commitHash: commitHash ?? detail?.commitHash)
         applyDetail(newDetail)
+        detailLoaded = true
     }
 
     private func reloadDetailAsync(commitHash: String? = nil) async {
@@ -169,6 +170,7 @@ final class PRModel: Identifiable, Hashable {
             useCase.execute(prNumber: prNum, commitHash: commit)
         }.value
         applyDetail(newDetail)
+        detailLoaded = true
     }
 
     private func applyDetail(_ newDetail: PRDetail) {
@@ -214,7 +216,7 @@ final class PRModel: Identifiable, Hashable {
                 evaluatedAt: summary.evaluatedAt,
                 postedCommentCount: postedCount
             )
-        } else if newDetail.syncSnapshot != nil {
+        } else {
             analysisState = .unavailable
         }
 
@@ -229,13 +231,11 @@ final class PRModel: Identifiable, Hashable {
     func loadDetail() {
         guard !detailLoaded else { return }
         reloadDetail()
-        detailLoaded = true
     }
 
     func loadDetailAsync() async {
         guard !detailLoaded else { return }
         await reloadDetailAsync()
-        detailLoaded = true
     }
 
     // MARK: - Refresh PR Data
