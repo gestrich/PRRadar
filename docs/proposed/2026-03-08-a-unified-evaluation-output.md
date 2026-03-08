@@ -110,7 +110,10 @@ Update the AI evaluation path to write `EvaluationOutput` files instead of `Clau
 - Delete `ClaudeAgentTranscript` and `ClaudeAgentTranscriptWriter` once all callers are migrated
 - Delete old `ai-transcript-*.json` / `.md` reading — no backward compatibility needed
 
-## - [ ] Phase 4: Add Duration to Summary Displays
+## - [x] Phase 4: Add Duration to Summary Displays
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Created `DurationFormatter` enum in PRRadarModels with `format(milliseconds:)` static method; added `formattedDuration` computed properties on `PRReviewSummary` and `ReportSummary`; added `totalDurationMs` to `ReportSummary` with backward-compatible decoding; refactored `ReportGeneratorService.loadViolations` to use `EvaluationTotals` struct instead of tuple
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
