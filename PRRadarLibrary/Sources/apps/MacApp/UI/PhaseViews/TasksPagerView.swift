@@ -3,9 +3,12 @@ import SwiftUI
 
 struct TasksPagerView: View {
 
+    @Environment(PRModel.self) private var prModel
+
     let fileName: String
     let tasks: [RuleRequest]
     let onDismiss: () -> Void
+    var onViewOutput: ((String) -> Void)?
 
     @State private var currentIndex = 0
 
@@ -34,6 +37,10 @@ struct TasksPagerView: View {
 
                 Spacer()
 
+                if !tasks.isEmpty {
+                    evaluationStatusView(for: tasks[currentIndex].taskId)
+                }
+
                 Button("Done") { onDismiss() }
                     .keyboardShortcut(.cancelAction)
             }
@@ -45,6 +52,40 @@ struct TasksPagerView: View {
                 ScrollView {
                     TaskRowView(task: tasks[currentIndex])
                         .padding()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func evaluationStatusView(for taskId: String) -> some View {
+        let state = prModel.evaluationState(forTaskId: taskId)
+        HStack(spacing: 6) {
+            switch state {
+            case .none:
+                EmptyView()
+            case .queued:
+                Text("Queued")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .streaming:
+                ProgressView()
+                    .controlSize(.mini)
+                Text("Evaluating...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .complete(let hasOutput):
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.caption)
+
+                if hasOutput, let onViewOutput {
+                    Button {
+                        onViewOutput(taskId)
+                    } label: {
+                        Label("View Output", systemImage: "text.bubble")
+                            .font(.caption)
+                    }
                 }
             }
         }

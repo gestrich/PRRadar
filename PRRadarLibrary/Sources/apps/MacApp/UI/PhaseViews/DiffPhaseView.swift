@@ -10,6 +10,8 @@ struct DiffPhaseView: View {
     var prModel: PRModel
     var onMoveTapped: ((MoveDetail) -> Void)?
 
+    var onShowOutputForTask: ((String) -> Void)?
+
     @State private var selectedFile: String?
     @State private var showTasksForFile: String?
     @State private var rulePickerFile: String?
@@ -256,7 +258,11 @@ struct DiffPhaseView: View {
         TasksPagerView(
             fileName: URL(fileURLWithPath: file).lastPathComponent,
             tasks: fileTasks,
-            onDismiss: { showTasksForFile = nil }
+            onDismiss: { showTasksForFile = nil },
+            onViewOutput: { taskId in
+                showTasksForFile = nil
+                onShowOutputForTask?(taskId)
+            }
         )
         .frame(minWidth: 500, minHeight: 300)
     }
@@ -318,6 +324,13 @@ struct DiffPhaseView: View {
                 rulePickerSets = []
             } label: {
                 Label("Select Rules & Analyze\u{2026}", systemImage: "sparkles")
+            }
+        }
+        if let outputId = prModel.firstOutputId(forFile: file) {
+            Button {
+                onShowOutputForTask?(outputId)
+            } label: {
+                Label("View Evaluation Output", systemImage: "text.bubble")
             }
         }
     }

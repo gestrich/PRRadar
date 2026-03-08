@@ -8,6 +8,7 @@ struct EvaluationOutputView: View {
 
     let outputsByPhase: [PRRadarPhase: [EvaluationOutput]]
     var isStreaming: Bool = false
+    var initialOutputId: String?
 
     @State private var selectedPhase: PRRadarPhase = .prepare
     @State private var selectedOutputId: String?
@@ -112,7 +113,11 @@ struct EvaluationOutputView: View {
                 }
             }
             .onAppear {
-                if let first = phases.first {
+                if let initialOutputId,
+                   let phase = prModel.phaseForOutput(identifier: initialOutputId) {
+                    selectedPhase = phase
+                    selectedOutputId = initialOutputId
+                } else if let first = phases.first {
                     selectedPhase = first
                     selectedOutputId = outputsByPhase[first]?.first?.identifier
                 }

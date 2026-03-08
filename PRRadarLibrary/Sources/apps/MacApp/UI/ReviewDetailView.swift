@@ -9,6 +9,7 @@ struct ReviewDetailView: View {
     @State private var selectedNavPhase: NavigationPhase = .summary
     @State private var showEffectiveDiff = false
     @State private var showEvaluationOutput = false
+    @State private var evaluationOutputTargetId: String?
     @State private var effectiveDiffInitialMove: MoveDetail?
 
     var body: some View {
@@ -146,6 +147,10 @@ struct ReviewDetailView: View {
                     onMoveTapped: { move in
                         effectiveDiffInitialMove = move
                         showEffectiveDiff = true
+                    },
+                    onShowOutputForTask: { taskId in
+                        evaluationOutputTargetId = taskId
+                        showEvaluationOutput = true
                     }
                 )
             }
@@ -169,7 +174,9 @@ struct ReviewDetailView: View {
                     .frame(minWidth: 900, minHeight: 600)
                 }
             }
-            .sheet(isPresented: $showEvaluationOutput) {
+            .sheet(isPresented: $showEvaluationOutput, onDismiss: {
+                evaluationOutputTargetId = nil
+            }) {
                 evaluationOutputView
                     .frame(minWidth: 800, minHeight: 500)
             }
@@ -202,7 +209,11 @@ struct ReviewDetailView: View {
 
     @ViewBuilder
     private var evaluationOutputView: some View {
-        EvaluationOutputView(outputsByPhase: prModel.allOutputs, isStreaming: prModel.isAIPhaseRunning)
+        EvaluationOutputView(
+            outputsByPhase: prModel.allOutputs,
+            isStreaming: prModel.isAIPhaseRunning,
+            initialOutputId: evaluationOutputTargetId
+        )
     }
 
     @ViewBuilder

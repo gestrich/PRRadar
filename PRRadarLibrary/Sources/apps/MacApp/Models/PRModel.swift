@@ -120,6 +120,17 @@ final class PRModel: Identifiable, Hashable {
         return result
     }
 
+    func phaseForOutput(identifier: String) -> PRRadarPhase? {
+        let outputs = allOutputs
+        for phase in [PRRadarPhase.prepare, .analyze] {
+            if let phaseOutputs = outputs[phase],
+               phaseOutputs.contains(where: { $0.identifier == identifier }) {
+                return phase
+            }
+        }
+        return nil
+    }
+
     var pendingCommentCount: Int {
         reviewComments.filter { $0.state == .new && !submittedCommentIds.contains($0.id) }.count
     }
@@ -553,6 +564,22 @@ final class PRModel: Identifiable, Hashable {
         evaluations.values.contains { $0.isStreaming && $0.request.focusArea.focusId == focusId }
     }
 
+    func firstOutputId(forFile filePath: String) -> String? {
+        for eval in evaluations.values where eval.request.focusArea.filePath == filePath {
+            if eval.evaluationOutput != nil {
+                return eval.request.taskId
+            }
+        }
+        return nil
+    }
+
+    func evaluationState(forTaskId taskId: String) -> TaskEvaluationState {
+        guard let eval = evaluations[taskId] else { return .none }
+        if eval.isStreaming { return .streaming }
+        if eval.isComplete { return .complete(hasOutput: eval.evaluationOutput != nil) }
+        return .queued
+    }
+
     private func startPhase(_ phase: PRRadarPhase, logs: String = "") {
         phaseStates[phase] = .running(logs: logs)
     }
@@ -805,5 +832,12 @@ final class PRModel: Identifiable, Hashable {
         case running(logs: String)
         case completed(logs: String)
         case failed(error: String, logs: String)
+    }
+
+    enum TaskEvaluationState {
+        case none
+        case queued
+        case streaming
+        case complete(hasOutput: Bool)
     }
 }
