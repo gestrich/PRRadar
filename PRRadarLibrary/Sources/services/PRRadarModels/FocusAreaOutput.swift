@@ -13,8 +13,10 @@ public enum FocusType: String, Codable, Sendable {
 }
 
 /// A focus area identified by the pipeline — a reviewable unit of code within a hunk.
-public struct FocusArea: Codable, Sendable, Equatable {
+public struct FocusArea: Codable, Sendable, Equatable, Identifiable {
     public let focusId: String
+
+    public var id: String { focusId }
     public let filePath: String
     public let startLine: Int
     public let endLine: Int

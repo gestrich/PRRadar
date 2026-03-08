@@ -83,7 +83,7 @@ public struct FocusGeneratorService: Sendable {
             let output = EvaluationOutput(
                 identifier: "hunk-\(hunkIndex)",
                 filePath: hunk.filePath,
-                ruleName: "",
+                rule: nil,
                 source: .ai(model: model, prompt: prompt),
                 startedAt: startedAt,
                 durationMs: result.durationMs,

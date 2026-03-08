@@ -61,8 +61,8 @@ struct EvaluationOutputView: View {
     // MARK: - Row Label
 
     private func rowLabel(for output: EvaluationOutput) -> String {
-        if useFileGrouping, !output.ruleName.isEmpty {
-            return output.ruleName
+        if useFileGrouping, let rule = output.rule {
+            return rule.displayName
         }
         return output.identifier
     }
@@ -187,7 +187,7 @@ struct EvaluationOutputView: View {
 
     @ViewBuilder
     private var flatOutputList: some View {
-        List(outputs, id: \.identifier, selection: $selectedOutputId) { output in
+        List(outputs, selection: $selectedOutputId) { output in
             outputRow(output)
         }
         .listStyle(.sidebar)
@@ -198,7 +198,7 @@ struct EvaluationOutputView: View {
         List(selection: $selectedOutputId) {
             ForEach(fileGroups) { group in
                 Section {
-                    ForEach(group.outputs, id: \.identifier) { output in
+                    ForEach(group.outputs) { output in
                         outputRow(output)
                     }
                 } header: {

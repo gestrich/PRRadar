@@ -279,25 +279,8 @@ struct DiffPhaseView: View {
 
     // MARK: - Selective Analysis Actions
 
-    private func rulesForFile(_ file: String) -> [String] {
-        let fileTasks = tasks.filter { $0.focusArea.filePath == file }
-        let ruleNames = Set(fileTasks.map(\.rule.name))
-        return ruleNames.sorted()
-    }
-
     private func focusAreasForFile(_ file: String) -> [FocusArea] {
-        let fileTasks = tasks.filter { $0.focusArea.filePath == file }
-        var seen = Set<String>()
-        return fileTasks.compactMap { task in
-            guard seen.insert(task.focusArea.focusId).inserted else { return nil }
-            return task.focusArea
-        }
-    }
-
-    private func rulesForFocusArea(_ focusAreaId: String) -> [String] {
-        let areaTasks = tasks.filter { $0.focusArea.focusId == focusAreaId }
-        let ruleNames = Set(areaTasks.map(\.rule.name))
-        return ruleNames.sorted()
+        prModel.focusAreas(forFile: file)
     }
 
     private func isFileInFlight(_ file: String) -> Bool {
@@ -337,7 +320,7 @@ struct DiffPhaseView: View {
 
     @ViewBuilder
     private func fileAnalysisMenu(for file: String) -> some View {
-        let rules = rulesForFile(file)
+        let groups = prModel.ruleGroups(forFile: file)
         Menu {
             Button {
                 prModel.startSelectiveAnalysis(filter: RuleFilter(filePath: file))
@@ -363,13 +346,11 @@ struct DiffPhaseView: View {
                 Label("Run All AI Rules", systemImage: "brain")
             }
 
-            if rules.count > 1 {
+            if groups.count > 1 {
                 Divider()
-                ForEach(rules, id: \.self) { rule in
-                    Button(rule) {
-                        prModel.startSelectiveAnalysis(
-                            filter: RuleFilter(filePath: file, ruleNames: [rule])
-                        )
+                ForEach(groups) { group in
+                    Button(group.displayName) {
+                        prModel.startSelectiveAnalysis(filter: group.filter)
                     }
                 }
             }
@@ -384,7 +365,7 @@ struct DiffPhaseView: View {
     @ViewBuilder
     private func focusAreaContextMenu(for focusArea: FocusArea) -> some View {
         if canRunSelectiveEvaluation {
-            let rules = rulesForFocusArea(focusArea.focusId)
+            let groups = prModel.ruleGroups(forFocusArea: focusArea.focusId)
 
             Button {
                 prModel.startSelectiveAnalysis(
@@ -394,13 +375,11 @@ struct DiffPhaseView: View {
                 Label("Run All Rules", systemImage: "play.fill")
             }
 
-            if rules.count > 1 {
+            if groups.count > 1 {
                 Menu("Run Rule\u{2026}") {
-                    ForEach(rules, id: \.self) { rule in
-                        Button(rule) {
-                            prModel.startSelectiveAnalysis(
-                                filter: RuleFilter(focusAreaId: focusArea.focusId, ruleNames: [rule])
-                            )
+                    ForEach(groups) { group in
+                        Button(group.displayName) {
+                            prModel.startSelectiveAnalysis(filter: group.filter)
                         }
                     }
                 }

@@ -68,7 +68,7 @@ struct RulePickerView: View {
         List {
             ForEach(ruleSets) { ruleSet in
                 Section {
-                    ForEach(ruleSet.rules, id: \.filePath) { rule in
+                    ForEach(ruleSet.rules) { rule in
                         ruleRow(rule)
                     }
                 } header: {
@@ -136,7 +136,7 @@ struct RulePickerView: View {
             }
         )) {
             HStack {
-                Text(rule.name)
+                Text(rule.displayName)
                     .lineLimit(1)
                 Spacer()
                 analysisTypeBadge(rule.analysisType)

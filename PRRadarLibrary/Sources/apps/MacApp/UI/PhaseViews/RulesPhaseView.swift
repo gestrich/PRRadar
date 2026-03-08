@@ -3,11 +3,6 @@ import SwiftUI
 
 struct RulesPhaseView: View {
 
-    private struct SectionID: Hashable {
-        let section: String
-        let value: String
-    }
-
     let focusAreas: [FocusArea]
     let rules: [ReviewRule]
     let tasks: [RuleRequest]
@@ -31,13 +26,16 @@ struct RulesPhaseView: View {
 
     // MARK: - Focus Areas
 
+    private var fileGroups: [FileGroup] {
+        FileGroup.fromFocusAreas(focusAreas)
+    }
+
     @ViewBuilder
     private var focusAreasSection: some View {
         Section("Focus Areas") {
-            let grouped = Dictionary(grouping: focusAreas, by: \.filePath)
-            ForEach(grouped.keys.sorted(), id: \.self) { file in
-                DisclosureGroup(file) {
-                    ForEach(grouped[file]!, id: \.focusId) { area in
+            ForEach(fileGroups) { group in
+                DisclosureGroup(group.filePath) {
+                    ForEach(group.areas) { area in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(area.description)
                                 .font(.body)
@@ -64,7 +62,7 @@ struct RulesPhaseView: View {
     @ViewBuilder
     private var rulesSection: some View {
         Section("Available Rules") {
-            ForEach(rules, id: \.name) { rule in
+            ForEach(rules) { rule in
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(rule.content)
@@ -86,7 +84,7 @@ struct RulesPhaseView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(rule.name)
+                            Text(rule.displayName)
                                 .font(.headline)
                             Spacer()
                             Text(rule.category)
@@ -108,14 +106,16 @@ struct RulesPhaseView: View {
 
     // MARK: - Tasks
 
+    private var taskGroups: [RuleGroup] {
+        RuleGroup.fromTasks(tasks)
+    }
+
     @ViewBuilder
     private var tasksSection: some View {
         Section("Evaluation Tasks") {
-            let grouped = Dictionary(grouping: tasks, by: \.rule.name)
-            let taskGroupIds = grouped.keys.sorted().map { SectionID(section: "tasks", value: $0) }
-            ForEach(taskGroupIds, id: \.self) { groupId in
+            ForEach(taskGroups) { group in
                 DisclosureGroup {
-                    ForEach(grouped[groupId.value]!, id: \.taskId) { task in
+                    ForEach(group.tasks) { task in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(task.focusArea.description)
                                 .font(.body)
@@ -131,15 +131,36 @@ struct RulesPhaseView: View {
                     }
                 } label: {
                     HStack {
-                        Text(groupId.value)
+                        Text(group.displayName)
                             .font(.body)
                         Spacer()
-                        Text("\(grouped[groupId.value]!.count) tasks")
+                        Text("\(group.tasks.count) tasks")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
         }
+    }
+}
+
+// MARK: - Grouping
+
+private struct FileGroup: Identifiable {
+    let filePath: String
+    let areas: [FocusArea]
+
+    var id: String { filePath }
+
+    static func fromFocusAreas(_ areas: [FocusArea]) -> [FileGroup] {
+        var grouped: [String: [FocusArea]] = [:]
+        var order: [String] = []
+        for area in areas {
+            if grouped[area.filePath] == nil {
+                order.append(area.filePath)
+            }
+            grouped[area.filePath, default: []].append(area)
+        }
+        return order.map { FileGroup(filePath: $0, areas: grouped[$0]!) }
     }
 }

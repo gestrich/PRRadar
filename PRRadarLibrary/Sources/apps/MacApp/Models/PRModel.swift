@@ -47,6 +47,24 @@ final class PRModel: Identifiable, Hashable {
     var syncSnapshot: SyncSnapshot? { detail?.syncSnapshot }
     var preparation: PrepareOutput? { detail?.preparation }
     var analysis: PRReviewResult? { inProgressAnalysis ?? detail?.analysis }
+
+    func ruleGroups(forFile filePath: String) -> [RuleGroup] {
+        RuleGroup.fromTasks((preparation?.tasks ?? []).filter { $0.focusArea.filePath == filePath })
+    }
+
+    func ruleGroups(forFocusArea focusAreaId: String) -> [RuleGroup] {
+        RuleGroup.fromTasks((preparation?.tasks ?? []).filter { $0.focusArea.focusId == focusAreaId })
+    }
+
+    func focusAreas(forFile filePath: String) -> [FocusArea] {
+        let tasks = preparation?.tasks ?? []
+        var seen = Set<String>()
+        return tasks.compactMap { task in
+            guard task.focusArea.filePath == filePath,
+                  seen.insert(task.focusArea.focusId).inserted else { return nil }
+            return task.focusArea
+        }
+    }
     var report: ReportPhaseOutput? { detail?.report }
     var postedComments: GitHubPullRequestComments? { detail?.postedComments }
     var imageURLMap: [String: String] { detail?.imageURLMap ?? [:] }
@@ -208,13 +226,13 @@ final class PRModel: Identifiable, Hashable {
         if let taskEvals = newDetail.taskEvaluations {
             let outputMap = Dictionary(
                 (newDetail.savedOutputs[.analyze] ?? []).map {
-                    ("\($0.filePath):\($0.ruleName)", $0)
+                    ($0.identifier, $0)
                 },
                 uniquingKeysWith: { _, new in new }
             )
             var newEvaluations: [String: TaskEvaluation] = [:]
             for var eval in taskEvals {
-                eval.savedOutput = outputMap["\(eval.request.focusArea.filePath):\(eval.request.rule.name)"]
+                eval.savedOutput = outputMap[eval.request.taskId]
                 newEvaluations[eval.request.taskId] = eval
             }
             evaluations = newEvaluations
@@ -714,7 +732,7 @@ final class PRModel: Identifiable, Hashable {
                 identifier: "task-\(count + 1)",
                 prompt: text,
                 filePath: task.focusArea.filePath,
-                ruleName: task.rule.name,
+                rule: task.rule,
                 startedAt: Date()
             )
         case .output(let text):

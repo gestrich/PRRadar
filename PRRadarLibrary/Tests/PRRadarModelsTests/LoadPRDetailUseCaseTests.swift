@@ -346,13 +346,14 @@ struct LoadPRDetailUseCaseTests {
         transcriptEncoder.dateEncodingStrategy = .iso8601
 
         let prepareOutput = EvaluationOutput(
-            identifier: "prep-1", filePath: "", ruleName: "",
+            identifier: "prep-1", filePath: "", rule: nil,
             source: .ai(model: "claude-haiku-4-5-20251001", prompt: "Prepare prompt"),
             startedAt: "2026-01-01T00:00:00Z",
             durationMs: 500, costUsd: 0.01, entries: []
         )
+        let testRule = TaskRule(name: "test-rule", description: "Test", category: "test", content: "", rulesDir: "/rules")
         let analyzeOutput = EvaluationOutput(
-            identifier: "analyze-1", filePath: "file.swift", ruleName: "test-rule",
+            identifier: "analyze-1", filePath: "file.swift", rule: testRule,
             source: .ai(model: "claude-sonnet-4-20250514", prompt: "Analyze prompt"),
             startedAt: "2026-01-01T00:01:00Z",
             durationMs: 2000, costUsd: 0.05, entries: []

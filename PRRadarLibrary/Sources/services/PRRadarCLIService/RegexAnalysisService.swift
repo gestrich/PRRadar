@@ -31,7 +31,7 @@ public struct RegexAnalysisService: Sendable {
             let output = EvaluationOutput(
                 identifier: task.taskId,
                 filePath: task.focusArea.filePath,
-                ruleName: task.rule.name,
+                rule: task.rule,
                 source: .regex(pattern: pattern),
                 startedAt: startedAt,
                 durationMs: durationMs,
@@ -94,7 +94,7 @@ public struct RegexAnalysisService: Sendable {
         let output = EvaluationOutput(
             identifier: task.taskId,
             filePath: task.focusArea.filePath,
-            ruleName: task.rule.name,
+            rule: task.rule,
             source: .regex(pattern: pattern),
             startedAt: startedAt,
             durationMs: durationMs,

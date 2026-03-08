@@ -5,6 +5,10 @@ import Testing
 @Suite("EvaluationOutput Encoding/Decoding")
 struct EvaluationOutputTests {
 
+    private static func makeRule(name: String = "test-rule", category: String = "safety") -> TaskRule {
+        TaskRule(name: name, description: "Test rule", category: category, content: "", rulesDir: "/rules")
+    }
+
     // MARK: - AI Source
 
     @Test("AI output round-trips through encode/decode")
@@ -13,7 +17,7 @@ struct EvaluationOutputTests {
         let original = EvaluationOutput(
             identifier: "eval-001",
             filePath: "/tmp/output/eval-001.json",
-            ruleName: "error-handling",
+            rule: Self.makeRule(name: "error-handling"),
             source: .ai(model: "claude-sonnet-4-20250514", prompt: "Check for errors"),
             startedAt: "2026-03-08T10:00:00Z",
             durationMs: 5000,
@@ -32,7 +36,7 @@ struct EvaluationOutputTests {
         // Assert
         #expect(decoded.identifier == "eval-001")
         #expect(decoded.filePath == "/tmp/output/eval-001.json")
-        #expect(decoded.ruleName == "error-handling")
+        #expect(decoded.rule?.name == "error-handling")
         #expect(decoded.startedAt == "2026-03-08T10:00:00Z")
         #expect(decoded.durationMs == 5000)
         #expect(decoded.costUsd == 0.003)
@@ -52,7 +56,7 @@ struct EvaluationOutputTests {
         let original = EvaluationOutput(
             identifier: "eval-002",
             filePath: "/tmp/output/eval-002.json",
-            ruleName: "naming",
+            rule: Self.makeRule(name: "naming"),
             source: .ai(model: "claude-haiku-4-5-20251001", prompt: nil),
             startedAt: "2026-03-08T11:00:00Z",
             durationMs: 1200,
@@ -73,6 +77,29 @@ struct EvaluationOutputTests {
         }
     }
 
+    @Test("Output with nil rule round-trips")
+    func nilRuleRoundTrip() throws {
+        // Arrange
+        let original = EvaluationOutput(
+            identifier: "prep-1",
+            filePath: "file.swift",
+            rule: nil,
+            source: .ai(model: "claude-haiku-4-5-20251001", prompt: "Generate focus areas"),
+            startedAt: "2026-03-08T10:00:00Z",
+            durationMs: 500,
+            costUsd: 0.01,
+            entries: []
+        )
+
+        // Act
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(EvaluationOutput.self, from: encoded)
+
+        // Assert
+        #expect(decoded.rule == nil)
+        #expect(decoded.identifier == "prep-1")
+    }
+
     // MARK: - Regex Source
 
     @Test("Regex output round-trips through encode/decode")
@@ -81,7 +108,7 @@ struct EvaluationOutputTests {
         let original = EvaluationOutput(
             identifier: "eval-regex-001",
             filePath: "/tmp/output/eval-regex-001.json",
-            ruleName: "no-force-unwrap",
+            rule: Self.makeRule(name: "no-force-unwrap"),
             source: .regex(pattern: "!\\s*$"),
             startedAt: "2026-03-08T12:00:00Z",
             durationMs: 50,
@@ -116,7 +143,7 @@ struct EvaluationOutputTests {
         let original = EvaluationOutput(
             identifier: "eval-script-001",
             filePath: "/tmp/output/eval-script-001.json",
-            ruleName: "lint-check",
+            rule: Self.makeRule(name: "lint-check"),
             source: .script(path: "/usr/local/bin/swiftlint"),
             startedAt: "2026-03-08T13:00:00Z",
             durationMs: 3200,
@@ -189,7 +216,7 @@ struct EvaluationOutputTests {
         let output = EvaluationOutput(
             identifier: "test",
             filePath: "/tmp/test.json",
-            ruleName: "test-rule",
+            rule: Self.makeRule(),
             source: .regex(pattern: ".*"),
             startedAt: "2026-01-01T00:00:00Z",
             durationMs: 100,
@@ -203,12 +230,11 @@ struct EvaluationOutputTests {
 
         // Assert
         #expect(jsonObject["file_path"] != nil)
-        #expect(jsonObject["rule_name"] != nil)
+        #expect(jsonObject["rule"] != nil)
         #expect(jsonObject["started_at"] != nil)
         #expect(jsonObject["duration_ms"] != nil)
         #expect(jsonObject["cost_usd"] != nil)
         #expect(jsonObject["filePath"] == nil)
-        #expect(jsonObject["ruleName"] == nil)
     }
 
     // MARK: - Mode Computed Property
@@ -216,9 +242,9 @@ struct EvaluationOutputTests {
     @Test("mode returns correct RuleAnalysisType for each source")
     func modeProperty() {
         // Arrange
-        let aiOutput = EvaluationOutput(identifier: "a", filePath: "", ruleName: "", source: .ai(model: "m", prompt: nil), startedAt: "", durationMs: 0, costUsd: 0, entries: [])
-        let regexOutput = EvaluationOutput(identifier: "b", filePath: "", ruleName: "", source: .regex(pattern: "p"), startedAt: "", durationMs: 0, costUsd: 0, entries: [])
-        let scriptOutput = EvaluationOutput(identifier: "c", filePath: "", ruleName: "", source: .script(path: "s"), startedAt: "", durationMs: 0, costUsd: 0, entries: [])
+        let aiOutput = EvaluationOutput(identifier: "a", filePath: "", rule: nil, source: .ai(model: "m", prompt: nil), startedAt: "", durationMs: 0, costUsd: 0, entries: [])
+        let regexOutput = EvaluationOutput(identifier: "b", filePath: "", rule: nil, source: .regex(pattern: "p"), startedAt: "", durationMs: 0, costUsd: 0, entries: [])
+        let scriptOutput = EvaluationOutput(identifier: "c", filePath: "", rule: nil, source: .script(path: "s"), startedAt: "", durationMs: 0, costUsd: 0, entries: [])
 
         // Assert
         #expect(aiOutput.mode == .ai)

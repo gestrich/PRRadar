@@ -9,16 +9,21 @@ public struct RuleFilter: Sendable {
     public let focusAreaId: String?
     public let ruleNames: [String]?
     public let ruleFilePaths: [String]?
+    public let taskIds: [String]?
 
-    public init(filePath: String? = nil, focusAreaId: String? = nil, ruleNames: [String]? = nil, ruleFilePaths: [String]? = nil) {
+    public init(filePath: String? = nil, focusAreaId: String? = nil, ruleNames: [String]? = nil, ruleFilePaths: [String]? = nil, taskIds: [String]? = nil) {
         self.filePath = filePath
         self.focusAreaId = focusAreaId
         self.ruleNames = ruleNames
         self.ruleFilePaths = ruleFilePaths
+        self.taskIds = taskIds
     }
 
     /// Returns true if the given task matches all non-nil filter criteria.
     public func matches(_ task: RuleRequest) -> Bool {
+        if let taskIds, !taskIds.contains(task.taskId) {
+            return false
+        }
         if let filePath, task.focusArea.filePath != filePath {
             return false
         }
@@ -41,6 +46,6 @@ public struct RuleFilter: Sendable {
 
     /// True when no filter criteria are set.
     public var isEmpty: Bool {
-        filePath == nil && focusAreaId == nil && ruleNames == nil && ruleFilePaths == nil
+        filePath == nil && focusAreaId == nil && ruleNames == nil && ruleFilePaths == nil && taskIds == nil
     }
 }

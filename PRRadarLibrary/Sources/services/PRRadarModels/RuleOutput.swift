@@ -156,9 +156,11 @@ public enum RuleParsingError: Error, LocalizedError {
 }
 
 /// A review rule loaded from a markdown file with YAML frontmatter or from JSON.
-public struct ReviewRule: Codable, Sendable, Equatable {
+public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
     public let name: String
     public let filePath: String
+
+    public var id: String { filePath }
     public let description: String
     public let category: String
     public let focusType: FocusType
@@ -173,6 +175,17 @@ public struct ReviewRule: Codable, Sendable, Equatable {
     public let violationRegex: String?
     public let violationMessage: String?
     public let violationScript: String?
+
+    public var rulesDirSlug: String {
+        (filePath as NSString).deletingLastPathComponent
+            .split(separator: "/").last.map(String.init) ?? ""
+    }
+
+    public var displayName: String {
+        let slug = rulesDirSlug
+        if slug.isEmpty { return name }
+        return "\(name) (\(slug))"
+    }
 
     public var analysisType: RuleAnalysisType {
         if violationScript != nil { return .script }

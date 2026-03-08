@@ -18,6 +18,12 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let violationScript: String?
     public let rulesDir: String
 
+    public var displayName: String {
+        let slug = RuleRequest.rulesDirSlug(rulesDir)
+        if slug.isEmpty { return name }
+        return "\(name) (\(slug))"
+    }
+
     public var analysisType: RuleAnalysisType {
         if violationScript != nil { return .script }
         if violationRegex != nil { return .regex }
@@ -89,8 +95,10 @@ public struct TaskRule: Codable, Sendable, Equatable {
 }
 
 /// An evaluation task pairing a rule with a focus area.
-public struct RuleRequest: Codable, Sendable, Hashable, Comparable {
+public struct RuleRequest: Codable, Sendable, Hashable, Comparable, Identifiable {
     public let taskId: String
+
+    public var id: String { taskId }
     public let rule: TaskRule
     public let focusArea: FocusArea
     public let gitBlobHash: String

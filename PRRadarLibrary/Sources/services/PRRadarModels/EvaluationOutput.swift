@@ -4,10 +4,12 @@ import Foundation
 ///
 /// Works for AI, regex, and script evaluation modes. Unified format
 /// for storing and displaying what happened during an evaluation.
-public struct EvaluationOutput: Codable, Sendable {
+public struct EvaluationOutput: Codable, Sendable, Identifiable {
     public let identifier: String
+
+    public var id: String { identifier }
     public let filePath: String
-    public let ruleName: String
+    public let rule: TaskRule?
     public let source: EvaluationSource
     public let startedAt: String
     public let durationMs: Int
@@ -25,7 +27,7 @@ public struct EvaluationOutput: Codable, Sendable {
     public init(
         identifier: String,
         filePath: String,
-        ruleName: String,
+        rule: TaskRule?,
         source: EvaluationSource,
         startedAt: String,
         durationMs: Int,
@@ -34,7 +36,7 @@ public struct EvaluationOutput: Codable, Sendable {
     ) {
         self.identifier = identifier
         self.filePath = filePath
-        self.ruleName = ruleName
+        self.rule = rule
         self.source = source
         self.startedAt = startedAt
         self.durationMs = durationMs
@@ -45,7 +47,7 @@ public struct EvaluationOutput: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case identifier
         case filePath = "file_path"
-        case ruleName = "rule_name"
+        case rule
         case source
         case startedAt = "started_at"
         case durationMs = "duration_ms"

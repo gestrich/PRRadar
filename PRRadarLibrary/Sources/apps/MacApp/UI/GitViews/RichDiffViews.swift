@@ -872,9 +872,7 @@ struct AnnotatedDiffContentView: View {
                 }
                 .buttonStyle(.borderless)
                 .contextMenu {
-                    let rules = tasks.filter { $0.focusArea.focusId == area.focusId }
-                        .map(\.rule.name)
-                    let uniqueRules = Array(Set(rules)).sorted()
+                    let groups = prModel.ruleGroups(forFocusArea: area.focusId)
 
                     Button {
                         prModel.startSelectiveAnalysis(
@@ -884,13 +882,11 @@ struct AnnotatedDiffContentView: View {
                         Label("Run All Rules", systemImage: "play.fill")
                     }
 
-                    if uniqueRules.count > 1 {
+                    if groups.count > 1 {
                         Menu("Run Rule\u{2026}") {
-                            ForEach(uniqueRules, id: \.self) { rule in
-                                Button(rule) {
-                                    prModel.startSelectiveAnalysis(
-                                        filter: RuleFilter(focusAreaId: area.focusId, ruleNames: [rule])
-                                    )
+                            ForEach(groups) { group in
+                                Button(group.displayName) {
+                                    prModel.startSelectiveAnalysis(filter: group.filter)
                                 }
                             }
                         }
@@ -898,7 +894,7 @@ struct AnnotatedDiffContentView: View {
                 }
             } else {
                 Menu {
-                    ForEach(matchingFocusAreas, id: \.focusId) { area in
+                    ForEach(matchingFocusAreas) { area in
                         Section(area.description) {
                             Button {
                                 prModel.startSelectiveAnalysis(

@@ -8,7 +8,7 @@ struct TaskRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(task.rule.name)
+                Text(task.rule.displayName)
                     .font(.headline)
                 Spacer()
                 Text(task.rule.category)

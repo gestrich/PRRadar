@@ -167,7 +167,7 @@ public struct AnalysisService: Sendable {
             let output = EvaluationOutput(
                 identifier: task.taskId,
                 filePath: task.focusArea.filePath,
-                ruleName: task.rule.name,
+                rule: task.rule,
                 source: .ai(model: model, prompt: prompt),
                 startedAt: startedAt,
                 durationMs: agentResult.durationMs,

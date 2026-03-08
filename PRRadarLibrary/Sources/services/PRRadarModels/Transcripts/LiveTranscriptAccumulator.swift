@@ -4,16 +4,16 @@ public struct LiveTranscriptAccumulator: Sendable {
     public let identifier: String
     public var prompt: String
     public var filePath: String?
-    public var ruleName: String?
+    public var rule: TaskRule?
     public var textChunks: String = ""
     public var events: [OutputEntry] = []
     public let startedAt: Date
 
-    public init(identifier: String, prompt: String, filePath: String? = nil, ruleName: String? = nil, startedAt: Date) {
+    public init(identifier: String, prompt: String, filePath: String? = nil, rule: TaskRule? = nil, startedAt: Date) {
         self.identifier = identifier
         self.prompt = prompt
         self.filePath = filePath
-        self.ruleName = ruleName
+        self.rule = rule
         self.startedAt = startedAt
     }
 
@@ -34,7 +34,7 @@ public struct LiveTranscriptAccumulator: Sendable {
         return EvaluationOutput(
             identifier: identifier,
             filePath: filePath ?? "",
-            ruleName: ruleName ?? "",
+            rule: rule,
             source: .ai(model: "streaming", prompt: prompt.isEmpty ? nil : prompt),
             startedAt: formatter.string(from: startedAt),
             durationMs: Int(Date().timeIntervalSince(startedAt) * 1000),

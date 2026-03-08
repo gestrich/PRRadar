@@ -32,7 +32,7 @@ public struct ScriptAnalysisService: Sendable {
             let output = EvaluationOutput(
                 identifier: task.taskId,
                 filePath: task.focusArea.filePath,
-                ruleName: task.rule.name,
+                rule: task.rule,
                 source: .script(path: scriptPath),
                 startedAt: startedAt,
                 durationMs: durationMs,
@@ -142,7 +142,7 @@ public struct ScriptAnalysisService: Sendable {
         let output = EvaluationOutput(
             identifier: task.taskId,
             filePath: task.focusArea.filePath,
-            ruleName: task.rule.name,
+            rule: task.rule,
             source: .script(path: scriptPath),
             startedAt: startedAt,
             durationMs: durationMs,
