@@ -28,6 +28,31 @@ public struct PRFilter: Sendable {
         self.authorLogin = authorLogin
     }
 
+    public func matches(_ metadata: PRMetadata) -> Bool {
+        if let dateFilter {
+            let since = dateFilter.date
+            let fractional = ISO8601DateFormatter()
+            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let standard = ISO8601DateFormatter()
+            if let dateString = dateFilter.extractDate(metadata),
+               !dateString.isEmpty,
+               let date = fractional.date(from: dateString)
+                ?? standard.date(from: dateString) {
+                if date < since { return false }
+            }
+        }
+        if let prState = state {
+            if PRState(rawValue: metadata.state.uppercased()) != prState { return false }
+        }
+        if let baseBranch, !baseBranch.isEmpty {
+            if metadata.baseRefName != baseBranch { return false }
+        }
+        if let authorLogin, !authorLogin.isEmpty {
+            if metadata.author.login != authorLogin { return false }
+        }
+        return true
+    }
+
 }
 
 public enum PRDateFilter: Sendable {

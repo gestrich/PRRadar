@@ -232,31 +232,7 @@ final class AllPRsModel {
     }
 
     func filteredPRs(_ models: [PRModel], filter: PRFilter = PRFilter()) -> [PRModel] {
-        var result = models
-        if let dateFilter = filter.dateFilter {
-            let since = dateFilter.date
-            let fractional = ISO8601DateFormatter()
-            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            let standard = ISO8601DateFormatter()
-            result = result.filter { pr in
-                guard let dateString = dateFilter.extractDate(pr.metadata),
-                      !dateString.isEmpty,
-                      let date = fractional.date(from: dateString)
-                        ?? standard.date(from: dateString) else { return true }
-                return date >= since
-            }
-        }
-        if let prState = filter.state {
-            result = result.filter { pr in
-                PRState(rawValue: pr.metadata.state.uppercased()) == prState
-            }
-        }
-        if let baseBranch = filter.baseBranch, !baseBranch.isEmpty {
-            result = result.filter { $0.metadata.baseRefName == baseBranch }
-        }
-        if let authorLogin = filter.authorLogin, !authorLogin.isEmpty {
-            result = result.filter { $0.metadata.author.login == authorLogin }
-        }
+        var result = models.filter { filter.matches($0.metadata) }
         if showOnlyWithPendingComments {
             result = result.filter { $0.hasPendingComments }
         }

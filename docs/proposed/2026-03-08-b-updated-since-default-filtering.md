@@ -47,7 +47,13 @@ Change the date extraction to check the filter case:
 - `.updatedSince` → use `pr.metadata.updatedAt`
 - Handle `updatedAt` being optional (fall through to include the PR if nil, like the current `createdAt.isEmpty` guard)
 
-## - [ ] Phase 3: Fix CLI `refresh` to Filter Output
+## - [x] Phase 2.5: Unify Date Filtering (DateFilterable protocol)
+
+**Principles applied**: Added `DateFilterable` protocol with `dateField(_ field: PRDateField) -> String?` so both `GitHubPullRequest` and `PRMetadata` share the same date extraction logic. Added `mergedAt`/`closedAt` to `PRMetadata` for full date fidelity. Replaced closure-based `dateExtractor`/`earlyStopExtractor` with generic `extractDate()`/`extractEarlyStopDate()` methods.
+
+## - [x] Phase 3: Fix CLI `refresh` to Filter Output
+
+**Principles applied**: Added `PRFilter.matches(_:)` to centralize filtering logic; applied filter in `FetchPRListUseCase` so both CLI and Mac app benefit; refactored `AllPRsModel.filteredPRs()` to reuse the shared method
 
 The `refresh` command shows all PRs ever saved to disk. After fetching, filter the discovered PRs before outputting.
 

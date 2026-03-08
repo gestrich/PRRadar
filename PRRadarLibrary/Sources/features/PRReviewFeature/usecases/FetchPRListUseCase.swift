@@ -61,7 +61,8 @@ public struct FetchPRListUseCase: Sendable {
                         outputDir: config.resolvedOutputDir,
                         repoSlug: repoSlug
                     )
-                    continuation.yield(.completed(output: discoveredPRs))
+                    let filteredPRs = discoveredPRs.filter { filter.matches($0) }
+                    continuation.yield(.completed(output: filteredPRs))
                     continuation.finish()
                 } catch {
                     continuation.yield(.failed(error: error.localizedDescription, logs: ""))
