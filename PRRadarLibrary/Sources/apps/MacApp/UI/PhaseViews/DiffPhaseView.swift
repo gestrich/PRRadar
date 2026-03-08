@@ -16,6 +16,7 @@ struct DiffPhaseView: View {
     @State private var rulePickerSets: [RuleSetGroup] = []
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
     @State private var scrollToCommentID: String?
+    @State private var highlightedCommentID: String?
 
     private var reviewComments: [ReviewComment] { prModel.reviewComments }
     private var evaluationSummary: PRReviewSummary? { prModel.analysis?.summary }
@@ -221,6 +222,7 @@ struct DiffPhaseView: View {
                 commentMapping: commentMapping(for: diff),
                 prModel: prModel,
                 scrollToCommentID: $scrollToCommentID,
+                highlightedCommentID: highlightedCommentID,
                 onMoveTapped: onMoveTapped,
                 onSelectRulesForFile: { file in
                     rulePickerFile = file
@@ -638,7 +640,9 @@ struct DiffPhaseView: View {
         if violation.file != selectedFile {
             selectedFile = violation.file
         }
+        highlightedCommentID = nil
         scrollToCommentID = violation.commentID
+        highlightedCommentID = violation.commentID
     }
 
     @ViewBuilder

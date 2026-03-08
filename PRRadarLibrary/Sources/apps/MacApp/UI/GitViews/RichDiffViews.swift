@@ -12,6 +12,7 @@ struct InlineCommentCard<Content: View>: View {
     let accentColor: Color
     var lineBackground: Color = .clear
     var gutterBackground: Color = Color.gray.opacity(0.1)
+    var highlightOpacity: Double = 0
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -28,6 +29,11 @@ struct InlineCommentCard<Content: View>: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(accentColor.opacity(0.2), lineWidth: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.accentColor, lineWidth: 2)
+                .opacity(highlightOpacity)
         )
         .frame(maxWidth: 720, alignment: .leading)
         .padding(.leading, DiffLayout.gutterWidth)
@@ -568,6 +574,7 @@ struct AnnotatedHunkContentView: View {
     let commentsAtLine: [Int: [ReviewComment]]
     let searchQuery: String
     var prModel: PRModel
+    var highlightedCommentID: String?
     var onMoveTapped: ((MoveDetail) -> Void)?
     var onSelectRules: (() -> Void)?
 
@@ -604,7 +611,7 @@ struct AnnotatedHunkContentView: View {
                         switch rc.state {
                         case .new:
                             if let pending = rc.pending {
-                                InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg)
+                                InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg, isHighlighted: rc.id == highlightedCommentID)
                                     .id(rc.id)
                             }
                         case .redetected:
@@ -678,6 +685,7 @@ struct AnnotatedDiffContentView: View {
     let searchQuery: String
     var prModel: PRModel
     @Binding var scrollToCommentID: String?
+    var highlightedCommentID: String?
     var onMoveTapped: ((MoveDetail) -> Void)?
     var onSelectRulesForFile: ((String) -> Void)?
 
@@ -688,6 +696,7 @@ struct AnnotatedDiffContentView: View {
         searchQuery: String = "",
         prModel: PRModel,
         scrollToCommentID: Binding<String?> = .constant(nil),
+        highlightedCommentID: String? = nil,
         onMoveTapped: ((MoveDetail) -> Void)? = nil,
         onSelectRulesForFile: ((String) -> Void)? = nil
     ) {
@@ -697,6 +706,7 @@ struct AnnotatedDiffContentView: View {
         self.searchQuery = searchQuery
         self.prModel = prModel
         self._scrollToCommentID = scrollToCommentID
+        self.highlightedCommentID = highlightedCommentID
         self.onMoveTapped = onMoveTapped
         self.onSelectRulesForFile = onSelectRulesForFile
     }
@@ -753,6 +763,7 @@ struct AnnotatedDiffContentView: View {
                                 commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
                                 searchQuery: searchQuery,
                                 prModel: prModel,
+                                highlightedCommentID: highlightedCommentID,
                                 onMoveTapped: onMoveTapped,
                                 onSelectRules: onSelectRulesForFile.map { callback in { callback(filePath) } }
                             )
@@ -789,7 +800,7 @@ struct AnnotatedDiffContentView: View {
                 switch rc.state {
                 case .new:
                     if let pending = rc.pending {
-                        InlineCommentView(comment: pending, prModel: prModel)
+                        InlineCommentView(comment: pending, prModel: prModel, isHighlighted: rc.id == highlightedCommentID)
                             .id(rc.id)
                     }
                 case .redetected:
