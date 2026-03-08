@@ -1,5 +1,18 @@
 import Foundation
 
+// MARK: - Date Filterable
+
+public protocol DateFilterable {
+    func dateField(_ field: PRDateField) -> String?
+}
+
+public enum PRDateField {
+    case created
+    case updated
+    case merged
+    case closed
+}
+
 // MARK: - PR Filtering
 
 public struct PRFilter: Sendable {
@@ -54,20 +67,28 @@ public enum PRDateFilter: Sendable {
         }
     }
 
-    public var dateExtractor: @Sendable (GitHubPullRequest) -> String? {
+    public var dateField: PRDateField {
         switch self {
-        case .createdSince: return { $0.createdAt }
-        case .updatedSince: return { $0.updatedAt }
-        case .mergedSince: return { $0.mergedAt }
-        case .closedSince: return { $0.closedAt }
+        case .createdSince: return .created
+        case .updatedSince: return .updated
+        case .mergedSince: return .merged
+        case .closedSince: return .closed
         }
     }
 
-    public var earlyStopExtractor: @Sendable (GitHubPullRequest) -> String? {
+    public var earlyStopField: PRDateField {
         switch self {
-        case .createdSince: return { $0.createdAt }
-        case .updatedSince, .mergedSince, .closedSince: return { $0.updatedAt }
+        case .createdSince: return .created
+        case .updatedSince, .mergedSince, .closedSince: return .updated
         }
+    }
+
+    public func extractDate<T: DateFilterable>(_ value: T) -> String? {
+        value.dateField(dateField)
+    }
+
+    public func extractEarlyStopDate<T: DateFilterable>(_ value: T) -> String? {
+        value.dateField(earlyStopField)
     }
 }
 
@@ -129,6 +150,8 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
     public let baseRefName: String
     public let createdAt: String
     public let updatedAt: String?
+    public let mergedAt: String?
+    public let closedAt: String?
     public let url: String?
 
     public init(
@@ -141,6 +164,8 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         baseRefName: String,
         createdAt: String,
         updatedAt: String? = nil,
+        mergedAt: String? = nil,
+        closedAt: String? = nil,
         url: String? = nil
     ) {
         self.number = number
@@ -152,6 +177,8 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         self.baseRefName = baseRefName
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.mergedAt = mergedAt
+        self.closedAt = closedAt
         self.url = url
     }
 
@@ -174,6 +201,17 @@ public struct PRMetadata: Codable, Sendable, Identifiable, Hashable {
         public init(login: String, name: String) {
             self.login = login
             self.name = name
+        }
+    }
+}
+
+extension PRMetadata: DateFilterable {
+    public func dateField(_ field: PRDateField) -> String? {
+        switch field {
+        case .created: return createdAt
+        case .updated: return updatedAt
+        case .merged: return mergedAt
+        case .closed: return closedAt
         }
     }
 }

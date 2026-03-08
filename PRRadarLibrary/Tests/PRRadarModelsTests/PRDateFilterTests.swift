@@ -73,7 +73,7 @@ struct PRDateFilterTests {
         )
 
         // Act
-        let result = PRDateFilter.createdSince(referenceDate).dateExtractor(pr)
+        let result = PRDateFilter.createdSince(referenceDate).extractDate(pr)
 
         // Assert
         #expect(result == "2025-01-01T00:00:00Z")
@@ -89,7 +89,7 @@ struct PRDateFilterTests {
         )
 
         // Act
-        let result = PRDateFilter.updatedSince(referenceDate).dateExtractor(pr)
+        let result = PRDateFilter.updatedSince(referenceDate).extractDate(pr)
 
         // Assert
         #expect(result == "2025-01-02T00:00:00Z")
@@ -104,7 +104,7 @@ struct PRDateFilterTests {
         )
 
         // Act
-        let result = PRDateFilter.mergedSince(referenceDate).dateExtractor(pr)
+        let result = PRDateFilter.mergedSince(referenceDate).extractDate(pr)
 
         // Assert
         #expect(result == "2025-01-03T00:00:00Z")
@@ -119,7 +119,7 @@ struct PRDateFilterTests {
         )
 
         // Act
-        let result = PRDateFilter.closedSince(referenceDate).dateExtractor(pr)
+        let result = PRDateFilter.closedSince(referenceDate).extractDate(pr)
 
         // Assert
         #expect(result == "2025-01-04T00:00:00Z")
@@ -131,8 +131,8 @@ struct PRDateFilterTests {
         let pr = GitHubPullRequest(number: 1, title: "Test")
 
         // Assert
-        #expect(PRDateFilter.mergedSince(referenceDate).dateExtractor(pr) == nil)
-        #expect(PRDateFilter.closedSince(referenceDate).dateExtractor(pr) == nil)
+        #expect(PRDateFilter.mergedSince(referenceDate).extractDate(pr) == nil)
+        #expect(PRDateFilter.closedSince(referenceDate).extractDate(pr) == nil)
     }
 
     // MARK: - earlyStopExtractor
@@ -147,7 +147,7 @@ struct PRDateFilterTests {
         )
 
         // Act
-        let result = PRDateFilter.createdSince(referenceDate).earlyStopExtractor(pr)
+        let result = PRDateFilter.createdSince(referenceDate).extractEarlyStopDate(pr)
 
         // Assert
         #expect(result == "2025-01-01T00:00:00Z")
@@ -163,8 +163,8 @@ struct PRDateFilterTests {
         )
 
         // Assert
-        #expect(PRDateFilter.updatedSince(referenceDate).earlyStopExtractor(pr) == "2025-01-02T00:00:00Z")
-        #expect(PRDateFilter.mergedSince(referenceDate).earlyStopExtractor(pr) == "2025-01-02T00:00:00Z")
-        #expect(PRDateFilter.closedSince(referenceDate).earlyStopExtractor(pr) == "2025-01-02T00:00:00Z")
+        #expect(PRDateFilter.updatedSince(referenceDate).extractEarlyStopDate(pr) == "2025-01-02T00:00:00Z")
+        #expect(PRDateFilter.mergedSince(referenceDate).extractEarlyStopDate(pr) == "2025-01-02T00:00:00Z")
+        #expect(PRDateFilter.closedSince(referenceDate).extractEarlyStopDate(pr) == "2025-01-02T00:00:00Z")
     }
 }

@@ -238,18 +238,9 @@ final class AllPRsModel {
             let fractional = ISO8601DateFormatter()
             fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             let standard = ISO8601DateFormatter()
-            // Pick the date field matching the filter type.
-            // PRMetadata only has createdAt and updatedAt — merged/closed
-            // dates aren't stored locally, so we fall back to updatedAt.
-            // If the date is missing or unparseable, include the PR (safe default).
             result = result.filter { pr in
-                let dateString: String? = switch dateFilter {
-                case .createdSince:
-                    pr.metadata.createdAt
-                case .updatedSince, .mergedSince, .closedSince:
-                    pr.metadata.updatedAt ?? pr.metadata.createdAt
-                }
-                guard let dateString, !dateString.isEmpty,
+                guard let dateString = dateFilter.extractDate(pr.metadata),
+                      !dateString.isEmpty,
                       let date = fractional.date(from: dateString)
                         ?? standard.date(from: dateString) else { return true }
                 return date >= since

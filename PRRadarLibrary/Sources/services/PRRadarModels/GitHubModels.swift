@@ -229,8 +229,21 @@ public struct GitHubPullRequest: Codable, Sendable {
             baseRefName: baseRefName,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            mergedAt: mergedAt,
+            closedAt: closedAt,
             url: url
         )
+    }
+}
+
+extension GitHubPullRequest: DateFilterable {
+    public func dateField(_ field: PRDateField) -> String? {
+        switch field {
+        case .created: return createdAt
+        case .updated: return updatedAt
+        case .merged: return mergedAt
+        case .closed: return closedAt
+        }
     }
 }
 

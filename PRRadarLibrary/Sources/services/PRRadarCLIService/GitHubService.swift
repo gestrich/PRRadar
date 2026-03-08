@@ -120,19 +120,17 @@ public struct GitHubService: Sendable {
 
             if let dateFilter {
                 let since = dateFilter.date
-                let extractDate = dateFilter.dateExtractor
-                let extractEarlyStop = dateFilter.earlyStopExtractor
                 var hitOldPRs = false
 
                 for pr in mapped {
-                    if let earlyStopStr = extractEarlyStop(pr),
+                    if let earlyStopStr = dateFilter.extractEarlyStopDate(pr),
                        let earlyStopDate = formatter.date(from: earlyStopStr),
                        earlyStopDate < since {
                         hitOldPRs = true
                         break
                     }
 
-                    if let dateStr = extractDate(pr),
+                    if let dateStr = dateFilter.extractDate(pr),
                        let prDate = formatter.date(from: dateStr),
                        prDate >= since {
                         allPRs.append(pr)

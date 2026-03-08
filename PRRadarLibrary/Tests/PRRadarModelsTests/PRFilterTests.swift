@@ -65,7 +65,7 @@ struct PRFilterTests {
 
         // Act
         let filtered = prs.filter { pr in
-            guard let dateStr = dateFilter.dateExtractor(pr),
+            guard let dateStr = dateFilter.extractDate(pr),
                   let date = formatter.date(from: dateStr) else { return false }
             return date >= cutoff
         }
@@ -90,7 +90,7 @@ struct PRFilterTests {
 
         // Act
         let filtered = prs.filter { pr in
-            guard let dateStr = dateFilter.dateExtractor(pr),
+            guard let dateStr = dateFilter.extractDate(pr),
                   let date = formatter.date(from: dateStr) else { return false }
             return date >= cutoff
         }
@@ -116,7 +116,7 @@ struct PRFilterTests {
 
         // Act
         let filtered = prs.filter { pr in
-            guard let dateStr = dateFilter.dateExtractor(pr),
+            guard let dateStr = dateFilter.extractDate(pr),
                   let date = formatter.date(from: dateStr) else { return false }
             return date >= cutoff
         }
@@ -229,7 +229,7 @@ struct PRFilterTests {
         )
 
         // Act
-        let earlyStopStr = dateFilter.earlyStopExtractor(oldPR)
+        let earlyStopStr = dateFilter.extractEarlyStopDate(oldPR)
         let earlyStopDate = earlyStopStr.flatMap { formatter.date(from: $0) }
         let shouldStop = earlyStopDate.map { $0 < cutoff } ?? false
 
@@ -249,7 +249,7 @@ struct PRFilterTests {
         )
 
         // Act
-        let earlyStopStr = dateFilter.earlyStopExtractor(pr)
+        let earlyStopStr = dateFilter.extractEarlyStopDate(pr)
         let earlyStopDate = earlyStopStr.flatMap { formatter.date(from: $0) }
         let shouldStop = earlyStopDate.map { $0 < cutoff } ?? false
 
