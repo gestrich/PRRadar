@@ -21,7 +21,10 @@ The current `ClaudeAgentTranscript` model is tightly coupled to AI (model name, 
 
 ## Phases
 
-## - [ ] Phase 1: Unified Evaluation Output Model
+## - [x] Phase 1: Unified Evaluation Output Model
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Model placed in Services/PRRadarModels layer; used `EvaluationSource` enum with associated values for mode-specific data instead of optional fields; reused existing `RuleAnalysisType`; no backward compatibility with `ClaudeAgentTranscript`
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -64,9 +67,8 @@ struct OutputEntry: Codable, Sendable {
 }
 ```
 
-- Add a conversion method `ClaudeAgentTranscript.toEvaluationOutput()` for backward compatibility with existing saved transcripts
 - File naming: `output-{identifier}.json` and `output-{identifier}.md`
-- Keep reading old `ai-transcript-*.json` files for backward compatibility during loading
+- Mode-specific metadata uses `EvaluationSource` enum with associated values (`.ai(model:prompt:)`, `.regex(pattern:)`, `.script(path:)`) instead of optional fields
 
 ## - [ ] Phase 2: Generate Output for Regex and Script Evaluations
 
@@ -93,11 +95,14 @@ Write the output files using the same writer service (updated from `ClaudeAgentT
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
-Update the AI evaluation path (`AnalysisService.analyzeTask()`) to write `EvaluationOutput` files instead of (or in addition to) `ClaudeAgentTranscript` files. The `LiveTranscriptAccumulator` should produce `EvaluationOutput` via conversion.
+Update the AI evaluation path to write `EvaluationOutput` files instead of `ClaudeAgentTranscript` files:
 
-Ensure backward compatibility:
-- Loading: read both `output-*.json` and legacy `ai-transcript-*.json`
-- Writing: write only `output-*.json` going forward
+- Replace `ClaudeAgentTranscriptWriter` with `EvaluationOutputWriter`
+- Update `LiveTranscriptAccumulator` to produce `EvaluationOutput` directly (remove `toClaudeAgentTranscript()`)
+- Update `AnalysisService.analyzeTask()` to use `EvaluationOutput`
+- Update `FocusGeneratorService` transcript writing to use `EvaluationOutput`
+- Delete `ClaudeAgentTranscript` and `ClaudeAgentTranscriptWriter` once all callers are migrated
+- Delete old `ai-transcript-*.json` / `.md` reading — no backward compatibility needed
 
 ## - [ ] Phase 4: Add Duration to Summary Displays
 
@@ -118,7 +123,7 @@ Add a shared duration formatting helper (e.g. `formatDuration(_ ms: Int) -> Stri
 
 Rename `AITranscriptView` to `EvaluationOutputView` (or similar) and update it to handle all modes:
 
-- Accept `[PRRadarPhase: [EvaluationOutput]]` instead of `[PRRadarPhase: [ClaudeAgentTranscript]]`
+- Accept `[PRRadarPhase: [EvaluationOutput]]` (all references to `ClaudeAgentTranscript` should be gone by this phase)
 - For AI outputs: show the same detailed event view (text, tool use, result)
 - For script outputs: show the command, stdout, stderr, and parsed results
 - For regex outputs: show the pattern, matched lines, and results
@@ -134,13 +139,13 @@ Update `TranscriptCommand` to:
 - List all evaluation outputs (AI, script, regex) — not just AI transcripts
 - Show mode, duration, cost in the listing
 - Display script/regex output detail when `--task` is specified
-- Consider renaming to `output` subcommand (with `transcript` as an alias for backward compatibility)
+- Rename to `output` subcommand (no backward compatibility alias needed)
 
 ## - [ ] Phase 7: Integrate Output with Task Evaluations in UI
 
 Wire the output into the task evaluation flow so users can click on any evaluated task (not just AI ones) to see its output:
 
-- `TaskEvaluation` already has `savedTranscript: ClaudeAgentTranscript?` — replace with `savedOutput: EvaluationOutput?`
+- `TaskEvaluation.savedTranscript` → `savedOutput: EvaluationOutput?` (remove `ClaudeAgentTranscript` reference)
 - The "Run Analysis" button context menu and per-task output link should work for all modes
 - When clicking a regex/script evaluation in the file list, open the output view scrolled to that entry
 
@@ -149,7 +154,7 @@ Wire the output into the task evaluation flow so users can click on any evaluate
 **Skills to read**: `swift-testing`
 
 - Add unit tests for `EvaluationOutput` encoding/decoding
-- Add unit tests for the `ClaudeAgentTranscript` → `EvaluationOutput` conversion
+- Verify `ClaudeAgentTranscript` and `ClaudeAgentTranscriptWriter` are fully deleted
 - Add unit tests for the duration formatting helper
 - Test via CLI:
   - `swift run PRRadarMacCLI analyze <PR> --config ios --mode script` — verify output files written
