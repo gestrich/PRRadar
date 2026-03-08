@@ -126,7 +126,10 @@ Update the AI evaluation path to write `EvaluationOutput` files instead of `Clau
 
 Add a shared duration formatting helper (e.g. `formatDuration(_ ms: Int) -> String`) in `PRRadarModels` or a shared utility.
 
-## - [ ] Phase 5: Update Output View for All Modes
+## - [x] Phase 5: Update Output View for All Modes
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Renamed AITranscriptView to EvaluationOutputView; added mode badge (AI/Script/Regex) with color-coded pills to sidebar rows; detail header shows mode-specific source info (model name, regex pattern, script filename); duration formatted via DurationFormatter; streaming banner made mode-agnostic; ReviewDetailView references updated
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
