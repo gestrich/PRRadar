@@ -156,7 +156,10 @@ Update `TranscriptCommand` to:
 - Display script/regex output detail when `--task` is specified
 - Rename to `output` subcommand (no backward compatibility alias needed)
 
-## - [ ] Phase 7: Integrate Output with Task Evaluations in UI
+## - [x] Phase 7: Integrate Output with Task Evaluations in UI
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Added PRModel APIs (`evaluationState(forTaskId:)`, `firstOutputId(forFile:)`, `phaseForOutput(identifier:)`) to keep lookup logic out of views; TasksPagerView reads evaluation state via environment; `TaskEvaluationState` enum encapsulates evaluation lifecycle; `EvaluationOutputView` accepts `initialOutputId` for deep-linking
 
 Wire the output into the task evaluation flow so users can click on any evaluated task (not just AI ones) to see its output:
 
