@@ -94,7 +94,10 @@ Both modes already track `durationMs` in `RuleResult`. Wire this through to the 
 
 Write the output files using the same writer service (updated from `ClaudeAgentTranscriptWriter` to a more general `EvaluationOutputWriter`).
 
-## - [ ] Phase 3: Update AI Evaluation to Write Unified Output
+## - [x] Phase 3: Update AI Evaluation to Write Unified Output
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Cascaded type migration through all layers (Services → Features → Apps); deleted ClaudeAgentTranscript/Writer and all tests (-1024 lines); LiveTranscriptAccumulator now produces EvaluationOutput directly; AnalysisCacheService updated to copy output-* files instead of ai-transcript-*
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
