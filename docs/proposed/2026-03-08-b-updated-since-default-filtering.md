@@ -61,7 +61,9 @@ The `refresh` command shows all PRs ever saved to disk. After fetching, filter t
 
 After receiving `.completed(let prs)`, filter `prs` using the same date/state filter before printing. Reuse the filter logic or apply it inline.
 
-## - [ ] Phase 4: Change CLI `--lookback-hours` Default to `updatedSince`
+## - [x] Phase 4: Change CLI `--lookback-hours` Default to `updatedSince`
+
+**Principles applied**: Simple default change — `--lookback-hours` now uses `.updatedSince` to match Mac app behavior; help text updated accordingly
 
 Align CLI default with Mac app. Change `--lookback-hours` to use `.updatedSince` instead of `.createdSince`. Keep `--since` as `createdSince` for explicit created-date filtering.
 

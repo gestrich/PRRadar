@@ -7,7 +7,7 @@ struct PRFilterOptions: ParsableArguments {
     @Option(name: .long, help: "Date in YYYY-MM-DD format (filter by created date)")
     var since: String?
 
-    @Option(name: .long, help: "PRs created in the last N hours")
+    @Option(name: .long, help: "PRs updated in the last N hours")
     var lookbackHours: Int?
 
     @Option(name: .long, help: "Date in YYYY-MM-DD format (filter by updated date)")
@@ -42,7 +42,7 @@ struct PRFilterOptions: ParsableArguments {
             }
             dateFilter = .createdSince(date)
         } else if let hours = lookbackHours {
-            dateFilter = .createdSince(Date.now.addingTimeInterval(-Double(hours) * 3600))
+            dateFilter = .updatedSince(Date.now.addingTimeInterval(-Double(hours) * 3600))
         } else {
             dateFilter = nil
         }
