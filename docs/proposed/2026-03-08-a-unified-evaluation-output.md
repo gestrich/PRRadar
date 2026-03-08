@@ -167,7 +167,10 @@ Wire the output into the task evaluation flow so users can click on any evaluate
 - The "Run Analysis" button context menu and per-task output link should work for all modes
 - When clicking a regex/script evaluation in the file list, open the output view scrolled to that entry
 
-## - [ ] Phase 8: Validation
+## - [x] Phase 8: Validation
+
+**Skills used**: `swift-testing`
+**Principles applied**: Tests follow Arrange-Act-Assert pattern with section comments; used `@Suite` grouping and descriptive `@Test` names; round-trip encode/decode pattern for Codable validation; verified snake_case JSON key mapping
 
 **Skills to read**: `swift-testing`
 
