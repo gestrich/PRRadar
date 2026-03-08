@@ -62,10 +62,12 @@
 set -euo pipefail
 
 LOOKBACK_HOURS=24
+MODE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --lookback-hours) LOOKBACK_HOURS="$2"; shift 2 ;;
+    --mode) MODE="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -82,11 +84,16 @@ fi
 # Run the daily review
 # Using --updated-lookback-hours: updatedSince is a superset of createdSince for open PRs,
 # so a single run covers both new and active PRs.
+MODE_ARGS=()
+if [ -n "$MODE" ]; then
+  MODE_ARGS+=(--mode "$MODE")
+fi
+
 set +e
 "$CLI" run-all \
   --config "ios" \
   --updated-lookback-hours "$LOOKBACK_HOURS" \
-  --mode regex \
+  "${MODE_ARGS[@]}" \
   --state open
   # --comment   # uncomment to post comments automatically
 EXIT_CODE=$?
