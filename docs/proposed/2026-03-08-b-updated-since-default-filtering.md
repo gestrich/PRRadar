@@ -34,7 +34,9 @@ dateFilter: .createdSince(sinceDate),
 dateFilter: .updatedSince(sinceDate),
 ```
 
-## - [ ] Phase 2: Fix `filteredPRs()` to Respect Date Filter Type
+## - [x] Phase 2: Fix `filteredPRs()` to Respect Date Filter Type
+
+**Principles applied**: Switch on dateFilter case to select the correct date field; fall back to updatedAt/createdAt since PRMetadata lacks mergedAt/closedAt
 
 The client-side `filteredPRs()` always compares against `createdAt`. It should use the date field matching the filter type.
 
