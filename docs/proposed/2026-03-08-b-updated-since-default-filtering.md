@@ -20,7 +20,9 @@ Current issues:
 
 `PRMetadata.updatedAt` already exists and is populated from `GitHubPullRequest.toPRMetadata()` (`GitHubModels.swift:231`).
 
-## - [ ] Phase 1: Change Mac App Default to `updatedSince`
+## - [x] Phase 1: Change Mac App Default to `updatedSince`
+
+**Principles applied**: Simple find-and-replace of `.createdSince` → `.updatedSince` in both code paths of `buildFilter()`
 
 Update the Mac app to use `.updatedSince(sinceDate)` instead of `.createdSince(sinceDate)`.
 

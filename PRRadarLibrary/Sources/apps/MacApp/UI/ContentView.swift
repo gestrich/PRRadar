@@ -703,10 +703,10 @@ public struct ContentView: View {
 
     private func buildFilter() -> PRFilter {
         guard let config = allPRs?.config else {
-            return PRFilter(dateFilter: .createdSince(sinceDate), state: selectedPRStateFilter)
+            return PRFilter(dateFilter: .updatedSince(sinceDate), state: selectedPRStateFilter)
         }
         return config.makeFilter(
-            dateFilter: .createdSince(sinceDate),
+            dateFilter: .updatedSince(sinceDate),
             state: selectedPRStateFilter,
             baseBranch: baseBranchFilter.isEmpty ? nil : baseBranchFilter,
             authorLogin: authorFilter.isEmpty ? nil : authorFilter
