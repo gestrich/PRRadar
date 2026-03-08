@@ -4,7 +4,7 @@ public struct TaskEvaluation: Identifiable, Sendable {
     public let request: RuleRequest
     public let phase: PRRadarPhase
     public var accumulator: LiveTranscriptAccumulator?
-    public var savedTranscript: ClaudeAgentTranscript?
+    public var savedOutput: EvaluationOutput?
     public var outcome: RuleOutcome?
 
     public var id: String { request.taskId }
@@ -13,11 +13,11 @@ public struct TaskEvaluation: Identifiable, Sendable {
     public var isComplete: Bool { outcome != nil }
     public var isQueued: Bool { accumulator == nil && outcome == nil }
 
-    public var transcript: ClaudeAgentTranscript? {
+    public var evaluationOutput: EvaluationOutput? {
         if let acc = accumulator {
-            return acc.toClaudeAgentTranscript()
+            return acc.toEvaluationOutput()
         }
-        return savedTranscript
+        return savedOutput
     }
 
     public var violationComments: [PRComment] {
@@ -28,13 +28,13 @@ public struct TaskEvaluation: Identifiable, Sendable {
         request: RuleRequest,
         phase: PRRadarPhase,
         accumulator: LiveTranscriptAccumulator? = nil,
-        savedTranscript: ClaudeAgentTranscript? = nil,
+        savedOutput: EvaluationOutput? = nil,
         outcome: RuleOutcome? = nil
     ) {
         self.request = request
         self.phase = phase
         self.accumulator = accumulator
-        self.savedTranscript = savedTranscript
+        self.savedOutput = savedOutput
         self.outcome = outcome
     }
 }

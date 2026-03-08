@@ -51,7 +51,7 @@ final class PRModel: Identifiable, Hashable {
     var postedComments: GitHubPullRequestComments? { detail?.postedComments }
     var imageURLMap: [String: String] { detail?.imageURLMap ?? [:] }
     var imageBaseDir: String? { detail?.imageBaseDir }
-    var savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] { detail?.savedTranscripts ?? [:] }
+    var savedOutputs: [PRRadarPhase: [EvaluationOutput]] { detail?.savedOutputs ?? [:] }
     var currentCommitHash: String? { detail?.commitHash }
     var availableCommits: [String] { detail?.availableCommits ?? [] }
 
@@ -101,20 +101,20 @@ final class PRModel: Identifiable, Hashable {
         prepareAccumulator != nil || evaluations.values.contains { $0.isStreaming }
     }
 
-    var allTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]] {
-        var result: [PRRadarPhase: [ClaudeAgentTranscript]] = [:]
+    var allOutputs: [PRRadarPhase: [EvaluationOutput]] {
+        var result: [PRRadarPhase: [EvaluationOutput]] = [:]
 
         if let acc = prepareAccumulator {
-            result[.prepare] = [acc.toClaudeAgentTranscript()]
-        } else if let prepareTranscripts = savedTranscripts[.prepare], !prepareTranscripts.isEmpty {
-            result[.prepare] = prepareTranscripts
+            result[.prepare] = [acc.toEvaluationOutput()]
+        } else if let prepareOutputs = savedOutputs[.prepare], !prepareOutputs.isEmpty {
+            result[.prepare] = prepareOutputs
         }
 
-        let analyzeTranscripts = evaluations.values
+        let analyzeOutputs = evaluations.values
             .sorted(by: { $0.request < $1.request })
-            .compactMap { $0.transcript }
-        if !analyzeTranscripts.isEmpty {
-            result[.analyze] = analyzeTranscripts
+            .compactMap { $0.evaluationOutput }
+        if !analyzeOutputs.isEmpty {
+            result[.analyze] = analyzeOutputs
         }
 
         return result
@@ -195,15 +195,15 @@ final class PRModel: Identifiable, Hashable {
         }
 
         if let taskEvals = newDetail.taskEvaluations {
-            let transcriptMap = Dictionary(
-                (newDetail.savedTranscripts[.analyze] ?? []).map {
+            let outputMap = Dictionary(
+                (newDetail.savedOutputs[.analyze] ?? []).map {
                     ("\($0.filePath):\($0.ruleName)", $0)
                 },
                 uniquingKeysWith: { _, new in new }
             )
             var newEvaluations: [String: TaskEvaluation] = [:]
             for var eval in taskEvals {
-                eval.savedTranscript = transcriptMap["\(eval.request.focusArea.filePath):\(eval.request.rule.name)"]
+                eval.savedOutput = outputMap["\(eval.request.focusArea.filePath):\(eval.request.rule.name)"]
                 newEvaluations[eval.request.taskId] = eval
             }
             evaluations = newEvaluations

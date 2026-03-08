@@ -2,9 +2,8 @@ import Foundation
 
 /// Mode-agnostic output from a single rule evaluation.
 ///
-/// Works for AI, regex, and script evaluation modes. Replaces
-/// `ClaudeAgentTranscript` as the unified format for storing and
-/// displaying what happened during an evaluation.
+/// Works for AI, regex, and script evaluation modes. Unified format
+/// for storing and displaying what happened during an evaluation.
 public struct EvaluationOutput: Codable, Sendable {
     public let identifier: String
     public let filePath: String

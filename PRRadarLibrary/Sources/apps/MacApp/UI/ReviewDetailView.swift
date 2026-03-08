@@ -197,12 +197,12 @@ struct ReviewDetailView: View {
     }
 
     private var hasAIOutput: Bool {
-        !prModel.allTranscripts.isEmpty
+        !prModel.allOutputs.isEmpty
     }
 
     @ViewBuilder
     private var aiOutputView: some View {
-        AITranscriptView(transcriptsByPhase: prModel.allTranscripts, isStreaming: prModel.isAIPhaseRunning)
+        AITranscriptView(outputsByPhase: prModel.allOutputs, isStreaming: prModel.isAIPhaseRunning)
     }
 
     @ViewBuilder

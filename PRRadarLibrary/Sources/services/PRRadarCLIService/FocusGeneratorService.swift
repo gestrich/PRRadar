@@ -59,37 +59,38 @@ public struct FocusGeneratorService: Sendable {
         )
 
         let startedAt = ISO8601DateFormatter().string(from: Date())
-        var transcriptEvents: [ClaudeAgentTranscriptEvent] = []
+        var outputEntries: [OutputEntry] = []
         var result: ClaudeAgentResult?
 
         for try await event in agentClient.stream(request) {
             switch event {
             case .text(let content):
                 onAIText?(content)
-                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: content))
+                outputEntries.append(OutputEntry(type: .text, content: content))
             case .toolUse(let name):
                 onAIToolUse?(name)
-                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
+                outputEntries.append(OutputEntry(type: .toolUse, label: name))
             case .result(let agentResult):
                 result = agentResult
                 if let outputData = agentResult.outputData,
                    let json = String(data: outputData, encoding: .utf8) {
-                    transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .result, content: json))
+                    outputEntries.append(OutputEntry(type: .result, content: json))
                 }
             }
         }
 
         if let transcriptDir, let result {
-            let transcript = ClaudeAgentTranscript(
+            let output = EvaluationOutput(
                 identifier: "hunk-\(hunkIndex)",
-                model: model,
+                filePath: hunk.filePath,
+                ruleName: "",
+                source: .ai(model: model, prompt: prompt),
                 startedAt: startedAt,
-                prompt: prompt,
-                events: transcriptEvents,
+                durationMs: result.durationMs,
                 costUsd: result.costUsd,
-                durationMs: result.durationMs
+                entries: outputEntries
             )
-            try? ClaudeAgentTranscriptWriter.write(transcript, to: transcriptDir)
+            try? EvaluationOutputWriter.write(output, to: transcriptDir)
         }
 
         guard let result else {

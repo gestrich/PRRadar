@@ -143,39 +143,38 @@ public struct AnalysisService: Sendable {
         )
 
         let startedAt = ISO8601DateFormatter().string(from: Date())
-        var transcriptEvents: [ClaudeAgentTranscriptEvent] = []
+        var outputEntries: [OutputEntry] = []
         var agentResult: ClaudeAgentResult?
 
         for try await event in agentClient.stream(request) {
             switch event {
             case .text(let content):
                 onAIText?(content, task)
-                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: content))
+                outputEntries.append(OutputEntry(type: .text, content: content))
             case .toolUse(let name):
                 onAIToolUse?(name, task)
-                transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
+                outputEntries.append(OutputEntry(type: .toolUse, label: name))
             case .result(let result):
                 agentResult = result
                 if let outputData = result.outputData,
                    let json = String(data: outputData, encoding: .utf8) {
-                    transcriptEvents.append(ClaudeAgentTranscriptEvent(type: .result, content: json))
+                    outputEntries.append(OutputEntry(type: .result, content: json))
                 }
             }
         }
 
         if let transcriptDir, let agentResult {
-            let transcript = ClaudeAgentTranscript(
+            let output = EvaluationOutput(
                 identifier: task.taskId,
-                model: model,
-                startedAt: startedAt,
-                prompt: prompt,
                 filePath: task.focusArea.filePath,
                 ruleName: task.rule.name,
-                events: transcriptEvents,
+                source: .ai(model: model, prompt: prompt),
+                startedAt: startedAt,
+                durationMs: agentResult.durationMs,
                 costUsd: agentResult.costUsd,
-                durationMs: agentResult.durationMs
+                entries: outputEntries
             )
-            try? ClaudeAgentTranscriptWriter.write(transcript, to: transcriptDir)
+            try? EvaluationOutputWriter.write(output, to: transcriptDir)
         }
 
         guard let agentResult else {

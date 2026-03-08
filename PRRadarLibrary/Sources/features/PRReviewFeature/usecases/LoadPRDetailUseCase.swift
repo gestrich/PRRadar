@@ -55,7 +55,7 @@ public struct LoadPRDetailUseCase: Sendable {
             imageBaseDir = "\(phaseDir)/images"
         }
 
-        let savedTranscripts = loadSavedTranscripts(prNumber: prNumber, commitHash: resolvedCommit)
+        let savedOutputs = loadSavedOutputs(prNumber: prNumber, commitHash: resolvedCommit)
 
         let availableCommits = scanAvailableCommits(prNumber: prNumber)
 
@@ -84,7 +84,7 @@ public struct LoadPRDetailUseCase: Sendable {
             postedComments: postedComments,
             imageURLMap: imageURLMap,
             imageBaseDir: imageBaseDir,
-            savedTranscripts: savedTranscripts,
+            savedOutputs: savedOutputs,
             analysisSummary: analysisSummary,
             reviewComments: reviewComments
         )
@@ -92,45 +92,45 @@ public struct LoadPRDetailUseCase: Sendable {
 
     // MARK: - Private
 
-    private func loadSavedTranscripts(prNumber: Int, commitHash: String?) -> [PRRadarPhase: [ClaudeAgentTranscript]] {
+    private func loadSavedOutputs(prNumber: Int, commitHash: String?) -> [PRRadarPhase: [EvaluationOutput]] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
-        var result: [PRRadarPhase: [ClaudeAgentTranscript]] = [:]
+        var result: [PRRadarPhase: [EvaluationOutput]] = [:]
 
         let prepareFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .prepare,
             subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: commitHash
         )
-        let prepareTranscripts = loadTranscripts(
+        let prepareOutputs = loadOutputs(
             from: prepareFiles, prNumber: prNumber, phase: .prepare,
             subdirectory: DataPathsService.prepareFocusAreasSubdir, commitHash: commitHash, decoder: decoder
         )
-        if !prepareTranscripts.isEmpty {
-            result[.prepare] = prepareTranscripts
+        if !prepareOutputs.isEmpty {
+            result[.prepare] = prepareOutputs
         }
 
         let analyzeFiles = PhaseOutputParser.listPhaseFiles(
             config: config, prNumber: prNumber, phase: .analyze, commitHash: commitHash
         )
-        let analyzeTranscripts = loadTranscripts(
+        let analyzeOutputs = loadOutputs(
             from: analyzeFiles, prNumber: prNumber, phase: .analyze,
             subdirectory: nil, commitHash: commitHash, decoder: decoder
         )
-        if !analyzeTranscripts.isEmpty {
-            result[.analyze] = analyzeTranscripts
+        if !analyzeOutputs.isEmpty {
+            result[.analyze] = analyzeOutputs
         }
 
         return result
     }
 
-    private func loadTranscripts(
+    private func loadOutputs(
         from files: [String], prNumber: Int, phase: PRRadarPhase,
         subdirectory: String?, commitHash: String?, decoder: JSONDecoder
-    ) -> [ClaudeAgentTranscript] {
-        let transcriptFiles = files.filter { $0.hasPrefix("ai-transcript-") && $0.hasSuffix(".json") }
-        var transcripts: [ClaudeAgentTranscript] = []
-        for filename in transcriptFiles {
+    ) -> [EvaluationOutput] {
+        let outputFiles = files.filter { $0.hasPrefix("output-") && $0.hasSuffix(".json") }
+        var outputs: [EvaluationOutput] = []
+        for filename in outputFiles {
             let data: Data?
             if let subdirectory {
                 data = try? PhaseOutputParser.readPhaseFile(
@@ -143,11 +143,11 @@ public struct LoadPRDetailUseCase: Sendable {
                     filename: filename, commitHash: commitHash
                 )
             }
-            if let data, let transcript = try? decoder.decode(ClaudeAgentTranscript.self, from: data) {
-                transcripts.append(transcript)
+            if let data, let output = try? decoder.decode(EvaluationOutput.self, from: data) {
+                outputs.append(output)
             }
         }
-        return transcripts
+        return outputs
     }
 
     private func scanAvailableCommits(prNumber: Int) -> [String] {

@@ -6,32 +6,32 @@ struct AITranscriptView: View {
 
     @Environment(PRModel.self) private var prModel
 
-    let transcriptsByPhase: [PRRadarPhase: [ClaudeAgentTranscript]]
+    let outputsByPhase: [PRRadarPhase: [EvaluationOutput]]
     var isStreaming: Bool = false
 
     @State private var selectedPhase: PRRadarPhase = .prepare
-    @State private var selectedTranscriptId: String?
+    @State private var selectedOutputId: String?
 
     private var phases: [PRRadarPhase] {
-        [.prepare, .analyze].filter { transcriptsByPhase[$0] != nil }
+        [.prepare, .analyze].filter { outputsByPhase[$0] != nil }
     }
 
-    private var transcripts: [ClaudeAgentTranscript] {
-        transcriptsByPhase[selectedPhase] ?? []
+    private var outputs: [EvaluationOutput] {
+        outputsByPhase[selectedPhase] ?? []
     }
 
-    private var selectedTranscript: ClaudeAgentTranscript? {
-        if let id = selectedTranscriptId {
-            return transcripts.first { $0.identifier == id }
+    private var selectedOutput: EvaluationOutput? {
+        if let id = selectedOutputId {
+            return outputs.first { $0.identifier == id }
         }
-        return transcripts.first
+        return outputs.first
     }
 
     // MARK: - File Grouping
 
     private struct FileGroup: Identifiable {
         let filePath: String
-        let transcripts: [ClaudeAgentTranscript]
+        let outputs: [EvaluationOutput]
         var id: String { filePath }
 
         var displayName: String {
@@ -41,16 +41,16 @@ struct AITranscriptView: View {
     }
 
     private var fileGroups: [FileGroup] {
-        var grouped: [String: [ClaudeAgentTranscript]] = [:]
+        var grouped: [String: [EvaluationOutput]] = [:]
         var order: [String] = []
-        for transcript in transcripts {
-            let key = transcript.filePath
+        for output in outputs {
+            let key = output.filePath
             if grouped[key] == nil {
                 order.append(key)
             }
-            grouped[key, default: []].append(transcript)
+            grouped[key, default: []].append(output)
         }
-        return order.map { FileGroup(filePath: $0, transcripts: grouped[$0]!) }
+        return order.map { FileGroup(filePath: $0, outputs: grouped[$0]!) }
     }
 
     private var useFileGrouping: Bool {
@@ -59,19 +59,26 @@ struct AITranscriptView: View {
 
     // MARK: - Row Label
 
-    private func rowLabel(for transcript: ClaudeAgentTranscript) -> String {
-        if useFileGrouping, !transcript.ruleName.isEmpty {
-            return transcript.ruleName
+    private func rowLabel(for output: EvaluationOutput) -> String {
+        if useFileGrouping, !output.ruleName.isEmpty {
+            return output.ruleName
         }
-        return transcript.identifier
+        return output.identifier
+    }
+
+    private func modelName(for output: EvaluationOutput) -> String? {
+        if case .ai(let model, _) = output.source {
+            return displayName(forModelId: model)
+        }
+        return nil
     }
 
     var body: some View {
         if phases.isEmpty {
             ContentUnavailableView(
-                "No AI Transcripts",
+                "No Evaluation Output",
                 systemImage: "text.bubble",
-                description: Text("Run Focus Areas or Evaluations to generate AI transcripts.")
+                description: Text("Run Focus Areas or Evaluations to generate output.")
             )
         } else {
             VStack(spacing: 0) {
@@ -82,21 +89,21 @@ struct AITranscriptView: View {
                 toolbar
                 Divider()
                 HSplitView {
-                    transcriptList
+                    outputList
                         .frame(minWidth: 180, maxWidth: 250)
-                    transcriptDetail
+                    outputDetail
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .onAppear {
                 if let first = phases.first {
                     selectedPhase = first
-                    selectedTranscriptId = transcriptsByPhase[first]?.first?.identifier
+                    selectedOutputId = outputsByPhase[first]?.first?.identifier
                 }
             }
-            .onChange(of: transcripts.count) {
-                if isStreaming, let last = transcripts.last {
-                    selectedTranscriptId = last.identifier
+            .onChange(of: outputs.count) {
+                if isStreaming, let last = outputs.last {
+                    selectedOutputId = last.identifier
                 }
             }
         }
@@ -135,43 +142,43 @@ struct AITranscriptView: View {
 
             Spacer()
 
-            Text("\(transcripts.count) transcript\(transcripts.count == 1 ? "" : "s")")
+            Text("\(outputs.count) output\(outputs.count == 1 ? "" : "s")")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .onChange(of: selectedPhase) {
-            selectedTranscriptId = transcripts.first?.identifier
+            selectedOutputId = outputs.first?.identifier
         }
     }
 
-    // MARK: - Transcript List
+    // MARK: - Output List
 
     @ViewBuilder
-    private var transcriptList: some View {
+    private var outputList: some View {
         if useFileGrouping {
-            groupedTranscriptList
+            groupedOutputList
         } else {
-            flatTranscriptList
+            flatOutputList
         }
     }
 
     @ViewBuilder
-    private var flatTranscriptList: some View {
-        List(transcripts, id: \.identifier, selection: $selectedTranscriptId) { transcript in
-            transcriptRow(transcript)
+    private var flatOutputList: some View {
+        List(outputs, id: \.identifier, selection: $selectedOutputId) { output in
+            outputRow(output)
         }
         .listStyle(.sidebar)
     }
 
     @ViewBuilder
-    private var groupedTranscriptList: some View {
-        List(selection: $selectedTranscriptId) {
+    private var groupedOutputList: some View {
+        List(selection: $selectedOutputId) {
             ForEach(fileGroups) { group in
                 Section {
-                    ForEach(group.transcripts, id: \.identifier) { transcript in
-                        transcriptRow(transcript)
+                    ForEach(group.outputs, id: \.identifier) { output in
+                        outputRow(output)
                     }
                 } header: {
                     HStack(spacing: 4) {
@@ -194,61 +201,69 @@ struct AITranscriptView: View {
     }
 
     @ViewBuilder
-    private func transcriptRow(_ transcript: ClaudeAgentTranscript) -> some View {
+    private func outputRow(_ output: EvaluationOutput) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(rowLabel(for: transcript))
+            Text(rowLabel(for: output))
                 .font(.system(.body, design: .monospaced))
                 .lineLimit(1)
 
             if isStreaming {
-                Text("\(transcript.events.count) events")
+                Text("\(output.entries.count) entries")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 8) {
-                    Text(displayName(forModelId: transcript.model))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let model = modelName(for: output) {
+                        Text(model)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
-                    Text(String(format: "$%.4f", transcript.costUsd))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if output.costUsd > 0 {
+                        Text(String(format: "$%.4f", output.costUsd))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
         .padding(.vertical, 2)
     }
 
-    // MARK: - Transcript Detail
+    // MARK: - Output Detail
 
     @ViewBuilder
-    private var transcriptDetail: some View {
-        if let transcript = selectedTranscript {
+    private var outputDetail: some View {
+        if let output = selectedOutput {
             VStack(spacing: 0) {
-                transcriptHeader(transcript)
+                outputHeader(output)
                 Divider()
-                transcriptEvents(transcript)
+                outputEntries(output)
             }
         } else {
             ContentUnavailableView(
-                "Select a Transcript",
+                "Select an Output",
                 systemImage: "text.bubble",
-                description: Text("Choose a transcript from the sidebar.")
+                description: Text("Choose an output from the sidebar.")
             )
         }
     }
 
     @ViewBuilder
-    private func transcriptHeader(_ transcript: ClaudeAgentTranscript) -> some View {
+    private func outputHeader(_ output: EvaluationOutput) -> some View {
         HStack(spacing: 16) {
             if isStreaming {
-                headerItem("Events", "\(transcript.events.count)")
-                headerItem("Started", transcript.startedAt)
+                headerItem("Entries", "\(output.entries.count)")
+                headerItem("Started", output.startedAt)
             } else {
-                headerItem("Model", displayName(forModelId: transcript.model))
-                headerItem("Duration", "\(transcript.durationMs)ms")
-                headerItem("Cost", String(format: "$%.4f", transcript.costUsd))
-                headerItem("Started", transcript.startedAt)
+                if let model = modelName(for: output) {
+                    headerItem("Model", model)
+                }
+                headerItem("Duration", "\(output.durationMs)ms")
+                if output.costUsd > 0 {
+                    headerItem("Cost", String(format: "$%.4f", output.costUsd))
+                }
+                headerItem("Started", output.startedAt)
             }
             Spacer()
         }
@@ -268,11 +283,11 @@ struct AITranscriptView: View {
     }
 
     @ViewBuilder
-    private func transcriptEvents(_ transcript: ClaudeAgentTranscript) -> some View {
+    private func outputEntries(_ output: EvaluationOutput) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
-                    if let prompt = transcript.prompt {
+                    if case .ai(_, let prompt) = output.source, let prompt {
                         DisclosureGroup {
                             Text(prompt)
                                 .font(.system(.body, design: .monospaced))
@@ -288,21 +303,21 @@ struct AITranscriptView: View {
                         }
                     }
 
-                    ForEach(Array(transcript.events.enumerated()), id: \.offset) { _, event in
-                        transcriptEventView(event)
+                    ForEach(Array(output.entries.enumerated()), id: \.offset) { _, entry in
+                        outputEntryView(entry)
                     }
 
                     Color.clear
                         .frame(height: 1)
-                        .id("transcript-bottom")
+                        .id("output-bottom")
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onChange(of: transcript.events.count) {
+            .onChange(of: output.entries.count) {
                 if isStreaming {
                     withAnimation {
-                        proxy.scrollTo("transcript-bottom", anchor: .bottom)
+                        proxy.scrollTo("output-bottom", anchor: .bottom)
                     }
                 }
             }
@@ -310,10 +325,10 @@ struct AITranscriptView: View {
     }
 
     @ViewBuilder
-    private func transcriptEventView(_ event: ClaudeAgentTranscriptEvent) -> some View {
-        switch event.type {
+    private func outputEntryView(_ entry: OutputEntry) -> some View {
+        switch entry.type {
         case .text:
-            if let content = event.content {
+            if let content = entry.content {
                 Text(content)
                     .font(.system(.body, design: .monospaced))
                     .textSelection(.enabled)
@@ -324,7 +339,7 @@ struct AITranscriptView: View {
             }
         case .toolUse:
             DisclosureGroup {
-                if let content = event.content {
+                if let content = entry.content {
                     Text(content)
                         .font(.system(.caption, design: .monospaced))
                         .textSelection(.enabled)
@@ -334,16 +349,31 @@ struct AITranscriptView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
             } label: {
-                Label(event.toolName ?? "Tool", systemImage: "wrench")
+                Label(entry.label ?? "Tool", systemImage: "wrench")
                     .font(.subheadline.bold())
                     .foregroundStyle(.orange)
             }
         case .result:
-            if let content = event.content {
+            if let content = entry.content {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Result")
                         .font(.caption.bold())
                         .foregroundStyle(.green)
+                    Text(content)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+            }
+        case .error:
+            if let content = entry.content {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Error")
+                        .font(.caption.bold())
+                        .foregroundStyle(.red)
                     Text(content)
                         .font(.system(.caption, design: .monospaced))
                         .textSelection(.enabled)

@@ -180,7 +180,7 @@ struct LoadPRDetailUseCaseTests {
         #expect(detail.postedComments == nil)
         #expect(detail.imageURLMap.isEmpty)
         #expect(detail.imageBaseDir == nil)
-        #expect(detail.savedTranscripts.isEmpty)
+        #expect(detail.savedOutputs.isEmpty)
         #expect(detail.analysisSummary == nil)
         #expect(detail.availableCommits.isEmpty)
         #expect(detail.reviewComments.isEmpty)
@@ -345,22 +345,24 @@ struct LoadPRDetailUseCaseTests {
         transcriptEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         transcriptEncoder.dateEncodingStrategy = .iso8601
 
-        let prepareTranscript = ClaudeAgentTranscript(
-            identifier: "prep-1", model: "claude-haiku-4-5-20251001",
-            startedAt: "2026-01-01T00:00:00Z", prompt: "Prepare prompt",
-            events: [], costUsd: 0.01, durationMs: 500
+        let prepareOutput = EvaluationOutput(
+            identifier: "prep-1", filePath: "", ruleName: "",
+            source: .ai(model: "claude-haiku-4-5-20251001", prompt: "Prepare prompt"),
+            startedAt: "2026-01-01T00:00:00Z",
+            durationMs: 500, costUsd: 0.01, entries: []
         )
-        let analyzeTranscript = ClaudeAgentTranscript(
-            identifier: "analyze-1", model: "claude-sonnet-4-20250514",
-            startedAt: "2026-01-01T00:01:00Z", prompt: "Analyze prompt",
-            events: [], costUsd: 0.05, durationMs: 2000
+        let analyzeOutput = EvaluationOutput(
+            identifier: "analyze-1", filePath: "file.swift", ruleName: "test-rule",
+            source: .ai(model: "claude-sonnet-4-20250514", prompt: "Analyze prompt"),
+            startedAt: "2026-01-01T00:01:00Z",
+            durationMs: 2000, costUsd: 0.05, entries: []
         )
 
-        let prepData = try transcriptEncoder.encode(prepareTranscript)
-        try prepData.write(to: URL(fileURLWithPath: "\(prepareFocusDir)/ai-transcript-prep-1.json"))
+        let prepData = try transcriptEncoder.encode(prepareOutput)
+        try prepData.write(to: URL(fileURLWithPath: "\(prepareFocusDir)/output-prep-1.json"))
 
-        let analyzeData = try transcriptEncoder.encode(analyzeTranscript)
-        try analyzeData.write(to: URL(fileURLWithPath: "\(analyzeDir)/ai-transcript-analyze-1.json"))
+        let analyzeData = try transcriptEncoder.encode(analyzeOutput)
+        try analyzeData.write(to: URL(fileURLWithPath: "\(analyzeDir)/output-analyze-1.json"))
 
         let config = makeConfig(outputDir: outputDir)
         let useCase = LoadPRDetailUseCase(config: config)
@@ -369,10 +371,10 @@ struct LoadPRDetailUseCaseTests {
         let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
-        #expect(detail.savedTranscripts[.prepare]?.count == 1)
-        #expect(detail.savedTranscripts[.prepare]?.first?.identifier == "prep-1")
-        #expect(detail.savedTranscripts[.analyze]?.count == 1)
-        #expect(detail.savedTranscripts[.analyze]?.first?.identifier == "analyze-1")
+        #expect(detail.savedOutputs[.prepare]?.count == 1)
+        #expect(detail.savedOutputs[.prepare]?.first?.identifier == "prep-1")
+        #expect(detail.savedOutputs[.analyze]?.count == 1)
+        #expect(detail.savedOutputs[.analyze]?.first?.identifier == "analyze-1")
     }
 
     @Test("Ignores non-transcript files in phase directories")
@@ -394,7 +396,7 @@ struct LoadPRDetailUseCaseTests {
         let detail = useCase.execute(prNumber: 1, commitHash: commitHash)
 
         // Assert
-        #expect(detail.savedTranscripts[.analyze] == nil)
+        #expect(detail.savedOutputs[.analyze] == nil)
     }
 
     // MARK: - Posted comments and image map from metadata/

@@ -15,7 +15,7 @@ public struct PRDetail: Sendable {
     public let postedComments: GitHubPullRequestComments?
     public let imageURLMap: [String: String]
     public let imageBaseDir: String?
-    public let savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]]
+    public let savedOutputs: [PRRadarPhase: [EvaluationOutput]]
     public let analysisSummary: PRReviewSummary?
     public let reviewComments: [ReviewComment]
 
@@ -33,7 +33,7 @@ public struct PRDetail: Sendable {
         postedComments: GitHubPullRequestComments?,
         imageURLMap: [String: String],
         imageBaseDir: String?,
-        savedTranscripts: [PRRadarPhase: [ClaudeAgentTranscript]],
+        savedOutputs: [PRRadarPhase: [EvaluationOutput]],
         analysisSummary: PRReviewSummary?,
         reviewComments: [ReviewComment]
     ) {
@@ -50,7 +50,7 @@ public struct PRDetail: Sendable {
         self.postedComments = postedComments
         self.imageURLMap = imageURLMap
         self.imageBaseDir = imageBaseDir
-        self.savedTranscripts = savedTranscripts
+        self.savedOutputs = savedOutputs
         self.analysisSummary = analysisSummary
         self.reviewComments = reviewComments
     }

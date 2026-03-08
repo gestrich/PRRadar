@@ -6,7 +6,7 @@ public struct LiveTranscriptAccumulator: Sendable {
     public var filePath: String?
     public var ruleName: String?
     public var textChunks: String = ""
-    public var events: [ClaudeAgentTranscriptEvent] = []
+    public var events: [OutputEntry] = []
     public let startedAt: Date
 
     public init(identifier: String, prompt: String, filePath: String? = nil, ruleName: String? = nil, startedAt: Date) {
@@ -19,28 +19,27 @@ public struct LiveTranscriptAccumulator: Sendable {
 
     public mutating func flushTextAndAppendToolUse(_ name: String) {
         if !textChunks.isEmpty {
-            events.append(ClaudeAgentTranscriptEvent(type: .text, content: textChunks))
+            events.append(OutputEntry(type: .text, content: textChunks))
             textChunks = ""
         }
-        events.append(ClaudeAgentTranscriptEvent(type: .toolUse, toolName: name))
+        events.append(OutputEntry(type: .toolUse, label: name))
     }
 
-    public func toClaudeAgentTranscript() -> ClaudeAgentTranscript {
-        var finalEvents = events
+    public func toEvaluationOutput() -> EvaluationOutput {
+        var finalEntries = events
         if !textChunks.isEmpty {
-            finalEvents.append(ClaudeAgentTranscriptEvent(type: .text, content: textChunks))
+            finalEntries.append(OutputEntry(type: .text, content: textChunks))
         }
         let formatter = ISO8601DateFormatter()
-        return ClaudeAgentTranscript(
+        return EvaluationOutput(
             identifier: identifier,
-            model: "streaming",
-            startedAt: formatter.string(from: startedAt),
-            prompt: prompt.isEmpty ? nil : prompt,
             filePath: filePath ?? "",
             ruleName: ruleName ?? "",
-            events: finalEvents,
+            source: .ai(model: "streaming", prompt: prompt.isEmpty ? nil : prompt),
+            startedAt: formatter.string(from: startedAt),
+            durationMs: Int(Date().timeIntervalSince(startedAt) * 1000),
             costUsd: 0,
-            durationMs: Int(Date().timeIntervalSince(startedAt) * 1000)
+            entries: finalEntries
         )
     }
 }

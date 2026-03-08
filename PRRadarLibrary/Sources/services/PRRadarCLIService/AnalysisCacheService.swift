@@ -86,10 +86,10 @@ public enum AnalysisCacheService {
             copyFile(from: "\(priorDir)/\(evalFilename)", to: "\(targetEvalsDir)/\(evalFilename)")
             copyFile(from: "\(priorDir)/\(taskFilename)", to: "\(targetEvalsDir)/\(taskFilename)")
 
-            // Copy transcript files so AI Output view can display them
-            let transcriptBase = "ai-transcript-\(task.taskId)"
-            copyFile(from: "\(priorDir)/\(transcriptBase).json", to: "\(targetEvalsDir)/\(transcriptBase).json")
-            copyFile(from: "\(priorDir)/\(transcriptBase).md", to: "\(targetEvalsDir)/\(transcriptBase).md")
+            // Copy evaluation output files so Output view can display them
+            let outputBase = "output-\(task.taskId)"
+            copyFile(from: "\(priorDir)/\(outputBase).json", to: "\(targetEvalsDir)/\(outputBase).json")
+            copyFile(from: "\(priorDir)/\(outputBase).md", to: "\(targetEvalsDir)/\(outputBase).md")
 
             return result
         }
