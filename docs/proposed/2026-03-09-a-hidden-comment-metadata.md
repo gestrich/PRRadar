@@ -146,7 +146,10 @@ Files to modify:
 - `PRRadarCLIService/CommentService.swift` — construct metadata, pass commit info
 - Possibly `PRReviewFeature/usecases/PostCommentsUseCase.swift` — thread new data through
 
-## - [ ] Phase 3: Parse Metadata from Posted Comments
+## - [x] Phase 3: Parse Metadata from Posted Comments
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Added computed properties directly on the model struct rather than modifying the fetch path. `bodyWithoutMetadata` added for content comparison in Phase 4.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
