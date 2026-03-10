@@ -19,7 +19,8 @@ struct ViolationReconciliationTests {
             score: 7,
             comment: "Avoid force unwraps",
             filePath: filePath,
-            lineNumber: lineNumber
+            lineNumber: lineNumber,
+            ruleHash: "abc123"
         )
     }
 

@@ -62,7 +62,7 @@ public struct TaskCreatorService: Sendable {
                 }
                 let blobHash = blobHashCache[filePath]!
 
-                let ruleBlobHash = await resolveRuleBlobHash(
+                let ruleBlobHash = try await resolveRuleBlobHash(
                     rule: rule, rulesRepoInfo: rulesRepoInfo, cache: &ruleBlobHashCache
                 )
 
@@ -129,11 +129,11 @@ public struct TaskCreatorService: Sendable {
         rule: ReviewRule,
         rulesRepoInfo: RulesRepoInfo?,
         cache: inout [String: String]
-    ) async -> String? {
+    ) async throws -> String {
         let ruleFilePath = rule.filePath
         if let cached = cache[ruleFilePath] { return cached }
 
-        let hash: String?
+        let hash: String
         if let info = rulesRepoInfo {
             let normalizedRoot = info.repoRoot.hasSuffix("/") ? info.repoRoot : info.repoRoot + "/"
             if ruleFilePath.hasPrefix(normalizedRoot) {
@@ -143,21 +143,28 @@ public struct TaskCreatorService: Sendable {
                         commit: "HEAD", filePath: relativePath, repoPath: info.repoRoot
                     )
                 } catch {
-                    hash = contentHash(filePath: ruleFilePath)
+                    hash = try contentHash(filePath: ruleFilePath)
                 }
             } else {
-                hash = contentHash(filePath: ruleFilePath)
+                hash = try contentHash(filePath: ruleFilePath)
             }
         } else {
-            hash = contentHash(filePath: ruleFilePath)
+            hash = try contentHash(filePath: ruleFilePath)
         }
 
-        if let hash { cache[ruleFilePath] = hash }
+        cache[ruleFilePath] = hash
         return hash
     }
 
-    private func contentHash(filePath: String) -> String? {
-        guard let data = FileManager.default.contents(atPath: filePath) else { return nil }
+    private struct RuleFileNotFound: Error, CustomStringConvertible {
+        let path: String
+        var description: String { "Rule file not found: \(path)" }
+    }
+
+    private func contentHash(filePath: String) throws -> String {
+        guard let data = FileManager.default.contents(atPath: filePath) else {
+            throw RuleFileNotFound(path: filePath)
+        }
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
     }

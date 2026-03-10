@@ -249,7 +249,8 @@ struct PRReviewResultTests {
             ]
         )
         let outcome = RuleOutcome.success(result)
-        let comments = outcome.violationComments(task: nil)
+        let task = stubTask(taskId: "t1")
+        let comments = outcome.violationComments(task: task)
 
         #expect(comments.count == 2)
         #expect(comments[0].lineNumber == 21)
@@ -269,7 +270,14 @@ struct PRReviewResultTests {
         #expect(result.violatesRule == false)
 
         let outcome = RuleOutcome.success(result)
+        let task = stubTask(taskId: "t1")
         #expect(outcome.isViolation == false)
-        #expect(outcome.violationComments(task: nil).isEmpty)
+        #expect(outcome.violationComments(task: task).isEmpty)
+    }
+
+    private func stubTask(taskId: String) -> RuleRequest {
+        let rule = TaskRule(name: "test-rule", description: "desc", category: "test", content: "content", rulesDir: "/tmp")
+        let focus = FocusArea(focusId: "f1", filePath: "test.swift", startLine: 1, endLine: 10, description: "test", hunkIndex: 0, hunkContent: "", focusType: .file)
+        return RuleRequest(taskId: taskId, rule: rule, focusArea: focus, gitBlobHash: "abc", ruleBlobHash: "hash123")
     }
 }

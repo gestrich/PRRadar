@@ -29,8 +29,8 @@ struct FlatTaskLevelCachingTests {
         )
 
         // Act
-        let taskA = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "abc123", rulesDir: "/rules/swift-rules")
-        let taskB = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "abc123", rulesDir: "/rules/security-rules")
+        let taskA = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "abc123", ruleBlobHash: "hash123", rulesDir: "/rules/swift-rules")
+        let taskB = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "abc123", ruleBlobHash: "hash123", rulesDir: "/rules/security-rules")
 
         // Assert
         #expect(taskA.taskId != taskB.taskId)
@@ -66,7 +66,7 @@ struct FlatTaskLevelCachingTests {
         )
 
         // Act
-        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef", rulesDir: "/tmp/my-rules")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef", ruleBlobHash: "hash123", rulesDir: "/tmp/my-rules")
 
         // Assert
         #expect(task.taskId == "error-handling_file-app-5-15_my-rules")
@@ -98,7 +98,8 @@ struct FlatTaskLevelCachingTests {
                 startLine: 1, endLine: 5,
                 description: "foo", hunkIndex: 0, hunkContent: "@@ content"
             ),
-            gitBlobHash: "aaa111"
+            gitBlobHash: "aaa111",
+            ruleBlobHash: "hash123"
         )
 
         let encoder = JSONEncoder()
@@ -123,7 +124,8 @@ struct FlatTaskLevelCachingTests {
                 startLine: 1, endLine: 5,
                 description: "bar", hunkIndex: 0, hunkContent: "@@ content"
             ),
-            gitBlobHash: "bbb222"
+            gitBlobHash: "bbb222",
+            ruleBlobHash: "hash123"
         )
         let newData = try encoder.encode(newTask)
         let newFilePath = tmpDir.appendingPathComponent("\(DataPathsService.dataFilePrefix)\(newTask.taskId).json")
@@ -241,7 +243,7 @@ struct FlatTaskLevelCachingTests {
             filePath: "x.swift",
             startLine: 1, endLine: 5,
             description: "x", hunkIndex: 0, hunkContent: "@@ content"
-        ), gitBlobHash: "abc", rulesDir: "/rules/my-dir")
+        ), gitBlobHash: "abc", ruleBlobHash: "hash123", rulesDir: "/rules/my-dir")
 
         // Assert
         #expect(task.rule.rulesDir == "/rules/my-dir")

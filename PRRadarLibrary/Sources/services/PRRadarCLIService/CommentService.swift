@@ -14,7 +14,10 @@ public struct CommentService: Sendable {
         comment: PRComment,
         commitSHA: String
     ) async throws {
-        let body = comment.toGitHubMarkdown()
+        var body = comment.toGitHubMarkdown()
+
+        let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
+        body += "\n\n" + metadata.toHTMLComment()
 
         if let lineNumber = comment.lineNumber {
             try await githubService.postReviewComment(

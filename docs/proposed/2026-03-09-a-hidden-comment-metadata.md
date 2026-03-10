@@ -88,9 +88,19 @@ This keeps the conversation thread intact (preserving replies and reactions) whi
 
 This is a meaningful upgrade from the current "file + line + body contains rule name" approach.
 
+### Backward Compatibility
+
+**Serialized data (cached tasks/evaluations on disk):** No backward compatibility needed. Old cached files that lack new required fields will fail to decode and be re-evaluated — this is fine.
+
+**GitHub comments (v0):** Must remain supported. Comments posted before this feature won't have the `<!-- prradar:... -->` block. The reconciliation logic (Phase 4) handles these via the legacy heuristic and upgrades them on first match.
+
 ## Phases
 
-## - [ ] Phase 1: Define Comment Metadata Model
+## - [x] Phase 1: Define Comment Metadata Model
+
+**Completed in prior session** (commit `37a9c8d`)
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Notes**: Model uses nested `RuleInfo`/`FileInfo` structs for clean grouping. Regex-based parsing with `RegexBuilder`.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -116,7 +126,10 @@ Add serialization methods:
 Files to modify/create:
 - New file: `PRRadarLibrary/Sources/services/PRRadarModels/CommentMetadata.swift`
 
-## - [ ] Phase 2: Embed Metadata When Posting Comments
+## - [x] Phase 2: Embed Metadata When Posting Comments
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Made `ruleBlobHash` and `ruleHash` non-optional throughout the pipeline (RuleRequest → PRComment → CommentMetadata). Metadata constructed at posting time in CommentService where `prHeadSHA` is available. `contentHash` throws on missing rule file rather than returning a placeholder.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -126,7 +139,7 @@ Update the comment posting flow to append metadata to each comment body:
 2. **`PRComment.toGitHubMarkdown()`** — append `CommentMetadata.toHTMLComment()` to the end of the rendered markdown
 3. **`CommentService.postViolations()`** — already fetches `commitSHA` (the PR head); pass it through to `PRComment` or construct metadata at posting time
 4. **Populate `fileBlobSHA`** — use `git ls-tree <commit> <filepath>` (via existing `GitService`) to get the blob SHA for each file being commented on. Or alternatively, fetch it from the GitHub API.
-5. **Populate `ruleHash`** — `RuleRequest` already has `ruleBlobHash` (optional). Ensure this flows through to `PRComment`.
+5. **Populate `ruleHash`** — `RuleRequest.ruleBlobHash` (non-optional) flows through to `PRComment.ruleHash`.
 
 Files to modify:
 - `PRRadarModels/PRComment.swift` — add metadata fields, update `toGitHubMarkdown()`

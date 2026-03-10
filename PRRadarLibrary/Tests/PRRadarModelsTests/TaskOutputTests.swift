@@ -74,7 +74,8 @@ struct TaskOutputTests {
                 "hunk_content": "@@ -10,5 +10,10 @@\\n def process():",
                 "focus_type": "method"
             },
-            "git_blob_hash": "abc123def456789"
+            "git_blob_hash": "abc123def456789",
+            "rule_blob_hash": "rule-hash-1"
         }
         """.data(using: .utf8)!
 
@@ -112,7 +113,8 @@ struct TaskOutputTests {
                 "hunk_content": "@@ -1,5 +1,10 @@\\n # README",
                 "focus_type": "file"
             },
-            "git_blob_hash": "fedcba987654321"
+            "git_blob_hash": "fedcba987654321",
+            "rule_blob_hash": "rule-hash-2"
         }
         """.data(using: .utf8)!
 
@@ -123,8 +125,8 @@ struct TaskOutputTests {
         #expect(task.gitBlobHash == "fedcba987654321")
     }
 
-    @Test("RuleRequest decodes without rule_blob_hash (backward compatible)")
-    func analysisTaskWithoutRuleBlobHash() throws {
+    @Test("RuleRequest decodes with rule_blob_hash present")
+    func analysisTaskWithRuleBlobHashPresent() throws {
         let json = """
         {
             "task_id": "test-task-id",
@@ -146,13 +148,14 @@ struct TaskOutputTests {
                 "hunk_content": "@@ -1,3 +1,4 @@",
                 "focus_type": "file"
             },
-            "git_blob_hash": "abc123"
+            "git_blob_hash": "abc123",
+            "rule_blob_hash": "rule-hash-abc"
         }
         """.data(using: .utf8)!
 
         let task = try JSONDecoder().decode(RuleRequest.self, from: json)
         #expect(task.gitBlobHash == "abc123")
-        #expect(task.ruleBlobHash == nil)
+        #expect(task.ruleBlobHash == "rule-hash-abc")
     }
 
     @Test("RuleRequest decodes with rule_blob_hash")
@@ -252,9 +255,9 @@ struct TaskOutputTests {
         )
         #expect(taskWithHash.ruleBlobHash == "rule456")
 
-        let taskWithoutHash = RuleRequest.from(
-            rule: rule, focusArea: focusArea, gitBlobHash: "src123", rulesDir: "/tmp/rules"
+        let taskWithDifferentHash = RuleRequest.from(
+            rule: rule, focusArea: focusArea, gitBlobHash: "src123", ruleBlobHash: "rule789", rulesDir: "/tmp/rules"
         )
-        #expect(taskWithoutHash.ruleBlobHash == nil)
+        #expect(taskWithDifferentHash.ruleBlobHash == "rule789")
     }
 }

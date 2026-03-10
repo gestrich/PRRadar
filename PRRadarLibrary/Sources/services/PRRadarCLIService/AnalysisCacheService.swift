@@ -97,7 +97,6 @@ public enum AnalysisCacheService {
     }
 
     /// Compare both gitBlobHash and ruleBlobHash between a prior task snapshot and the current task.
-    /// A nil ruleBlobHash on both sides is treated as a match (backward compatibility).
     private static func blobHashesMatch(prior: RuleRequest, current: RuleRequest) -> Bool {
         guard prior.gitBlobHash == current.gitBlobHash else { return false }
         guard prior.ruleBlobHash == current.ruleBlobHash else { return false }

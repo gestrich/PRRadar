@@ -102,9 +102,9 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable, Identifiable
     public let rule: TaskRule
     public let focusArea: FocusArea
     public let gitBlobHash: String
-    public let ruleBlobHash: String?
+    public let ruleBlobHash: String
 
-    public init(taskId: String, rule: TaskRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil) {
+    public init(taskId: String, rule: TaskRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String) {
         self.taskId = taskId
         self.rule = rule
         self.focusArea = focusArea
@@ -139,7 +139,7 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable, Identifiable
         URL(fileURLWithPath: rulesDir).lastPathComponent
     }
 
-    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String? = nil, rulesDir: String) -> RuleRequest {
+    public static func from(rule: ReviewRule, focusArea: FocusArea, gitBlobHash: String, ruleBlobHash: String, rulesDir: String) -> RuleRequest {
         let slug = rulesDirSlug(rulesDir)
         let taskId = "\(rule.name)_\(focusArea.focusId)_\(slug)"
         let taskRule = TaskRule(

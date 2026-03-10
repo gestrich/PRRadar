@@ -28,7 +28,8 @@ struct AnalysisModeTests {
                 hunkIndex: 0,
                 hunkContent: "@@ content"
             ),
-            gitBlobHash: "abc123"
+            gitBlobHash: "abc123",
+            ruleBlobHash: "hash123"
         )
     }
 

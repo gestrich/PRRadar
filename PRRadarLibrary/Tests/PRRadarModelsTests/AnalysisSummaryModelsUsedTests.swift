@@ -80,7 +80,8 @@ struct PRReviewResultModelsUsedTests {
             taskId: taskId,
             rule: rule,
             focusArea: focusArea,
-            gitBlobHash: "abc123"
+            gitBlobHash: "abc123",
+            ruleBlobHash: "hash123"
         )
         let outcome = RuleOutcome.success(RuleResult(
             taskId: taskId,

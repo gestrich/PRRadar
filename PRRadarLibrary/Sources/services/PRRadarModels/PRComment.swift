@@ -15,6 +15,7 @@ public struct PRComment: Sendable, Identifiable {
     public let relevantClaudeSkill: String?
     public let ruleUrl: String?
     public let analysisMethod: AnalysisMethod?
+    public let ruleHash: String
 
     public var costUsd: Double? { analysisMethod?.costUsd }
 
@@ -28,7 +29,8 @@ public struct PRComment: Sendable, Identifiable {
         documentationLink: String? = nil,
         relevantClaudeSkill: String? = nil,
         ruleUrl: String? = nil,
-        analysisMethod: AnalysisMethod? = nil
+        analysisMethod: AnalysisMethod? = nil,
+        ruleHash: String
     ) {
         self.id = id
         self.ruleName = ruleName
@@ -40,13 +42,14 @@ public struct PRComment: Sendable, Identifiable {
         self.relevantClaudeSkill = relevantClaudeSkill
         self.ruleUrl = ruleUrl
         self.analysisMethod = analysisMethod
+        self.ruleHash = ruleHash
     }
 
     /// Creates a comment from an individual violation and its parent result metadata.
     public static func from(
         violation: Violation,
         result: RuleResult,
-        task: RuleRequest?,
+        task: RuleRequest,
         index: Int
     ) -> PRComment {
         PRComment(
@@ -56,10 +59,20 @@ public struct PRComment: Sendable, Identifiable {
             comment: violation.comment,
             filePath: violation.filePath,
             lineNumber: violation.lineNumber,
-            documentationLink: task?.rule.documentationLink,
-            relevantClaudeSkill: task?.rule.relevantClaudeSkill,
-            ruleUrl: task?.rule.ruleUrl,
-            analysisMethod: result.analysisMethod
+            documentationLink: task.rule.documentationLink,
+            relevantClaudeSkill: task.rule.relevantClaudeSkill,
+            ruleUrl: task.rule.ruleUrl,
+            analysisMethod: result.analysisMethod,
+            ruleHash: task.ruleBlobHash
+        )
+    }
+
+    /// Build metadata for this comment at posting time.
+    public func buildMetadata(prHeadSHA: String, fileBlobSHA: String? = nil) -> CommentMetadata {
+        CommentMetadata(
+            rule: .init(id: ruleName, hash: ruleHash),
+            fileInfo: .init(path: filePath, line: lineNumber, blobSHA: fileBlobSHA),
+            prHeadSHA: prHeadSHA
         )
     }
 

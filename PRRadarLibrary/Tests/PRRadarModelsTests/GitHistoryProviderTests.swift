@@ -141,10 +141,18 @@ struct DiffSourceTests {
 @Suite("TaskCreatorService with GitHistoryProvider")
 struct TaskCreatorServiceHistoryProviderTests {
 
+    private let rulesTempDir: String = {
+        let dir = NSTemporaryDirectory() + "prradar-test-rules-\(UUID().uuidString)"
+        try! FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
     private func makeRule(name: String, focusType: FocusType = .file) -> ReviewRule {
-        ReviewRule(
+        let filePath = "\(rulesTempDir)/\(name).md"
+        try! "Rule content".write(toFile: filePath, atomically: true, encoding: .utf8)
+        return ReviewRule(
             name: name,
-            filePath: "/rules/\(name).md",
+            filePath: filePath,
             description: "Test rule",
             category: "test",
             focusType: focusType,

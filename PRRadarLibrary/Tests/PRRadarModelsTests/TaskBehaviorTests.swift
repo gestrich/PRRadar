@@ -66,7 +66,8 @@ struct TaskBehaviorTests {
             taskId: "test-rule_method-main-foo-1-10",
             rule: taskRule,
             focusArea: focusArea,
-            gitBlobHash: "abc123def456"
+            gitBlobHash: "abc123def456",
+            ruleBlobHash: "hash123"
         )
 
         #expect(task.taskId == "test-rule_method-main-foo-1-10")
@@ -104,7 +105,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6", rulesDir: "/tmp/rules")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "a1b2c3d4e5f6", ruleBlobHash: "hash123", rulesDir: "/tmp/rules")
 
         // Task ID is rule name + focus ID + rules dir hash
         let expectedDirHash = RuleRequest.rulesDirSlug("/tmp/rules")
@@ -146,7 +147,7 @@ struct TaskBehaviorTests {
             hunkContent: "@@ content"
         )
 
-        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef", rulesDir: "/tmp/rules")
+        let task = RuleRequest.from(rule: rule, focusArea: focusArea, gitBlobHash: "deadbeef", ruleBlobHash: "hash123", rulesDir: "/tmp/rules")
 
         let expectedDirHash = RuleRequest.rulesDirSlug("/tmp/rules")
         #expect(task.taskId == "simple_file-test-1-5_\(expectedDirHash)")
@@ -184,7 +185,8 @@ struct TaskBehaviorTests {
             taskId: "error-handling_method-main-fetch-10-20",
             rule: taskRule,
             focusArea: focusArea,
-            gitBlobHash: "a1b2c3d4e5f67890"
+            gitBlobHash: "a1b2c3d4e5f67890",
+            ruleBlobHash: "hash123"
         )
 
         // Act

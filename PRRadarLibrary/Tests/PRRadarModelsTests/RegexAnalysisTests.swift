@@ -66,7 +66,7 @@ private func makeRuleRequest(
         hunkIndex: 0,
         hunkContent: ""
     )
-    return RuleRequest(taskId: "\(rule.name)_\(filePath)", rule: rule, focusArea: focusArea, gitBlobHash: "abc123")
+    return RuleRequest(taskId: "\(rule.name)_\(filePath)", rule: rule, focusArea: focusArea, gitBlobHash: "abc123", ruleBlobHash: "hash123")
 }
 
 // MARK: - ReviewRule YAML Parsing Tests
@@ -735,7 +735,7 @@ struct PipelineRoutingTests {
         )
 
         // Act
-        let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc", rulesDir: "/tmp/rules")
+        let request = RuleRequest.from(rule: reviewRule, focusArea: focusArea, gitBlobHash: "abc", ruleBlobHash: "hash123", rulesDir: "/tmp/rules")
 
         // Assert
         #expect(request.rule.analysisType == .regex)

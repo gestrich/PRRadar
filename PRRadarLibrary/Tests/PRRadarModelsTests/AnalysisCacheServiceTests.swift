@@ -21,7 +21,7 @@ struct AnalysisCacheServiceTests {
         return path
     }
 
-    private func makeTask(id: String, blobHash: String, ruleBlobHash: String? = nil) -> RuleRequest {
+    private func makeTask(id: String, blobHash: String, ruleBlobHash: String = "rule-hash") -> RuleRequest {
         RuleRequest(
             taskId: id,
             rule: TaskRule(
@@ -322,11 +322,11 @@ struct AnalysisCacheServiceTests {
         #expect(toEvaluate.isEmpty)
     }
 
-    @Test("Task re-evaluated when prior has nil ruleBlobHash but current has a value")
-    func cacheMissRuleBlobHashNilVsNonNil() throws {
+    @Test("Task re-evaluated when prior has different ruleBlobHash than current")
+    func cacheMissRuleBlobHashDiffers() throws {
         // Arrange
         let dir = try makeTempDir()
-        let oldTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: nil)
+        let oldTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "old-rule-hash")
         let newTask = makeTask(id: "t1", blobHash: "aaa", ruleBlobHash: "new-rule-hash")
         try writeAnalysisResult(makeResult(taskId: "t1"), to: dir)
         try writeTaskSnapshot(oldTask, to: dir)
