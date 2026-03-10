@@ -271,6 +271,14 @@ public struct GitHubReviewComment: Codable, Sendable, Identifiable {
     public let url: String?
     public let inReplyToId: String?
 
+    public var metadata: CommentMetadata? {
+        CommentMetadata.parse(from: body)
+    }
+
+    public var bodyWithoutMetadata: String {
+        CommentMetadata.stripMetadata(from: body)
+    }
+
     public init(
         id: String,
         body: String,
