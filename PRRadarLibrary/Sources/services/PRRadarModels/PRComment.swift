@@ -16,6 +16,7 @@ public struct PRComment: Sendable, Identifiable {
     public let ruleUrl: String?
     public let analysisMethod: AnalysisMethod?
     public let ruleHash: String
+    public let fileBlobSHA: String?
 
     public var costUsd: Double? { analysisMethod?.costUsd }
 
@@ -30,7 +31,8 @@ public struct PRComment: Sendable, Identifiable {
         relevantClaudeSkill: String? = nil,
         ruleUrl: String? = nil,
         analysisMethod: AnalysisMethod? = nil,
-        ruleHash: String
+        ruleHash: String,
+        fileBlobSHA: String? = nil
     ) {
         self.id = id
         self.ruleName = ruleName
@@ -43,6 +45,7 @@ public struct PRComment: Sendable, Identifiable {
         self.ruleUrl = ruleUrl
         self.analysisMethod = analysisMethod
         self.ruleHash = ruleHash
+        self.fileBlobSHA = fileBlobSHA
     }
 
     /// Creates a comment from an individual violation and its parent result metadata.
@@ -63,12 +66,13 @@ public struct PRComment: Sendable, Identifiable {
             relevantClaudeSkill: task.rule.relevantClaudeSkill,
             ruleUrl: task.rule.ruleUrl,
             analysisMethod: result.analysisMethod,
-            ruleHash: task.ruleBlobHash
+            ruleHash: task.ruleBlobHash,
+            fileBlobSHA: task.gitBlobHash
         )
     }
 
     /// Build metadata for this comment at posting time.
-    public func buildMetadata(prHeadSHA: String, fileBlobSHA: String? = nil) -> CommentMetadata {
+    public func buildMetadata(prHeadSHA: String) -> CommentMetadata {
         CommentMetadata(
             rule: .init(id: ruleName, hash: ruleHash),
             fileInfo: .init(path: filePath, line: lineNumber, blobSHA: fileBlobSHA),

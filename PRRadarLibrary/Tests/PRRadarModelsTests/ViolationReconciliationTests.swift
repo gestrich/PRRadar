@@ -13,7 +13,8 @@ struct ViolationReconciliationTests {
         score: Int = 7,
         comment: String = "Avoid force unwraps",
         filePath: String = "Sources/App.swift",
-        lineNumber: Int? = 42
+        lineNumber: Int? = 42,
+        fileBlobSHA: String? = nil
     ) -> PRComment {
         PRComment(
             id: id,
@@ -22,7 +23,8 @@ struct ViolationReconciliationTests {
             comment: comment,
             filePath: filePath,
             lineNumber: lineNumber,
-            ruleHash: "abc123"
+            ruleHash: "abc123",
+            fileBlobSHA: fileBlobSHA
         )
     }
 
@@ -219,7 +221,7 @@ struct ViolationReconciliationTests {
 
     @Test("v1: Line-shifted match with same fileBlobSHA produces .redetected")
     func v1LineShiftedMatch() {
-        let pending = [makePending(lineNumber: 50)]
+        let pending = [makePending(lineNumber: 50, fileBlobSHA: "blobhash123")]
         let posted = [makeV1Posted(line: 42, fileBlobSHA: "blobhash123")]
         let result = ViolationService.reconcile(pending: pending, posted: posted)
 

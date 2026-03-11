@@ -163,25 +163,42 @@ public struct ViolationService: Sendable {
         }
 
         // Tier 3: Line-shifted match — same fileBlobSHA means file content unchanged, line just moved
-        if let shiftedMatch = candidates.first(where: { candidate in
-            guard let meta = candidate.metadata,
-                  let postedBlobSHA = meta.fileInfo?.blobSHA,
-                  !postedBlobSHA.isEmpty else {
-                return false
+        if let pendingBlobSHA = pending.fileBlobSHA, !pendingBlobSHA.isEmpty {
+            if let shiftedMatch = candidates.first(where: { candidate in
+                guard let meta = candidate.metadata,
+                      let postedBlobSHA = meta.fileInfo?.blobSHA,
+                      !postedBlobSHA.isEmpty else {
+                    return false
+                }
+                return postedBlobSHA == pendingBlobSHA
+            }) {
+                consumedIds.insert(shiftedMatch.id)
+                return .redetected(pending: pending, posted: shiftedMatch)
             }
-            // Can't verify file blob SHA match without the current blob SHA on the pending side.
-            // For now, match if the file blob SHA exists (meaning the file was tracked).
-            // Phase 6 will populate fileBlobSHA on PRComment for proper comparison.
-            return true
-        }) {
-            consumedIds.insert(shiftedMatch.id)
-            return .redetected(pending: pending, posted: shiftedMatch)
+
+            // Tier 4: File-changed — same rule + file but different blob SHA means file was modified
+            if let fileChangedMatch = candidates.first(where: { candidate in
+                guard let meta = candidate.metadata,
+                      let postedBlobSHA = meta.fileInfo?.blobSHA,
+                      !postedBlobSHA.isEmpty else {
+                    return false
+                }
+                return postedBlobSHA != pendingBlobSHA
+            }) {
+                consumedIds.insert(fileChangedMatch.id)
+                return .new(pending: pending)
+            }
         }
 
-        // Tier 4: File-changed — same rule + file but no blob SHA match means file was modified
-        if let fileChangedMatch = candidates.first(where: { !consumedIds.contains($0.id) }) {
-            consumedIds.insert(fileChangedMatch.id)
-            return .new(pending: pending)
+        // Fallback: candidates exist but no blob SHA available for comparison
+        if let fallbackMatch = candidates.first(where: { !consumedIds.contains($0.id) }) {
+            consumedIds.insert(fallbackMatch.id)
+            let postedBody = fallbackMatch.bodyWithoutMetadata
+            if pendingBody == postedBody {
+                return .redetected(pending: pending, posted: fallbackMatch)
+            } else {
+                return .needsUpdate(pending: pending, posted: fallbackMatch)
+            }
         }
 
         return nil

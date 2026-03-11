@@ -259,7 +259,10 @@ Files to modify:
 - `services/PRRadarCLIService/CommentService.swift` — handle `.needsUpdate` state
 - `features/PRReviewFeature/usecases/PostCommentsUseCase.swift` — route `.needsUpdate` comments to edit flow
 
-## - [ ] Phase 7: Populate File Blob SHA
+## - [x] Phase 7: Populate File Blob SHA
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Reused existing `RuleRequest.gitBlobHash` (resolved during task creation via `GitOperationsService.getBlobHash()`) rather than adding new git commands. Flowed blob SHA through `PRComment.fileBlobSHA` to metadata at posting time. Updated reconciliation Tier 3/4 to properly compare blob SHAs with a fallback for missing SHAs.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
