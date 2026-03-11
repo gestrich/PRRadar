@@ -484,6 +484,7 @@ final class PRModel: Identifiable, Hashable {
             submittingCommentIds.remove(comment.id)
             if success {
                 submittedCommentIds.insert(comment.id)
+                await refreshReviewCommentsFromGitHub()
             }
         } catch {
             submittingCommentIds.remove(comment.id)
@@ -506,6 +507,10 @@ final class PRModel: Identifiable, Hashable {
 
         guard success == true else { return }
 
+        await refreshReviewCommentsFromGitHub()
+    }
+
+    private func refreshReviewCommentsFromGitHub() async {
         let fetchUseCase = FetchReviewCommentsUseCase(config: config)
         if let updated = try? await fetchUseCase.execute(
             prNumber: prNumber,
@@ -514,6 +519,7 @@ final class PRModel: Identifiable, Hashable {
             cachedOnly: false
         ) {
             reviewComments = updated
+            submittedCommentIds = []
         }
     }
 
