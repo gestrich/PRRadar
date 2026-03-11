@@ -20,6 +20,11 @@ public struct PRComment: Sendable, Identifiable {
 
     public var costUsd: Double? { analysisMethod?.costUsd }
 
+    public var effectiveBlobSHA: String? {
+        guard let sha = fileBlobSHA, !sha.isEmpty else { return nil }
+        return sha
+    }
+
     public init(
         id: String,
         ruleName: String,

@@ -80,6 +80,20 @@ public enum ReviewComment: Sendable, Identifiable {
     }
 }
 
+extension ReviewComment {
+    public static func redetectedOrNeedsUpdate(
+        pending: PRComment,
+        posted: GitHubReviewComment,
+        pendingBody: String
+    ) -> ReviewComment {
+        if pendingBody == posted.bodyWithoutMetadata {
+            return .redetected(pending: pending, posted: posted)
+        } else {
+            return .needsUpdate(pending: pending, posted: posted)
+        }
+    }
+}
+
 extension [ReviewComment] {
     public func sortedByDisplayOrder() -> [ReviewComment] {
         sorted { $0.displayOrder < $1.displayOrder }

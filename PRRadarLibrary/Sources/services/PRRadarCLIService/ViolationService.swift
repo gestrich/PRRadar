@@ -138,10 +138,8 @@ public struct ViolationService: Sendable {
         index: inout [String: [String: [GitHubReviewComment]]],
         consumedIds: inout Set<String>
     ) -> ReviewComment? {
-        let ruleId = pending.ruleName
-        let file = pending.filePath
-
-        guard let candidates = index[ruleId]?[file]?.filter({ !consumedIds.contains($0.id) }),
+        guard let candidates = index[pending.ruleName]?[pending.filePath]?
+            .filter({ !consumedIds.contains($0.id) }),
               !candidates.isEmpty else {
             return nil
         }
@@ -149,56 +147,27 @@ public struct ViolationService: Sendable {
         let pendingBody = pending.toGitHubMarkdown()
 
         // Tier 1 & 2: Exact match on rule_id + file + line
-        if let exactMatch = candidates.first(where: { candidate in
-            guard let meta = candidate.metadata else { return false }
-            return meta.fileInfo?.line == pending.lineNumber
-        }) {
-            consumedIds.insert(exactMatch.id)
-            let postedBody = exactMatch.bodyWithoutMetadata
-            if pendingBody == postedBody {
-                return .redetected(pending: pending, posted: exactMatch)
-            } else {
-                return .needsUpdate(pending: pending, posted: exactMatch)
-            }
+        if let match = candidates.first(where: { $0.metadataLine == pending.lineNumber }) {
+            consumedIds.insert(match.id)
+            return .redetectedOrNeedsUpdate(pending: pending, posted: match, pendingBody: pendingBody)
         }
 
-        // Tier 3: Line-shifted match — same fileBlobSHA means file content unchanged, line just moved
-        if let pendingBlobSHA = pending.fileBlobSHA, !pendingBlobSHA.isEmpty {
-            if let shiftedMatch = candidates.first(where: { candidate in
-                guard let meta = candidate.metadata,
-                      let postedBlobSHA = meta.fileInfo?.blobSHA,
-                      !postedBlobSHA.isEmpty else {
-                    return false
-                }
-                return postedBlobSHA == pendingBlobSHA
-            }) {
-                consumedIds.insert(shiftedMatch.id)
-                return .redetected(pending: pending, posted: shiftedMatch)
+        // Tier 3 & 4: Blob SHA comparison
+        if let pendingBlobSHA = pending.effectiveBlobSHA {
+            if let match = candidates.first(where: { $0.metadataBlobSHA == pendingBlobSHA }) {
+                consumedIds.insert(match.id)
+                return .redetected(pending: pending, posted: match)
             }
-
-            // Tier 4: File-changed — same rule + file but different blob SHA means file was modified
-            if let fileChangedMatch = candidates.first(where: { candidate in
-                guard let meta = candidate.metadata,
-                      let postedBlobSHA = meta.fileInfo?.blobSHA,
-                      !postedBlobSHA.isEmpty else {
-                    return false
-                }
-                return postedBlobSHA != pendingBlobSHA
-            }) {
-                consumedIds.insert(fileChangedMatch.id)
+            if let match = candidates.first(where: { $0.metadataBlobSHA != nil && $0.metadataBlobSHA != pendingBlobSHA }) {
+                consumedIds.insert(match.id)
                 return .new(pending: pending)
             }
         }
 
-        // Fallback: candidates exist but no blob SHA available for comparison
-        if let fallbackMatch = candidates.first(where: { !consumedIds.contains($0.id) }) {
-            consumedIds.insert(fallbackMatch.id)
-            let postedBody = fallbackMatch.bodyWithoutMetadata
-            if pendingBody == postedBody {
-                return .redetected(pending: pending, posted: fallbackMatch)
-            } else {
-                return .needsUpdate(pending: pending, posted: fallbackMatch)
-            }
+        // Fallback: no blob SHA available for comparison
+        if let match = candidates.first(where: { !consumedIds.contains($0.id) }) {
+            consumedIds.insert(match.id)
+            return .redetectedOrNeedsUpdate(pending: pending, posted: match, pendingBody: pendingBody)
         }
 
         return nil

@@ -279,6 +279,15 @@ public struct GitHubReviewComment: Codable, Sendable, Identifiable {
         CommentMetadata.stripMetadata(from: body)
     }
 
+    public var metadataLine: Int? {
+        metadata?.fileInfo?.line
+    }
+
+    public var metadataBlobSHA: String? {
+        guard let sha = metadata?.fileInfo?.blobSHA, !sha.isEmpty else { return nil }
+        return sha
+    }
+
     public init(
         id: String,
         body: String,
