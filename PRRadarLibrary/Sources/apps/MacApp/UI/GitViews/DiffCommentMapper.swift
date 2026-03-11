@@ -66,7 +66,8 @@ private extension ReviewComment.State {
         switch self {
         case .postedOnly: 0
         case .redetected: 1
-        case .new: 2
+        case .needsUpdate: 2
+        case .new: 3
         }
     }
 }

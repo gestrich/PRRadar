@@ -189,7 +189,50 @@ Files to modify:
 - `PRRadarCLIService/ViolationService.swift` — rewrite `reconcile()` with tiered matching
 - `PRRadarModels/ReviewComment.swift` — add `.needsUpdate` state
 
-## - [ ] Phase 5: Add GitHub Comment Edit API Support
+## - [ ] Phase 5: Refactor ReviewComment to Enum with Associated Values
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`
+
+Currently `ReviewComment` is a struct with `pending: PRComment?`, `posted: GitHubReviewComment?`, and `state: State` as independent properties. Each state implies a specific combination of optionals:
+
+| State | `pending` | `posted` |
+|-------|-----------|----------|
+| `.new` | always set | always nil |
+| `.redetected` | always set | always set |
+| `.needsUpdate` | always set | always set |
+| `.postedOnly` | always nil | always set |
+
+This means consumers do unnecessary `if let` unwrapping on values guaranteed by the state. Refactor to an enum with associated values to make impossible states unrepresentable:
+
+```swift
+public enum ReviewComment: Sendable, Identifiable {
+    case new(pending: PRComment)
+    case redetected(pending: PRComment, posted: GitHubReviewComment)
+    case needsUpdate(pending: PRComment, posted: GitHubReviewComment)
+    case postedOnly(posted: GitHubReviewComment)
+}
+```
+
+Add convenience computed properties (`filePath`, `lineNumber`, `score`, `ruleName`, `pending`, `posted`, `state`) to minimize churn at call sites. The `state` property returns a simple enum for switch sites that only care about the category (e.g., `$0.state == .new`).
+
+Also add semantic query properties to eliminate repeated multi-case checks scattered across `DiffPhaseView`, `PRModel`, and `PostCommentsUseCase`:
+
+- **`isActionable: Bool`** — `true` for `.new` and `.needsUpdate` (comments requiring user action: post or edit)
+- **`isPosted: Bool`** — `true` for `.redetected` and `.postedOnly` (comments already on GitHub, no action needed)
+
+This replaces patterns like `$0.state == .new || $0.state == .needsUpdate` and `$0.state == .redetected || $0.state == .postedOnly` with `$0.isActionable` and `$0.isPosted`, keeping the categorization logic in one place.
+
+Files to modify:
+- `PRRadarModels/ReviewComment.swift` — convert from struct to enum with associated values
+- `PRRadarCLIService/ViolationService.swift` — update `reconcile()` to construct enum cases
+- `apps/MacApp/UI/GitViews/RichDiffViews.swift` — update switch blocks to destructure associated values (removes `if let` guards)
+- `apps/MacApp/UI/GitViews/DiffCommentMapper.swift` — update sort order extension
+- `apps/MacApp/UI/PhaseViews/DiffPhaseView.swift` — update state checks
+- `apps/MacApp/Models/PRModel.swift` — update `pendingCommentCount`
+- `features/PRReviewFeature/usecases/PostCommentsUseCase.swift` — update state filters
+- `Tests/PRRadarModelsTests/ViolationReconciliationTests.swift` — update test assertions
+
+## - [ ] Phase 6: Add GitHub Comment Edit API Support
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -207,7 +250,7 @@ Files to modify:
 - `services/PRRadarCLIService/CommentService.swift` — handle `.needsUpdate` state
 - `features/PRReviewFeature/usecases/PostCommentsUseCase.swift` — route `.needsUpdate` comments to edit flow
 
-## - [ ] Phase 6: Populate File Blob SHA
+## - [ ] Phase 7: Populate File Blob SHA
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
@@ -223,7 +266,53 @@ Files to modify:
 - `PRRadarMacSDK` or `PRRadarCLIService/GitService.swift` — add `blobSHA(for:at:)` method
 - Wire into the comment posting flow from Phase 2
 
-## - [ ] Phase 7: Validation
+## - [ ] Phase 8: Single Source of Truth for Submitted Comments
+
+**Skills to read**: `/swift-app-architecture:swift-architecture`, `/swift-app-architecture:swift-swiftui`
+
+### Problem
+
+`PRModel` has two sources of truth for whether a comment was posted:
+
+1. **`submittedCommentIds: Set<String>`** — local optimistic set populated immediately after a successful GitHub API post in `submitSingleComment()`. Used by `pendingCommentCount` and `InlineCommentView.isSubmitted` to update UI instantly.
+2. **`ReviewComment.state`** — authoritative state from `ViolationService.reconcile()`, which compares pending violations against GitHub comments fetched to disk. Only updates when review comments are reloaded.
+
+These can diverge: after posting, `submittedCommentIds` says "posted" but `reviewComments` still shows `.new` until a manual refresh happens.
+
+### Solution
+
+After successfully posting a comment, re-fetch review comments from GitHub so reconciliation becomes the single authority. Keep `submittedCommentIds` only as a brief optimistic bridge during the re-fetch.
+
+### Implementation
+
+1. **Add `refreshReviewCommentsFromGitHub()` helper** to `PRModel` — calls `FetchReviewCommentsUseCase.execute(cachedOnly: false)` to fetch from GitHub, assigns result to `reviewComments`, clears `submittedCommentIds`.
+
+2. **Modify `submitSingleComment()`** (line ~486) — after the optimistic `submittedCommentIds.insert()`, call `await refreshReviewCommentsFromGitHub()`. The optimistic insert provides instant checkmark UI; the re-fetch then makes reconciliation authoritative and clears the set.
+
+3. **Refactor `postManualComment()`** (lines ~509-517) — replace its inline fetch logic with a call to `refreshReviewCommentsFromGitHub()` to deduplicate.
+
+4. **`pendingCommentCount`** — keep filtering on `$0.state == .new` only (not `.needsUpdate`). The `submittedCommentIds` check stays as the optimistic bridge during the fetch window.
+
+### Post-submit flow
+
+1. User taps Submit → spinner via `submittingCommentIds`
+2. GitHub API post succeeds → `submittedCommentIds.insert()` → immediate checkmark
+3. `refreshReviewCommentsFromGitHub()` fetches → reconciliation produces `.redetected` → `submittedCommentIds` cleared
+4. Comment renders as `InlinePostedCommentView` instead of `InlineCommentView`
+
+### Edge cases
+
+- **Re-fetch fails**: Use `try?` so failure is silent. `submittedCommentIds` retains the ID, checkmark persists. Next manual reload picks it up.
+- **Multiple rapid submissions**: Each triggers its own re-fetch. Since `@MainActor`, state updates are serialized. Last re-fetch wins (most up-to-date).
+
+Files to modify:
+- `apps/MacApp/Models/PRModel.swift` — add helper, modify `submitSingleComment()`, refactor `postManualComment()`
+
+No changes needed to:
+- `InlineCommentView.swift` — checkmark works via optimistic set, then view switches to `InlinePostedCommentView` after re-fetch
+- `FetchReviewCommentsUseCase.swift` — existing `cachedOnly: false` path already does what we need
+
+## - [ ] Phase 9: Validation
 
 **Skills to read**: `/swift-testing`, `/pr-radar-verify-work`
 

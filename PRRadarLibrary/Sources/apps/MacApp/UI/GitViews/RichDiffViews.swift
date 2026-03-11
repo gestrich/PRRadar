@@ -625,6 +625,11 @@ struct AnnotatedHunkContentView: View {
                                     gutterBackground: gutterBg
                                 )
                             }
+                        case .needsUpdate:
+                            if let pending = rc.pending {
+                                InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg, isHighlighted: rc.id == highlightedCommentID)
+                                    .id(rc.id)
+                            }
                         case .postedOnly:
                             if let posted = rc.posted {
                                 InlinePostedCommentView(
@@ -811,6 +816,11 @@ struct AnnotatedDiffContentView: View {
                             imageURLMap: imageURLMap,
                             imageBaseDir: imageBaseDir
                         )
+                    }
+                case .needsUpdate:
+                    if let pending = rc.pending {
+                        InlineCommentView(comment: pending, prModel: prModel, isHighlighted: rc.id == highlightedCommentID)
+                            .id(rc.id)
                     }
                 case .postedOnly:
                     if let posted = rc.posted {

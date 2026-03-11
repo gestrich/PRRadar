@@ -3,10 +3,12 @@ import Foundation
 public struct ReviewComment: Sendable, Identifiable {
     public let pending: PRComment?
     public let posted: GitHubReviewComment?
+    public let state: State
 
-    public init(pending: PRComment?, posted: GitHubReviewComment?) {
+    public init(pending: PRComment?, posted: GitHubReviewComment?, state: State) {
         self.pending = pending
         self.posted = posted
+        self.state = state
     }
 
     public var id: String {
@@ -25,16 +27,8 @@ public struct ReviewComment: Sendable, Identifiable {
     public enum State: Sendable {
         case new
         case redetected
+        case needsUpdate
         case postedOnly
-    }
-
-    public var state: State {
-        switch (pending, posted) {
-        case (.some, .some): return .redetected
-        case (.some, .none): return .new
-        case (.none, .some): return .postedOnly
-        case (.none, .none): return .postedOnly
-        }
     }
 
     public var filePath: String { pending?.filePath ?? posted?.path ?? "" }
