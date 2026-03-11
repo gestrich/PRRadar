@@ -238,7 +238,10 @@ Files to modify:
 - `features/PRReviewFeature/usecases/PostCommentsUseCase.swift` — update state filters
 - `Tests/PRRadarModelsTests/ViolationReconciliationTests.swift` — update test assertions
 
-## - [ ] Phase 6: Add GitHub Comment Edit API Support
+## - [x] Phase 6: Add GitHub Comment Edit API Support
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: PATCH support added at each layer (SDK → Service → Feature). Centralized API path construction via `GitHubPath` enum and request building via `makeRequest`/`makeMutationRequest` helpers. `PostCommentsUseCase` refactored into smaller private methods for readability.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

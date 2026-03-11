@@ -35,6 +35,20 @@ public struct CommentService: Sendable {
         }
     }
 
+    /// Edit an existing review comment with updated body and metadata.
+    public func editReviewComment(
+        commentId: Int,
+        comment: PRComment,
+        commitSHA: String
+    ) async throws {
+        var body = comment.toGitHubMarkdown()
+
+        let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
+        body += "\n\n" + metadata.toHTMLComment()
+
+        try await githubService.editReviewComment(commentId: commentId, body: body)
+    }
+
     /// Post a general comment on a PR (not inline).
     public func postComment(prNumber: Int, body: String) async throws {
         try await githubService.postIssueComment(number: prNumber, body: body)
@@ -62,6 +76,36 @@ public struct CommentService: Sendable {
                 successful += 1
             } catch {
                 print("  Failed to post comment on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
+                failed += 1
+            }
+        }
+
+        return (successful, failed)
+    }
+
+    /// Edit existing comments that need updating.
+    ///
+    /// Each tuple pairs the pending comment with the GitHub comment ID to edit.
+    /// Returns (successful, failed) counts.
+    public func editViolations(
+        comments: [(pending: PRComment, commentId: Int)],
+        prNumber: Int
+    ) async throws -> (successful: Int, failed: Int) {
+        let commitSHA = try await githubService.getPRHeadSHA(number: prNumber)
+
+        var successful = 0
+        var failed = 0
+
+        for (comment, commentId) in comments {
+            do {
+                try await editReviewComment(
+                    commentId: commentId,
+                    comment: comment,
+                    commitSHA: commitSHA
+                )
+                successful += 1
+            } catch {
+                print("  Failed to edit comment \(commentId) on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
                 failed += 1
             }
         }

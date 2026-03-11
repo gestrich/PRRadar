@@ -159,6 +159,57 @@ public struct ReviewCommentData: Sendable {
     public let userId: Int?
 }
 
+private enum GitHubPath {
+    static func repository(_ owner: String, _ repository: String) -> String {
+        "repos/\(owner)/\(repository)"
+    }
+
+    static func pullRequest(_ owner: String, _ repository: String, number: Int) -> String {
+        "\(self.repository(owner, repository))/pulls/\(number)"
+    }
+
+    static func pullRequests(_ owner: String, _ repository: String) -> String {
+        "\(self.repository(owner, repository))/pulls"
+    }
+
+    static func pullRequestFiles(_ owner: String, _ repository: String, number: Int) -> String {
+        "\(pullRequest(owner, repository, number: number))/files"
+    }
+
+    static func pullRequestReviewComments(_ owner: String, _ repository: String, number: Int) -> String {
+        "\(pullRequest(owner, repository, number: number))/comments"
+    }
+
+    static func pullRequestReviews(_ owner: String, _ repository: String, number: Int) -> String {
+        "\(pullRequest(owner, repository, number: number))/reviews"
+    }
+
+    static func reviewComment(_ owner: String, _ repository: String, commentId: Int) -> String {
+        "\(self.repository(owner, repository))/pulls/comments/\(commentId)"
+    }
+
+    static func issueComments(_ owner: String, _ repository: String, number: Int) -> String {
+        "\(self.repository(owner, repository))/issues/\(number)/comments"
+    }
+
+    static func issueComment(_ owner: String, _ repository: String, commentId: Int) -> String {
+        "\(self.repository(owner, repository))/issues/comments/\(commentId)"
+    }
+
+    static func contents(_ owner: String, _ repository: String, path: String) -> String {
+        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        return "\(self.repository(owner, repository))/contents/\(encodedPath)"
+    }
+
+    static func compare(_ owner: String, _ repository: String, base: String, head: String) -> String {
+        "\(self.repository(owner, repository))/compare/\(base)...\(head)"
+    }
+
+    static func user(login: String) -> String {
+        "users/\(login)"
+    }
+}
+
 public struct OctokitClient: Sendable {
     private let token: String
     private let apiEndpoint: String?
@@ -173,10 +224,42 @@ public struct OctokitClient: Sendable {
         self.apiEndpoint = enterpriseURL
     }
 
+    private var baseURL: String {
+        apiEndpoint ?? "https://api.github.com"
+    }
+
+    private func makeRequest(
+        path: String,
+        accept: String = "application/vnd.github+json",
+        queryItems: [URLQueryItem] = []
+    ) -> URLRequest {
+        var components = URLComponents(string: "\(baseURL)/\(path)")!
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        return request
+    }
+
+    private func makeMutationRequest(
+        path: String,
+        method: String,
+        accept: String = "application/vnd.github+json",
+        payload: [String: Any]
+    ) throws -> URLRequest {
+        var request = makeRequest(path: path, accept: accept)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        return request
+    }
+
     // MARK: - Pull Request Operations
 
     public func pullRequest(owner: String, repository: String, number: Int) async throws -> PullRequest {
-        try await getJSON(path: "repos/\(owner)/\(repository)/pulls/\(number)")
+        try await getJSON(path: GitHubPath.pullRequest(owner, repository, number: number))
     }
 
     public func listPullRequests(
@@ -197,7 +280,7 @@ public struct OctokitClient: Sendable {
         if let base { queryItems.append(URLQueryItem(name: "base", value: base)) }
         if let page { queryItems.append(URLQueryItem(name: "page", value: page)) }
         if let perPage { queryItems.append(URLQueryItem(name: "per_page", value: perPage)) }
-        return try await getJSON(path: "repos/\(owner)/\(repository)/pulls", queryItems: queryItems)
+        return try await getJSON(path: GitHubPath.pullRequests(owner, repository), queryItems: queryItems)
     }
 
     /// Fetches the list of files changed in a pull request.
@@ -218,11 +301,10 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> [PullRequest.File] {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)/files")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        let request = makeRequest(
+            path: GitHubPath.pullRequestFiles(owner, repository, number: number),
+            accept: "application/vnd.github.v3+json"
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -255,20 +337,19 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> [ReviewCommentData] {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
         var allResults: [ReviewCommentData] = []
         var page = 1
         let perPage = 100
 
         while true {
-            var components = URLComponents(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)/comments")!
-            components.queryItems = [
-                URLQueryItem(name: "per_page", value: String(perPage)),
-                URLQueryItem(name: "page", value: String(page)),
-            ]
-            var request = URLRequest(url: components.url!)
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            let request = makeRequest(
+                path: GitHubPath.pullRequestReviewComments(owner, repository, number: number),
+                accept: "application/vnd.github.v3+json",
+                queryItems: [
+                    URLQueryItem(name: "per_page", value: String(perPage)),
+                    URLQueryItem(name: "page", value: String(page)),
+                ]
+            )
 
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -316,11 +397,10 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> String {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/pulls/\(number)")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3.diff", forHTTPHeaderField: "Accept")
+        let request = makeRequest(
+            path: GitHubPath.pullRequest(owner, repository, number: number),
+            accept: "application/vnd.github.v3.diff"
+        )
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OctokitClientError.invalidResponse
@@ -350,12 +430,11 @@ public struct OctokitClient: Sendable {
         path: String,
         ref: String
     ) async throws -> String {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/contents/\(encodedPath)?ref=\(ref)")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3.raw", forHTTPHeaderField: "Accept")
+        let request = makeRequest(
+            path: GitHubPath.contents(owner, repository, path: path),
+            accept: "application/vnd.github.v3.raw",
+            queryItems: [URLQueryItem(name: "ref", value: ref)]
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -385,13 +464,12 @@ public struct OctokitClient: Sendable {
         base: String,
         head: String
     ) async throws -> CompareResult {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
         let strippedBase = base.hasPrefix("origin/") ? String(base.dropFirst("origin/".count)) : base
         let strippedHead = head.hasPrefix("origin/") ? String(head.dropFirst("origin/".count)) : head
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/compare/\(strippedBase)...\(strippedHead)")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        let request = makeRequest(
+            path: GitHubPath.compare(owner, repository, base: strippedBase, head: strippedHead),
+            accept: "application/vnd.github.v3+json"
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -420,12 +498,11 @@ public struct OctokitClient: Sendable {
         path: String,
         ref: String
     ) async throws -> String {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
-        let url = URL(string: "\(baseURL)/repos/\(owner)/\(repository)/contents/\(encodedPath)?ref=\(ref)")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        let request = makeRequest(
+            path: GitHubPath.contents(owner, repository, path: path),
+            accept: "application/vnd.github.v3+json",
+            queryItems: [URLQueryItem(name: "ref", value: ref)]
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -448,10 +525,38 @@ public struct OctokitClient: Sendable {
         }
     }
 
+    // MARK: - Comment Edit Operations
+
+    @discardableResult
+    public func updateReviewComment(
+        owner: String,
+        repository: String,
+        commentId: Int,
+        body: String
+    ) async throws -> PullRequest.Comment {
+        try await patchJSON(
+            path: GitHubPath.reviewComment(owner, repository, commentId: commentId),
+            payload: ["body": body]
+        )
+    }
+
+    @discardableResult
+    public func updateIssueComment(
+        owner: String,
+        repository: String,
+        commentId: Int,
+        body: String
+    ) async throws -> Issue.Comment {
+        try await patchJSON(
+            path: GitHubPath.issueComment(owner, repository, commentId: commentId),
+            payload: ["body": body]
+        )
+    }
+
     // MARK: - Repository Operations
 
     public func repository(owner: String, name: String) async throws -> OctoKit.Repository {
-        try await getJSON(path: "repos/\(owner)/\(name)")
+        try await getJSON(path: GitHubPath.repository(owner, name))
     }
 
     // MARK: - Comment Operations
@@ -463,7 +568,7 @@ public struct OctokitClient: Sendable {
         body: String
     ) async throws -> Issue.Comment {
         try await postJSON(
-            path: "repos/\(owner)/\(repository)/issues/\(number)/comments",
+            path: GitHubPath.issueComments(owner, repository, number: number),
             payload: ["body": body]
         )
     }
@@ -479,7 +584,7 @@ public struct OctokitClient: Sendable {
         body: String
     ) async throws -> PullRequest.Comment {
         try await postJSON(
-            path: "repos/\(owner)/\(repository)/pulls/\(number)/comments",
+            path: GitHubPath.pullRequestReviewComments(owner, repository, number: number),
             accept: "application/vnd.github.comfort-fade-preview+json",
             payload: [
                 "body": body,
@@ -496,7 +601,7 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> [Issue.Comment] {
-        try await getJSON(path: "repos/\(owner)/\(repository)/issues/\(number)/comments")
+        try await getJSON(path: GitHubPath.issueComments(owner, repository, number: number))
     }
 
     public func listReviews(
@@ -504,7 +609,7 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> [Review] {
-        try await getJSON(path: "repos/\(owner)/\(repository)/pulls/\(number)/reviews")
+        try await getJSON(path: GitHubPath.pullRequestReviews(owner, repository, number: number))
     }
 
     public func getPullRequestHeadSHA(
@@ -526,13 +631,6 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> String {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/graphql")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
         let query = """
         query($owner: String!, $name: String!, $number: Int!) {
           repository(owner: $owner, name: $name) {
@@ -542,15 +640,18 @@ public struct OctokitClient: Sendable {
           }
         }
         """
-        let body: [String: Any] = [
-            "query": query,
-            "variables": [
-                "owner": owner,
-                "name": repository,
-                "number": number
+        let request = try makeMutationRequest(
+            path: "graphql",
+            method: "POST",
+            payload: [
+                "query": query,
+                "variables": [
+                    "owner": owner,
+                    "name": repository,
+                    "number": number
+                ] as [String: Any]
             ]
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -587,13 +688,6 @@ public struct OctokitClient: Sendable {
         repository: String,
         number: Int
     ) async throws -> String {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/graphql")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
         let query = """
         query($owner: String!, $name: String!, $number: Int!) {
           repository(owner: $owner, name: $name) {
@@ -603,15 +697,18 @@ public struct OctokitClient: Sendable {
           }
         }
         """
-        let body: [String: Any] = [
-            "query": query,
-            "variables": [
-                "owner": owner,
-                "name": repository,
-                "number": number
+        let request = try makeMutationRequest(
+            path: "graphql",
+            method: "POST",
+            payload: [
+                "query": query,
+                "variables": [
+                    "owner": owner,
+                    "name": repository,
+                    "number": number
+                ] as [String: Any]
             ]
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -644,7 +741,7 @@ public struct OctokitClient: Sendable {
     // MARK: - User Operations
 
     public func getUser(login: String) async throws -> OctoKit.User {
-        try await getJSON(path: "users/\(login)")
+        try await getJSON(path: GitHubPath.user(login: login))
     }
 
     // MARK: - Private
@@ -657,14 +754,7 @@ public struct OctokitClient: Sendable {
         accept: String = "application/vnd.github+json",
         queryItems: [URLQueryItem] = []
     ) async throws -> T {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        var components = URLComponents(string: "\(baseURL)/\(path)")!
-        if !queryItems.isEmpty {
-            components.queryItems = queryItems
-        }
-        var request = URLRequest(url: components.url!)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(accept, forHTTPHeaderField: "Accept")
+        let request = makeRequest(path: path, accept: accept, queryItems: queryItems)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -693,14 +783,7 @@ public struct OctokitClient: Sendable {
         accept: String = "application/vnd.github+json",
         payload: [String: Any]
     ) async throws -> T {
-        let baseURL = apiEndpoint ?? "https://api.github.com"
-        let url = URL(string: "\(baseURL)/\(path)")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(accept, forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        let request = try makeMutationRequest(path: path, method: "POST", accept: accept, payload: payload)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -709,6 +792,33 @@ public struct OctokitClient: Sendable {
 
         switch httpResponse.statusCode {
         case 200, 201:
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(Time.rfc3339DateFormatter)
+            return try decoder.decode(T.self, from: data)
+        case 401:
+            throw OctokitClientError.authenticationFailed
+        case 404:
+            throw OctokitClientError.notFound(path)
+        default:
+            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
+            throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode): \(errorBody)")
+        }
+    }
+
+    private func patchJSON<T: Decodable>(
+        path: String,
+        accept: String = "application/vnd.github+json",
+        payload: [String: Any]
+    ) async throws -> T {
+        let request = try makeMutationRequest(path: path, method: "PATCH", accept: accept, payload: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OctokitClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .formatted(Time.rfc3339DateFormatter)
             return try decoder.decode(T.self, from: data)

@@ -61,6 +61,9 @@ struct CommentCommand: AsyncParsableCommand {
 
         if output.posted {
             var summary = "\(output.successful) comments posted, \(output.failed) failed."
+            if output.edited > 0 || output.editFailed > 0 {
+                summary += " \(output.edited) edited, \(output.editFailed) edit failures."
+            }
             if output.skipped > 0 {
                 summary += " \(output.skipped) already-posted skipped."
             }

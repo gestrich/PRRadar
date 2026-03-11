@@ -209,6 +209,24 @@ public struct GitHubService: Sendable {
         )
     }
 
+    public func editReviewComment(commentId: Int, body: String) async throws {
+        _ = try await octokitClient.updateReviewComment(
+            owner: owner,
+            repository: repo,
+            commentId: commentId,
+            body: body
+        )
+    }
+
+    public func editIssueComment(commentId: Int, body: String) async throws {
+        _ = try await octokitClient.updateIssueComment(
+            owner: owner,
+            repository: repo,
+            commentId: commentId,
+            body: body
+        )
+    }
+
     // MARK: - Git History Operations
 
     public func getFileContent(path: String, ref: String) async throws -> String {
