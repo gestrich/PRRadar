@@ -278,7 +278,10 @@ Files to modify:
 - `PRRadarMacSDK` or `PRRadarCLIService/GitService.swift` — add `blobSHA(for:at:)` method
 - Wire into the comment posting flow from Phase 2
 
-## - [ ] Phase 8: Single Source of Truth for Submitted Comments
+## - [x] Phase 8: Single Source of Truth for Submitted Comments
+
+**Skills used**: `/swift-app-architecture:swift-architecture`, `/swift-app-architecture:swift-swiftui`
+**Principles applied**: Extracted `refreshReviewCommentsFromGitHub()` helper for reuse after both single-comment submission and manual comment posting. Optimistic `submittedCommentIds` provides instant UI feedback; re-fetch makes reconciliation authoritative and clears the set.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`, `/swift-app-architecture:swift-swiftui`
 
