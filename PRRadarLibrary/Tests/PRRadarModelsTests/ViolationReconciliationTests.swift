@@ -251,6 +251,54 @@ struct ViolationReconciliationTests {
         #expect(states == [.new, .postedOnly])
     }
 
+    @Test("v1: File-changed (different fileBlobSHA) produces .new")
+    func v1FileChangedDifferentBlobSHA() {
+        let pending = [makePending(lineNumber: 50, fileBlobSHA: "newblob")]
+        let posted = [makeV1Posted(line: 99, fileBlobSHA: "oldblob")]
+        let result = ViolationService.reconcile(pending: pending, posted: posted)
+
+        // Different line AND different blob SHA → Tier 4 → .new (file was modified)
+        // The posted comment is consumed by the match, so only 1 result
+        #expect(result.count == 1)
+        #expect(result[0].state == .new)
+        #expect(result[0].pending?.id == "pending-1")
+    }
+
+    @Test("v1: Fallback when no blob SHA available uses body comparison")
+    func v1FallbackNoBlobSHA() {
+        let p = makePending(lineNumber: 50, fileBlobSHA: nil)
+        let posted = [makeV1Posted(contentBody: p.toGitHubMarkdown(), line: 42, fileBlobSHA: nil)]
+        let result = ViolationService.reconcile(pending: [p], posted: posted)
+
+        // Same rule + file, different line, no blob SHA → fallback match → body matches → .redetected
+        #expect(result.count == 1)
+        #expect(result[0].state == .redetected)
+    }
+
+    @Test("v1: Fallback with different body produces .needsUpdate")
+    func v1FallbackDifferentBody() {
+        let pending = [makePending(comment: "Updated message", lineNumber: 50, fileBlobSHA: nil)]
+        let posted = [makeV1Posted(contentBody: "**no-force-unwrap**\n\nOriginal message", line: 42, fileBlobSHA: nil)]
+        let result = ViolationService.reconcile(pending: pending, posted: posted)
+
+        #expect(result.count == 1)
+        #expect(result[0].state == .needsUpdate)
+    }
+
+    @Test("v1: Each posted comment consumed at most once")
+    func v1PostedConsumedOnce() {
+        let p1 = makePending(id: "p1", lineNumber: 42)
+        let p2 = makePending(id: "p2", lineNumber: 42)
+        let posted = [makeV1Posted(id: "g1")]
+        let result = ViolationService.reconcile(pending: [p1, p2], posted: posted)
+
+        #expect(result.count == 2)
+        let matched = result.filter { $0.state == .redetected || $0.state == .needsUpdate }
+        let new = result.filter { $0.state == .new }
+        #expect(matched.count == 1)
+        #expect(new.count == 1)
+    }
+
     // MARK: - Mixed v0 + v1 scenario
 
     @Test("Mixed v0 and v1 comments produces correct states")

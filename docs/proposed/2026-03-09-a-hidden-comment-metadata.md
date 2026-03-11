@@ -327,7 +327,10 @@ No changes needed to:
 - `InlineCommentView.swift` — checkmark works via optimistic set, then view switches to `InlinePostedCommentView` after re-fetch
 - `FetchReviewCommentsUseCase.swift` — existing `cachedOnly: false` path already does what we need
 
-## - [ ] Phase 9: Validation
+## - [x] Phase 9: Validation
+
+**Skills used**: `/swift-testing`, `/pr-radar-verify-work`
+**Principles applied**: Arrange-Act-Assert pattern with `#expect()` assertions. Tests cover serialization round-trips, parse edge cases, rendering correctness, and reconciliation tiers (file-changed blob SHA, fallback without blob SHA, consumed-once). Integration verified via CLI dry-run against test repo.
 
 **Skills to read**: `/swift-testing`, `/pr-radar-verify-work`
 
