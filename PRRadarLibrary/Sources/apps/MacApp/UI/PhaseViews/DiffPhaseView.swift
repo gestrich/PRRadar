@@ -409,11 +409,11 @@ struct DiffPhaseView: View {
         var counts: [String: Int] = [:]
         for (file, lineMap) in mapping.byFileAndLine {
             counts[file, default: 0] += lineMap.values.reduce(0) { total, comments in
-                total + comments.filter { $0.state == .new || $0.state == .needsUpdate }.count
+                total + comments.filter { $0.needsPosting }.count
             }
         }
         for (file, comments) in mapping.unmatchedByFile {
-            counts[file, default: 0] += comments.filter { $0.state == .new || $0.state == .needsUpdate }.count
+            counts[file, default: 0] += comments.filter { $0.needsPosting }.count
         }
         return counts
     }
@@ -427,13 +427,13 @@ struct DiffPhaseView: View {
         var maxScore = 0
         if let lineMap = mapping.byFileAndLine[file] {
             for comments in lineMap.values {
-                for comment in comments where comment.state == .new || comment.state == .needsUpdate {
+                for comment in comments where comment.needsPosting {
                     maxScore = max(maxScore, comment.score ?? 0)
                 }
             }
         }
         if let comments = mapping.unmatchedByFile[file] {
-            for comment in comments where comment.state == .new || comment.state == .needsUpdate {
+            for comment in comments where comment.needsPosting {
                 maxScore = max(maxScore, comment.score ?? 0)
             }
         }
@@ -444,11 +444,11 @@ struct DiffPhaseView: View {
         var counts: [String: Int] = [:]
         for (file, lineMap) in mapping.byFileAndLine {
             counts[file, default: 0] += lineMap.values.reduce(0) { total, comments in
-                total + comments.filter { $0.state == .redetected || $0.state == .postedOnly }.count
+                total + comments.filter { $0.isPosted }.count
             }
         }
         for (file, comments) in mapping.unmatchedByFile {
-            counts[file, default: 0] += comments.filter { $0.state == .redetected || $0.state == .postedOnly }.count
+            counts[file, default: 0] += comments.filter { $0.isPosted }.count
         }
         return counts
     }
@@ -547,13 +547,13 @@ struct DiffPhaseView: View {
         for file in fullDiff.changedFiles {
             if let lineMap = mapping.byFileAndLine[file] {
                 for line in lineMap.keys.sorted() {
-                    for comment in lineMap[line]! where comment.state == .new || comment.state == .needsUpdate {
+                    for comment in lineMap[line]! where comment.needsPosting {
                         result.append(ViolationLocation(file: file, commentID: comment.id))
                     }
                 }
             }
             if let fileLevel = mapping.unmatchedByFile[file] {
-                for comment in fileLevel where comment.state == .new || comment.state == .needsUpdate {
+                for comment in fileLevel where comment.needsPosting {
                     result.append(ViolationLocation(file: file, commentID: comment.id))
                 }
             }

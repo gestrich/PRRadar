@@ -192,7 +192,10 @@ Files to modify:
 - `PRRadarCLIService/ViolationService.swift` — rewrite `reconcile()` with tiered matching
 - `PRRadarModels/ReviewComment.swift` — add `.needsUpdate` state
 
-## - [ ] Phase 5: Refactor ReviewComment to Enum with Associated Values
+## - [x] Phase 5: Refactor ReviewComment to Enum with Associated Values
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Enum with associated values makes impossible states unrepresentable. Added `needsPosting`/`isPosted` semantic helpers and `sortedByDisplayOrder()` on `[ReviewComment]`. Convenience computed properties (`pending`, `posted`, `state`, `filePath`, etc.) minimize call-site churn.
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 

@@ -47,9 +47,7 @@ enum DiffCommentMapper {
         // Sort within each line: postedOnly first, then redetected, then new
         for (file, lineMap) in byFileAndLine {
             for (line, lineComments) in lineMap {
-                byFileAndLine[file]![line] = lineComments.sorted { a, b in
-                    a.state.sortOrder < b.state.sortOrder
-                }
+                byFileAndLine[file]![line] = lineComments.sortedByDisplayOrder()
             }
         }
 
@@ -58,16 +56,5 @@ enum DiffCommentMapper {
             unmatchedByFile: unmatchedByFile,
             unmatchedNoFile: unmatchedNoFile
         )
-    }
-}
-
-private extension ReviewComment.State {
-    var sortOrder: Int {
-        switch self {
-        case .postedOnly: 0
-        case .redetected: 1
-        case .needsUpdate: 2
-        case .new: 3
-        }
     }
 }

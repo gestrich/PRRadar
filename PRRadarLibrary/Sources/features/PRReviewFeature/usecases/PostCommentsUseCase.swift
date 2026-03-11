@@ -43,7 +43,7 @@ public struct PostCommentsUseCase: Sendable {
                     let fetchUseCase = FetchReviewCommentsUseCase(config: config)
                     let allComments = fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold, commitHash: commitHash)
 
-                    let newComments = allComments.filter { $0.state == .new || $0.state == .needsUpdate }
+                    let newComments = allComments.filter { $0.needsPosting }
                     let skippedCount = allComments.filter { $0.state == .redetected }.count
                     let violations = newComments.compactMap { $0.pending }
 

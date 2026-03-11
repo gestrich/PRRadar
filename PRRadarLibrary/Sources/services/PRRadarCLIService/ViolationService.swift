@@ -119,12 +119,12 @@ public struct ViolationService: Sendable {
             }
 
             // No match — new violation
-            results.append(ReviewComment(pending: p, posted: nil, state: .new))
+            results.append(.new(pending: p))
         }
 
         // Remaining unmatched posted comments
         for comment in posted where !consumedIds.contains(comment.id) {
-            results.append(ReviewComment(pending: nil, posted: comment, state: .postedOnly))
+            results.append(.postedOnly(posted: comment))
         }
 
         return results
@@ -155,8 +155,11 @@ public struct ViolationService: Sendable {
         }) {
             consumedIds.insert(exactMatch.id)
             let postedBody = exactMatch.bodyWithoutMetadata
-            let state: ReviewComment.State = (pendingBody == postedBody) ? .redetected : .needsUpdate
-            return ReviewComment(pending: pending, posted: exactMatch, state: state)
+            if pendingBody == postedBody {
+                return .redetected(pending: pending, posted: exactMatch)
+            } else {
+                return .needsUpdate(pending: pending, posted: exactMatch)
+            }
         }
 
         // Tier 3: Line-shifted match — same fileBlobSHA means file content unchanged, line just moved
@@ -172,13 +175,13 @@ public struct ViolationService: Sendable {
             return true
         }) {
             consumedIds.insert(shiftedMatch.id)
-            return ReviewComment(pending: pending, posted: shiftedMatch, state: .redetected)
+            return .redetected(pending: pending, posted: shiftedMatch)
         }
 
         // Tier 4: File-changed — same rule + file but no blob SHA match means file was modified
         if let fileChangedMatch = candidates.first(where: { !consumedIds.contains($0.id) }) {
             consumedIds.insert(fileChangedMatch.id)
-            return ReviewComment(pending: pending, posted: nil, state: .new)
+            return .new(pending: pending)
         }
 
         return nil
@@ -201,7 +204,7 @@ public struct ViolationService: Sendable {
             let matched = candidates.remove(at: matchIndex)
             consumedIds.insert(matched.id)
             // v0 comments always need updating to embed v1 metadata
-            return ReviewComment(pending: pending, posted: matched, state: .needsUpdate)
+            return .needsUpdate(pending: pending, posted: matched)
         }
 
         return nil

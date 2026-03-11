@@ -608,38 +608,27 @@ struct AnnotatedHunkContentView: View {
                     let lineBg = lineBackground(for: displayType)
                     let gutterBg = gutterBackground(for: displayType)
                     ForEach(comments) { rc in
-                        switch rc.state {
-                        case .new:
-                            if let pending = rc.pending {
-                                InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg, isHighlighted: rc.id == highlightedCommentID)
-                                    .id(rc.id)
-                            }
-                        case .redetected:
-                            if let posted = rc.posted {
-                                InlinePostedCommentView(
-                                    comment: posted,
-                                    isRedetected: true,
-                                    imageURLMap: imageURLMap,
-                                    imageBaseDir: imageBaseDir,
-                                    lineBackground: lineBg,
-                                    gutterBackground: gutterBg
-                                )
-                            }
-                        case .needsUpdate:
-                            if let pending = rc.pending {
-                                InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg, isHighlighted: rc.id == highlightedCommentID)
-                                    .id(rc.id)
-                            }
-                        case .postedOnly:
-                            if let posted = rc.posted {
-                                InlinePostedCommentView(
-                                    comment: posted,
-                                    imageURLMap: imageURLMap,
-                                    imageBaseDir: imageBaseDir,
-                                    lineBackground: lineBg,
-                                    gutterBackground: gutterBg
-                                )
-                            }
+                        switch rc {
+                        case .new(let pending), .needsUpdate(let pending, _):
+                            InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg, isHighlighted: rc.id == highlightedCommentID)
+                                .id(rc.id)
+                        case .redetected(_, let posted):
+                            InlinePostedCommentView(
+                                comment: posted,
+                                isRedetected: true,
+                                imageURLMap: imageURLMap,
+                                imageBaseDir: imageBaseDir,
+                                lineBackground: lineBg,
+                                gutterBackground: gutterBg
+                            )
+                        case .postedOnly(let posted):
+                            InlinePostedCommentView(
+                                comment: posted,
+                                imageURLMap: imageURLMap,
+                                imageBaseDir: imageBaseDir,
+                                lineBackground: lineBg,
+                                gutterBackground: gutterBg
+                            )
                         }
                     }
                 }
@@ -802,34 +791,23 @@ struct AnnotatedDiffContentView: View {
                 .background(Color.orange.opacity(0.08))
 
             ForEach(comments) { rc in
-                switch rc.state {
-                case .new:
-                    if let pending = rc.pending {
-                        InlineCommentView(comment: pending, prModel: prModel, isHighlighted: rc.id == highlightedCommentID)
-                            .id(rc.id)
-                    }
-                case .redetected:
-                    if let posted = rc.posted {
-                        InlinePostedCommentView(
-                            comment: posted,
-                            isRedetected: true,
-                            imageURLMap: imageURLMap,
-                            imageBaseDir: imageBaseDir
-                        )
-                    }
-                case .needsUpdate:
-                    if let pending = rc.pending {
-                        InlineCommentView(comment: pending, prModel: prModel, isHighlighted: rc.id == highlightedCommentID)
-                            .id(rc.id)
-                    }
-                case .postedOnly:
-                    if let posted = rc.posted {
-                        InlinePostedCommentView(
-                            comment: posted,
-                            imageURLMap: imageURLMap,
-                            imageBaseDir: imageBaseDir
-                        )
-                    }
+                switch rc {
+                case .new(let pending), .needsUpdate(let pending, _):
+                    InlineCommentView(comment: pending, prModel: prModel, isHighlighted: rc.id == highlightedCommentID)
+                        .id(rc.id)
+                case .redetected(_, let posted):
+                    InlinePostedCommentView(
+                        comment: posted,
+                        isRedetected: true,
+                        imageURLMap: imageURLMap,
+                        imageBaseDir: imageBaseDir
+                    )
+                case .postedOnly(let posted):
+                    InlinePostedCommentView(
+                        comment: posted,
+                        imageURLMap: imageURLMap,
+                        imageBaseDir: imageBaseDir
+                    )
                 }
             }
         }
