@@ -162,7 +162,10 @@ Files to modify:
 - `PRRadarModels/GitHubModels.swift` — add computed `metadata` property
 - `PRRadarModels/CommentMetadata.swift` — ensure `parse()` handles edge cases (no metadata, malformed, wrong version)
 
-## - [ ] Phase 4: Upgrade Reconciliation Logic
+## - [x] Phase 4: Upgrade Reconciliation Logic
+
+**Skills used**: `/swift-app-architecture:swift-architecture`
+**Principles applied**: Tiered matching (v1 metadata-aware, v0 legacy fallback). Made `state` a stored property on `ReviewComment` to support `.needsUpdate` alongside `.redetected`. Body comparison strips metadata before diffing. Added new phases to plan based on review feedback (enum refactor, single source of truth, `isActionable`/`isPosted` helpers).
 
 **Skills to read**: `/swift-app-architecture:swift-architecture`
 
