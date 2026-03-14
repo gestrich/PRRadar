@@ -35,9 +35,10 @@ These share a root cause: `PRModel.init` unconditionally fires a full detail loa
 
 ## Phases
 
-## - [ ] Phase 1: Remove implicit async load from PRModel.init
+## - [x] Phase 1: Remove implicit async load from PRModel.init
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Followed model-scalability guidance — PRModel stays lean at init, heavyweight data loads only when explicitly requested
 
 Remove `Task { await reloadDetailAsync() }` from `PRModel.init`. No PRModel should do I/O as a side effect of initialization.
 
