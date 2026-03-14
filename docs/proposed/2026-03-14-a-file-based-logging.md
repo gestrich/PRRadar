@@ -55,7 +55,10 @@ Focus on the main pipeline lifecycle events in the Mac app:
    - Log path: `~/Library/Logs/PRRadar/prradar.log`
 3. The SDK target depends on `swift-log` only (follows SDK layer rules — no internal dependencies)
 
-## - [ ] Phase 2: Bootstrap logging in App and CLI entry points
+## - [x] Phase 2: Bootstrap logging in App and CLI entry points
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Bootstrap in entry points only (App layer); shared helper in LoggingSDK keeps both targets DRY; CLI uses static let closure for one-time initialization before any subcommand runs
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 

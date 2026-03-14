@@ -139,6 +139,7 @@ var targets: [Target] = [
             .target(name: "PRRadarCLIService"),
             .target(name: "PRRadarConfigService"),
             .target(name: "PRRadarModels"),
+            .target(name: "LoggingSDK"),
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ],
         path: "Sources/apps/MacCLI"
@@ -184,6 +185,7 @@ targets.append(contentsOf: [
             .target(name: "PRRadarCLIService"),
             .target(name: "PRRadarConfigService"),
             .target(name: "PRRadarModels"),
+            .target(name: "LoggingSDK"),
             .product(name: "MarkdownUI", package: "swift-markdown-ui"),
             .product(name: "Markdown", package: "swift-markdown"),
         ],

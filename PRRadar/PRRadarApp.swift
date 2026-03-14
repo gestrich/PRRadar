@@ -1,3 +1,4 @@
+import LoggingSDK
 import MacApp
 import SwiftUI
 
@@ -7,6 +8,8 @@ struct PRRadarApp: App {
     @State private var appModel: AppModel
 
     init() {
+        PRRadarLogging.bootstrap()
+
         let agentScriptPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // PRRadar/
             .deletingLastPathComponent() // project root

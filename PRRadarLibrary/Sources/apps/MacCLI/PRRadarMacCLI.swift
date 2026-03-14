@@ -1,31 +1,35 @@
 import ArgumentParser
 import Foundation
+import LoggingSDK
 import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
 @main
 struct PRRadarMacCLI: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "pr-radar-mac",
-        abstract: "PRRadar Mac CLI — run review pipeline phases from the terminal",
-        subcommands: [
-            AnalyzeCommand.self,
-            CommentCommand.self,
-            ConfigCommand.self,
-            EffectiveDiffCommand.self,
-            OutputCommand.self,
-            PostCommentCommand.self,
-            PrepareCommand.self,
-            RefreshCommand.self,
-            RefreshPRCommand.self,
-            ReportCommand.self,
-            RunAllCommand.self,
-            RunCommand.self,
-            StatusCommand.self,
-            SyncCommand.self,
-        ]
-    )
+    static let configuration: CommandConfiguration = {
+        PRRadarLogging.bootstrap()
+        return CommandConfiguration(
+            commandName: "pr-radar-mac",
+            abstract: "PRRadar Mac CLI — run review pipeline phases from the terminal",
+            subcommands: [
+                AnalyzeCommand.self,
+                CommentCommand.self,
+                ConfigCommand.self,
+                EffectiveDiffCommand.self,
+                OutputCommand.self,
+                PostCommentCommand.self,
+                PrepareCommand.self,
+                RefreshCommand.self,
+                RefreshPRCommand.self,
+                ReportCommand.self,
+                RunAllCommand.self,
+                RunCommand.self,
+                StatusCommand.self,
+                SyncCommand.self,
+            ]
+        )
+    }()
 }
 
 struct CLIOptions: ParsableArguments {
