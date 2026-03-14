@@ -80,7 +80,10 @@ Focus on the main pipeline lifecycle events in the Mac app:
    - `.error` for failures
 4. Use structured metadata where useful (e.g., `logger[metadataKey: "prNumber"] = "\(prNumber)"`)
 
-## - [ ] Phase 4: Validation
+## - [x] Phase 4: Validation
+
+**Skills used**: `swift-testing`, `swift-app-architecture:swift-architecture`
+**Principles applied**: Tests follow Arrange/Act/Assert with `#expect`; added LogReaderService in SDK layer (stateless Sendable), FetchLogsUseCase in Features layer, LogsCommand in Apps layer (I/O only); dedicated LoggingSDKTests test target
 
 **Skills to read**: `swift-testing`
 

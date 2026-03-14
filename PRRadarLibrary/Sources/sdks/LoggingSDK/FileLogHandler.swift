@@ -63,10 +63,14 @@ public struct FileLogHandler: LogHandler, Sendable {
     }
 }
 
-private struct LogEntry: Encodable {
-    let timestamp: String
-    let level: String
-    let label: String
-    let message: String
-    let metadata: [String: String]?
+public struct LogEntry: Codable, Sendable {
+    public let timestamp: String
+    public let level: String
+    public let label: String
+    public let message: String
+    public let metadata: [String: String]?
+
+    public var date: Date? {
+        ISO8601DateFormatter().date(from: timestamp)
+    }
 }

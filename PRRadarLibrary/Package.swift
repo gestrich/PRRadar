@@ -126,6 +126,7 @@ var targets: [Target] = [
             .target(name: "PRRadarCLIService"),
             .target(name: "PRRadarConfigService"),
             .target(name: "PRRadarModels"),
+            .target(name: "LoggingSDK"),
             .product(name: "CLISDK", package: "SwiftCLI"),
         ],
         path: "Sources/features/PRReviewFeature"
@@ -146,6 +147,15 @@ var targets: [Target] = [
     ),
 
     // Tests
+    .testTarget(
+        name: "LoggingSDKTests",
+        dependencies: [
+            .target(name: "LoggingSDK"),
+            .product(name: "Logging", package: "swift-log"),
+        ],
+        path: "Tests/LoggingSDKTests"
+    ),
+
     .testTarget(
         name: "PRRadarModelsTests",
         dependencies: [
