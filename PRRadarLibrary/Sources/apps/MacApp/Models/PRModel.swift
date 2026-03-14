@@ -79,7 +79,43 @@ final class PRModel: Identifiable, Hashable {
         self.id = metadata.id
         self.metadata = metadata
         self.config = config
-        Task { await reloadDetailAsync() }
+    }
+
+    // MARK: - Summary Loading (lightweight, for list badges)
+
+    func loadSummary() {
+        let commitHash = SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
+
+        let analysisSummary: PRReviewSummary? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config,
+            prNumber: prNumber,
+            phase: .analyze,
+            filename: DataPathsService.summaryJSONFilename,
+            commitHash: commitHash
+        )
+
+        guard let summary = analysisSummary else {
+            analysisState = .unavailable
+            reviewComments = FetchReviewCommentsUseCase(config: config)
+                .execute(prNumber: prNumber, minScore: 1, commitHash: commitHash)
+            return
+        }
+
+        let postedComments: GitHubPullRequestComments? = try? PhaseOutputParser.parsePhaseOutput(
+            config: config,
+            prNumber: prNumber,
+            phase: .metadata,
+            filename: DataPathsService.ghCommentsFilename
+        )
+        let postedCount = postedComments?.reviewComments.count ?? 0
+        analysisState = .loaded(
+            violationCount: summary.violationsFound,
+            evaluatedAt: summary.evaluatedAt,
+            postedCommentCount: postedCount
+        )
+
+        reviewComments = FetchReviewCommentsUseCase(config: config)
+            .execute(prNumber: prNumber, minScore: 1, commitHash: commitHash)
     }
 
     // MARK: - Computed Properties
