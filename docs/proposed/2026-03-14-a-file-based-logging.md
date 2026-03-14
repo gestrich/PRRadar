@@ -40,7 +40,10 @@ Focus on the main pipeline lifecycle events in the Mac app:
 
 ## Phases
 
-## - [ ] Phase 1: Add `swift-log` dependency and create `FileLogHandler`
+## - [x] Phase 1: Add `swift-log` dependency and create `FileLogHandler`
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: LoggingSDK placed in SDK layer with no internal dependencies (only swift-log); stateless Sendable struct per SDK conventions
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -63,7 +66,7 @@ Focus on the main pipeline lifecycle events in the Mac app:
 
 ## - [ ] Phase 3: Add ~10 log events in `PRModel.swift`
 
-1. Replace the bespoke `debugLog()` calls with `swift-log` `Logger` calls
+1. Replace the bespoke `debugLog()` calls with `swift-log` `Logger` calls (there are ~12 `debugLog()` calls covering `runAnalysis`, `runPrepare`, and `runAnalyze` — these become the initial log events)
 2. Remove the `debugLogPath` and `debugLog()` function entirely
 3. Add the V1 log events listed above, using appropriate log levels:
    - `.info` for lifecycle events (analysis started/completed, phase started/completed)

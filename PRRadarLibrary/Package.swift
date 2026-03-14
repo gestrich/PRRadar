@@ -13,6 +13,7 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/gestrich/SwiftCLI.git", branch: "main"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     .package(url: "https://github.com/nerdishbynature/octokit.swift", from: "0.14.0"),
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
 ]
 
 #if !canImport(CryptoKit)
@@ -62,6 +63,14 @@ var targets: [Target] = [
     .target(
         name: "ConcurrencySDK",
         path: "Sources/sdks/ConcurrencySDK"
+    ),
+
+    .target(
+        name: "LoggingSDK",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+        ],
+        path: "Sources/sdks/LoggingSDK"
     ),
 
     // Services Layer — Domain Models (Foundation-only, no other target deps)
