@@ -15,23 +15,23 @@ The solution is to abstract the git-history-dependent operations behind a protoc
 
 **Key constraint from Bill:** The repo will always be available locally (for working directory operations like `git status`, `git remote`, `git rev-parse --show-toplevel`). Only the *git diff/history* may not be available. So the abstraction only needs to cover history-dependent operations, not all git operations.
 
-### Prior Art: ffm-static-analyzer
+### Prior Art: Internal Static Analyzer
 
-The `ffm-static-analyzer` repo (`~/Developer/work/ffm-static-analyzer`) already implements this exact pattern in Python with a `GitRepoSource` abstract base class and two implementations:
+An internal static analyzer tool already implements this exact pattern in Python with a `GitRepoSource` abstract base class and two implementations:
 
 - **`LocalGitRepo`** — uses `subprocess` to call `git diff`, `git show`, etc.
 - **`GithubRepo`** — uses GitHub REST API endpoints
 
-Key API patterns from that repo we should reuse:
+Key API patterns from that tool we should reuse:
 
-| Operation | GitHub API Endpoint | ffm-static-analyzer Pattern |
+| Operation | GitHub API Endpoint | Internal Tool Pattern |
 |-----------|--------------------|-----------------------------|
 | File content at commit | `GET /repos/{owner}/{repo}/contents/{path}?ref={commit}` | Uses `Accept: application/vnd.github.v3.raw` header to get raw file content directly (no base64 decoding needed) |
 | Merge base / compare | `GET /repos/{owner}/{repo}/compare/{base}...{head}` | Three-dot syntax; response includes `merge_base_commit.sha` |
 | Blob SHA | `GET /repos/{owner}/{repo}/contents/{path}?ref={commit}` | JSON response includes `sha` field for the blob |
 | PR diff | `GET /repos/{owner}/{repo}/pulls/{number}` with `Accept: application/vnd.github.v3.diff` | Already used in PRRadar's `OctokitClient.getPullRequestDiff` |
 
-The `GithubRepo` implementation also demonstrates URL-encoding file paths (handles spaces/special chars) and the factory auto-detects GitHub vs local based on `GITHUB_TOKEN` availability.
+The GitHub API implementation also demonstrates URL-encoding file paths (handles spaces/special chars) and the factory auto-detects GitHub vs local based on `GITHUB_TOKEN` availability.
 
 ### Git Operations Inventory
 
@@ -107,7 +107,7 @@ Extend `OctokitClient` in the **SDK layer** (`GitHubSDK`) with the GitHub REST A
 
 1. **`getFileContent(owner:repository:path:ref:)`** → `String`
    - Calls `GET /repos/{owner}/{repo}/contents/{path}?ref={ref}`
-   - Uses `Accept: application/vnd.github.v3.raw` header to get raw file content directly (pattern from ffm-static-analyzer's `GithubRepo.get_file_content`). This avoids JSON parsing and base64 decoding entirely.
+   - Uses `Accept: application/vnd.github.v3.raw` header to get raw file content directly (pattern from the internal tool's `GithubRepo.get_file_content`). This avoids JSON parsing and base64 decoding entirely.
    - URL-encode the `path` parameter (handles spaces and special characters in file paths)
    - Throws for files > 1 MB (GitHub API limit)
 
@@ -115,7 +115,7 @@ Extend `OctokitClient` in the **SDK layer** (`GitHubSDK`) with the GitHub REST A
    - Calls `GET /repos/{owner}/{repo}/compare/{base}...{head}` (three-dot syntax)
    - Returns merge base commit SHA from `merge_base_commit.sha` in response
    - Strip `origin/` prefix from ref names before passing to API (GitHub expects bare branch names)
-   - Pattern from ffm-static-analyzer's `GithubRepo.get_compare_diff`
+   - Pattern from the internal tool's `GithubRepo.get_compare_diff`
 
 3. **`getFileSHA(owner:repository:path:ref:)`** → `String` (blob SHA)
    - Calls `GET /repos/{owner}/{repo}/contents/{path}?ref={commit}` with standard JSON accept header

@@ -6,7 +6,7 @@
 
 ## Background
 
-When filtering for open PRs authored by `bill_jepp` targeting `develop` in the Mac app (ios config, 90d lookback), the PR list shows "No Reviews Found" despite PR #18875 being open and targeting `develop` on GitHub.
+When filtering for open PRs authored by `user123` targeting `develop` in the Mac app (the configured repo, 90d lookback), the PR list shows "No Reviews Found" despite a specific PR being open and targeting `develop` on GitHub.
 
 The Mac app's `AllPRsModel.refresh()` calls `FetchPRListUseCase.execute(filter:)` to fetch PRs from GitHub, then uses `AllPRsModel.filteredPRs()` for local display filtering. The CLI's `refresh` command also uses `FetchPRListUseCase`, making it suitable for reproducing the issue.
 
@@ -30,7 +30,7 @@ In the Mac app, `buildFilter()` always sets `baseBranch` explicitly (from the te
 
 1. **GitHub API returning empty**: The `base` parameter to the GitHub PR list API may not match (case sensitivity, branch name mismatch)
 2. **Date filter too aggressive**: `createdSince` with 90 days lookback might exclude PRs created earlier but still open
-3. **Author login mismatch**: `bill_jepp` vs actual GitHub login on the fetched PRs
+3. **Author login mismatch**: `user123` vs actual GitHub login on the fetched PRs
 4. **State filtering**: `enhancedState` mapping may not match expectations
 5. **Disk discovery issue**: PRs fetched but not properly written/discovered from disk
 
@@ -42,17 +42,17 @@ Reproduce the exact Mac app scenario using the CLI `refresh` command with equiva
 
 ```bash
 cd PRRadarLibrary
-swift run PRRadarMacCLI refresh --config ios --lookback-hours 2160 --base-branch develop --author bill_jepp --json
+swift run PRRadarMacCLI refresh --config my-repo --lookback-hours 2160 --base-branch develop --author user123 --json
 ```
 
 Compare results to running without filters:
 ```bash
-swift run PRRadarMacCLI refresh --config ios --lookback-hours 2160 --base-branch develop --json
+swift run PRRadarMacCLI refresh --config my-repo --lookback-hours 2160 --base-branch develop --json
 ```
 
 And without author filter:
 ```bash
-swift run PRRadarMacCLI refresh --config ios --lookback-hours 2160 --json
+swift run PRRadarMacCLI refresh --config my-repo --lookback-hours 2160 --json
 ```
 
 Also enhance the CLI `refresh --json` output to include `baseRefName` and `author` so we can see what the API actually returns.
@@ -61,12 +61,12 @@ Also enhance the CLI `refresh --json` output to include `baseRefName` and `autho
 
 ### Phase 1 Findings
 
-**CLI results**: All three commands return PR #18875 with correct data:
-- `baseBranch=develop`, `state=OPEN`, `author=bill_jepp`, `createdAt=2026-02-18T20:35:18Z`
-- The `--author bill_jepp` filtered command returned 303 PRs including 16 by bill_jepp
+**CLI results**: All three commands return the PR with correct data:
+- `baseBranch=develop`, `state=OPEN`, `author=user123`, `createdAt=2026-02-18T20:35:18Z`
+- The `--author user123` filtered command returned 303 PRs including 16 by user123
 - The no-author command returned 371 PRs
 
-**On-disk data** (`~/Desktop/code-reviews/18875/metadata/gh-pr.json`): Correct — `baseRefName: "develop"`, `state: "open"`, author login `bill_jepp`. Repo slug `jeppesen-foreflight/ff-ios` matches the ios config.
+**On-disk data** (`~/Desktop/code-reviews/{pr}/metadata/gh-pr.json`): Correct — `baseRefName: "develop"`, `state: "open"`, author login `user123`. Repo slug `example-org/example-ios` matches the configured repo.
 
 **Conclusion**: The bug is NOT reproducible from the CLI. The API returns correct data, disk storage is correct, and `toPRMetadata()` conversion maps fields correctly. The issue is Mac app specific.
 
@@ -108,7 +108,7 @@ Based on findings from Phases 1-2, implement the fix. Possible fixes depending o
 - Run `swift test` to ensure no regressions
 - Run `swift build` to ensure clean build
 - CLI verification: re-run the commands from Phase 1 and confirm expected PRs appear
-- Mac app verification: confirm PR #18875 appears with the same filter settings
+- Mac app verification: confirm the PR appears with the same filter settings
 - Add unit test for the specific scenario that was failing (if a code fix was needed)
 
 **After this phase**: Document validation results.

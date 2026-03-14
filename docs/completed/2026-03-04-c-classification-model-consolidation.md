@@ -11,7 +11,7 @@
 
 ### The original bug
 
-PR #19024 in ff-ios was flagged by the `nullability-h-objc` regex rule on line R27 of `RouteTokenDelegateDataSource.h`:
+A production PR was flagged by the `nullability-h-objc` regex rule on line R27 of `ExampleDelegateDataSource.h`:
 
 ```objc
 @property (weak) RouteEditIPadView *parentView;
@@ -167,33 +167,33 @@ Change `collapseWhitespace()` (or replace it with a new comparison) to only cons
 - `"* parentView"` vs `"*parentView"` → NOT whitespace-only (interior change)
 - `"foo  "` vs `"foo"` → whitespace-only (trailing whitespace)
 
-**Effect**: This reintroduces the original `parentView` false positive from PR #19024 because that line's change is now correctly treated as a real modification (not whitespace-only). The subsequent phases (paired modification detection) will fix this properly by classifying it as `.modified` instead of `.added`.
+**Effect**: This reintroduces the original `parentView` false positive from PR #{pr} because that line's change is now correctly treated as a real modification (not whitespace-only). The subsequent phases (paired modification detection) will fix this properly by classifying it as `.modified` instead of `.added`.
 
 **Tests**: Update existing whitespace-only tests to match the tighter definition. Add tests for interior vs leading/trailing whitespace differences.
 
 ### - [x] Phase 2: Reproduce the original bug
 
-**Note**: PR #19024's branch has been deleted from the remote (old merged PR), so the full pipeline sync can't run. The bug is confirmed reproduced at the unit test level — `interiorWhitespaceChangeClassifiedAsAdded` directly tests `"* parentView"` vs `"*parentView"` and asserts `changeKind == .added`.
+**Note**: PR #{pr}'s branch has been deleted from the remote (old merged PR), so the full pipeline sync can't run. The bug is confirmed reproduced at the unit test level — `interiorWhitespaceChangeClassifiedAsAdded` directly tests `"* parentView"` vs `"*parentView"` and asserts `changeKind == .added`.
 
-Confirm the false positive on PR #19024 exists after tightening the whitespace definition. The `parentView` line should now be classified as `changeKind=added` (the bug is back), and other in-place modifications should also show as `added`.
+Confirm the false positive on PR #{pr} exists after tightening the whitespace definition. The `parentView` line should now be classified as `changeKind=added` (the bug is back), and other in-place modifications should also show as `added`.
 
 ```bash
 # Delete cached analysis data so the pipeline re-runs from scratch
-rm -rf ~/Desktop/code-reviews/19024
+rm -rf ~/Desktop/code-reviews/{pr}
 
 # Build
 cd PRRadarLibrary && swift build
 
 # Run phases in order
-swift run PRRadarMacCLI sync 19024 --config ios
-swift run PRRadarMacCLI prepare 19024 --config ios
-swift run PRRadarMacCLI analyze 19024 --config ios --mode regex
+swift run PRRadarMacCLI sync {pr} --config my-repo
+swift run PRRadarMacCLI prepare {pr} --config my-repo
+swift run PRRadarMacCLI analyze {pr} --config my-repo --mode regex
 
 # Inspect — expect parentView to show changeKind=added (bug reintroduced)
 # and other in-place modifications also showing changeKind=added
 python3 -c "
 import json
-with open('$(ls ~/Desktop/code-reviews/19024/analysis/*/diff/classified-hunks.json)') as f:
+with open('$(ls ~/Desktop/code-reviews/{pr}/analysis/*/diff/classified-hunks.json)') as f:
     hunks = json.load(f)
 for h in hunks:
     for line in h.get('lines', []):
@@ -204,7 +204,7 @@ for h in hunks:
 "
 ```
 
-Use `--config ios` (saved configuration pointing to local ff-ios checkout). Use `--mode regex` to skip Claude API calls.
+Use `--config my-repo` (saved configuration pointing to the local repo checkout). Use `--mode regex` to skip Claude API calls.
 
 ### - [x] Phase 3: Define new types (interim)
 
@@ -256,7 +256,7 @@ public let pairing: Pairing?              // nil if no counterpart; non-nil with
 | Property | Value | Meaning |
 |---|---|---|
 | `contentChange` | `.modified` | The content changed (interior whitespace) |
-| `pairing` | `Pairing(role: .after, counterpart: Counterpart("RouteTokenDelegateDataSource.h", 27))` | This is the new version; the old version is at line 27 of the same file |
+| `pairing` | `Pairing(role: .after, counterpart: Counterpart("ExampleDelegateDataSource.h", 27))` | This is the new version; the old version is at line 27 of the same file |
 
 A rule using `newCodeLinesOnly: true` filters on `contentChange == .added` — `.modified` does not match, so the false positive is eliminated.
 
@@ -436,22 +436,22 @@ New tests for paired modification detection:
 **Skills used**: `/pr-radar-verify-work`
 **Principles applied**: Created a draft PR (#15) in PRRadar-TestRepo with an interior whitespace change (`NSString *name` → `NSString* name`) on an unannotated property — the same pattern as the original `parentView` bug. Pipeline analysis (`sync` + `prepare` + `analyze --mode regex`) confirmed `contentChange=modified` for both the removed and added lines (with paired roles), and 0 violations from `nullability-objc` (which uses `new_code_lines_only: true`). All 655 unit tests pass.
 
-Re-run the same steps from Phase 2 against PR #19024. Expected results:
+Re-run the same steps from Phase 2 against PR #{pr}. Expected results:
 
 ```bash
 # Delete cached data and rebuild
-rm -rf ~/Desktop/code-reviews/19024
+rm -rf ~/Desktop/code-reviews/{pr}
 cd PRRadarLibrary && swift build
 
 # Run pipeline
-swift run PRRadarMacCLI sync 19024 --config ios
-swift run PRRadarMacCLI prepare 19024 --config ios
-swift run PRRadarMacCLI analyze 19024 --config ios --mode regex
+swift run PRRadarMacCLI sync {pr} --config my-repo
+swift run PRRadarMacCLI prepare {pr} --config my-repo
+swift run PRRadarMacCLI analyze {pr} --config my-repo --mode regex
 
 # Inspect — parentView should be contentChange=modified (in-place modification, not new code)
 python3 -c "
 import json
-with open('$(ls ~/Desktop/code-reviews/19024/analysis/*/diff/classified-hunks.json)') as f:
+with open('$(ls ~/Desktop/code-reviews/{pr}/analysis/*/diff/classified-hunks.json)') as f:
     hunks = json.load(f)
 for h in hunks:
     for line in h.get('lines', []):
@@ -463,7 +463,7 @@ for h in hunks:
 **Expected**:
 - `parentView` line → `contentChange=modified` — **false positive eliminated**
 - `- (nonnull instancetype)initWithTripSummary:...` → `contentChange=added` — genuinely new code still caught
-- `RouteTokenDelegateDataSource.h — nullability-h-objc` → no longer flagged
+- `ExampleDelegateDataSource.h — nullability-h-objc` → no longer flagged
 - All unit tests pass (`swift test`)
 - 6 real violations in `.m` files still detected
 

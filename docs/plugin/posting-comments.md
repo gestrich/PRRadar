@@ -123,7 +123,7 @@ gh pr view <pr_number> --json headRefOid --jq '.headRefOid'
 ## Complete Example
 
 Given a violation:
-- File: `ProcedurePreviewViewController.m`
+- File: `PreviewViewController.m`
 - Line: 63
 - Rule: `nullability/nullability_m_files`
 - Score: 8
@@ -132,7 +132,7 @@ Given a violation:
 Present to user:
 
 ```
-**File:** `ProcedurePreviewViewController.m`
+**File:** `PreviewViewController.m`
 **Line:** 63
 
 **Comment:**
@@ -146,14 +146,14 @@ See: <documentation_link>
 ```
 
 Then ask:
-> Post this comment to PR #18615?
+> Post this comment to the PR?
 > - Post this comment
 > - Skip
 > - Stop posting
 
 If approved, run:
 ```bash
-cat << 'EOF' | gh api repos/{owner}/{repo}/pulls/18615/reviews --method POST --input -
+cat << 'EOF' | gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --method POST --input -
 {
   "commit_id": "fd7529af6bbe50e0223451020a62db91d8156417",
   "event": "COMMENT",

@@ -55,12 +55,12 @@ Segment: `Method fetchUserData() (modified)`
 ### Objective-C Interface (added)
 
 ```diff
-+@interface FFLayerManager : NSObject
++@interface LayerManager : NSObject
 +@property (nonatomic, strong) NSArray *layers;
 +@end
 ```
 
-Segment: `Interface FFLayerManager (added)`
+Segment: `Interface LayerManager (added)`
 
 ### Swift Properties (modified)
 
@@ -115,7 +115,7 @@ Name segments descriptively:
 | Type | Naming Pattern | Example |
 |------|----------------|---------|
 | method | `Method methodName()` | `Method fetchUserData()` |
-| interface | `Interface ClassName` | `Interface FFLayerManager` |
+| interface | `Interface ClassName` | `Interface LayerManager` |
 | extension | `Extension ClassName` | `Extension UserService` |
 | properties | `Properties` or `Properties (ClassName)` | `Properties` |
 | imports | `Imports` | `Imports` |

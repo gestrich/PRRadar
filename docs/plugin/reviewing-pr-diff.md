@@ -54,7 +54,7 @@ The review summary file should be named:
 review-summary-<pr_number>.md
 ```
 
-Example: `review-summary-18500.md`
+Example: `review-summary-42.md`
 
 ## Workflow
 

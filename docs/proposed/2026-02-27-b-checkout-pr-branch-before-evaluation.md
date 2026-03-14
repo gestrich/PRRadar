@@ -13,7 +13,7 @@ The evaluation prompt tells the Claude agent "The PR branch is checked out local
 
 This causes the agent to find violations at wrong line numbers — lines that exist in the local checkout but not in the PR's version of the file. `DiffCommentMapper` then can't match those line numbers to any diff hunk, so they fall through to "file-level comments" in the UI.
 
-**Example:** PR #18957 evaluated `FFDownloadTaskURLSession.m`. The diff adds new methods around lines 1481–1506, but the agent returned violations at lines 472, 481, 495 — pre-existing code in whatever was checked out locally. The new code (which should have been reviewed) was never seen by the agent.
+**Example:** A production PR evaluated `DownloadTaskURLSession.m`. The diff adds new methods around lines 1481–1506, but the agent returned violations at lines 472, 481, 495 — pre-existing code in whatever was checked out locally. The new code (which should have been reviewed) was never seen by the agent.
 
 **Goal:** Before evaluations begin, checkout the PR's head commit so the agent reads the correct code. Additionally, give the AI a structured way to report when it can't complete a review (e.g., file not found on disk) so it fails fast instead of silently returning erroneous data.
 
@@ -152,7 +152,7 @@ Add an optional `error` field to the evaluation output schema alongside `violati
 ```json
 {
   "violations": [...],
-  "error": "The file ffm/.../FFDownloadTaskURLSession.m does not contain the expected code at lines 1481-1506. The PR branch may not be checked out."
+  "error": "The file path/to/DownloadTaskURLSession.m does not contain the expected code at lines 1481-1506. The PR branch may not be checked out."
 }
 ```
 

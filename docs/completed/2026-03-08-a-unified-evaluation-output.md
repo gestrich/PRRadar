@@ -178,7 +178,7 @@ Wire the output into the task evaluation flow so users can click on any evaluate
 - Verify `ClaudeAgentTranscript` and `ClaudeAgentTranscriptWriter` are fully deleted
 - Add unit tests for the duration formatting helper
 - Test via CLI:
-  - `swift run PRRadarMacCLI analyze <PR> --config ios --mode script` — verify output files written
+  - `swift run PRRadarMacCLI analyze <PR> --config my-repo --mode script` — verify output files written
   - `swift run PRRadarMacCLI transcript <PR>` — verify script/regex outputs appear in listing
 - Test in Mac app:
   - Run analysis with experimental rules (mix of AI, script, regex)

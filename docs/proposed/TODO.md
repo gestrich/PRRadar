@@ -114,17 +114,17 @@
   review progress at a glance.
 - [ ] Investigate misclassified "General Comments" in file view
   In the file view, some comments categorized as "General Comments" don't appear
-  to actually be general (observed in PR 18743). Needs research to determine why
+  to actually be general (observed in a production PR). Needs research to determine why
   non-general comments are ending up in the general section — could be a
   classification issue in the evaluation pipeline or a filtering/grouping bug in
   the UI layer.
 - [ ] Add principles from GoldenPath to swift-app-architecture
-  Review the principles in `/Users/bill/Developer/personal/GoldenPath` and
-  incorporate relevant ones into `/Users/bill/Developer/personal/swift-app-architecture/`.
+  Review the principles in a separate project and
+  incorporate relevant ones into the architecture reference repo.
   This ensures the architecture reference repo reflects the broader coding
   principles and conventions captured in GoldenPath.
 - [ ] Audit PullRequests app for reusable ideas
-  Audit `/Users/bill/Developer/work/swift/PullRequests` for features and patterns
+  Audit an internal PR management app for features and patterns
   worth adopting in PRRadar. Likely candidates: better UI patterns (possible
   markdown rendering support), optimized fetching strategies that avoid
   over-fetching data, and any other polished UX or architecture ideas. Document

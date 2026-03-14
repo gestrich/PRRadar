@@ -126,7 +126,7 @@ Check for any other callers and thread classified hunks through.
 
 The `import-order-objc` rule's grep pattern `^\+.*@import` relies on the diff prefix to match only added `@import` lines. Since the grep filter now runs against clean source content, change this to just `@import`.
 
-**File**: `code-review-rules/apis-apple/import-order-objc.md` (in the ios-auto repo — outside this repo)
+**File**: `code-review-rules/apis-apple/import-order-objc.md` (in the target repo — outside this repo)
 
 Change:
 ```yaml
@@ -188,7 +188,7 @@ Add tests for `ClassifiedHunk.filterForFocusArea` (same logic as the existing `R
 ## - [x] Phase 7: Validation
 
 **Skills used**: none
-**Principles applied**: Validated 565 tests pass, release build clean, and PR 19004 TabBarStyle.h now matched by nullability-h-objc rule
+**Principles applied**: Validated 565 tests pass, release build clean, and a test `.h` file now matched by nullability-h-objc rule
 
 **Skills to read**: `swift-testing`
 

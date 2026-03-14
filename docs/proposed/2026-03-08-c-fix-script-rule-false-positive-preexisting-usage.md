@@ -14,9 +14,9 @@ The `service-locator-usage` script rule produces false positives when existing (
 
 ### The Problem
 
-Discovered on PR #18982, file `JeppServiceRequest.m`:
-- **Line 81** (unchanged): `[FFSLObjC.shared.jeppesen getSiteKey:!forLinkedData]` — pre-existing usage
-- **Line 84** (new): `[FFSLObjC.shared.jeppesen getSiteKey:forLinkedData]` — flagged as violation
+Discovered on a production PR, file `ServiceRequest.m`:
+- **Line 81** (unchanged): `[FFSLObjC.shared.someService getSiteKey:!forLinkedData]` — pre-existing usage
+- **Line 84** (new): `[FFSLObjC.shared.someService getSiteKey:forLinkedData]` — flagged as violation
 
 The rule's intent is to only flag service locator usage in files that **did not already use** that locator. But the script incorrectly concluded `FFSLObjC` was new to the file.
 
@@ -75,7 +75,7 @@ Pass changed line numbers from `ScriptAnalysisService` to the script as a 4th ar
 - Keep existing fallback for when arg is absent
 - In the violation loop, skip non-changed lines when arg is present
 
-**File**: `/Users/bill/Desktop/pr-radar-experimental-rules/apis-ffm/check-service-locator-usage.sh`
+**File**: `/path/to/rules/check-service-locator-usage.sh`
 
 ## - [ ] Phase 3: Validation
 
@@ -83,7 +83,7 @@ Pass changed line numbers from `ScriptAnalysisService` to the script as a 4th ar
 
 - `swift build` to verify compilation
 - Add unit test for `ScriptAnalysisService` verifying the 4th argument is passed
-- Clear cached evaluation for PR 18982: `rm -rf ~/Desktop/code-reviews/18982/analysis/*/evaluate/*service-locator*JeppServiceRequest*`
-- Re-run: `swift run PRRadarMacCLI prepare 18982 --config ios --rules-path-name experiment --quiet`
-- Re-run: `swift run PRRadarMacCLI analyze 18982 --config ios --mode script`
-- Expected: 0 violations for `JeppServiceRequest.m` `service-locator-usage`
+- Clear cached evaluation :`rm -rf ~/Desktop/code-reviews/{pr}/analysis/*/evaluate/*service-locator*ServiceRequest*`
+- Re-run: `swift run PRRadarMacCLI prepare {pr} --config my-repo --rules-path-name experiment --quiet`
+- Re-run: `swift run PRRadarMacCLI analyze {pr} --config my-repo --mode script`
+- Expected: 0 violations for `ServiceRequest.m` `service-locator-usage`

@@ -30,7 +30,7 @@ Research on the codebase shows:
 - **CryptoKit** — available on Linux via swift-crypto
 - **MacApp target** — imports SwiftUI/MarkdownUI, must be excluded on Linux
 
-Reference for conditional compilation: `/Users/bill/Developer/work/swift/StackAnalytics/Package.swift` uses `#if os(macOS)` to conditionally include a SwiftUI target (lines 116-130).
+Reference for conditional compilation: a project that uses `#if os(macOS)` to conditionally include a SwiftUI target.
 
 ## Phases
 
@@ -53,14 +53,14 @@ Create a doc at `docs/ci-setup.md` explaining how to set up PRRadar CI in a repo
 **Skills used**: `swift-app-architecture:swift-architecture`
 **Principles applied**: Used mutable array pattern with `#if os(macOS)` to conditionally include MacApp target, MacAppTests, and macOS-only dependencies (swift-markdown-ui, swift-markdown). All cross-platform targets remain unconditional.
 
-Update `PRRadarLibrary/Package.swift` to conditionally exclude MacApp-related targets on Linux, following the pattern from StackAnalytics:
+Update `PRRadarLibrary/Package.swift` to conditionally exclude MacApp-related targets on Linux, following a conditional compilation pattern:
 
 - Move `MacApp` target and `MacAppTests` into a `#if os(macOS)` block
 - The `MacApp` library product should also be conditional
 - Keep all other targets (PRRadarMacCLI, services, SDKs, features) unconditional
 - The `PRRadarModels` test target should remain unconditional
 
-Pattern to follow (from StackAnalytics):
+Pattern to follow:
 ```swift
 var targets: [Target] = [ /* all cross-platform targets */ ]
 

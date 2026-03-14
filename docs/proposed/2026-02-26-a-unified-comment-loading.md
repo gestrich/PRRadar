@@ -82,6 +82,6 @@ Add new test:
 
 - `cd PRRadarLibrary && swift build` — compiles
 - `swift test` — all tests pass
-- `swift run PRRadarMacCLI report 18974 --config ios` — CLI still works
-- `swift run PRRadarMacCLI comment 18974 --config ios --dry-run` — still shows 1 pending comment
-- Launch MacApp → PR #18974 → Diff view → verify comment annotation appears
+- `swift run PRRadarMacCLI report {pr} --config my-repo` — CLI still works
+- `swift run PRRadarMacCLI comment {pr} --config my-repo --dry-run` — still shows 1 pending comment
+- Launch MacApp → select a PR → Diff view → verify comment annotation appears

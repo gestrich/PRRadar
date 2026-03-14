@@ -10,7 +10,7 @@
 
 ## Background
 
-Bill expects the "last N days" filter (in both CLI and Mac app) to show PRs **updated** within the time frame, not just **created**. PRs like #18920 — created 16 days ago but actively updated 2 days ago — should appear in a 7-day view.
+Bill expects the "last N days" filter (in both CLI and Mac app) to show PRs **updated** within the time frame, not just **created**. PRs created weeks ago but actively updated recently should appear in a 7-day view.
 
 Current issues:
 1. **Mac app `buildFilter()`** (`ContentView.swift:709`) hardcodes `.createdSince(sinceDate)` — always filters by creation date
@@ -81,6 +81,6 @@ Also update the help text on line 10 from "PRs created in the last N hours" to "
 
 - `swift build` — confirm compilation
 - `swift test` — run all tests
-- CLI: `swift run PRRadarMacCLI refresh --lookback-hours 168 --state open --config ios --json 2>&1 | grep 18920` — verify PR 18920 appears (updated 2 days ago)
+- CLI: `swift run PRRadarMacCLI refresh --lookback-hours 168 --state open --config my-repo --json 2>&1 | grep {pr}` — verify a recently-updated PR appears
 - CLI: Verify PRs created >7 days ago but NOT recently updated do NOT appear
-- Mac app: open and verify PR 18920 appears in 7-day view with default settings
+- Mac app: open and verify a recently-updated PR appears in 7-day view with default settings

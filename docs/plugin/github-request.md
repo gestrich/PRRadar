@@ -60,7 +60,7 @@ If the user asks for a review of a specific file in the PR:
 
 **Example comments**:
 - `@code-review check MyService.swift`
-- `@code-review review FFLayerManager.h only`
+- `@code-review review LayerManager.h only`
 - `@code-review focus on the changes in NetworkClient.m`
 
 **Response**: Post a comment with findings for that specific file.

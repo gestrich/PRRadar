@@ -89,7 +89,7 @@ The `review-summary-<id>.md` file uses checkboxes that subagents check off as th
 **See [template.md](template.md) for the complete output format template.**
 
 The `<id>` in the filename is:
-- For PRs: the PR number (e.g., `review-summary-18500.md`)
+- For PRs: the PR number (e.g., `review-summary-42.md`)
 - For commits: the short commit SHA (e.g., `review-summary-abc1234.md`)
 
 ```markdown
@@ -136,12 +136,12 @@ func fetchUserData() async {
 
 ---
 
-## File: `path/to/FFLayerManager.h`
+## File: `path/to/LayerManager.h`
 
 ### Segment: Interface declaration (modified)
 
 ```objective-c
- @interface FFLayerManager : NSObject
+ @interface LayerManager : NSObject
 +@property (nonatomic, strong) NSArray *layers;
  @end
 ```
@@ -263,7 +263,7 @@ After generating the review plan:
 | File | Segments | Highest Score | Primary Concern |
 |------|----------|---------------|-----------------|
 | MyService.swift | 2 | 8 | error-handling |
-| FFLayerManager.h | 2 | 9 | nullability/nullability_h_files |
+| LayerManager.h | 2 | 9 | nullability/nullability_h_files |
 | config.json | 1 | - | No applicable rules |
 
 ### Violation Details
@@ -281,14 +281,14 @@ Guard statement silently returns on nil data without logging.
 
 #### nullability/nullability_h_files (3 segments) — [Documentation](https://github.com/org/repo/path/to/Nullability.md)
 
-**FFLayerManager.h → Interface declaration** (Score: 9, Line: 15)
+**LayerManager.h → Interface declaration** (Score: 9, Line: 15)
 Uses NS_ASSUME_NONNULL_BEGIN/END which is prohibited.
 ```objective-c
 NS_ASSUME_NONNULL_BEGIN  // ← Prohibited
-@interface FFLayerManager : NSObject
+@interface LayerManager : NSObject
 ```
 
-**FFLayerManager.h → Properties** (Score: 7, Line: 23)
+**LayerManager.h → Properties** (Score: 7, Line: 23)
 Property `layers` missing explicit nullability annotation.
 
 ### Recommended Actions
@@ -439,12 +439,12 @@ gh pr diff 7 | plugin/skills/pr-review/scripts/parse-diff --annotate-lines
 {
   "hunks": [
     {
-      "file_path": "test-files/FFLogger.h",
+      "file_path": "test-files/AppLogger.h",
       "new_start": 1,
       "new_length": 10,
       "old_start": 0,
       "old_length": 0,
-      "content": "...\n@@ -0,0 +1,10 @@\n   1: +#import <Foundation/Foundation.h>\n   2: +\n   3: +@interface FFLogger : NSObject\n   4: +\n   5: +@property (nonatomic, strong) NSString *logLevel;\n..."
+      "content": "...\n@@ -0,0 +1,10 @@\n   1: +#import <Foundation/Foundation.h>\n   2: +\n   3: +@interface AppLogger : NSObject\n   4: +\n   5: +@property (nonatomic, strong) NSString *logLevel;\n..."
     }
   ]
 }
@@ -462,7 +462,7 @@ This makes it explicit that `@property ... logLevel` is at **line 5** in the tar
 {
   "hunks": [
     {
-      "file_path": "test-files/FFLogger.h",
+      "file_path": "test-files/AppLogger.h",
       "new_start": 1,
       "new_length": 10,
       "old_start": 0,
@@ -490,18 +490,18 @@ Each diff section starts with a hunk header in this format:
 
 ### Example 1: New File
 
-For a new file like `test-files/FFLogger.h`:
+For a new file like `test-files/AppLogger.h`:
 
 ```diff
-diff --git a/test-files/FFLogger.h b/test-files/FFLogger.h
+diff --git a/test-files/AppLogger.h b/test-files/AppLogger.h
 new file mode 100644
 index 0000000..f961bc5
 --- /dev/null
-+++ b/test-files/FFLogger.h
++++ b/test-files/AppLogger.h
 @@ -0,0 +1,10 @@
 +#import <Foundation/Foundation.h>
 +
-+@interface FFLogger : NSObject
++@interface AppLogger : NSObject
 +
 +@property (nonatomic, strong) NSString *logLevel;
 +
@@ -520,7 +520,7 @@ The hunk header `@@ -0,0 +1,10 @@` means:
 |-----------|---------|------------------|
 | `+#import <Foundation/Foundation.h>` | import | **1** |
 | `+` | blank | **2** |
-| `+@interface FFLogger : NSObject` | interface | **3** |
+| `+@interface AppLogger : NSObject` | interface | **3** |
 | `+` | blank | **4** |
 | `+@property ... *logLevel;` | property | **5** |
 | `+` | blank | **6** |
@@ -568,16 +568,16 @@ For a modified file with hunk header `@@ -118,98 +118,36 @@ jobs:`:
 Reviews all changes from commit `abc1234` through the current HEAD.
 
 ```
-/code-review https://github.com/owner/repo/pull/18500
+/code-review https://github.com/owner/repo/pull/42
 ```
-Reviews all changes in PR #18500.
+Reviews all changes in PR #42.
 
 ```
-/code-review #18500
+/code-review #42
 ```
-Reviews all changes in PR #18500 (shorthand).
+Reviews all changes in PR #42 (shorthand).
 
 ```
-/code-review 18500
+/code-review 42
 ```
-Reviews all changes in PR #18500 (number only).
+Reviews all changes in PR #42 (number only).

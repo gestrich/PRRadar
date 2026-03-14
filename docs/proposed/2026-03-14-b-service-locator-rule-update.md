@@ -7,21 +7,21 @@
 
 ## Background
 
-The existing `service-locator-usage` experimental rule for the `ios` config tells developers to inject dependencies instead of using `FFSL.shared`/`FFSLObjC.shared`. The messaging needs to be updated to:
+The existing `service-locator-usage` experimental rule tells developers to inject dependencies instead of using `FFSL.shared`/`FFSLObjC.shared`. The messaging needs to be updated to:
 
 1. Mention the **accessor pattern** as a minimum acceptable alternative when full DI isn't feasible
 2. Explain that service locators represent **technical debt** and that removing direct usage improves **modularity and unit testability**
-3. Reference the [shared services guide](https://github.com/jeppesen-foreflight/ff-ios/blob/develop/FFMDevGuide/Sources/FFMDevGuide/Documentation.docc/Architecture/SharedServices/shared-services.md) for the accessor pattern details
+3. Reference the [shared services guide](https://github.com/example-org/example-ios/blob/develop/docs/shared-services.md) for the accessor pattern details
 
 Two files need text updates:
-- `/Users/bill/Desktop/pr-radar-experimental-rules/apis-ffm/service-locator-usage.md` — full rule description
-- `/Users/bill/Desktop/pr-radar-experimental-rules/apis-ffm/check-service-locator-usage.sh` — inline violation messages
+- `/path/to/rules/service-locator-usage.md` — full rule description
+- `/path/to/rules/check-service-locator-usage.sh` — inline violation messages
 
 ## Phases
 
 ## - [x] Phase 1: Update rule markdown
 
-**Files to modify**: `/Users/bill/Desktop/pr-radar-experimental-rules/apis-ffm/service-locator-usage.md`
+**Files to modify**: `/path/to/rules/service-locator-usage.md`
 
 Replace the rule description and examples with updated text. Key changes:
 
@@ -55,7 +55,7 @@ It also only flags usage in files that did **not** already reference that servic
 
 ```swift
 // ⚠️ Acceptable when injection requires risky legacy refactor
-class FlightPlanViewController: UIViewController {
+class MyViewController: UIViewController {
 
     private var userService: UserService {
         FFSL.shared.userService
@@ -87,12 +87,12 @@ class FlightPlanViewController: UIViewController {
 **GitHub Comment section** — replace with:
 
 ```
-Service locators represent technical debt — removing direct usage improves modularity and unit testability. Please inject this service via an initializer parameter, or at minimum isolate it behind a private accessor property (e.g. `private var userService: UserService { FFSL.shared.userService }`) so the rest of the class uses `self.userService`. See the [shared services guide](https://github.com/jeppesen-foreflight/ff-ios/blob/develop/FFMDevGuide/Sources/FFMDevGuide/Documentation.docc/Architecture/SharedServices/shared-services.md).
+Service locators represent technical debt — removing direct usage improves modularity and unit testability. Please inject this service via an initializer parameter, or at minimum isolate it behind a private accessor property (e.g. `private var userService: UserService { FFSL.shared.userService }`) so the rest of the class uses `self.userService`. See the [shared services guide](https://github.com/example-org/example-ios/blob/develop/docs/shared-services.md).
 ```
 
 ## - [x] Phase 2: Update shell script messages
 
-**Files to modify**: `/Users/bill/Desktop/pr-radar-experimental-rules/apis-ffm/check-service-locator-usage.sh`
+**Files to modify**: `/path/to/rules/check-service-locator-usage.sh`
 
 Update the two `printf` comment strings (lines 56-57 and 63-64) from:
 
@@ -112,7 +112,7 @@ Run the script against a test file to confirm it still detects violations and em
 
 ```bash
 echo 'let x = FFSL.shared.userService.currentUser' > /tmp/test-sl.swift
-bash /Users/bill/Desktop/pr-radar-experimental-rules/apis-ffm/check-service-locator-usage.sh /tmp/test-sl.swift
+bash /path/to/rules/check-service-locator-usage.sh /tmp/test-sl.swift
 ```
 
 Verify the output contains the new message text about accessor patterns and technical debt.
