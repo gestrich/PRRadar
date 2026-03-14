@@ -92,6 +92,31 @@ final class AllPRsModel {
         state = .ready(prModels)
     }
 
+    // MARK: - Sync Single PR
+
+    func syncAndDiscover(prNumber: Int) async throws -> PRModel? {
+        let useCase = SyncPRUseCase(config: config)
+        for try await progress in useCase.execute(prNumber: prNumber, force: true) {
+            switch progress {
+            case .failed(let error, _):
+                throw SyncError.failed(error)
+            default: break
+            }
+        }
+        await load()
+        return currentPRModels?.first(where: { $0.metadata.number == prNumber })
+    }
+
+    enum SyncError: LocalizedError {
+        case failed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .failed(let message): return message
+            }
+        }
+    }
+
     // MARK: - Refresh from GitHub
 
     func refresh(filter: PRFilter) async {

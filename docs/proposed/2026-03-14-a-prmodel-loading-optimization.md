@@ -84,9 +84,10 @@ Replace the three inline `.map` calls:
 
 `loadSummary()` is synchronous and fast (2-3 file reads), so it runs inline with no `Task` or `await`.
 
-## - [ ] Phase 3: Fix submitNewReview flow — eliminate race and stale flash
+## - [x] Phase 3: Fix submitNewReview flow — eliminate race and stale flash
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Moved sync logic into AllPRsModel (syncAndDiscover) following MV pattern — views stay thin, models own business operations. Errors surface to user via alert instead of being swallowed.
 
 Remove the fallback PRModel hack from `submitNewReview`. Instead:
 

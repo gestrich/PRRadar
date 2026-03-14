@@ -25,6 +25,8 @@ public struct ContentView: View {
     @State private var analyzePRRuleSets: [RuleSetGroup] = []
     @State private var showDeleteConfirmation = false
     @State private var isDeletingPR = false
+    @State private var isSearchingPR = false
+    @State private var searchError: String?
     @AppStorage("daysLookBack") private var daysLookBack: Int = 7
     @AppStorage("selectedPRState") private var selectedPRStateString: String = "OPEN"
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
@@ -149,6 +151,13 @@ public struct ContentView: View {
                 Text(error)
             }
         }
+        .alert("PR Search Failed", isPresented: Binding(get: { searchError != nil }, set: { if !$0 { searchError = nil } })) {
+            Button("OK") { searchError = nil }
+        } message: {
+            if let error = searchError {
+                Text(error)
+            }
+        }
         .task {
             if let config = settingsModel.settings.configurations.first(where: { $0.id.uuidString == savedConfigID }) {
                 selectedConfig = config
@@ -169,7 +178,9 @@ public struct ContentView: View {
                 savedPRNumber = pr.metadata.number
                 Task {
                     await pr.loadDetailAsync()
-                    await pr.refreshDiff()
+                    if !pr.isPhaseCompleted(.diff) {
+                        await pr.refreshDiff()
+                    }
                 }
             } else {
                 savedPRNumber = 0
@@ -524,7 +535,15 @@ public struct ContentView: View {
     @ViewBuilder
     private var detailView: some View {
         if allPRs != nil {
-            if let pr = selectedPR {
+            if isSearchingPR {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text("Fetching PR data...")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let pr = selectedPR {
                 if pr.detailLoaded {
                     ReviewDetailView()
                         .environment(pr)
@@ -709,14 +728,15 @@ public struct ContentView: View {
         guard let number = Int(newPRNumber), let model = allPRs else { return }
         lastSearchedPRNumber = newPRNumber
         showNewReview = false
+        isSearchingPR = true
         Task {
-            let fallback = PRMetadata.fallback(number: number)
-            let newPR = PRModel(metadata: fallback, config: model.config)
-            selectedPR = newPR
-            await newPR.refreshDiff(force: true)
-            await model.load()
-            if let updated = currentPRModels.first(where: { $0.metadata.number == number }) {
-                selectedPR = updated
+            defer { isSearchingPR = false }
+            do {
+                if let pr = try await model.syncAndDiscover(prNumber: number) {
+                    selectedPR = pr
+                }
+            } catch {
+                searchError = error.localizedDescription
             }
         }
     }
