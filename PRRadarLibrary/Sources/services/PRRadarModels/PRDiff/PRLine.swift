@@ -8,14 +8,11 @@ public struct PRLine: Codable, Sendable, Equatable {
     public let newLineNumber: Int?
     public let filePath: String
     public let inlineChanges: [InlineChangeSpan]?
+    public let stableID: String
     /// `true` when this is a paired `.modified` line whose only difference from its counterpart
     /// is leading/trailing whitespace. Interior whitespace changes (e.g. `* name` → `*name`) are
     /// NOT flagged. Always `false` for `.added`, `.deleted`, and `.unchanged` lines.
     public let isSurroundingWhitespaceOnlyChange: Bool
-
-    public var stableID: String {
-        "\(filePath):\(diffType):\(oldLineNumber ?? -1):\(newLineNumber ?? -1)"
-    }
 
     /// Returns `(sourceFile, targetFile)` when this line is part of a cross-file move, nil otherwise.
     public var crossFileMoveFiles: (source: String, target: String)? {
@@ -48,6 +45,7 @@ public struct PRLine: Codable, Sendable, Equatable {
         self.filePath = filePath
         self.inlineChanges = inlineChanges
         self.isSurroundingWhitespaceOnlyChange = isSurroundingWhitespaceOnlyChange
+        self.stableID = "\(filePath):\(diffType):\(oldLineNumber ?? -1):\(newLineNumber ?? -1)"
     }
 
 }

@@ -584,10 +584,11 @@ struct AnnotatedHunkContentView: View {
     private var imageBaseDir: String? { prModel.imageBaseDir }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(hunk.lines.enumerated()), id: \.element.stableID) { _, line in
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(hunk.lines, id: \.stableID) { line in
                 let displayType = line.diffType
                 let moveDetail = findMoveDetail(for: line)
+
                 DiffLineRowView(
                     lineContent: line.rawLine,
                     oldLineNumber: line.oldLineNumber,
@@ -716,7 +717,7 @@ struct AnnotatedDiffContentView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     if !commentMapping.unmatchedNoFile.isEmpty {
                         fileLevelSection(commentMapping.unmatchedNoFile, title: "General Comments")
                     }
