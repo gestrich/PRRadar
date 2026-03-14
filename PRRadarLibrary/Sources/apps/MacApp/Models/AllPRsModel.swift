@@ -88,7 +88,7 @@ final class AllPRsModel {
         state = .loading
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let metadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
-        let prModels = metadata.map { PRModel(metadata: $0, config: config) }
+        let prModels = makePRModels(from: metadata)
         state = .ready(prModels)
     }
 
@@ -138,7 +138,9 @@ final class AllPRsModel {
                 existing.updateMetadata(meta)
                 return existing
             }
-            return PRModel(metadata: meta, config: config)
+            let model = PRModel(metadata: meta, config: config)
+            model.loadSummary()
+            return model
         }
         self.state = .ready(mergedModels)
 
@@ -253,7 +255,7 @@ final class AllPRsModel {
     private func reloadFromDisk() async {
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let metadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
-        let prModels = metadata.map { PRModel(metadata: $0, config: config) }
+        let prModels = makePRModels(from: metadata)
         state = .ready(prModels)
     }
 
@@ -271,6 +273,14 @@ final class AllPRsModel {
     private var analyzeAllLogs: String {
         if case .running(let logs, _, _) = analyzeAllState { return logs }
         return ""
+    }
+
+    private func makePRModels(from metadata: [PRMetadata]) -> [PRModel] {
+        metadata.map { meta in
+            let model = PRModel(metadata: meta, config: config)
+            model.loadSummary()
+            return model
+        }
     }
 
 }

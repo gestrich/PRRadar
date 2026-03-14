@@ -60,9 +60,10 @@ That's 2-3 file reads instead of 12+.
 
 Keep `loadDetailAsync()` / `reloadDetailAsync()` unchanged — they still load everything, but only when explicitly called.
 
-## - [ ] Phase 2: Extract common PRModel creation helper in AllPRsModel
+## - [x] Phase 2: Extract common PRModel creation helper in AllPRsModel
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Centralized PRModel creation so loadSummary() is always called for list badge data
 
 All three PRModel creation sites in `AllPRsModel` do the same thing: map metadata to PRModels and need `loadSummary()` called on each. Extract a single helper:
 
