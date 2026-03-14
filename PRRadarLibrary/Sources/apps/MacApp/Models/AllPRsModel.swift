@@ -86,10 +86,18 @@ final class AllPRsModel {
 
     func load() async {
         state = .loading
+        discoverAndMerge()
+    }
+
+    /// Reads PR metadata from the output directory and updates state, reusing existing
+    /// `PRModel` instances to keep SwiftUI `List` selection stable.
+    @discardableResult
+    private func discoverAndMerge() -> [PRModel] {
         let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
         let metadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
-        let prModels = makePRModels(from: metadata)
-        state = .ready(prModels)
+        let models = buildPRModels(from: metadata, reusingExisting: currentPRModels)
+        state = .ready(models)
+        return models
     }
 
     // MARK: - Sync Single PR
@@ -103,8 +111,7 @@ final class AllPRsModel {
             default: break
             }
         }
-        await load()
-        return currentPRModels?.first(where: { $0.metadata.number == prNumber })
+        return discoverAndMerge().first(where: { $0.metadata.number == prNumber })
     }
 
     enum SyncError: LocalizedError {
@@ -157,16 +164,7 @@ final class AllPRsModel {
             return
         }
 
-        let existingByID = Dictionary(uniqueKeysWithValues: (prior ?? []).map { ($0.id, $0) })
-        let mergedModels = metadata.map { meta -> PRModel in
-            if let existing = existingByID[meta.id] {
-                existing.updateMetadata(meta)
-                return existing
-            }
-            let model = PRModel(metadata: meta, config: config)
-            model.loadSummary()
-            return model
-        }
+        let mergedModels = buildPRModels(from: metadata, reusingExisting: prior)
         self.state = .ready(mergedModels)
 
         let prsToRefresh = filteredPRs(mergedModels, filter: filter)
@@ -277,12 +275,6 @@ final class AllPRsModel {
         }
     }
 
-    private func reloadFromDisk() async {
-        let slug = PRDiscoveryService.repoSlug(fromRepoPath: config.repoPath)
-        let metadata = PRDiscoveryService.discoverPRs(outputDir: config.outputDir, repoSlug: slug)
-        let prModels = makePRModels(from: metadata)
-        state = .ready(prModels)
-    }
 
     private var refreshAllLogs: String {
         if case .running(let logs, _, _) = refreshAllState { return logs }
@@ -300,8 +292,19 @@ final class AllPRsModel {
         return ""
     }
 
-    private func makePRModels(from metadata: [PRMetadata]) -> [PRModel] {
-        metadata.map { meta in
+    /// Builds a `PRModel` array from metadata, reusing existing instances by ID so that
+    /// SwiftUI `List` selection bindings remain valid after list updates.
+    ///
+    /// - Parameters:
+    ///   - metadata: The discovered PR metadata to build models from.
+    ///   - prior: Existing models whose instances should be reused when IDs match.
+    private func buildPRModels(from metadata: [PRMetadata], reusingExisting prior: [PRModel]? = nil) -> [PRModel] {
+        let existingByID = Dictionary(uniqueKeysWithValues: (prior ?? []).map { ($0.id, $0) })
+        return metadata.map { meta -> PRModel in
+            if let existing = existingByID[meta.id] {
+                existing.updateMetadata(meta)
+                return existing
+            }
             let model = PRModel(metadata: meta, config: config)
             model.loadSummary()
             return model
