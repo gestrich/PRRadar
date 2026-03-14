@@ -174,6 +174,10 @@ public struct ContentView: View {
         }
         .onChange(of: selectedPR) { old, new in
             old?.cancelRefresh()
+            logger.info("selectedPR changed", metadata: [
+                "old": "\(old?.prNumber.description ?? "nil")",
+                "new": "\(new?.prNumber.description ?? "nil")",
+            ])
             if let pr = new {
                 savedPRNumber = pr.metadata.number
                 Task {
@@ -193,9 +197,16 @@ public struct ContentView: View {
             )
         }
         .task {
+            logger.info("Session restore", metadata: [
+                "savedPRNumber": "\(savedPRNumber)",
+                "currentPRModelCount": "\(currentPRModels.count)",
+                "matchFound": "\(currentPRModels.first(where: { $0.metadata.number == savedPRNumber }) != nil)",
+            ])
             if savedPRNumber != 0, let pr = currentPRModels.first(where: { $0.metadata.number == savedPRNumber }) {
+                logger.info("Restoring saved PR", metadata: ["prNumber": "\(pr.prNumber)", "id": "\(pr.id)"])
                 selectedPR = pr
             } else if selectedPR == nil, let first = filteredPRModels.first {
+                logger.info("Auto-selecting first PR", metadata: ["prNumber": "\(first.prNumber)", "id": "\(first.id)"])
                 selectedPR = first
             }
         }
@@ -728,6 +739,12 @@ public struct ContentView: View {
         guard let number = Int(newPRNumber), let model = allPRs else { return }
         lastSearchedPRNumber = newPRNumber
         showNewReview = false
+
+        if let existing = currentPRModels.first(where: { $0.metadata.number == number }) {
+            selectedPR = existing
+            return
+        }
+
         isSearchingPR = true
         Task {
             defer { isSearchingPR = false }
