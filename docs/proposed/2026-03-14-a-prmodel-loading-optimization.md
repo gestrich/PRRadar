@@ -100,9 +100,10 @@ This eliminates the fallback PRModel entirely. The user sees a loading indicator
 
 Also fix `onChange(of: selectedPR)` to not call `refreshDiff()` if a sync just completed (the data is already fresh). Check `refreshTask != nil` or whether the diff phase is already `.completed`. This prevents the duplicate refresh where onChange would re-fetch data that was just synced.
 
-## - [ ] Phase 4: Load full detail on PR selection with background refresh
+## - [x] Phase 4: Load full detail on PR selection with background refresh
 
-**Skills to read**: `swift-app-architecture:swift-swiftui`
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: Kept refreshDiff on MainActor (PRModel is @Observable) but made it non-blocking by wrapping in unstructured Task — detail view renders immediately with cached data while GitHub sync runs concurrently
 
 When a PR is selected from the list (via `onChange(of: selectedPR)`), the flow should be:
 

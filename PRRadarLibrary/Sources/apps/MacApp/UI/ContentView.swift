@@ -179,7 +179,7 @@ public struct ContentView: View {
                 Task {
                     await pr.loadDetailAsync()
                     if !pr.isPhaseCompleted(.diff) {
-                        await pr.refreshDiff()
+                        Task { await pr.refreshDiff() }
                     }
                 }
             } else {
