@@ -20,6 +20,14 @@ struct InlineCommentView: View {
     var body: some View {
         InlineCommentCard(accentColor: .blue, lineBackground: lineBackground, gutterBackground: gutterBackground, highlightOpacity: isHighlighted ? 0.8 : 0) {
             VStack(alignment: .leading, spacing: 6) {
+                if let position = prModel.violationPosition(for: comment.id) {
+                    Text("\(position) of \(prModel.orderedViolations.count)")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity)
+                }
+
                 HStack(spacing: 8) {
                     SeverityBadge(score: comment.score)
 

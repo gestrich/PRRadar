@@ -537,30 +537,8 @@ struct DiffPhaseView: View {
 
     // MARK: - Violation Navigation
 
-    private struct ViolationLocation {
-        let file: String
-        let commentID: String
-    }
-
-    private var orderedViolations: [ViolationLocation] {
-        let mapping = commentMapping(for: fullDiff)
-        var result: [ViolationLocation] = []
-        for file in fullDiff.changedFiles {
-            if let lineMap = mapping.byFileAndLine[file] {
-                for line in lineMap.keys.sorted() {
-                    for comment in lineMap[line]! where comment.needsPosting {
-                        result.append(ViolationLocation(file: file, commentID: comment.id))
-                    }
-                }
-            }
-            if let fileLevel = mapping.unmatchedByFile[file] {
-                for comment in fileLevel where comment.needsPosting {
-                    result.append(ViolationLocation(file: file, commentID: comment.id))
-                }
-            }
-        }
-        logger.info("orderedViolations: total=\(result.count)")
-        return result
+    private var orderedViolations: [PRModel.ViolationLocation] {
+        prModel.orderedViolations
     }
 
     @ViewBuilder

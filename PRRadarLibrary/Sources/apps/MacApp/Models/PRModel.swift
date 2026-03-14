@@ -159,6 +159,37 @@ final class PRModel: Identifiable, Hashable {
         pendingCommentCount > 0
     }
 
+    struct ViolationLocation {
+        let file: String
+        let commentID: String
+    }
+
+    var orderedViolations: [ViolationLocation] {
+        guard let fullDiff = resolvedDiff?.fullDiff else { return [] }
+        let mapping = DiffCommentMapper.map(diff: fullDiff, comments: reviewComments)
+        var result: [ViolationLocation] = []
+        for file in fullDiff.changedFiles {
+            if let lineMap = mapping.byFileAndLine[file] {
+                for line in lineMap.keys.sorted() {
+                    for comment in lineMap[line]! where comment.needsPosting {
+                        result.append(ViolationLocation(file: file, commentID: comment.id))
+                    }
+                }
+            }
+            if let fileLevel = mapping.unmatchedByFile[file] {
+                for comment in fileLevel where comment.needsPosting {
+                    result.append(ViolationLocation(file: file, commentID: comment.id))
+                }
+            }
+        }
+        return result
+    }
+
+    func violationPosition(for commentID: String) -> Int? {
+        guard let index = orderedViolations.firstIndex(where: { $0.commentID == commentID }) else { return nil }
+        return index + 1
+    }
+
     func updateMetadata(_ newMetadata: PRMetadata) {
         metadata = newMetadata
     }
