@@ -94,6 +94,28 @@ extension ReviewComment {
     }
 }
 
+extension ReviewComment {
+    public var debugSummary: String {
+        let stateLabel: String
+        switch self {
+        case .new: stateLabel = "new"
+        case .redetected: stateLabel = "redetected"
+        case .needsUpdate: stateLabel = "needsUpdate"
+        case .postedOnly: stateLabel = "postedOnly"
+        }
+        let rule = ruleName ?? "no-rule"
+        let bodyPreview: String
+        if let p = pending {
+            bodyPreview = String(p.comment.prefix(60)).replacingOccurrences(of: "\n", with: " ")
+        } else if let p = posted {
+            bodyPreview = String(p.body.prefix(60)).replacingOccurrences(of: "\n", with: " ")
+        } else {
+            bodyPreview = "(empty)"
+        }
+        return "[\(stateLabel)] id=\(id) rule=\(rule) file=\(filePath) line=\(lineNumber.map(String.init) ?? "nil") needsPosting=\(needsPosting) body=\"\(bodyPreview)...\""
+    }
+}
+
 extension [ReviewComment] {
     public func sortedByDisplayOrder() -> [ReviewComment] {
         sorted { $0.displayOrder < $1.displayOrder }

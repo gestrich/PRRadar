@@ -1,6 +1,9 @@
 import AppKit
+import Logging
 import PRRadarModels
 import SwiftUI
+
+private let logger = Logger(label: "PRRadar.RichDiffViews")
 
 enum DiffLayout {
     static let gutterWidth: CGFloat = 96
@@ -713,8 +716,9 @@ struct AnnotatedDiffContentView: View {
             .listStyle(.plain)
             .background(Color(nsColor: .textBackgroundColor))
             .scrollContentBackground(.hidden)
-            .onChange(of: scrollToCommentID) { _, newID in
+            .onChange(of: scrollToCommentID, initial: true) { _, newID in
                 guard let id = newID else { return }
+                logger.info("scrollToCommentID onChange: scrolling to \(id), highlightedCommentID=\(highlightedCommentID ?? "nil")")
                 withAnimation(.easeInOut(duration: 0.3)) {
                     proxy.scrollTo(id, anchor: .center)
                 }

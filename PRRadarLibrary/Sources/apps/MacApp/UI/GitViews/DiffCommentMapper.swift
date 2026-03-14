@@ -1,4 +1,7 @@
+import Logging
 import PRRadarModels
+
+private let logger = Logger(label: "PRRadar.DiffCommentMapper")
 
 struct DiffCommentMapping {
     let byFileAndLine: [String: [Int: [ReviewComment]]]
@@ -24,15 +27,18 @@ enum DiffCommentMapper {
         var unmatchedByFile: [String: [ReviewComment]] = [:]
         var unmatchedNoFile: [ReviewComment] = []
 
+        logger.info("map: \(comments.count) comments, \(diffFiles.count) diff files")
         for comment in comments {
             let filePath = comment.filePath
 
             guard diffFiles.contains(filePath) else {
+                logger.debug("  noFile: \(comment.debugSummary)")
                 unmatchedNoFile.append(comment)
                 continue
             }
 
             guard let lineNumber = comment.lineNumber else {
+                logger.debug("  unmatchedByFile (no line): \(comment.debugSummary)")
                 unmatchedByFile[filePath, default: []].append(comment)
                 continue
             }
@@ -40,6 +46,7 @@ enum DiffCommentMapper {
             if diff.findHunk(containingLine: lineNumber, inFile: filePath) != nil {
                 byFileAndLine[filePath, default: [:]][lineNumber, default: []].append(comment)
             } else {
+                logger.debug("  unmatchedByFile (line \(lineNumber) not in hunk): \(comment.debugSummary)")
                 unmatchedByFile[filePath, default: []].append(comment)
             }
         }

@@ -1,7 +1,10 @@
+import Logging
 import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 import SwiftUI
+
+private let logger = Logger(label: "PRRadar.DiffPhaseView")
 
 struct DiffPhaseView: View {
 
@@ -559,6 +562,7 @@ struct DiffPhaseView: View {
                 }
             }
         }
+        logger.info("orderedViolations: total=\(result.count)")
         return result
     }
 
@@ -631,6 +635,8 @@ struct DiffPhaseView: View {
         prModel.currentViolationIndex = newIndex
 
         let violation = violations[newIndex]
+        logger.info("navigateViolation: index=\(newIndex)/\(violations.count) file=\(URL(fileURLWithPath: violation.file).lastPathComponent)")
+
         if violation.file != selectedFile {
             selectedFile = violation.file
         }
