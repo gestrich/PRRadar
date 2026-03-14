@@ -30,6 +30,7 @@ public struct ContentView: View {
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
     @AppStorage("baseBranchFilter") private var baseBranchFilter: String = ""
     @AppStorage("authorFilter") private var authorFilter: String = ""
+    @AppStorage("lastSearchedPRNumber") private var lastSearchedPRNumber: String = ""
 
     public init() {}
 
@@ -356,7 +357,7 @@ public struct ContentView: View {
                 }
 
                 Button {
-                    newPRNumber = ""
+                    newPRNumber = lastSearchedPRNumber
                     showNewReview = true
                 } label: {
                     Image(systemName: "magnifyingglass")
@@ -706,6 +707,7 @@ public struct ContentView: View {
 
     private func submitNewReview() {
         guard let number = Int(newPRNumber), let model = allPRs else { return }
+        lastSearchedPRNumber = newPRNumber
         showNewReview = false
         Task {
             let fallback = PRMetadata.fallback(number: number)
