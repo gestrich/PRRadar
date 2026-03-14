@@ -67,7 +67,10 @@ Focus on the main pipeline lifecycle events in the Mac app:
 3. In the CLI entry point, do the same
 4. Create `Logger` instances at call sites using `Logger(label: "PRRadar.<ComponentName>")`
 
-## - [ ] Phase 3: Add ~10 log events in `PRModel.swift`
+## - [x] Phase 3: Add ~10 log events in `PRModel.swift`
+
+**Skills used**: none (straightforward replacement)
+**Principles applied**: Replaced bespoke file-writing debugLog() with swift-log Logger; used .info for lifecycle events, .warning for skipped phases, .error for failures; structured metadata for machine-parseable fields
 
 1. Replace the bespoke `debugLog()` calls with `swift-log` `Logger` calls (there are ~12 `debugLog()` calls covering `runAnalysis`, `runPrepare`, and `runAnalyze` — these become the initial log events)
 2. Remove the `debugLogPath` and `debugLog()` function entirely

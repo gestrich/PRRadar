@@ -1,25 +1,11 @@
 import Foundation
+import Logging
 import PRRadarCLIService
 import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
-private let debugLogPath = "/tmp/prradar-debug.log"
-private func debugLog(_ message: String) {
-    let timestamp = ISO8601DateFormatter().string(from: Date())
-    let line = "[\(timestamp)] \(message)\n"
-    if let data = line.data(using: .utf8) {
-        if FileManager.default.fileExists(atPath: debugLogPath) {
-            if let handle = FileHandle(forWritingAtPath: debugLogPath) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                handle.closeFile()
-            }
-        } else {
-            FileManager.default.createFile(atPath: debugLogPath, contents: data)
-        }
-    }
-}
+private let logger = Logger(label: "PRRadar.PRModel")
 
 @Observable
 @MainActor
@@ -410,34 +396,36 @@ final class PRModel: Identifiable, Hashable {
 
     @discardableResult
     func runAnalysis(ruleFilePaths: [String]? = nil) async -> Bool {
-        debugLog("runAnalysis START pr=\(prNumber) ruleFilePaths=\(ruleFilePaths ?? [])")
-        debugLog("runAnalysis detailLoaded=\(detailLoaded) detail=\(detail != nil) preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
+        logger.info("Analysis started", metadata: ["prNumber": "\(prNumber)", "ruleFilePaths": "\(ruleFilePaths ?? [])"])
         loadDetail()
-        debugLog("runAnalysis after loadDetail: detailLoaded=\(detailLoaded) detail=\(detail != nil) preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
         operationMode = .analyzing
         defer { operationMode = .idle }
 
         let phases: [PRRadarPhase] = [.diff, .prepare, .analyze, .report]
         for phase in phases {
-            debugLog("runAnalysis phase=\(phase) canRun=\(canRunPhase(phase)) state=\(String(describing: stateFor(phase)))")
+            logger.info("Phase starting", metadata: ["phase": "\(phase)", "canRun": "\(canRunPhase(phase))"])
             if phase == .analyze, let ruleFilePaths {
                 let filter = RuleFilter(ruleFilePaths: ruleFilePaths)
                 startPhase(.analyze)
-                debugLog("runAnalysis running FILTERED analysis, tasks=\(preparation?.tasks.count ?? -1)")
                 await runFilteredAnalysis(filter: filter)
                 completePhase(.analyze)
                 continue
             }
             guard canRunPhase(phase) else {
-                debugLog("runAnalysis SKIPPING phase=\(phase) — canRunPhase=false")
+                logger.warning("Phase skipped", metadata: ["phase": "\(phase)"])
                 break
             }
             await runPhase(phase)
-            debugLog("runAnalysis after phase=\(phase) state=\(String(describing: stateFor(phase))) preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
-            if case .failed = stateFor(phase) { break }
+            if case .failed(let error, _) = stateFor(phase) {
+                logger.error("Phase failed", metadata: ["phase": "\(phase)", "error": "\(error)"])
+                break
+            }
+            logger.info("Phase completed", metadata: ["phase": "\(phase)"])
         }
+        let success = isPhaseCompleted(.report)
+        logger.info("Analysis completed", metadata: ["prNumber": "\(prNumber)", "success": "\(success)"])
         reloadReviewComments()
-        return isPhaseCompleted(.report)
+        return success
     }
 
     func resetPhase(_ phase: PRRadarPhase) {
@@ -460,6 +448,7 @@ final class PRModel: Identifiable, Hashable {
     }
 
     func runComments(dryRun: Bool) async {
+        logger.info("Comment submission started", metadata: ["prNumber": "\(prNumber)", "dryRun": "\(dryRun)"])
         commentPostingState = .running(logs: "Posting comments...\n")
 
         let useCase = PostCommentsUseCase(config: config)
@@ -673,9 +662,8 @@ final class PRModel: Identifiable, Hashable {
                 case .taskEvent: break
                 case .completed:
                     prepareAccumulator = nil
-                    debugLog("runPrepare COMPLETED, reloading detail...")
+                    logger.info("Prepare phase completed", metadata: ["tasks": "\(preparation?.tasks.count ?? 0)"])
                     reloadDetail()
-                    debugLog("runPrepare after reloadDetail: preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
                     completePhase(.prepare)
                 case .failed(let error, let logs):
                     prepareAccumulator = nil
@@ -689,11 +677,10 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func runAnalyze() async {
-        debugLog("runAnalyze START preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
+        let tasks = preparation?.tasks ?? []
+        logger.info("Analyze phase started", metadata: ["taskCount": "\(tasks.count)"])
         startPhase(.analyze, logs: "Running evaluations...\n")
         for key in evaluations.keys { evaluations[key]?.accumulator = nil }
-        let tasks = preparation?.tasks ?? []
-        debugLog("runAnalyze tasks.count=\(tasks.count)")
         inProgressAnalysis = PRReviewResult(streaming: tasks)
         let useCase = AnalyzeUseCase(config: config)
         let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash, tasks: tasks)
@@ -764,6 +751,7 @@ final class PRModel: Identifiable, Hashable {
     private func handleTaskEvent(_ task: RuleRequest, _ event: TaskProgress) {
         switch event {
         case .prompt(let text):
+            logger.info("Evaluation task started", metadata: ["taskId": "\(task.taskId)", "rule": "\(task.rule.name)", "file": "\(task.focusArea.filePath)"])
             let count = evaluations.values.filter { $0.accumulator != nil }.count
             evaluations[task.taskId]?.accumulator = LiveTranscriptAccumulator(
                 identifier: "task-\(count + 1)",
@@ -777,6 +765,7 @@ final class PRModel: Identifiable, Hashable {
         case .toolUse(let name):
             evaluations[task.taskId]?.accumulator?.flushTextAndAppendToolUse(name)
         case .completed(let result):
+            logger.info("Evaluation task completed", metadata: ["taskId": "\(task.taskId)", "rule": "\(task.rule.name)"])
             evaluations[task.taskId]?.outcome = result
             inProgressAnalysis?.appendResult(result, prNumber: prNumber)
             reloadReviewComments()

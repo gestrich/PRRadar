@@ -186,6 +186,7 @@ targets.append(contentsOf: [
             .target(name: "PRRadarConfigService"),
             .target(name: "PRRadarModels"),
             .target(name: "LoggingSDK"),
+            .product(name: "Logging", package: "swift-log"),
             .product(name: "MarkdownUI", package: "swift-markdown-ui"),
             .product(name: "Markdown", package: "swift-markdown"),
         ],
