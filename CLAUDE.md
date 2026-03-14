@@ -91,6 +91,42 @@ cd pr-radar-mac
 swift test
 ```
 
+## Logging
+
+PRRadar uses `swift-log` with a custom `FileLogHandler` that writes JSON lines to `~/Library/Logs/PRRadar/prradar.log`. Both the Mac app and CLI bootstrap logging at startup.
+
+### Reading Logs via CLI
+
+```bash
+cd pr-radar-mac
+
+# All log entries
+swift run PRRadarMacCLI logs
+
+# Most recent analysis run only
+swift run PRRadarMacCLI logs --last-run
+
+# Filter by date range
+swift run PRRadarMacCLI logs --from 2026-03-14 --to 2026-03-14
+
+# Filter by level
+swift run PRRadarMacCLI logs --level error
+
+# JSON output (for scripting/AI tooling)
+swift run PRRadarMacCLI logs --json
+```
+
+### Adding Logs for Debugging
+
+When debugging issues, add `Logger` calls at relevant points using `import Logging`:
+
+```swift
+let logger = Logger(label: "PRRadar.<ComponentName>")
+logger.info("Description", metadata: ["key": "\(value)"])
+```
+
+Use `.info` for lifecycle events, `.warning` for skipped/unexpected states, `.error` for failures. After running, check output with `swift run PRRadarMacCLI logs --last-run`.
+
 ## Key Technical Details
 
 - Pipeline phases: DIFF → FOCUS_AREAS → RULES → TASKS → EVALUATIONS → REPORT
