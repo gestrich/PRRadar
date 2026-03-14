@@ -19,6 +19,7 @@ struct DiffPhaseView: View {
     @AppStorage("selectedRuleFilePaths") private var savedRuleFilePathsJSON: String = ""
     @State private var scrollToCommentID: String?
     @State private var highlightedCommentID: String?
+    @State private var highlightClearTask: Task<Void, Never>?
 
     private var reviewComments: [ReviewComment] { prModel.reviewComments }
     private var evaluationSummary: PRReviewSummary? { prModel.analysis?.summary }
@@ -633,9 +634,17 @@ struct DiffPhaseView: View {
         if violation.file != selectedFile {
             selectedFile = violation.file
         }
+        highlightClearTask?.cancel()
         highlightedCommentID = nil
         scrollToCommentID = violation.commentID
-        highlightedCommentID = violation.commentID
+        DispatchQueue.main.async {
+            highlightedCommentID = violation.commentID
+            highlightClearTask = Task {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                highlightedCommentID = nil
+            }
+        }
     }
 
     @ViewBuilder

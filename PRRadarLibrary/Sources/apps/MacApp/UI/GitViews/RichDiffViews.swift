@@ -6,6 +6,14 @@ enum DiffLayout {
     static let gutterWidth: CGFloat = 96
 }
 
+private extension View {
+    func diffListRow() -> some View {
+        self
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+    }
+}
+
 // MARK: - Inline Comment Card
 
 struct InlineCommentCard<Content: View>: View {
@@ -32,7 +40,7 @@ struct InlineCommentCard<Content: View>: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.accentColor, lineWidth: 2)
+                .stroke(Color.accentColor, lineWidth: 4)
                 .opacity(highlightOpacity)
         )
         .frame(maxWidth: 720, alignment: .leading)
@@ -566,113 +574,6 @@ struct PureRenameContentView: View {
     }
 }
 
-// MARK: - Annotated Views (with inline comments)
-
-struct AnnotatedHunkContentView: View {
-    let hunk: PRHunk
-    let moves: [MoveDetail]
-    let commentsAtLine: [Int: [ReviewComment]]
-    let searchQuery: String
-    var prModel: PRModel
-    var highlightedCommentID: String?
-    var onMoveTapped: ((MoveDetail) -> Void)?
-    var onSelectRules: (() -> Void)?
-
-    @State private var composingCommentLine: (filePath: String, lineNumber: Int)?
-
-    private var imageURLMap: [String: String]? { prModel.imageURLMap.isEmpty ? nil : prModel.imageURLMap }
-    private var imageBaseDir: String? { prModel.imageBaseDir }
-
-    var body: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(hunk.lines, id: \.stableID) { line in
-                let displayType = line.diffType
-                let moveDetail = findMoveDetail(for: line)
-
-                DiffLineRowView(
-                    lineContent: line.rawLine,
-                    oldLineNumber: line.oldLineNumber,
-                    newLineNumber: line.newLineNumber,
-                    lineType: displayType,
-                    searchQuery: searchQuery,
-                    isMoved: line.pairing != nil,
-                    prLine: line,
-                    onAddComment: line.newLineNumber != nil ? {
-                        composingCommentLine = (filePath: hunk.filePath, lineNumber: line.newLineNumber!)
-                    } : nil,
-                    onMoveTapped: moveDetail.map { detail in { onMoveTapped?(detail) } },
-                    onSelectRules: onSelectRules
-                )
-
-                if let newLine = line.newLineNumber,
-                   let comments = commentsAtLine[newLine] {
-                    let lineBg = lineBackground(for: displayType)
-                    let gutterBg = gutterBackground(for: displayType)
-                    ForEach(comments) { rc in
-                        switch rc {
-                        case .new(let pending), .needsUpdate(let pending, _):
-                            InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBg, gutterBackground: gutterBg, isHighlighted: rc.id == highlightedCommentID)
-                                .id(rc.id)
-                        case .redetected(_, let posted):
-                            InlinePostedCommentView(
-                                comment: posted,
-                                isRedetected: true,
-                                imageURLMap: imageURLMap,
-                                imageBaseDir: imageBaseDir,
-                                lineBackground: lineBg,
-                                gutterBackground: gutterBg
-                            )
-                        case .postedOnly(let posted):
-                            InlinePostedCommentView(
-                                comment: posted,
-                                imageURLMap: imageURLMap,
-                                imageBaseDir: imageBaseDir,
-                                lineBackground: lineBg,
-                                gutterBackground: gutterBg
-                            )
-                        }
-                    }
-                }
-
-                if let newLine = line.newLineNumber,
-                   let compose = composingCommentLine,
-                   compose.filePath == hunk.filePath,
-                   compose.lineNumber == newLine {
-                    InlineCommentComposeView(
-                        filePath: compose.filePath,
-                        lineNumber: compose.lineNumber,
-                        prModel: prModel,
-                        lineBackground: lineBackground(for: displayType),
-                        gutterBackground: gutterBackground(for: displayType),
-                        onCancel: { composingCommentLine = nil }
-                    )
-                }
-            }
-        }
-    }
-
-    private func findMoveDetail(for line: PRLine) -> MoveDetail? {
-        guard let moveFiles = line.crossFileMoveFiles else { return nil }
-        return moves.first { $0.sourceFile == moveFiles.source && $0.targetFile == moveFiles.target }
-    }
-
-    private func lineBackground(for lineType: DiffLineType) -> Color {
-        switch lineType {
-        case .added: Color.green.opacity(0.08)
-        case .removed: Color.red.opacity(0.08)
-        case .context, .header: .clear
-        }
-    }
-
-    private func gutterBackground(for lineType: DiffLineType) -> Color {
-        switch lineType {
-        case .added: Color.green.opacity(0.15)
-        case .removed: Color.red.opacity(0.15)
-        case .context, .header: Color.gray.opacity(0.1)
-        }
-    }
-}
-
 struct AnnotatedDiffContentView: View {
     let prDiff: PRDiff
     let displayDiff: GitDiff
@@ -714,64 +615,106 @@ struct AnnotatedDiffContentView: View {
         !tasks.isEmpty
     }
 
+    @State private var composingCommentLine: (filePath: String, lineNumber: Int)?
+
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    if !commentMapping.unmatchedNoFile.isEmpty {
-                        fileLevelSection(commentMapping.unmatchedNoFile, title: "General Comments")
+            List {
+                if !commentMapping.unmatchedNoFile.isEmpty {
+                    fileLevelSection(commentMapping.unmatchedNoFile, title: "General Comments")
+                }
+
+                ForEach(displayDiff.changedFiles, id: \.self) { filePath in
+                    let hunks = displayDiff.getHunks(byFilePath: filePath)
+                    let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
+
+                    if let oldPath {
+                        RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
+                            .diffListRow()
+                    } else {
+                        Text(filePath)
+                            .font(.system(.body, design: .monospaced))
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                            .diffListRow()
                     }
 
-                    ForEach(displayDiff.changedFiles, id: \.self) { filePath in
-                        let hunks = displayDiff.getHunks(byFilePath: filePath)
-                        let oldPath = hunks.first(where: { $0.renameFrom != nil })?.renameFrom
+                    if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
+                        PureRenameContentView()
+                            .diffListRow()
+                    }
 
-                        if let oldPath {
-                            RenameFileHeaderView(oldPath: oldPath, newPath: filePath)
-                        } else {
-                            Text(filePath)
-                                .font(.system(.body, design: .monospaced))
-                                .fontWeight(.bold)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(nsColor: .windowBackgroundColor))
+                    if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty {
+                        fileLevelSection(fileLevel)
+                    }
+
+                    ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
+                        HunkHeaderView(hunk: hunk) {
+                            hunkActions(for: hunk)
                         }
+                        .diffListRow()
 
-                        if hunks.allSatisfy({ $0.diffLines.isEmpty }) && oldPath != nil {
-                            PureRenameContentView()
-                        }
+                        let prHunk = findPRHunk(for: hunk)
+                            ?? PRHunk.fromHunk(hunk)
+                        let commentsAtLine = commentMapping.byFileAndLine[filePath] ?? [:]
+                        let onSelectRules = onSelectRulesForFile.map { callback in { callback(filePath) } }
 
-                        if let fileLevel = commentMapping.unmatchedByFile[filePath], !fileLevel.isEmpty {
-                            fileLevelSection(fileLevel)
-                        }
+                        ForEach(prHunk.lines, id: \.stableID) { line in
+                            let displayType = line.diffType
+                            let moveDetail = findMoveDetail(for: line, in: prDiff.moves)
 
-                        ForEach(hunks.filter { !$0.diffLines.isEmpty }) { hunk in
-                            HunkHeaderView(hunk: hunk) {
-                                hunkActions(for: hunk)
-                            }
-                            let prHunk = findPRHunk(for: hunk)
-                                ?? PRHunk.fromHunk(hunk)
-                            AnnotatedHunkContentView(
-                                hunk: prHunk,
-                                moves: prDiff.moves,
-                                commentsAtLine: commentMapping.byFileAndLine[filePath] ?? [:],
+                            DiffLineRowView(
+                                lineContent: line.rawLine,
+                                oldLineNumber: line.oldLineNumber,
+                                newLineNumber: line.newLineNumber,
+                                lineType: displayType,
                                 searchQuery: searchQuery,
-                                prModel: prModel,
-                                highlightedCommentID: highlightedCommentID,
-                                onMoveTapped: onMoveTapped,
-                                onSelectRules: onSelectRulesForFile.map { callback in { callback(filePath) } }
+                                isMoved: line.pairing != nil,
+                                prLine: line,
+                                onAddComment: line.newLineNumber != nil ? {
+                                    composingCommentLine = (filePath: prHunk.filePath, lineNumber: line.newLineNumber!)
+                                } : nil,
+                                onMoveTapped: moveDetail.map { detail in { onMoveTapped?(detail) } },
+                                onSelectRules: onSelectRules
                             )
+                            .diffListRow()
+
+                            if let newLine = line.newLineNumber,
+                               let comments = commentsAtLine[newLine] {
+                                let lineBg = lineBackground(for: displayType)
+                                let gutterBg = gutterBackground(for: displayType)
+                                ForEach(comments) { rc in
+                                    commentView(for: rc, lineBackground: lineBg, gutterBackground: gutterBg)
+                                        .diffListRow()
+                                }
+                            }
+
+                            if let newLine = line.newLineNumber,
+                               let compose = composingCommentLine,
+                               compose.filePath == prHunk.filePath,
+                               compose.lineNumber == newLine {
+                                InlineCommentComposeView(
+                                    filePath: compose.filePath,
+                                    lineNumber: compose.lineNumber,
+                                    prModel: prModel,
+                                    lineBackground: lineBackground(for: displayType),
+                                    gutterBackground: gutterBackground(for: displayType),
+                                    onCancel: { composingCommentLine = nil }
+                                )
+                                .diffListRow()
+                            }
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .listStyle(.plain)
             .background(Color(nsColor: .textBackgroundColor))
-            .task(id: scrollToCommentID) {
-                guard let id = scrollToCommentID else { return }
-                try? await Task.sleep(for: .milliseconds(100))
-                guard !Task.isCancelled else { return }
+            .scrollContentBackground(.hidden)
+            .onChange(of: scrollToCommentID) { _, newID in
+                guard let id = newID else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     proxy.scrollTo(id, anchor: .center)
                 }
@@ -781,36 +724,66 @@ struct AnnotatedDiffContentView: View {
     }
 
     @ViewBuilder
-    private func fileLevelSection(_ comments: [ReviewComment], title: String = "File-level comments") -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.08))
+    private func commentView(for rc: ReviewComment, lineBackground: Color, gutterBackground: Color) -> some View {
+        switch rc {
+        case .new(let pending), .needsUpdate(let pending, _):
+            InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBackground, gutterBackground: gutterBackground, isHighlighted: rc.id == highlightedCommentID)
+                .id(rc.id)
+        case .redetected(_, let posted):
+            InlinePostedCommentView(
+                comment: posted,
+                isRedetected: true,
+                imageURLMap: imageURLMap,
+                imageBaseDir: imageBaseDir,
+                lineBackground: lineBackground,
+                gutterBackground: gutterBackground
+            )
+        case .postedOnly(let posted):
+            InlinePostedCommentView(
+                comment: posted,
+                imageURLMap: imageURLMap,
+                imageBaseDir: imageBaseDir,
+                lineBackground: lineBackground,
+                gutterBackground: gutterBackground
+            )
+        }
+    }
 
-            ForEach(comments) { rc in
-                switch rc {
-                case .new(let pending), .needsUpdate(let pending, _):
-                    InlineCommentView(comment: pending, prModel: prModel, isHighlighted: rc.id == highlightedCommentID)
-                        .id(rc.id)
-                case .redetected(_, let posted):
-                    InlinePostedCommentView(
-                        comment: posted,
-                        isRedetected: true,
-                        imageURLMap: imageURLMap,
-                        imageBaseDir: imageBaseDir
-                    )
-                case .postedOnly(let posted):
-                    InlinePostedCommentView(
-                        comment: posted,
-                        imageURLMap: imageURLMap,
-                        imageBaseDir: imageBaseDir
-                    )
-                }
-            }
+    private func findMoveDetail(for line: PRLine, in moves: [MoveDetail]) -> MoveDetail? {
+        guard let moveFiles = line.crossFileMoveFiles else { return nil }
+        return moves.first { $0.sourceFile == moveFiles.source && $0.targetFile == moveFiles.target }
+    }
+
+    private func lineBackground(for lineType: DiffLineType) -> Color {
+        switch lineType {
+        case .added: Color.green.opacity(0.08)
+        case .removed: Color.red.opacity(0.08)
+        case .context, .header: .clear
+        }
+    }
+
+    private func gutterBackground(for lineType: DiffLineType) -> Color {
+        switch lineType {
+        case .added: Color.green.opacity(0.15)
+        case .removed: Color.red.opacity(0.15)
+        case .context, .header: Color.gray.opacity(0.1)
+        }
+    }
+
+    @ViewBuilder
+    private func fileLevelSection(_ comments: [ReviewComment], title: String = "File-level comments") -> some View {
+        Text(title)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.08))
+            .diffListRow()
+
+        ForEach(comments) { rc in
+            commentView(for: rc, lineBackground: .clear, gutterBackground: Color.gray.opacity(0.1))
+                .diffListRow()
         }
     }
 
