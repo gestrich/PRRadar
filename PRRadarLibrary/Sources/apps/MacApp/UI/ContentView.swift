@@ -250,7 +250,7 @@ public struct ContentView: View {
                         .onChange(of: selectedPR) { _, newPR in
                             if let pr = newPR {
                                 withAnimation {
-                                    proxy.scrollTo(pr.id)
+                                    proxy.scrollTo(pr.id, anchor: .center)
                                 }
                             }
                         }
