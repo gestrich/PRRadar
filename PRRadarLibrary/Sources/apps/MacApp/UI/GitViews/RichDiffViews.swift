@@ -716,9 +716,11 @@ struct AnnotatedDiffContentView: View {
             .listStyle(.plain)
             .background(Color(nsColor: .textBackgroundColor))
             .scrollContentBackground(.hidden)
-            .onChange(of: scrollToCommentID, initial: true) { _, newID in
-                guard let id = newID else { return }
-                logger.info("scrollToCommentID onChange: scrolling to \(id), highlightedCommentID=\(highlightedCommentID ?? "nil")")
+            .task(id: scrollToCommentID) {
+                guard let id = scrollToCommentID else { return }
+                logger.info("scrollToCommentID task: scrolling to \(id)")
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     proxy.scrollTo(id, anchor: .center)
                 }

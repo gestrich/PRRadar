@@ -53,11 +53,12 @@ struct DiffPhaseView: View {
             }
         }
         .onAppear {
+            logger.info("DiffPhaseView.onAppear: selectedFile=\(selectedFile ?? "nil") pendingNav=\(prModel.pendingViolationNavigation.map(String.init(describing:)) ?? "nil") reviewComments=\(reviewComments.count)")
+            syncViolationCount()
+            consumePendingNavigation()
             if selectedFile == nil {
                 selectedFile = fullDiff.changedFiles.first
             }
-            syncViolationCount()
-            consumePendingNavigation()
         }
         .onChange(of: prModel.pendingViolationNavigation) { _, newValue in
             if newValue != nil {
@@ -605,6 +606,12 @@ struct DiffPhaseView: View {
 
     private func consumePendingNavigation() {
         guard let nav = prModel.pendingViolationNavigation else { return }
+        let violationCount = orderedViolations.count
+        logger.info("consumePendingNavigation: nav=\(nav) violationCount=\(violationCount) reviewComments=\(reviewComments.count)")
+        guard violationCount > 0 else {
+            logger.info("consumePendingNavigation: no violations yet, keeping pending navigation for later")
+            return
+        }
         prModel.pendingViolationNavigation = nil
         switch nav {
         case .first:
