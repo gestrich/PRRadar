@@ -448,6 +448,8 @@ public struct ContentView: View {
                 Text(globalViolationLabel(violationPRs: violationPRs))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .frame(minWidth: 120)
 
                 Button {
                     navigatePRViolation(by: 1)

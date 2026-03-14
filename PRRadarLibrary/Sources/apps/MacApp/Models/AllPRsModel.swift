@@ -303,6 +303,7 @@ final class AllPRsModel {
         return metadata.map { meta -> PRModel in
             if let existing = existingByID[meta.id] {
                 existing.updateMetadata(meta)
+                existing.loadSummary()
                 return existing
             }
             let model = PRModel(metadata: meta, config: config)
