@@ -240,11 +240,21 @@ public struct ContentView: View {
                         description: Text(allPRs?.showOnlyWithPendingComments == true ? "No PRs with pending comments found." : "No PR review data found in the output directory.")
                     )
                 } else {
-                    List(filteredPRModels, selection: $selectedPR) { prModel in
-                        PRListRow(prModel: prModel)
-                            .tag(prModel)
+                    ScrollViewReader { proxy in
+                        List(filteredPRModels, selection: $selectedPR) { prModel in
+                            PRListRow(prModel: prModel)
+                                .id(prModel.id)
+                                .tag(prModel)
+                        }
+                        .accessibilityIdentifier("prList")
+                        .onChange(of: selectedPR) { _, newPR in
+                            if let pr = newPR {
+                                withAnimation {
+                                    proxy.scrollTo(pr.id)
+                                }
+                            }
+                        }
                     }
-                    .accessibilityIdentifier("prList")
                 }
             } else {
                 ContentUnavailableView(
