@@ -4,6 +4,23 @@ import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 
+private let debugLogPath = "/tmp/prradar-debug.log"
+private func debugLog(_ message: String) {
+    let timestamp = ISO8601DateFormatter().string(from: Date())
+    let line = "[\(timestamp)] \(message)\n"
+    if let data = line.data(using: .utf8) {
+        if FileManager.default.fileExists(atPath: debugLogPath) {
+            if let handle = FileHandle(forWritingAtPath: debugLogPath) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                handle.closeFile()
+            }
+        } else {
+            FileManager.default.createFile(atPath: debugLogPath, contents: data)
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class PRModel: Identifiable, Hashable {
@@ -393,21 +410,30 @@ final class PRModel: Identifiable, Hashable {
 
     @discardableResult
     func runAnalysis(ruleFilePaths: [String]? = nil) async -> Bool {
+        debugLog("runAnalysis START pr=\(prNumber) ruleFilePaths=\(ruleFilePaths ?? [])")
+        debugLog("runAnalysis detailLoaded=\(detailLoaded) detail=\(detail != nil) preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
         loadDetail()
+        debugLog("runAnalysis after loadDetail: detailLoaded=\(detailLoaded) detail=\(detail != nil) preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
         operationMode = .analyzing
         defer { operationMode = .idle }
 
         let phases: [PRRadarPhase] = [.diff, .prepare, .analyze, .report]
         for phase in phases {
+            debugLog("runAnalysis phase=\(phase) canRun=\(canRunPhase(phase)) state=\(String(describing: stateFor(phase)))")
             if phase == .analyze, let ruleFilePaths {
                 let filter = RuleFilter(ruleFilePaths: ruleFilePaths)
                 startPhase(.analyze)
+                debugLog("runAnalysis running FILTERED analysis, tasks=\(preparation?.tasks.count ?? -1)")
                 await runFilteredAnalysis(filter: filter)
                 completePhase(.analyze)
                 continue
             }
-            guard canRunPhase(phase) else { break }
+            guard canRunPhase(phase) else {
+                debugLog("runAnalysis SKIPPING phase=\(phase) — canRunPhase=false")
+                break
+            }
             await runPhase(phase)
+            debugLog("runAnalysis after phase=\(phase) state=\(String(describing: stateFor(phase))) preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
             if case .failed = stateFor(phase) { break }
         }
         reloadReviewComments()
@@ -647,6 +673,9 @@ final class PRModel: Identifiable, Hashable {
                 case .taskEvent: break
                 case .completed:
                     prepareAccumulator = nil
+                    debugLog("runPrepare COMPLETED, reloading detail...")
+                    reloadDetail()
+                    debugLog("runPrepare after reloadDetail: preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
                     completePhase(.prepare)
                 case .failed(let error, let logs):
                     prepareAccumulator = nil
@@ -660,9 +689,11 @@ final class PRModel: Identifiable, Hashable {
     }
 
     private func runAnalyze() async {
+        debugLog("runAnalyze START preparation=\(preparation != nil) tasks=\(preparation?.tasks.count ?? -1)")
         startPhase(.analyze, logs: "Running evaluations...\n")
         for key in evaluations.keys { evaluations[key]?.accumulator = nil }
         let tasks = preparation?.tasks ?? []
+        debugLog("runAnalyze tasks.count=\(tasks.count)")
         inProgressAnalysis = PRReviewResult(streaming: tasks)
         let useCase = AnalyzeUseCase(config: config)
         let request = PRReviewRequest(prNumber: prNumber, commitHash: currentCommitHash, tasks: tasks)
