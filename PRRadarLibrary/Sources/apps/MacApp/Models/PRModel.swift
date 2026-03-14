@@ -34,7 +34,6 @@ final class PRModel: Identifiable, Hashable {
     private var prepareAccumulator: LiveTranscriptAccumulator?
     private(set) var operationMode: OperationMode = .idle
     var currentViolationIndex: Int = -1
-    var violationCount: Int = 0
     var pendingViolationNavigation: ViolationNavigation?
     private var refreshTask: Task<Void, Never>?
 

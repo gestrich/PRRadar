@@ -1,9 +1,12 @@
+import Logging
 import PRRadarConfigService
 import PRRadarModels
 import PRReviewFeature
 import SwiftUI
 
 public struct ContentView: View {
+
+    private let logger = Logger(label: "PRRadar.ContentView")
 
     @Environment(AppModel.self) private var appModel
     @Environment(SettingsModel.self) private var settingsModel
@@ -461,7 +464,7 @@ public struct ContentView: View {
             return !prsWithViolations.isEmpty
         }
         if delta > 0 {
-            return pr.currentViolationIndex < pr.violationCount - 1 || nextViolationPR != nil
+            return pr.currentViolationIndex < pr.pendingCommentCount - 1 || nextViolationPR != nil
         } else {
             return pr.currentViolationIndex > 0 || previousViolationPR != nil
         }
@@ -470,20 +473,24 @@ public struct ContentView: View {
     private func navigatePRViolation(by delta: Int) {
         guard let pr = selectedPR else {
             if let first = prsWithViolations.first {
+                logger.info("navigatePRViolation: no PR selected, selecting first with violations: PR #\(first.prNumber)")
                 selectedPR = first
                 first.pendingViolationNavigation = .first
             }
             return
         }
 
+        logger.info("navigatePRViolation: delta=\(delta) PR #\(pr.prNumber) currentIndex=\(pr.currentViolationIndex) pendingCommentCount=\(pr.pendingCommentCount)")
+
         let canAdvanceWithinPR = delta > 0
-            ? pr.currentViolationIndex < pr.violationCount - 1
+            ? pr.currentViolationIndex < pr.pendingCommentCount - 1
             : pr.currentViolationIndex > 0
 
         if canAdvanceWithinPR {
             pr.pendingViolationNavigation = delta > 0 ? .next : .previous
         } else {
             let target = delta > 0 ? nextViolationPR : previousViolationPR
+            logger.info("navigatePRViolation: moving to \(target.map { "PR #\($0.prNumber)" } ?? "nil")")
             guard let target else { return }
             selectedPR = target
             target.pendingViolationNavigation = delta > 0 ? .first : .last
