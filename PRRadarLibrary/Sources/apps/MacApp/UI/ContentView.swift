@@ -409,7 +409,7 @@ public struct ContentView: View {
                 .buttonStyle(.borderless)
                 .disabled(!canNavigatePRViolation(by: -1))
 
-                Text("\(violationPRs.count) PRs with violations")
+                Text(globalViolationLabel(violationPRs: violationPRs))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -488,6 +488,17 @@ public struct ContentView: View {
             selectedPR = target
             target.pendingViolationNavigation = delta > 0 ? .first : .last
         }
+    }
+
+    private func globalViolationLabel(violationPRs: [PRModel]) -> String {
+        let total = violationPRs.reduce(0) { $0 + $1.pendingCommentCount }
+        guard let current = selectedPR,
+              let prIndex = violationPRs.firstIndex(of: current) else {
+            return "\(total) violations"
+        }
+        let preceding = violationPRs.prefix(upTo: prIndex).reduce(0) { $0 + $1.pendingCommentCount }
+        let currentPosition = preceding + max(current.currentViolationIndex, 0) + 1
+        return "\(currentPosition) of \(total) violations"
     }
 
     // MARK: - Column 3: Detail
