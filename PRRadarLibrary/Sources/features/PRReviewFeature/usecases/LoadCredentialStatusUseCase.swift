@@ -10,8 +10,6 @@ public struct LoadCredentialStatusUseCase: Sendable {
     }
 
     public func execute(account: String) -> CredentialStatus {
-        let hasGitHub = (try? settingsService.loadGitHubToken(account: account)) != nil
-        let hasAnthropic = (try? settingsService.loadAnthropicKey(account: account)) != nil
-        return CredentialStatus(account: account, hasGitHubToken: hasGitHub, hasAnthropicKey: hasAnthropic)
+        CredentialStatusLoader(settingsService: settingsService).loadStatus(account: account)
     }
 }

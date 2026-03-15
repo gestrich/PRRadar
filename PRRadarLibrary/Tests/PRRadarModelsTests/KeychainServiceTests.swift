@@ -33,55 +33,106 @@ private struct KeyNotFoundError: Error {
 @Suite("SettingsService Credentials")
 struct SettingsServiceCredentialTests {
 
-    private func makeService() -> SettingsService {
+    private func makeService(keychain: InMemoryKeychainStore = InMemoryKeychainStore()) -> SettingsService {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let fileURL = dir.appendingPathComponent("settings.json")
-        return SettingsService(settingsURL: fileURL, keychain: InMemoryKeychainStore())
+        return SettingsService(settingsURL: fileURL, keychain: keychain)
     }
 
-    // MARK: - GitHub Token
+    // MARK: - GitHub Auth: Token
 
-    @Test("Saves and loads GitHub token for named account")
-    func saveAndLoadGitHubToken() throws {
+    @Test("Saves and loads a GitHub token")
+    func saveAndLoadToken() throws {
+        // Arrange
         let service = makeService()
 
-        try service.saveGitHubToken("ghp_abc123", account: "work")
-        let loaded = try service.loadGitHubToken(account: "work")
+        // Act
+        try service.saveGitHubAuth(.token("ghp_abc123"), account: "work")
+        let auth = service.loadGitHubAuth(account: "work")
 
-        #expect(loaded == "ghp_abc123")
+        // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
+        #expect(token == "ghp_abc123")
     }
 
-    @Test("Loading GitHub token for unknown account throws")
-    func loadGitHubTokenThrowsWhenMissing() {
+    @Test("Loading GitHub auth for unknown account returns nil")
+    func loadGitHubAuthReturnsNilWhenMissing() {
+        // Arrange
         let service = makeService()
 
-        #expect(throws: (any Error).self) {
-            _ = try service.loadGitHubToken(account: "nonexistent")
+        // Act / Assert
+        #expect(service.loadGitHubAuth(account: "nonexistent") == nil)
+    }
+
+    // MARK: - GitHub Auth: App
+
+    @Test("Saves and loads GitHub App credentials")
+    func saveAndLoadApp() throws {
+        // Arrange
+        let service = makeService()
+
+        // Act
+        try service.saveGitHubAuth(.app(appId: "123", installationId: "456", privateKeyPEM: "PEM"), account: "work")
+        let auth = service.loadGitHubAuth(account: "work")
+
+        // Assert
+        guard case .app(let appId, let installId, let pem) = auth else {
+            Issue.record("Expected .app, got \(String(describing: auth))")
+            return
+        }
+        #expect(appId == "123")
+        #expect(installId == "456")
+        #expect(pem == "PEM")
+    }
+
+    // MARK: - Mutual Exclusivity
+
+    @Test("Saving a token clears app credentials")
+    func tokenClearsApp() throws {
+        // Arrange
+        let service = makeService()
+        try service.saveGitHubAuth(.app(appId: "1", installationId: "2", privateKeyPEM: "3"), account: "work")
+
+        // Act
+        try service.saveGitHubAuth(.token("ghp_new"), account: "work")
+        let auth = service.loadGitHubAuth(account: "work")
+
+        // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token after overwrite, got \(String(describing: auth))")
+            return
+        }
+        #expect(token == "ghp_new")
+    }
+
+    @Test("Saving app credentials clears the token")
+    func appClearsToken() throws {
+        // Arrange
+        let service = makeService()
+        try service.saveGitHubAuth(.token("ghp_old"), account: "work")
+
+        // Act
+        try service.saveGitHubAuth(.app(appId: "1", installationId: "2", privateKeyPEM: "3"), account: "work")
+        let auth = service.loadGitHubAuth(account: "work")
+
+        // Assert
+        guard case .app = auth else {
+            Issue.record("Expected .app after overwrite, got \(String(describing: auth))")
+            return
         }
     }
 
-    @Test("Removes GitHub token for account")
-    func removeGitHubToken() throws {
-        let service = makeService()
-        try service.saveGitHubToken("ghp_abc123", account: "work")
-
-        try service.removeGitHubToken(account: "work")
-
-        #expect(throws: (any Error).self) {
-            _ = try service.loadGitHubToken(account: "work")
-        }
-    }
-
-    // MARK: - Anthropic API Key
+    // MARK: - Anthropic Key
 
     @Test("Saves and loads Anthropic key for named account")
     func saveAndLoadAnthropicKey() throws {
         let service = makeService()
-
         try service.saveAnthropicKey("sk-ant-xxx", account: "work")
-        let loaded = try service.loadAnthropicKey(account: "work")
 
-        #expect(loaded == "sk-ant-xxx")
+        #expect(try service.loadAnthropicKey(account: "work") == "sk-ant-xxx")
     }
 
     @Test("Loading Anthropic key for unknown account throws")
@@ -93,64 +144,63 @@ struct SettingsServiceCredentialTests {
         }
     }
 
-    @Test("Removes Anthropic key for account")
-    func removeAnthropicKey() throws {
-        let service = makeService()
-        try service.saveAnthropicKey("sk-ant-xxx", account: "work")
-
-        try service.removeAnthropicKey(account: "work")
-
-        #expect(throws: (any Error).self) {
-            _ = try service.loadAnthropicKey(account: "work")
-        }
-    }
-
     // MARK: - Account Isolation
 
     @Test("Tokens are isolated between accounts")
     func tokensIsolatedBetweenAccounts() throws {
+        // Arrange
         let service = makeService()
+        try service.saveGitHubAuth(.token("ghp_work"), account: "work")
+        try service.saveGitHubAuth(.token("ghp_personal"), account: "personal")
 
-        try service.saveGitHubToken("ghp_work", account: "work")
-        try service.saveGitHubToken("ghp_personal", account: "personal")
-
-        #expect(try service.loadGitHubToken(account: "work") == "ghp_work")
-        #expect(try service.loadGitHubToken(account: "personal") == "ghp_personal")
+        // Assert
+        guard case .token(let workToken) = service.loadGitHubAuth(account: "work"),
+              case .token(let personalToken) = service.loadGitHubAuth(account: "personal") else {
+            Issue.record("Expected both accounts to have tokens")
+            return
+        }
+        #expect(workToken == "ghp_work")
+        #expect(personalToken == "ghp_personal")
     }
 
     // MARK: - Remove Credentials
 
-    @Test("Removes both tokens for an account")
-    func removeCredentialsRemovesBoth() throws {
+    @Test("Removes all credentials for an account")
+    func removeCredentialsRemovesAll() throws {
+        // Arrange
         let service = makeService()
-        try service.saveGitHubToken("ghp_xxx", account: "work")
+        try service.saveGitHubAuth(.token("ghp_xxx"), account: "work")
         try service.saveAnthropicKey("sk-ant-xxx", account: "work")
 
+        // Act
         try service.removeCredentials(account: "work")
 
-        #expect(throws: (any Error).self) {
-            _ = try service.loadGitHubToken(account: "work")
-        }
-        #expect(throws: (any Error).self) {
-            _ = try service.loadAnthropicKey(account: "work")
-        }
+        // Assert
+        #expect(service.loadGitHubAuth(account: "work") == nil)
+        #expect(throws: (any Error).self) { _ = try service.loadAnthropicKey(account: "work") }
     }
 
     @Test("Remove credentials does not affect other accounts")
     func removeCredentialsIsolated() throws {
+        // Arrange
         let service = makeService()
-        try service.saveGitHubToken("ghp_work", account: "work")
-        try service.saveGitHubToken("ghp_personal", account: "personal")
+        try service.saveGitHubAuth(.token("ghp_work"), account: "work")
+        try service.saveGitHubAuth(.token("ghp_personal"), account: "personal")
 
+        // Act
         try service.removeCredentials(account: "work")
 
-        #expect(try service.loadGitHubToken(account: "personal") == "ghp_personal")
+        // Assert
+        guard case .token(let token) = service.loadGitHubAuth(account: "personal") else {
+            Issue.record("Expected personal token to survive")
+            return
+        }
+        #expect(token == "ghp_personal")
     }
 
     @Test("Remove credentials succeeds when account has no tokens")
     func removeCredentialsNoTokensDoesNotThrow() throws {
         let service = makeService()
-
         try service.removeCredentials(account: "empty")
     }
 
@@ -159,7 +209,7 @@ struct SettingsServiceCredentialTests {
     @Test("Lists accounts with stored credentials")
     func listAccountsReturnsStoredAccounts() throws {
         let service = makeService()
-        try service.saveGitHubToken("ghp_work", account: "work")
+        try service.saveGitHubAuth(.token("ghp_work"), account: "work")
         try service.saveAnthropicKey("sk-ant-personal", account: "personal")
 
         let accounts = try service.listCredentialAccounts()
@@ -167,10 +217,10 @@ struct SettingsServiceCredentialTests {
         #expect(accounts == ["personal", "work"])
     }
 
-    @Test("Account with both tokens appears once in list")
+    @Test("Account with both token types appears once in list")
     func listAccountsDeduplicates() throws {
         let service = makeService()
-        try service.saveGitHubToken("ghp_work", account: "work")
+        try service.saveGitHubAuth(.token("ghp_work"), account: "work")
         try service.saveAnthropicKey("sk-ant-work", account: "work")
 
         let accounts = try service.listCredentialAccounts()
@@ -181,21 +231,28 @@ struct SettingsServiceCredentialTests {
     @Test("List accounts returns empty when no credentials stored")
     func listAccountsEmpty() throws {
         let service = makeService()
-
-        let accounts = try service.listCredentialAccounts()
-
-        #expect(accounts.isEmpty)
+        #expect(try service.listCredentialAccounts().isEmpty)
     }
 
     @Test("List accounts returns sorted names")
     func listAccountsSorted() throws {
         let service = makeService()
-        try service.saveGitHubToken("t1", account: "zebra")
-        try service.saveGitHubToken("t2", account: "alpha")
-        try service.saveGitHubToken("t3", account: "middle")
+        try service.saveGitHubAuth(.token("t1"), account: "zebra")
+        try service.saveGitHubAuth(.token("t2"), account: "alpha")
+        try service.saveGitHubAuth(.token("t3"), account: "middle")
 
         let accounts = try service.listCredentialAccounts()
 
         #expect(accounts == ["alpha", "middle", "zebra"])
+    }
+
+    @Test("App credential account appears in list")
+    func appCredentialAccountInList() throws {
+        let service = makeService()
+        try service.saveGitHubAuth(.app(appId: "1", installationId: "2", privateKeyPEM: "3"), account: "bot")
+
+        let accounts = try service.listCredentialAccounts()
+
+        #expect(accounts.contains("bot"))
     }
 }

@@ -4,6 +4,9 @@ import KeychainSDK
 public final class SettingsService: Sendable {
     public static let gitHubTokenType = "github-token"
     public static let anthropicKeyType = "anthropic-api-key"
+    public static let gitHubAppIdType = "github-app-id"
+    public static let gitHubAppInstallationIdType = "github-app-installation-id"
+    public static let gitHubAppPrivateKeyType = "github-app-private-key"
 
     private let settingsURL: URL
     private let keychain: KeychainStoring
@@ -79,23 +82,36 @@ public final class SettingsService: Sendable {
         }
     }
 
-    // MARK: - Credentials (Keychain)
+    // MARK: - GitHub Auth (Keychain)
 
-    public func saveGitHubToken(_ token: String, account: String) throws {
-        try keychain.setString(token, forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+    public func saveGitHubAuth(_ auth: GitHubAuth, account: String) throws {
+        switch auth {
+        case .token(let token):
+            try keychain.setString(token, forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+            try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubAppIdType))
+            try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubAppInstallationIdType))
+            try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubAppPrivateKeyType))
+        case .app(let appId, let installationId, let privateKeyPEM):
+            try keychain.setString(appId, forKey: credentialKey(account: account, type: Self.gitHubAppIdType))
+            try keychain.setString(installationId, forKey: credentialKey(account: account, type: Self.gitHubAppInstallationIdType))
+            try keychain.setString(privateKeyPEM, forKey: credentialKey(account: account, type: Self.gitHubAppPrivateKeyType))
+            try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
+        }
     }
 
-    public func loadCredential(account: String, type: String) throws -> String {
-        try keychain.string(forKey: credentialKey(account: account, type: type))
+    public func loadGitHubAuth(account: String) -> GitHubAuth? {
+        if let appId = try? loadCredential(account: account, type: Self.gitHubAppIdType),
+           let installationId = try? loadCredential(account: account, type: Self.gitHubAppInstallationIdType),
+           let privateKey = try? loadCredential(account: account, type: Self.gitHubAppPrivateKeyType) {
+            return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKey)
+        }
+        if let token = try? loadCredential(account: account, type: Self.gitHubTokenType) {
+            return .token(token)
+        }
+        return nil
     }
 
-    public func loadGitHubToken(account: String) throws -> String {
-        try loadCredential(account: account, type: Self.gitHubTokenType)
-    }
-
-    public func removeGitHubToken(account: String) throws {
-        try keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
-    }
+    // MARK: - Anthropic Key (Keychain)
 
     public func saveAnthropicKey(_ apiKey: String, account: String) throws {
         try keychain.setString(apiKey, forKey: credentialKey(account: account, type: Self.anthropicKeyType))
@@ -105,13 +121,12 @@ public final class SettingsService: Sendable {
         try loadCredential(account: account, type: Self.anthropicKeyType)
     }
 
-    public func removeAnthropicKey(account: String) throws {
-        try keychain.removeObject(forKey: credentialKey(account: account, type: Self.anthropicKeyType))
-    }
+    // MARK: - Credential Management
 
     public func removeCredentials(account: String) throws {
-        try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.gitHubTokenType))
-        try? keychain.removeObject(forKey: credentialKey(account: account, type: Self.anthropicKeyType))
+        for type in [Self.gitHubTokenType, Self.anthropicKeyType, Self.gitHubAppIdType, Self.gitHubAppInstallationIdType, Self.gitHubAppPrivateKeyType] {
+            try? keychain.removeObject(forKey: credentialKey(account: account, type: type))
+        }
     }
 
     public func listCredentialAccounts() throws -> [String] {
@@ -121,6 +136,12 @@ public final class SettingsService: Sendable {
             return String(key[key.startIndex..<slashIndex])
         })
         return accounts.sorted()
+    }
+
+    // MARK: - Private
+
+    func loadCredential(account: String, type: String) throws -> String {
+        try keychain.string(forKey: credentialKey(account: account, type: type))
     }
 
     private func credentialKey(account: String, type: String) -> String {

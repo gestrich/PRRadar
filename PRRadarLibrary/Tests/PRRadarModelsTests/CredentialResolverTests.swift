@@ -12,7 +12,7 @@ struct CredentialResolverTests {
         return SettingsService(settingsURL: fileURL, keychain: keychain)
     }
 
-    // MARK: - GitHub Token Resolution Order
+    // MARK: - GitHub Auth: Token Resolution
 
     @Test("GitHub token resolves from process environment first")
     func gitHubTokenFromProcessEnv() {
@@ -25,9 +25,13 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let token = resolver.getGitHubToken()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
         #expect(token == "from-process-env")
     }
 
@@ -42,9 +46,13 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let token = resolver.getGitHubToken()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
         #expect(token == "from-dotenv")
     }
 
@@ -53,7 +61,7 @@ struct CredentialResolverTests {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("from-keychain", account: "work")
+        try service.saveGitHubAuth(.token("from-keychain"), account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -62,9 +70,13 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let token = resolver.getGitHubToken()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
         #expect(token == "from-keychain")
     }
 
@@ -73,7 +85,7 @@ struct CredentialResolverTests {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("from-keychain", account: "work")
+        try service.saveGitHubAuth(.token("from-keychain"), account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -82,14 +94,18 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let token = resolver.getGitHubToken()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
         #expect(token == "from-dotenv")
     }
 
-    @Test("GitHub token returns nil when no source has a value")
-    func gitHubTokenReturnsNilWhenMissing() {
+    @Test("GitHub auth returns nil when no source has a value")
+    func gitHubAuthReturnsNilWhenMissing() {
         // Arrange
         let resolver = CredentialResolver(
             settingsService: makeSettingsService(),
@@ -99,20 +115,18 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let token = resolver.getGitHubToken()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
-        #expect(token == nil)
+        #expect(auth == nil)
     }
-
-    // MARK: - GitHub Token Account Selection
 
     @Test("GitHub token uses configured account for keychain lookup")
     func gitHubTokenUsesConfiguredAccount() throws {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("work-token", account: "work")
+        try service.saveGitHubAuth(.token("work-token"), account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -121,13 +135,17 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let token = resolver.getGitHubToken()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
+        guard case .token(let token) = auth else {
+            Issue.record("Expected .token, got \(String(describing: auth))")
+            return
+        }
         #expect(token == "work-token")
     }
 
-    // MARK: - Anthropic Key Resolution Order
+    // MARK: - Anthropic Key Resolution
 
     @Test("Anthropic key resolves from process environment first")
     func anthropicKeyFromProcessEnv() {
@@ -139,11 +157,8 @@ struct CredentialResolverTests {
             dotEnv: ["ANTHROPIC_API_KEY": "from-dotenv"]
         )
 
-        // Act
-        let key = resolver.getAnthropicKey()
-
-        // Assert
-        #expect(key == "from-process-env")
+        // Act / Assert
+        #expect(resolver.getAnthropicKey() == "from-process-env")
     }
 
     @Test("Anthropic key falls back to .env when process env is empty")
@@ -156,11 +171,8 @@ struct CredentialResolverTests {
             dotEnv: ["ANTHROPIC_API_KEY": "from-dotenv"]
         )
 
-        // Act
-        let key = resolver.getAnthropicKey()
-
-        // Assert
-        #expect(key == "from-dotenv")
+        // Act / Assert
+        #expect(resolver.getAnthropicKey() == "from-dotenv")
     }
 
     @Test("Anthropic key falls back to keychain when env sources are empty")
@@ -176,11 +188,8 @@ struct CredentialResolverTests {
             dotEnv: [:]
         )
 
-        // Act
-        let key = resolver.getAnthropicKey()
-
-        // Assert
-        #expect(key == "from-keychain")
+        // Act / Assert
+        #expect(resolver.getAnthropicKey() == "from-keychain")
     }
 
     @Test("Anthropic key returns nil when no source has a value")
@@ -193,21 +202,32 @@ struct CredentialResolverTests {
             dotEnv: [:]
         )
 
-        // Act
-        let key = resolver.getAnthropicKey()
-
-        // Assert
-        #expect(key == nil)
+        // Act / Assert
+        #expect(resolver.getAnthropicKey() == nil)
     }
 
-    // MARK: - Anthropic Key Account Selection
+    // MARK: - GitHub App Credentials
 
-    @Test("Anthropic key uses configured account for keychain lookup")
-    func anthropicKeyUsesConfiguredAccount() throws {
+    @Test("App credentials return nil when nothing is configured")
+    func appCredentialsNilWhenMissing() {
+        // Arrange
+        let resolver = CredentialResolver(
+            settingsService: makeSettingsService(),
+            githubAccount: "work",
+            processEnvironment: [:],
+            dotEnv: [:]
+        )
+
+        // Act / Assert
+        #expect(resolver.getGitHubAuth() == nil)
+    }
+
+    @Test("App credentials resolve from keychain")
+    func appCredentialsFromKeychain() throws {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("work-key", account: "work")
+        try service.saveGitHubAuth(.app(appId: "app-123", installationId: "install-456", privateKeyPEM: "PEM"), account: "work")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -216,21 +236,55 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let key = resolver.getAnthropicKey()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
-        #expect(key == "work-key")
+        guard case .app(let appId, let installId, let pem) = auth else {
+            Issue.record("Expected .app, got \(String(describing: auth))")
+            return
+        }
+        #expect(appId == "app-123")
+        #expect(installId == "install-456")
+        #expect(pem == "PEM")
     }
 
-    // MARK: - Combined Resolution
+    @Test("App credentials resolve from environment variables")
+    func appCredentialsFromEnv() {
+        // Arrange
+        let resolver = CredentialResolver(
+            settingsService: makeSettingsService(),
+            githubAccount: "work",
+            processEnvironment: [
+                "GITHUB_APP_ID": "env-app-id",
+                "GITHUB_APP_INSTALLATION_ID": "env-install-id",
+                "GITHUB_APP_PRIVATE_KEY": "env-pem",
+            ],
+            dotEnv: [:]
+        )
 
-    @Test("Resolves both GitHub token and Anthropic key from configured account")
-    func combinedResolution() throws {
+        // Act
+        let auth = resolver.getGitHubAuth()
+
+        // Assert
+        guard case .app(let appId, let installId, let pem) = auth else {
+            Issue.record("Expected .app, got \(String(describing: auth))")
+            return
+        }
+        #expect(appId == "env-app-id")
+        #expect(installId == "env-install-id")
+        #expect(pem == "env-pem")
+    }
+
+    @Test("App credentials take precedence over PAT")
+    func appPrecedenceOverToken() throws {
         // Arrange
         let keychain = InMemoryKeychainStore()
         let service = makeSettingsService(keychain: keychain)
-        try service.saveGitHubToken("work-gh-token", account: "work")
-        try service.saveAnthropicKey("work-anthropic-key", account: "work")
+        // Manually store both (bypassing mutual exclusivity enforcement)
+        try keychain.setString("my-pat", forKey: "work/github-token")
+        try keychain.setString("app-1", forKey: "work/github-app-id")
+        try keychain.setString("inst-1", forKey: "work/github-app-installation-id")
+        try keychain.setString("pem-1", forKey: "work/github-app-private-key")
         let resolver = CredentialResolver(
             settingsService: service,
             githubAccount: "work",
@@ -239,33 +293,37 @@ struct CredentialResolverTests {
         )
 
         // Act
-        let ghToken = resolver.getGitHubToken()
-        let anthropicKey = resolver.getAnthropicKey()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
-        #expect(ghToken == "work-gh-token")
-        #expect(anthropicKey == "work-anthropic-key")
+        guard case .app = auth else {
+            Issue.record("Expected .app to take precedence, got \(String(describing: auth))")
+            return
+        }
     }
 
-    @Test("Mixed sources: GitHub from .env, Anthropic from keychain")
-    func mixedSources() throws {
+    @Test("App credentials from env take precedence over PAT from env")
+    func appEnvPrecedenceOverTokenEnv() {
         // Arrange
-        let keychain = InMemoryKeychainStore()
-        let service = makeSettingsService(keychain: keychain)
-        try service.saveAnthropicKey("keychain-anthropic", account: "work")
         let resolver = CredentialResolver(
-            settingsService: service,
+            settingsService: makeSettingsService(),
             githubAccount: "work",
-            processEnvironment: [:],
-            dotEnv: ["GITHUB_TOKEN": "dotenv-gh-token"]
+            processEnvironment: [
+                "GITHUB_TOKEN": "my-pat",
+                "GITHUB_APP_ID": "env-id",
+                "GITHUB_APP_INSTALLATION_ID": "env-install",
+                "GITHUB_APP_PRIVATE_KEY": "env-pem",
+            ],
+            dotEnv: [:]
         )
 
         // Act
-        let ghToken = resolver.getGitHubToken()
-        let anthropicKey = resolver.getAnthropicKey()
+        let auth = resolver.getGitHubAuth()
 
         // Assert
-        #expect(ghToken == "dotenv-gh-token")
-        #expect(anthropicKey == "keychain-anthropic")
+        guard case .app = auth else {
+            Issue.record("Expected .app to take precedence, got \(String(describing: auth))")
+            return
+        }
     }
 }

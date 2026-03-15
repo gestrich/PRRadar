@@ -25,28 +25,69 @@ struct CredentialsCommand: AsyncParsableCommand {
         @Argument(help: "Credential account name")
         var account: String
 
-        @Option(name: .long, help: "GitHub token")
+        @Option(name: .long, help: "GitHub personal access token")
         var githubToken: String?
 
         @Option(name: .long, help: "Anthropic API key")
         var anthropicKey: String?
 
+        @Option(name: .long, help: "GitHub App ID (use with --installation-id and --private-key-path)")
+        var appId: String?
+
+        @Option(name: .long, help: "GitHub App installation ID")
+        var installationId: String?
+
+        @Option(name: .long, help: "Path to GitHub App private key PEM file")
+        var privateKeyPath: String?
+
         func run() async throws {
-            guard githubToken != nil || anthropicKey != nil else {
-                throw ValidationError("No tokens provided. Use --github-token and/or --anthropic-key.")
+            let gitHubAuth = try resolveGitHubAuth()
+
+            guard gitHubAuth != nil || anthropicKey != nil else {
+                throw ValidationError("No credentials provided. Use --github-token or --app-id/--installation-id/--private-key-path, and optionally --anthropic-key.")
             }
 
             let useCase = SaveCredentialsUseCase(settingsService: SettingsService())
-            try useCase.execute(
-                account: account,
-                githubToken: githubToken,
-                anthropicKey: anthropicKey
-            )
+            try useCase.execute(account: account, gitHubAuth: gitHubAuth, anthropicKey: anthropicKey)
 
             var parts: [String] = []
-            if githubToken != nil { parts.append("GitHub token") }
+            switch gitHubAuth {
+            case .token: parts.append("GitHub token")
+            case .app: parts.append("GitHub App credentials")
+            case nil: break
+            }
             if anthropicKey != nil { parts.append("Anthropic API key") }
             print("Saved \(parts.joined(separator: " and ")) for account '\(account)'.")
+        }
+
+        private func resolveGitHubAuth() throws -> GitHubAuth? {
+            let hasToken = githubToken != nil
+            let hasAppFields = appId != nil || installationId != nil || privateKeyPath != nil
+
+            if hasToken && hasAppFields {
+                throw ValidationError("Cannot use --github-token together with --app-id/--installation-id/--private-key-path. Choose one authentication method.")
+            }
+
+            if hasToken {
+                return .token(githubToken!)
+            }
+
+            if hasAppFields {
+                guard let appId else {
+                    throw ValidationError("--app-id is required for GitHub App authentication.")
+                }
+                guard let installationId else {
+                    throw ValidationError("--installation-id is required for GitHub App authentication.")
+                }
+                guard let privateKeyPath else {
+                    throw ValidationError("--private-key-path is required for GitHub App authentication.")
+                }
+                let url = URL(fileURLWithPath: (privateKeyPath as NSString).expandingTildeInPath)
+                let pem = try String(contentsOf: url, encoding: .utf8)
+                return .app(appId: appId, installationId: installationId, privateKeyPEM: pem)
+            }
+
+            return nil
         }
     }
 
@@ -115,20 +156,29 @@ struct CredentialsCommand: AsyncParsableCommand {
                 throw ValidationError("Credential account '\(account)' not found.")
             }
 
-            let githubMasked = maskedValue { try settingsService.loadGitHubToken(account: account) }
-            let anthropicMasked = maskedValue { try settingsService.loadAnthropicKey(account: account) }
-
             print("Account: \(account)\n")
-            print("  GitHub token:      \(githubMasked)")
+
+            switch settingsService.loadGitHubAuth(account: account) {
+            case .token(let token):
+                print("  GitHub auth:       Token (\(masked(token)))")
+            case .app(let appId, _, _):
+                print("  GitHub auth:       App (ID: \(masked(appId)))")
+            case nil:
+                print("  GitHub auth:       not set")
+            }
+
+            let anthropicMasked = maskedLoad { try settingsService.loadAnthropicKey(account: account) }
             print("  Anthropic API key: \(anthropicMasked)")
         }
 
-        private func maskedValue(_ load: () throws -> String) -> String {
-            guard let value = try? load() else {
-                return "not set"
-            }
+        private func masked(_ value: String) -> String {
             guard value.count > 8 else { return "****" }
             return "\(value.prefix(4))...\(value.suffix(4))"
+        }
+
+        private func maskedLoad(_ load: () throws -> String) -> String {
+            guard let value = try? load() else { return "not set" }
+            return masked(value)
         }
     }
 }

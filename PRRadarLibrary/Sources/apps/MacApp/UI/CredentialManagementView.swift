@@ -1,3 +1,4 @@
+import PRRadarConfigService
 import PRReviewFeature
 import SwiftUI
 
@@ -28,7 +29,6 @@ struct CredentialManagementView: View {
                         }
                     }
                     .onChange(of: selectedAccount) { _, newValue in
-                        // Prevent deselection - always keep something selected
                         if newValue == nil, let firstAccount = settingsModel.credentialAccounts.first {
                             selectedAccount = firstAccount.account
                         }
@@ -40,7 +40,7 @@ struct CredentialManagementView: View {
                 HStack(spacing: 6) {
                     Button {
                         isAddingNew = true
-                        editingAccount = EditableCredential(accountName: "", githubToken: "", anthropicKey: "")
+                        editingAccount = EditableCredential()
                     } label: {
                         Image(systemName: "plus")
                             .frame(width: 14, height: 14)
@@ -76,7 +76,10 @@ struct CredentialManagementView: View {
                         status: status,
                         onEdit: {
                             isAddingNew = false
-                            editingAccount = EditableCredential(accountName: status.account, githubToken: "", anthropicKey: "")
+                            editingAccount = EditableCredential(
+                                accountName: status.account,
+                                authMode: status.gitHubAuth == .app ? .app : .token
+                            )
                         }
                     )
                 } else {
@@ -108,7 +111,7 @@ struct CredentialManagementView: View {
                 do {
                     try settingsModel.saveCredentials(
                         account: updated.accountName,
-                        githubToken: updated.githubToken.isEmpty ? nil : updated.githubToken,
+                        gitHubAuth: updated.buildGitHubAuth(),
                         anthropicKey: updated.anthropicKey.isEmpty ? nil : updated.anthropicKey
                     )
                 } catch {
@@ -154,11 +157,38 @@ struct CredentialManagementView: View {
 
 // MARK: - Supporting Types
 
+enum GitHubAuthMode: String, CaseIterable {
+    case token = "Personal Access Token"
+    case app = "GitHub App"
+}
+
 struct EditableCredential: Identifiable {
     let id = UUID()
-    var accountName: String
-    var githubToken: String
-    var anthropicKey: String
+    var accountName: String = ""
+    var authMode: GitHubAuthMode = .token
+    var githubToken: String = ""
+    var appId: String = ""
+    var installationId: String = ""
+    var privateKeyPEM: String = ""
+    var anthropicKey: String = ""
+
+    func buildGitHubAuth() -> GitHubAuth? {
+        switch authMode {
+        case .token:
+            guard !githubToken.isEmpty else { return nil }
+            return .token(githubToken)
+        case .app:
+            guard !appId.isEmpty, !installationId.isEmpty, !privateKeyPEM.isEmpty else { return nil }
+            return .app(appId: appId, installationId: installationId, privateKeyPEM: privateKeyPEM)
+        }
+    }
+
+    var hasGitHubCredential: Bool {
+        switch authMode {
+        case .token: !githubToken.isEmpty
+        case .app: !appId.isEmpty || !installationId.isEmpty || !privateKeyPEM.isEmpty
+        }
+    }
 }
 
 // MARK: - Account Detail View
@@ -175,12 +205,25 @@ private struct AccountDetailView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                LabeledContent("GitHub Token") {
+                LabeledContent("GitHub Auth") {
                     HStack {
-                        Image(systemName: status.hasGitHubToken ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(status.hasGitHubToken ? .green : .red)
-                        Text(status.hasGitHubToken ? "Stored" : "Not Set")
-                            .foregroundStyle(.secondary)
+                        switch status.gitHubAuth {
+                        case .none:
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.red)
+                            Text("Not Set")
+                                .foregroundStyle(.secondary)
+                        case .token:
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Personal Access Token")
+                                .foregroundStyle(.secondary)
+                        case .app:
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("GitHub App")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -232,15 +275,45 @@ private struct CredentialEditSheet: View {
                 }
             }
 
-            LabeledContent("GitHub Token") {
-                SecureField("ghp_...", text: $credential.githubToken)
-                    .textFieldStyle(.roundedBorder)
+            Divider()
+
+            Picker("GitHub Auth", selection: $credential.authMode) {
+                ForEach(GitHubAuthMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
             }
+            .pickerStyle(.segmented)
+
+            switch credential.authMode {
+            case .token:
+                LabeledContent("Token") {
+                    SecureField("ghp_...", text: $credential.githubToken)
+                        .textFieldStyle(.roundedBorder)
+                }
+            case .app:
+                LabeledContent("App ID") {
+                    TextField("123456", text: $credential.appId)
+                        .textFieldStyle(.roundedBorder)
+                }
+                LabeledContent("Installation ID") {
+                    TextField("12345678", text: $credential.installationId)
+                        .textFieldStyle(.roundedBorder)
+                }
+                LabeledContent("Private Key PEM") {
+                    TextEditor(text: $credential.privateKeyPEM)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(height: 100)
+                        .border(Color.secondary.opacity(0.3))
+                }
+            }
+
             if !isNew {
-                Text("Leave blank to keep the existing token.")
+                Text("Leave blank to keep existing credentials.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Divider()
 
             LabeledContent("Anthropic Key") {
                 SecureField("sk-ant-...", text: $credential.anthropicKey)
@@ -264,10 +337,10 @@ private struct CredentialEditSheet: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(credential.accountName.isEmpty || (isNew && credential.githubToken.isEmpty && credential.anthropicKey.isEmpty))
+                .disabled(credential.accountName.isEmpty || (isNew && !credential.hasGitHubCredential && credential.anthropicKey.isEmpty))
             }
         }
         .padding()
-        .frame(width: 450)
+        .frame(width: 500)
     }
 }

@@ -96,9 +96,9 @@ public final class SettingsModel {
 
     // MARK: - Credentials
 
-    func saveCredentials(account: String, githubToken: String?, anthropicKey: String?) throws {
+    func saveCredentials(account: String, gitHubAuth: GitHubAuth?, anthropicKey: String?) throws {
         credentialAccounts = try saveCredentialsUseCase.execute(
-            account: account, githubToken: githubToken, anthropicKey: anthropicKey
+            account: account, gitHubAuth: gitHubAuth, anthropicKey: anthropicKey
         )
     }
 

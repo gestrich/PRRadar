@@ -3,16 +3,23 @@ import Foundation
 
 public struct SecurityCLIKeychainStore: KeychainStoring {
     private let service: String
+    private static let base64Prefix = "b64:"
 
     public init(identifier: String) {
         self.service = identifier
     }
 
     public func setString(_ string: String, forKey key: String) throws {
+        let storedValue: String
+        if string.contains("\n") {
+            storedValue = Self.base64Prefix + Data(string.utf8).base64EncodedString()
+        } else {
+            storedValue = string
+        }
         // -U = update if exists
         let result = run(
             "security", "add-generic-password",
-            "-U", "-s", service, "-a", key, "-w", string
+            "-U", "-s", service, "-a", key, "-w", storedValue
         )
         if result.status != 0 {
             throw KeychainStoreError.commandFailed(result.stderr)
@@ -24,7 +31,13 @@ public struct SecurityCLIKeychainStore: KeychainStoring {
         if result.status != 0 {
             throw KeychainStoreError.itemNotFound
         }
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.hasPrefix(Self.base64Prefix),
+           let data = Data(base64Encoded: String(raw.dropFirst(Self.base64Prefix.count))),
+           let decoded = String(data: data, encoding: .utf8) {
+            return decoded
+        }
+        return raw
     }
 
     public func removeObject(forKey key: String) throws {
