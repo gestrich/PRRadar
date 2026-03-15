@@ -17,10 +17,22 @@ struct InlineCommentView: View {
         prModel.submittedCommentIds.contains(comment.id)
     }
 
+    private var isSuppressed: Bool {
+        comment.suppressionRole == .suppressed
+    }
+
+    private var isLimiting: Bool {
+        comment.suppressionRole == .limiting
+    }
+
+    private var accentColor: Color {
+        isSuppressed ? .gray : .blue
+    }
+
     var body: some View {
-        InlineCommentCard(accentColor: .blue, lineBackground: lineBackground, gutterBackground: gutterBackground, highlightOpacity: isHighlighted ? 0.8 : 0) {
+        InlineCommentCard(accentColor: accentColor, lineBackground: lineBackground, gutterBackground: gutterBackground, highlightOpacity: isHighlighted ? 0.8 : 0) {
             VStack(alignment: .leading, spacing: 6) {
-                if let position = prModel.violationPosition(for: comment.id) {
+                if !isSuppressed, let position = prModel.violationPosition(for: comment.id) {
                     Text("\(position) of \(prModel.orderedViolations.count)")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -31,14 +43,26 @@ struct InlineCommentView: View {
                 HStack(spacing: 8) {
                     SeverityBadge(score: comment.score)
 
+                    if isSuppressed {
+                        SuppressionBadge(label: "Suppressed")
+                    } else if isLimiting {
+                        let count = suppressedSiblingCount
+                        if count > 0 {
+                            SuppressionBadge(label: "\(count) more suppressed")
+                        }
+                    }
+
                     Spacer()
 
-                    submitButton
+                    if !isSuppressed {
+                        submitButton
+                    }
                 }
 
                 RichContentView(comment.toGitHubMarkdown())
             }
         }
+        .opacity(isSuppressed ? 0.5 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: isHighlighted)
     }
 
@@ -63,5 +87,12 @@ struct InlineCommentView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
         }
+    }
+
+    private var suppressedSiblingCount: Int {
+        prModel.reviewComments.suppressedCount(
+            forRule: comment.ruleName,
+            filePath: comment.filePath
+        )
     }
 }

@@ -10,13 +10,21 @@ struct CommentsPhaseView: View {
 
     @State private var selectedIds: Set<String> = []
 
+    private var postableComments: [PRComment] {
+        comments.filter { $0.suppressionRole != .suppressed }
+    }
+
+    private var suppressedComments: [PRComment] {
+        comments.filter { $0.suppressionRole == .suppressed }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             commentsList
         }
         .onAppear {
-            selectedIds = Set(comments.map(\.id))
+            selectedIds = Set(postableComments.map(\.id))
         }
     }
 
@@ -26,15 +34,16 @@ struct CommentsPhaseView: View {
     private var toolbar: some View {
         HStack {
             PhaseSummaryBar(items: [
-                .init(label: "Comments:", value: "\(comments.count)"),
+                .init(label: "Comments:", value: "\(postableComments.count)"),
                 .init(label: "Selected:", value: "\(selectedIds.count)"),
+                .init(label: "Suppressed:", value: "\(suppressedComments.count)"),
             ])
 
             Spacer()
 
             if !posted {
                 Button("Select All") {
-                    selectedIds = Set(comments.map(\.id))
+                    selectedIds = Set(postableComments.map(\.id))
                 }
 
                 Button("Deselect All") {
@@ -67,8 +76,21 @@ struct CommentsPhaseView: View {
             )
         } else {
             List {
-                ForEach(comments) { comment in
-                    commentRow(comment)
+                if !postableComments.isEmpty {
+                    ForEach(postableComments) { comment in
+                        commentRow(comment)
+                    }
+                }
+
+                if !suppressedComments.isEmpty {
+                    Section {
+                        ForEach(suppressedComments) { comment in
+                            commentRow(comment)
+                                .opacity(0.5)
+                        }
+                    } header: {
+                        Label("Suppressed (\(suppressedComments.count))", systemImage: "eye.slash")
+                    }
                 }
 
                 if let output = cliOutput, !output.isEmpty {
@@ -85,7 +107,7 @@ struct CommentsPhaseView: View {
     @ViewBuilder
     private func commentRow(_ comment: PRComment) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            if !posted {
+            if !posted && comment.suppressionRole != .suppressed {
                 Toggle("", isOn: Binding(
                     get: { selectedIds.contains(comment.id) },
                     set: { isOn in
@@ -102,6 +124,18 @@ struct CommentsPhaseView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     SeverityBadge(score: comment.score)
+
+                    if comment.suppressionRole == .suppressed {
+                        SuppressionBadge(label: "Suppressed")
+                    } else if comment.suppressionRole == .limiting {
+                        let count = comments.suppressedCount(
+                            forRule: comment.ruleName,
+                            filePath: comment.filePath
+                        )
+                        if count > 0 {
+                            SuppressionBadge(label: "\(count) more suppressed")
+                        }
+                    }
 
                     Text(comment.ruleName)
                         .font(.headline)

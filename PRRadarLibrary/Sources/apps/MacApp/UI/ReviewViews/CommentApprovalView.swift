@@ -13,6 +13,14 @@ struct CommentApprovalView: View {
     @State private var selectedComment: PRComment?
     @State private var editedComments: [String: String] = [:]
 
+    private var postableComments: [PRComment] {
+        comments.filter { $0.suppressionRole != .suppressed }
+    }
+
+    private var suppressedComments: [PRComment] {
+        comments.filter { $0.suppressionRole == .suppressed }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -24,7 +32,7 @@ struct CommentApprovalView: View {
             }
         }
         .onAppear {
-            approvedIds = Set(comments.map(\.id))
+            approvedIds = Set(postableComments.map(\.id))
         }
     }
 
@@ -33,15 +41,21 @@ struct CommentApprovalView: View {
     @ViewBuilder
     private var toolbar: some View {
         HStack {
-            Text("\(approvedIds.count) of \(comments.count) comments approved")
+            Text("\(approvedIds.count) of \(postableComments.count) comments approved")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if !suppressedComments.isEmpty {
+                Text("\(suppressedComments.count) suppressed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
             if !posted {
                 Button("Select All") {
-                    approvedIds = Set(comments.map(\.id))
+                    approvedIds = Set(postableComments.map(\.id))
                 }
 
                 Button("Deselect All") {
@@ -79,9 +93,21 @@ struct CommentApprovalView: View {
                 get: { selectedComment?.id },
                 set: { id in selectedComment = comments.first { $0.id == id } }
             )) {
-                ForEach(comments) { comment in
+                ForEach(postableComments) { comment in
                     commentRow(comment)
                         .tag(comment.id)
+                }
+
+                if !suppressedComments.isEmpty {
+                    Section {
+                        ForEach(suppressedComments) { comment in
+                            commentRow(comment)
+                                .opacity(0.5)
+                                .tag(comment.id)
+                        }
+                    } header: {
+                        Label("Suppressed (\(suppressedComments.count))", systemImage: "eye.slash")
+                    }
                 }
             }
             .listStyle(.sidebar)
@@ -91,7 +117,7 @@ struct CommentApprovalView: View {
     @ViewBuilder
     private func commentRow(_ comment: PRComment) -> some View {
         HStack(spacing: 8) {
-            if !posted {
+            if !posted && comment.suppressionRole != .suppressed {
                 Toggle("", isOn: Binding(
                     get: { approvedIds.contains(comment.id) },
                     set: { isOn in
@@ -106,6 +132,19 @@ struct CommentApprovalView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     SeverityBadge(score: comment.score)
+
+                    if comment.suppressionRole == .suppressed {
+                        SuppressionBadge(label: "Suppressed")
+                    } else if comment.suppressionRole == .limiting {
+                        let count = comments.suppressedCount(
+                            forRule: comment.ruleName,
+                            filePath: comment.filePath
+                        )
+                        if count > 0 {
+                            SuppressionBadge(label: "\(count) more suppressed")
+                        }
+                    }
+
                     Text(comment.ruleName)
                         .font(.subheadline)
                         .fontWeight(.medium)

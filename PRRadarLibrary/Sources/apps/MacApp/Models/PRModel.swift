@@ -207,13 +207,13 @@ final class PRModel: Identifiable, Hashable {
         for file in fullDiff.changedFiles {
             if let lineMap = mapping.byFileAndLine[file] {
                 for line in lineMap.keys.sorted() {
-                    for comment in lineMap[line]! where comment.needsPosting {
+                    for comment in lineMap[line, default: []] where comment.needsPosting && !comment.isSuppressed {
                         result.append(ViolationLocation(file: file, commentID: comment.id))
                     }
                 }
             }
             if let fileLevel = mapping.unmatchedByFile[file] {
-                for comment in fileLevel where comment.needsPosting {
+                for comment in fileLevel where comment.needsPosting && !comment.isSuppressed {
                     result.append(ViolationLocation(file: file, commentID: comment.id))
                 }
             }

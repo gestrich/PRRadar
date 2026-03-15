@@ -134,4 +134,12 @@ extension [ReviewComment] {
     public func sortedByDisplayOrder() -> [ReviewComment] {
         sorted { $0.displayOrder < $1.displayOrder }
     }
+
+    public func suppressedCount(forRule ruleName: String, filePath: String) -> Int {
+        filter {
+            $0.ruleName == ruleName
+                && $0.filePath == filePath
+                && $0.suppressionRole == .suppressed
+        }.count
+    }
 }

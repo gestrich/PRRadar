@@ -147,3 +147,13 @@ public struct PRComment: Sendable, Identifiable {
         return lines.joined(separator: "\n")
     }
 }
+
+extension [PRComment] {
+    public func suppressedCount(forRule ruleName: String, filePath: String) -> Int {
+        filter {
+            $0.ruleName == ruleName
+                && $0.filePath == filePath
+                && $0.suppressionRole == .suppressed
+        }.count
+    }
+}

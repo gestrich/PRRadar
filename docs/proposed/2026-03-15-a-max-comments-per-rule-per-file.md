@@ -203,7 +203,10 @@ Dry run: 3 new comments would be posted
 **Files to modify:**
 - `PRReviewFeature/usecases/PostCommentsUseCase.swift` — update `logDryRun()` and `CategorizedComments`
 
-## - [ ] Phase 8: Mac app — Show suppressed comments with distinct treatment
+## - [x] Phase 8: Mac app — Show suppressed comments with distinct treatment
+
+**Skills used**: `swift-app-architecture:swift-swiftui`
+**Principles applied**: SuppressionBadge in its own file; suppressedCount helper on both [PRComment] and [ReviewComment] to avoid duplicated filtering logic; suppressed comments excluded from violation navigation
 
 **Skills to read**: `swift-app-architecture:swift-swiftui`
 
@@ -226,7 +229,31 @@ Update the Mac app views to show suppressed comments with visual distinction.
 - `MacApp/UI/GitViews/InlineCommentView.swift`
 - Possibly `MacApp/UI/GitViews/DiffCommentMapper.swift`
 
-## - [ ] Phase 9: Validation
+## - [ ] Phase 9: Rename needsPosting to isPending
+
+**Skills to read**: `swift-app-architecture:swift-architecture`
+
+`ReviewComment.needsPosting` is misleading — a suppressed comment has `needsPosting == true` but will never be posted. Rename to clarify the reconciliation state vs posting intent.
+
+**Renames:**
+- `ReviewComment.needsPosting` → `isPending` (means `.new` or `.needsUpdate` — a reconciliation state, not a posting decision)
+- Add `ReviewComment.willBePosted: Bool` = `isPending && !isSuppressed` (the actual posting intent)
+
+**Update all call sites:**
+- `CommentSuppressionService` uses `needsPosting` to find pending comments *before* suppression → change to `isPending`
+- `PRModel.orderedViolations` currently uses `needsPosting && !isSuppressed` → change to `willBePosted`
+- `DiffPhaseView` uses `needsPosting` for violation counts and navigation → evaluate each usage: if it should exclude suppressed, use `willBePosted`; if it counts all pending, use `isPending`
+- `ReviewComment.debugSummary` references `needsPosting` → update to `isPending`
+- Any other call sites found via search
+
+**Files to modify:**
+- `PRRadarModels/ReviewComment.swift`
+- `PRRadarCLIService/CommentSuppressionService.swift`
+- `MacApp/Models/PRModel.swift`
+- `MacApp/UI/PhaseViews/DiffPhaseView.swift`
+- Any other files referencing `needsPosting`
+
+## - [ ] Phase 10: Validation
 
 **Skills to read**: `swift-testing`, `pr-radar-debug`
 
