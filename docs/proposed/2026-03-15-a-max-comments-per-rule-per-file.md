@@ -340,3 +340,86 @@ The `sync` command fetches comments but `isResolved` stays `false` for all comme
 Root cause: `PRAcquisitionService.refreshComments()` line 77 uses `try?` which silently swallows errors from `fetchResolvedReviewCommentIDs()`. The `CredentialResolver` likely resolves a different token than the `gh` CLI's gestrich account.
 
 **To debug:** Temporarily change `try?` to `try` on line 77 of `PRAcquisitionService.swift` and run `swift run PRRadarMacCLI sync <PR> --config test-repo` to see the actual error message. Alternatively, add a log statement before the call to print the resolved token prefix.
+
+## - [ ] Phase 12: End-to-end demonstration of comment suppression
+
+**Skills to read**: `pr-radar-debug`
+
+Demonstrate the full suppression lifecycle with a fresh PR on PRRadar-TestRepo. The test-repo rules `detect-force-unwrap` and `no-return-nil` both have `max_comments_per_file: 2`.
+
+### Setup
+
+Create a test file with exactly **3** force unwraps (1 over the limit of 2) so the result is clear and simple:
+
+```bash
+cd /Users/bill/Developer/personal/PRRadar-TestRepo
+git checkout -b demo-suppression main
+```
+
+Create `SuppressionDemo.swift`:
+```swift
+import Foundation
+
+func processItems(_ items: [String?]) -> [String] {
+    let first = items.first!
+    let second = items[1]!
+    let third = items[2]!
+    return [first, second, third]
+}
+```
+
+This gives 3 force unwraps on one file. With `max_comments_per_file: 2`:
+- Line with `items.first!` → normal comment (posted)
+- Line with `items[1]!` → limiting comment (posted, with indicator: "1 other instance...")
+- Line with `items[2]!` → suppressed (not posted)
+
+Push and create the PR:
+```bash
+git add SuppressionDemo.swift
+git commit -m "Add file with force unwraps for suppression demo"
+git push -u origin demo-suppression
+GH_TOKEN=$(gh auth token --user gestrich) gh pr create --title "Demo: comment suppression" --body "Testing max_comments_per_file limiting" --base main
+```
+
+### Demonstration 1: Dry run — verify suppression split
+
+```bash
+cd /Users/bill/Developer/personal/PRRadar/PRRadarLibrary
+swift run PRRadarMacCLI analyze <PR> --config test-repo
+swift run PRRadarMacCLI comment <PR> --dry-run --config test-repo
+```
+
+**Expected output:**
+- 1 new comment would be posted (normal)
+- 1 new comment would be posted with `(limiting: 1 more suppressed)`
+- 1 comment suppressed for `detect-force-unwrap` (limit: 2 per file)
+
+### Demonstration 2: Post and verify on GitHub
+
+```bash
+swift run PRRadarMacCLI comment <PR> --config test-repo
+```
+
+**Verify on GitHub:**
+1. 2 comments posted on the PR
+2. The second comment includes the blockquote: `> **Note:** 1 other instance of this issue found in this file. Limiting to 2 comments per rule.`
+3. The second comment's hidden metadata includes `suppression_role: limiting`
+4. No third comment was posted
+
+### Demonstration 3: Re-run is idempotent
+
+```bash
+swift run PRRadarMacCLI comment <PR> --dry-run --config test-repo
+```
+
+**Expected:** "All violations already posted — nothing new to comment" (the 2 posted are `redetected`, the suppressed one stays suppressed)
+
+### Cleanup
+
+Close the PR and delete the branch after verification:
+```bash
+GH_TOKEN=$(gh auth token --user gestrich) gh pr close <PR>
+git checkout main
+git branch -D demo-suppression
+git push origin --delete demo-suppression
+```
