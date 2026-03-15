@@ -143,7 +143,10 @@ Wire the suppression logic into the comment posting pipeline.
 - `PRRadarModels/RuleRequest.swift`
 - `PRRadarModels/PRComment.swift`
 
-## - [ ] Phase 5: GitHub thread resolution detection
+## - [x] Phase 5: GitHub thread resolution detection
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: GraphQL query in SDK layer (stateless), enrichment in Services layer; outdated detection via REST `position == null` avoids extra API call; suppression service excludes both resolved and outdated from count
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
