@@ -9,7 +9,7 @@
 
 ## Background
 
-Currently, a single rule can produce many comments of the same type on a single file (e.g., "import order is wrong" flagged on 15 lines). This creates noise for PR authors and can overwhelm the review. We want to cap the number of posted comments per rule per file to a configurable limit `N`, while still surfacing the full count to the author.
+Currently, a single rule can produce many comments of the same type on a single file (e.g., "import order is wrong" flagged on 15 lines). This creates noise for PR authors and can overwhelm the review. Each rule can define its own `max_comments_per_file: N` in its YAML frontmatter to cap the number of posted comments per file, while still surfacing the full count to the author.
 
 **Core behavior:**
 - When a rule produces more than `N` violations on a single file, only the first `N` comments (by line order) are posted to GitHub.
@@ -109,7 +109,10 @@ This is the core logic phase. After reconciliation produces the `[ReviewComment]
 **Files to create:**
 - `PRRadarCLIService/CommentSuppressionService.swift`
 
-## - [ ] Phase 4: Integrate suppression into PostCommentsUseCase
+## - [x] Phase 4: Integrate suppression into PostCommentsUseCase
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Per-rule limits flow from rule YAML through ReviewRule → TaskRule → PRComment; suppression service reads limits from comments rather than a global parameter; CommentService batch methods handle suppression indicators while single-comment methods stay clean; used CommentToPost model instead of dictionaries
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -127,14 +130,18 @@ Wire the suppression logic into the comment posting pipeline.
 - Only `suppression_role: limiting` goes in the hidden metadata block — the count is only in visible text
 - When editing an existing `limiting` comment where the count changed, update the visible text (metadata stays the same since it only has the role)
 
-**FetchReviewCommentsUseCase changes:**
-- Accept `maxCommentsPerRulePerFile` parameter (from config or CLI flag)
-- Pass it through to suppression service
+**Model changes (per-rule limits instead of global config):**
+- `maxCommentsPerFile: Int?` added to `ReviewRule` (parsed from `max_comments_per_file` YAML frontmatter), `TaskRule`, and `PRComment`
+- `CommentSuppressionService` reads limits from each group's comments instead of a global parameter
+- `FetchReviewCommentsUseCase` unchanged — suppression applied in `PostCommentsUseCase`
 
-**Files to modify:**
+**Files modified:**
 - `PRReviewFeature/usecases/PostCommentsUseCase.swift`
 - `PRRadarCLIService/CommentService.swift`
-- `PRReviewFeature/usecases/FetchReviewCommentsUseCase.swift`
+- `PRRadarCLIService/CommentSuppressionService.swift`
+- `PRRadarModels/RuleOutput.swift`
+- `PRRadarModels/RuleRequest.swift`
+- `PRRadarModels/PRComment.swift`
 
 ## - [ ] Phase 5: GitHub thread resolution detection
 
@@ -162,21 +169,12 @@ The GitHub REST API for review comments does NOT include thread resolution statu
 - `GitHubSDK/OctokitClient.swift` or `PRRadarCLIService/GitHubService.swift` — add GraphQL query
 - `PRRadarCLIService/PRAcquisitionService.swift` — call resolution fetch during `refreshComments()`
 
-## - [ ] Phase 6: Configuration — maxCommentsPerRulePerFile setting
+## - [x] Phase 6: Configuration — per-rule maxCommentsPerFile setting
 
-**Skills to read**: `swift-app-architecture:swift-architecture`
-
-Add the limit as a configurable value.
-
-**Options (in order of preference):**
-1. **Per-repository configuration** — add `maxCommentsPerRulePerFile: Int?` to `RepositoryConfigurationJSON` (nil = unlimited, for backward compatibility)
-2. **CLI flag override** — add `--max-comments-per-rule N` to the `comment` command
-3. **Default value** — use a sensible default (e.g., 3) when not configured
-
-**Files to modify:**
-- `PRRadarConfigService/RepoConfiguration.swift` — add field to both JSON and resolved config
-- `MacCLI/Commands/CommentCommand.swift` — add CLI flag
-- Thread the value through `PostCommentsUseCase` → `CommentSuppressionService`
+**Completed in Phase 4.** The limit is defined per-rule in the rule's YAML frontmatter as `max_comments_per_file: N`, rather than as a global repository config. This was implemented as part of Phase 4:
+- `ReviewRule` parses `max_comments_per_file` from frontmatter
+- Flows through `TaskRule` → `PRComment` → `CommentSuppressionService`
+- Rules without the field have no limit (nil = unlimited)
 
 ## - [ ] Phase 7: CLI display — Show suppressed comments
 
