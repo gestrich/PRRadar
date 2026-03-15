@@ -29,17 +29,20 @@ public struct CommentMetadata: Codable, Sendable, Equatable {
     public let rule: RuleInfo
     public let fileInfo: FileInfo?
     public let prHeadSHA: String
+    public let suppressionRole: SuppressionRole?
 
     public init(
         version: Int = 1,
         rule: RuleInfo,
         fileInfo: FileInfo?,
-        prHeadSHA: String
+        prHeadSHA: String,
+        suppressionRole: SuppressionRole? = nil
     ) {
         self.version = version
         self.rule = rule
         self.fileInfo = fileInfo
         self.prHeadSHA = prHeadSHA
+        self.suppressionRole = suppressionRole
     }
 
     public func toHTMLComment() -> String {
@@ -56,6 +59,9 @@ public struct CommentMetadata: Codable, Sendable, Equatable {
             }
         }
         lines.append("pr_head_sha: \(prHeadSHA)")
+        if let suppressionRole {
+            lines.append("suppression_role: \(suppressionRole.rawValue)")
+        }
         lines.append("-->")
         return lines.joined(separator: "\n")
     }
@@ -108,15 +114,23 @@ public struct CommentMetadata: Codable, Sendable, Equatable {
             )
         }
 
+        let suppressionRole = fields["suppression_role"].flatMap { SuppressionRole(rawValue: $0) }
+
         return CommentMetadata(
             version: version,
             rule: rule,
             fileInfo: fileInfo,
-            prHeadSHA: prHeadSHA
+            prHeadSHA: prHeadSHA,
+            suppressionRole: suppressionRole
         )
     }
 
     public static func stripMetadata(from body: String) -> String {
         body.replacing(metadataPattern, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
+}
+
+public enum SuppressionRole: String, Codable, Sendable {
+    case limiting
+    case suppressed
 }

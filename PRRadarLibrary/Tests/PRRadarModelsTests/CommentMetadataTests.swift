@@ -177,6 +177,103 @@ struct CommentMetadataTests {
         #expect(stripped == body)
     }
 
+    // MARK: - Suppression role
+
+    @Test("Round-trip with limiting suppression role")
+    func roundTripWithLimitingRole() {
+        // Arrange
+        let original = CommentMetadata(
+            rule: .init(id: "import-order", hash: "abc"),
+            fileInfo: .init(path: "Sources/Foo.swift", line: 12, blobSHA: nil),
+            prHeadSHA: "deadbeef",
+            suppressionRole: .limiting
+        )
+
+        // Act
+        let html = original.toHTMLComment()
+        let parsed = CommentMetadata.parse(from: "Body text\n\n" + html)
+
+        // Assert
+        #expect(parsed == original)
+        #expect(parsed?.suppressionRole == .limiting)
+    }
+
+    @Test("Round-trip with suppressed role")
+    func roundTripWithSuppressedRole() {
+        // Arrange
+        let original = CommentMetadata(
+            rule: .init(id: "import-order", hash: "abc"),
+            fileInfo: .init(path: "Sources/Foo.swift", line: 45, blobSHA: nil),
+            prHeadSHA: "deadbeef",
+            suppressionRole: .suppressed
+        )
+
+        // Act
+        let html = original.toHTMLComment()
+        let parsed = CommentMetadata.parse(from: html)
+
+        // Assert
+        #expect(parsed == original)
+        #expect(parsed?.suppressionRole == .suppressed)
+    }
+
+    @Test("Parse v1 metadata without suppression_role returns nil role")
+    func parseV1WithoutSuppressionRole() {
+        // Arrange — existing v1 format without suppression_role
+        let body = """
+        <!-- prradar:v1
+        rule_id: test-rule
+        rule_hash: abc
+        file: Sources/Foo.swift
+        line: 10
+        pr_head_sha: deadbeef
+        -->
+        """
+
+        // Act
+        let parsed = CommentMetadata.parse(from: body)
+
+        // Assert
+        #expect(parsed != nil)
+        #expect(parsed?.suppressionRole == nil)
+    }
+
+    @Test("Parse ignores unknown suppression_role value")
+    func parseUnknownSuppressionRole() {
+        // Arrange
+        let body = """
+        <!-- prradar:v1
+        rule_id: test-rule
+        rule_hash: abc
+        pr_head_sha: deadbeef
+        suppression_role: unknown_value
+        -->
+        """
+
+        // Act
+        let parsed = CommentMetadata.parse(from: body)
+
+        // Assert
+        #expect(parsed != nil)
+        #expect(parsed?.suppressionRole == nil)
+    }
+
+    @Test("toHTMLComment omits suppression_role when nil")
+    func htmlCommentOmitsNilSuppressionRole() {
+        // Arrange
+        let metadata = CommentMetadata(
+            rule: .init(id: "test", hash: "h1"),
+            fileInfo: nil,
+            prHeadSHA: "sha1"
+        )
+
+        // Act
+        let html = metadata.toHTMLComment()
+
+        // Assert
+        #expect(!html.contains("suppression_role"))
+    }
+
     // MARK: - toHTMLComment format
 
     @Test("toHTMLComment produces expected format")
