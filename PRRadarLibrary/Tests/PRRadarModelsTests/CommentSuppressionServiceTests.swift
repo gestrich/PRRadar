@@ -403,13 +403,12 @@ struct CommentSuppressionServiceTests {
 
     // MARK: - Remaining <= 0 suppresses all pending
 
-    @Test("When posted count exceeds limit, all new pending are suppressed")
-    func postedExceedsLimitAllSuppressed() {
-        // Arrange — limit 2, 3 active posted, 2 new
+    @Test("When posted fills limit, all new are suppressed and last posted becomes limiting")
+    func postedFillsLimitPromotesLastPosted() {
+        // Arrange — limit 2, 2 active redetected, 2 new pending
         let comments: [ReviewComment] = [
             .redetected(pending: makePending(id: "p1", lineNumber: 5, maxCommentsPerFile: 2), posted: makePosted(id: "gh-1", line: 5)),
             .redetected(pending: makePending(id: "p2", lineNumber: 8, maxCommentsPerFile: 2), posted: makePosted(id: "gh-2", line: 8)),
-            .postedOnly(posted: makePosted(id: "gh-3", line: 12)),
             .new(pending: makePending(id: "p3", lineNumber: 15, maxCommentsPerFile: 2)),
             .new(pending: makePending(id: "p4", lineNumber: 25, maxCommentsPerFile: 2)),
         ]
@@ -417,11 +416,36 @@ struct CommentSuppressionServiceTests {
         // Act
         let result = CommentSuppressionService.applySuppression(to: comments)
 
-        // Assert — 3 active posted, remaining = 2-3 = -1 ≤ 0, all 2 new are suppressed
+        // Assert — remaining = 2-2 = 0, all new are suppressed
         #expect(result.suppressedCount == 2)
 
         let newComments = result.comments.filter { $0.state == .new }
         #expect(newComments.allSatisfy { $0.suppressionRole == .suppressed })
+
+        // Last posted (line 8) promoted to needsUpdate with limiting role
+        let promoted = result.comments.first { $0.pending?.id == "p2" }
+        #expect(promoted?.state == .needsUpdate)
+        #expect(promoted?.suppressionRole == .limiting)
+    }
+
+    @Test("When remaining <= 0 with no redetected, no promotion occurs")
+    func noRedetectedNoPromotion() {
+        // Arrange — limit 1, 1 postedOnly (no ruleName, not grouped), 2 new
+        // postedOnly has no pending → no ruleName → not in any group
+        // The 2 new form their own group with limit 1
+        let comments: [ReviewComment] = [
+            .new(pending: makePending(id: "p1", lineNumber: 15, maxCommentsPerFile: 1)),
+            .new(pending: makePending(id: "p2", lineNumber: 25, maxCommentsPerFile: 1)),
+        ]
+
+        // Act
+        let result = CommentSuppressionService.applySuppression(to: comments)
+
+        // Assert — remaining = 1, first pending becomes limiting, second suppressed
+        #expect(result.suppressedCount == 1)
+        let sorted = result.comments.sorted { ($0.lineNumber ?? 0) < ($1.lineNumber ?? 0) }
+        #expect(sorted[0].suppressionRole == .limiting)
+        #expect(sorted[1].suppressionRole == .suppressed)
     }
 
     // MARK: - Line number ordering

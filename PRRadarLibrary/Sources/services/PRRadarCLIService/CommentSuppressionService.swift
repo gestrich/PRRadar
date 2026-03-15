@@ -56,12 +56,7 @@ public struct CommentSuppressionService: Sendable {
             }.count
 
             // Collect pending comment indices, sorted by line number for deterministic ordering
-            let pendingIndices = indices.filter { comments[$0].isPending }
-                .sorted { a, b in
-                    let lineA = comments[a].lineNumber ?? Int.max
-                    let lineB = comments[b].lineNumber ?? Int.max
-                    return lineA < lineB
-                }
+            let pendingIndices = sortedByLine(indices.filter { comments[$0].isPending }, in: comments)
 
             guard !pendingIndices.isEmpty else { continue }
 
@@ -75,6 +70,17 @@ public struct CommentSuppressionService: Sendable {
                     result[idx] = applySuppressedRole(to: result[idx])
                 }
                 totalSuppressed += pendingIndices.count
+
+                // Promote the last active posted comment to limiting so the indicator gets added
+                let activePostedIndices = sortedByLine(indices.filter { idx in
+                    let c = comments[idx]
+                    guard case .redetected = c, let posted = c.posted else { return false }
+                    return !posted.isResolved && !posted.isOutdated
+                }, in: comments)
+                if let lastPostedIdx = activePostedIndices.last {
+                    result[lastPostedIdx] = applyLimitingRole(to: result[lastPostedIdx])
+                }
+
                 continue
             }
 
@@ -115,6 +121,14 @@ public struct CommentSuppressionService: Sendable {
         let filePath: String
     }
 
+    private static func sortedByLine(_ indices: [Int], in comments: [ReviewComment]) -> [Int] {
+        indices.sorted { a, b in
+            let lineA = comments[a].lineNumber ?? Int.max
+            let lineB = comments[b].lineNumber ?? Int.max
+            return lineA < lineB
+        }
+    }
+
     private static func applySuppressedRole(to comment: ReviewComment) -> ReviewComment {
         guard let pending = comment.pending else { return comment }
         let suppressed = pending.withSuppression(role: .suppressed)
@@ -136,8 +150,11 @@ public struct CommentSuppressionService: Sendable {
             return .new(pending: limiting)
         case .needsUpdate(_, let posted):
             return .needsUpdate(pending: limiting, posted: posted)
-        case .redetected, .postedOnly:
+        case .redetected(_, let posted):
+            return .needsUpdate(pending: limiting, posted: posted)
+        case .postedOnly:
             return comment
         }
     }
+
 }
