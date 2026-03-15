@@ -192,7 +192,7 @@ public struct ScriptAnalysisService: Sendable {
 
             let comment: String
             if columns.count == 4 {
-                comment = columns[3]
+                comment = columns[3].replacingOccurrences(of: "\\n", with: "\n")
             } else {
                 comment = rule.violationMessage ?? rule.description
             }
