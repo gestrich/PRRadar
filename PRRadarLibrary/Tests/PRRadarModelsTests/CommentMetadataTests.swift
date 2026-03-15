@@ -165,6 +165,27 @@ struct CommentMetadataTests {
         #expect(stripped == contentBody)
     }
 
+    @Test("stripMetadata removes suppression indicator Note line")
+    func stripMetadataRemovesSuppressionIndicator() {
+        // Arrange
+        let metadata = CommentMetadata(
+            rule: .init(id: "test-rule", hash: "h1"),
+            fileInfo: .init(path: "f.swift", line: 1, blobSHA: nil),
+            prHeadSHA: "sha",
+            suppressionRole: .limiting
+        )
+        let contentBody = "**test-rule**\n\nSome violation"
+        let noteText = "> **Note:** 4 other instances of this issue found in this file. Limiting to 2 comments per rule."
+        let fullBody = contentBody + "\n\n" + noteText + "\n\n" + metadata.toHTMLComment()
+
+        // Act
+        let stripped = CommentMetadata.stripMetadata(from: fullBody)
+
+        // Assert
+        #expect(stripped == contentBody)
+        #expect(!stripped.contains("Limiting to"))
+    }
+
     @Test("stripMetadata on body without metadata returns unchanged")
     func stripMetadataNoOp() {
         // Arrange

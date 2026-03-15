@@ -55,7 +55,7 @@ public struct CommentService: Sendable {
         var body = comment.toGitHubMarkdown()
 
         if suppressedCount > 0 {
-            body += "\n\n> **Note:** \(suppressedCount) other instance\(suppressedCount == 1 ? "" : "s") of this issue found in this file. Limiting to \(suppressedCount + 1) comments per rule."
+            body += "\n\n" + CommentMetadata.suppressionIndicator(suppressedCount: suppressedCount, maxCommentsPerFile: comment.maxCommentsPerFile)
         }
 
         let metadata = comment.buildMetadata(prHeadSHA: commitSHA)

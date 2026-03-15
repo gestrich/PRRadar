@@ -169,7 +169,8 @@ public struct RuleLoaderService: Sendable {
             newCodeLinesOnly: rule.newCodeLinesOnly,
             violationRegex: rule.violationRegex,
             violationMessage: rule.violationMessage,
-            violationScript: rule.violationScript
+            violationScript: rule.violationScript,
+            maxCommentsPerFile: rule.maxCommentsPerFile
         )
     }
 }

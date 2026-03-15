@@ -126,7 +126,24 @@ public struct CommentMetadata: Codable, Sendable, Equatable {
     }
 
     public static func stripMetadata(from body: String) -> String {
-        body.replacing(metadataPattern, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutMeta = body.replacing(metadataPattern, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return stripSuppressionIndicator(from: withoutMeta)
+    }
+
+    public static func suppressionIndicator(suppressedCount: Int, maxCommentsPerFile: Int?) -> String {
+        let limitText = maxCommentsPerFile.map { "Limiting to \($0) comments per rule." } ?? ""
+        return "> **Note:** \(suppressedCount) other instance\(suppressedCount == 1 ? "" : "s") of this issue found in this file. \(limitText)"
+    }
+
+    public static func isSuppressionIndicator(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.hasPrefix("> **Note:**") && trimmed.contains("Limiting to")
+    }
+
+    private static func stripSuppressionIndicator(from body: String) -> String {
+        let lines = body.components(separatedBy: "\n")
+        let filtered = lines.filter { !isSuppressionIndicator($0) }
+        return filtered.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

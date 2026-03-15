@@ -253,7 +253,15 @@ Update the Mac app views to show suppressed comments with visual distinction.
 - `MacApp/UI/PhaseViews/DiffPhaseView.swift`
 - Any other files referencing `needsPosting`
 
-## - [ ] Phase 10: Validation
+## - [x] Phase 10: Validation
+
+**Skills used**: `swift-testing`, `pr-radar-debug`
+**Principles applied**: Arrange-Act-Assert test style; comprehensive unit tests for CommentSuppressionService and suppression model properties; integration tests via CLI with test-repo PR
+
+**Bugs found and fixed during validation:**
+- `RuleLoaderService.ruleWithURL()` dropped `maxCommentsPerFile` when reconstructing rule with git URL
+- `CommentService.buildBodyWithSuppression()` showed wrong "Limiting to X" count (used `suppressedCount + 1` instead of `maxCommentsPerFile`)
+- `CommentMetadata.stripMetadata()` didn't strip suppression indicator Note line, causing perpetual `needsUpdate` on re-runs
 
 **Skills to read**: `swift-testing`, `pr-radar-debug`
 
@@ -280,3 +288,52 @@ Update the Mac app views to show suppressed comments with visual distinction.
 ```bash
 cd PRRadarLibrary && swift build && swift test
 ```
+
+## - [ ] Phase 11: Fix limiting indicator not appearing on posted comments
+
+**Skills to read**: `pr-radar-debug`
+
+**Problem:** After posting comments with `max_comments_per_file: 2`, the limiting comment on GitHub is missing both:
+1. The visible `> **Note:** X other instances...` blockquote
+2. The `suppression_role: limiting` field in the hidden metadata
+
+See PR #19 on PRRadar-TestRepo (closed) — the comment at `DataProcessor.swift:14` should show the limiting indicator but doesn't: https://github.com/gestrich/PRRadar-TestRepo/pull/19#discussion_r2936845122
+
+**How to reproduce:**
+1. PR #19 was closed but the posted comments are still visible. Or create a new test branch:
+   ```bash
+   cd /Users/bill/Developer/personal/PRRadar-TestRepo
+   git checkout -b test-limiting-indicator main
+   # Copy DataProcessor.swift from the closed PR (has 5 force unwraps + 8 return nils)
+   git add DataProcessor.swift && git commit -m "test" && git push -u origin test-limiting-indicator
+   GH_TOKEN=$(gh auth token --user gestrich) gh pr create --title "Test limiting" --body "test" --base main
+   ```
+2. Run the pipeline and post:
+   ```bash
+   cd /Users/bill/Developer/personal/PRRadar/PRRadarLibrary
+   swift run PRRadarMacCLI run <PR> --config test-repo
+   swift run PRRadarMacCLI comment <PR> --config test-repo
+   ```
+3. Check the comment body on GitHub — the limiting comment should have the Note blockquote and `suppression_role: limiting` in metadata, but likely won't.
+
+**What's known so far:**
+
+The dry-run output is correct — it shows `(limiting: 4 more suppressed)` for the right comments. The `CommentSuppressionService` correctly assigns `.limiting` role. The issue is somewhere in the posting/editing path.
+
+**Investigation angles:**
+
+1. **`buildBodyWithSuppression` receives `suppressedCount == 0`?** — The `categorize()` method in `PostCommentsUseCase` builds `CommentToPost` with `suppressedCount` from `suppressedCountForLimiting()`. This helper returns 0 unless `comment.suppressionRole == .limiting`. Check whether the pending comment's `suppressionRole` is actually `.limiting` at categorization time. Add a log statement in `categorize()` to print each comment's suppression role.
+
+2. **Suppression applied AFTER categorization?** — Check the order: `applySuppression()` is called on line 71 of `PostCommentsUseCase`, then `categorize()` on line 73. The suppression should already be applied. But verify by logging `allComments` after line 71 to confirm limiting roles are present.
+
+3. **The `comment` command re-fetches from GitHub before posting?** — If `PostCommentsUseCase.run()` calls `FetchReviewCommentsUseCase` with `cachedOnly: false` (refreshing from GitHub), the fresh fetch could overwrite the cached comments and change reconciliation results. Check which overload is called and whether a sync during posting could change the comment states.
+
+4. **Edit path vs. new path** — During Phase 10 testing, the first post used the old buggy code (wrong "Limiting to 5" text). Then after the code fix, an edit was performed. Check whether the edit path (`editViolations`) correctly passes `suppressedCount` through `buildBodyWithSuppression`. The edit may have matched the comment as `redetected` (body now matches after `stripMetadata` fix) instead of `needsUpdate`, causing it to skip the edit entirely on subsequent runs.
+
+**Second issue: GraphQL thread resolution not working via CLI**
+
+The `sync` command fetches comments but `isResolved` stays `false` for all comments, even after resolving a thread on GitHub. The GraphQL query works fine via `gh api graphql` with the gestrich token.
+
+Root cause: `PRAcquisitionService.refreshComments()` line 77 uses `try?` which silently swallows errors from `fetchResolvedReviewCommentIDs()`. The `CredentialResolver` likely resolves a different token than the `gh` CLI's gestrich account.
+
+**To debug:** Temporarily change `try?` to `try` on line 77 of `PRAcquisitionService.swift` and run `swift run PRRadarMacCLI sync <PR> --config test-repo` to see the actual error message. Alternatively, add a log statement before the call to print the resolved token prefix.
