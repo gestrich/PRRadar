@@ -107,6 +107,7 @@ private struct ReviewCommentResponse: Codable {
     let path: String
     let line: Int?
     let startLine: Int?
+    let position: Int?
     let createdAt: String?
     let htmlUrl: String?
     let inReplyToId: Int?
@@ -118,7 +119,7 @@ private struct ReviewCommentResponse: Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, body, path, line, user
+        case id, body, path, line, position, user
         case startLine = "start_line"
         case createdAt = "created_at"
         case htmlUrl = "html_url"
@@ -152,6 +153,7 @@ public struct ReviewCommentData: Sendable {
     public let path: String
     public let line: Int?
     public let startLine: Int?
+    public let position: Int?
     public let createdAt: String?
     public let htmlUrl: String?
     public let inReplyToId: Int?
@@ -367,6 +369,7 @@ public struct OctokitClient: Sendable {
                         path: r.path,
                         line: r.line,
                         startLine: r.startLine,
+                        position: r.position,
                         createdAt: r.createdAt,
                         htmlUrl: r.htmlUrl,
                         inReplyToId: r.inReplyToId,
@@ -735,6 +738,103 @@ public struct OctokitClient: Sendable {
             throw OctokitClientError.rateLimitExceeded
         default:
             throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+        }
+    }
+
+    /// Fetches review thread resolution status for a pull request via GraphQL.
+    ///
+    /// Returns a set of review comment IDs (database IDs as strings) whose threads are resolved.
+    /// Each thread is identified by its first comment's `databaseId`.
+    public func fetchResolvedReviewCommentIDs(
+        owner: String,
+        repository: String,
+        number: Int
+    ) async throws -> Set<String> {
+        var resolvedIDs = Set<String>()
+        var cursor: String? = nil
+
+        while true {
+            let afterClause = cursor.map { ", after: \"\($0)\"" } ?? ""
+            let query = """
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                pullRequest(number: $number) {
+                  reviewThreads(first: 100\(afterClause)) {
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                    nodes {
+                      isResolved
+                      comments(first: 1) {
+                        nodes {
+                          databaseId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """
+            let request = try makeMutationRequest(
+                path: "graphql",
+                method: "POST",
+                payload: [
+                    "query": query,
+                    "variables": [
+                        "owner": owner,
+                        "name": repository,
+                        "number": number
+                    ] as [String: Any]
+                ]
+            )
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw OctokitClientError.invalidResponse
+            }
+
+            switch httpResponse.statusCode {
+            case 200:
+                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                if let errors = json?["errors"] as? [[String: Any]],
+                   let message = errors.first?["message"] as? String {
+                    throw OctokitClientError.requestFailed("GraphQL error: \(message)")
+                }
+                guard let dataObj = json?["data"] as? [String: Any],
+                      let repo = dataObj["repository"] as? [String: Any],
+                      let pr = repo["pullRequest"] as? [String: Any],
+                      let threads = pr["reviewThreads"] as? [String: Any],
+                      let nodes = threads["nodes"] as? [[String: Any]] else {
+                    throw OctokitClientError.invalidResponse
+                }
+
+                for node in nodes {
+                    guard let isResolved = node["isResolved"] as? Bool, isResolved,
+                          let commentsObj = node["comments"] as? [String: Any],
+                          let commentNodes = commentsObj["nodes"] as? [[String: Any]],
+                          let firstComment = commentNodes.first,
+                          let databaseId = firstComment["databaseId"] as? Int else {
+                        continue
+                    }
+                    resolvedIDs.insert(String(databaseId))
+                }
+
+                let pageInfo = threads["pageInfo"] as? [String: Any]
+                let hasNextPage = pageInfo?["hasNextPage"] as? Bool ?? false
+                if hasNextPage, let endCursor = pageInfo?["endCursor"] as? String {
+                    cursor = endCursor
+                } else {
+                    return resolvedIDs
+                }
+            case 401:
+                throw OctokitClientError.authenticationFailed
+            case 403:
+                throw OctokitClientError.rateLimitExceeded
+            default:
+                throw OctokitClientError.requestFailed("HTTP \(httpResponse.statusCode)")
+            }
         }
     }
 

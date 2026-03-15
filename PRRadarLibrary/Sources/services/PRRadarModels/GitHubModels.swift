@@ -270,6 +270,8 @@ public struct GitHubReviewComment: Codable, Sendable, Identifiable {
     public let createdAt: String?
     public let url: String?
     public let inReplyToId: String?
+    public let isResolved: Bool
+    public let isOutdated: Bool
 
     public var metadata: CommentMetadata? {
         CommentMetadata.parse(from: body)
@@ -297,7 +299,9 @@ public struct GitHubReviewComment: Codable, Sendable, Identifiable {
         author: GitHubAuthor? = nil,
         createdAt: String? = nil,
         url: String? = nil,
-        inReplyToId: String? = nil
+        inReplyToId: String? = nil,
+        isResolved: Bool = false,
+        isOutdated: Bool = false
     ) {
         self.id = id
         self.body = body
@@ -308,6 +312,41 @@ public struct GitHubReviewComment: Codable, Sendable, Identifiable {
         self.createdAt = createdAt
         self.url = url
         self.inReplyToId = inReplyToId
+        self.isResolved = isResolved
+        self.isOutdated = isOutdated
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        body = try container.decode(String.self, forKey: .body)
+        path = try container.decode(String.self, forKey: .path)
+        line = try container.decodeIfPresent(Int.self, forKey: .line)
+        startLine = try container.decodeIfPresent(Int.self, forKey: .startLine)
+        author = try container.decodeIfPresent(GitHubAuthor.self, forKey: .author)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        url = try container.decodeIfPresent(String.self, forKey: .url)
+        inReplyToId = try container.decodeIfPresent(String.self, forKey: .inReplyToId)
+        isResolved = try container.decodeIfPresent(Bool.self, forKey: .isResolved) ?? false
+        isOutdated = try container.decodeIfPresent(Bool.self, forKey: .isOutdated) ?? false
+    }
+}
+
+extension GitHubReviewComment {
+    public func withResolution(_ resolved: Bool) -> GitHubReviewComment {
+        GitHubReviewComment(
+            id: id,
+            body: body,
+            path: path,
+            line: line,
+            startLine: startLine,
+            author: author,
+            createdAt: createdAt,
+            url: url,
+            inReplyToId: inReplyToId,
+            isResolved: resolved,
+            isOutdated: isOutdated
+        )
     }
 }
 
@@ -333,6 +372,23 @@ public struct GitHubPullRequestComments: Codable, Sendable {
         comments = try container.decode([GitHubComment].self, forKey: .comments)
         reviews = try container.decode([GitHubReview].self, forKey: .reviews)
         reviewComments = try container.decodeIfPresent([GitHubReviewComment].self, forKey: .reviewComments) ?? []
+    }
+}
+
+extension GitHubPullRequestComments {
+    /// Enriches review comments with thread resolution status.
+    ///
+    /// - Parameter resolvedCommentIDs: Set of review comment IDs whose threads are resolved
+    /// - Returns: A copy with `isResolved` set on matching review comments
+    public func withReviewThreadResolution(resolvedCommentIDs: Set<String>) -> GitHubPullRequestComments {
+        guard !resolvedCommentIDs.isEmpty else { return self }
+        return GitHubPullRequestComments(
+            comments: comments,
+            reviews: reviews,
+            reviewComments: reviewComments.map { rc in
+                resolvedCommentIDs.contains(rc.id) ? rc.withResolution(true) : rc
+            }
+        )
     }
 }
 
@@ -441,7 +497,9 @@ extension GitHubPullRequestComments {
                     author: rc.author?.withName(from: nameMap),
                     createdAt: rc.createdAt,
                     url: rc.url,
-                    inReplyToId: rc.inReplyToId
+                    inReplyToId: rc.inReplyToId,
+                    isResolved: rc.isResolved,
+                    isOutdated: rc.isOutdated
                 )
             }
         )

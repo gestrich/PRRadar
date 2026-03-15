@@ -72,6 +72,12 @@ public struct PRAcquisitionService: Sendable {
             }
         }
 
+        // Enrich review comments with thread resolution status from GraphQL
+        if !comments.reviewComments.isEmpty {
+            let resolvedIDs = (try? await gitHub.fetchResolvedReviewCommentIDs(number: prNumber)) ?? []
+            comments = comments.withReviewThreadResolution(resolvedCommentIDs: resolvedIDs)
+        }
+
         let metadataDir = DataPathsService.phaseDirectory(
             outputDir: outputDir,
             prNumber: prNumber,

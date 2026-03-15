@@ -44,11 +44,12 @@ public struct CommentSuppressionService: Sendable {
                 continue
             }
 
-            // Count already-posted non-suppressed comments (these count toward the limit)
+            // Count already-posted comments that are still active (not resolved or outdated)
             let postedCount = groupComments.filter { comment in
                 switch comment.state {
                 case .redetected, .postedOnly:
-                    return true
+                    guard let posted = comment.posted else { return false }
+                    return !posted.isResolved && !posted.isOutdated
                 case .new, .needsUpdate:
                     return false
                 }

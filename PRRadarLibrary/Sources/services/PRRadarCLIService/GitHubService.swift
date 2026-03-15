@@ -67,7 +67,8 @@ public struct GitHubService: Sendable {
                 author: rc.userLogin.map { GitHubAuthor(login: $0, id: rc.userId.map(String.init)) },
                 createdAt: rc.createdAt,
                 url: rc.htmlUrl,
-                inReplyToId: rc.inReplyToId.map(String.init)
+                inReplyToId: rc.inReplyToId.map(String.init),
+                isOutdated: rc.position == nil
             )
         }
 
@@ -179,6 +180,13 @@ public struct GitHubService: Sendable {
 
     public func fetchBodyHTML(number: Int) async throws -> String {
         try await octokitClient.pullRequestBodyHTML(owner: owner, repository: repo, number: number)
+    }
+
+    /// Fetches the set of review comment IDs whose threads are resolved on GitHub.
+    public func fetchResolvedReviewCommentIDs(number: Int) async throws -> Set<String> {
+        try await octokitClient.fetchResolvedReviewCommentIDs(
+            owner: owner, repository: repo, number: number
+        )
     }
 
     // MARK: - Comment Operations
