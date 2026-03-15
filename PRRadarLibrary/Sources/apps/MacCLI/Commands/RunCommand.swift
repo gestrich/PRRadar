@@ -27,6 +27,9 @@ struct RunCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show full AI output including tool use events")
     var verbose: Bool = false
 
+    @Option(name: .long, help: "Analysis mode: regex, script, ai, or all (default: all)")
+    var mode: AnalysisMode = .all
+
     func run() async throws {
         let config = try resolveConfigFromOptions(options)
         let useCase = RunPipelineUseCase(config: config)
@@ -40,7 +43,8 @@ struct RunCommand: AsyncParsableCommand {
             prNumber: options.prNumber,
             rulesDir: try resolveRulesDir(rulesPathName: rulesPathName, config: config),
             noDryRun: noDryRun,
-            minScore: minScore
+            minScore: minScore,
+            analysisMode: mode
         ) {
             switch progress {
             case .running(let phase):
