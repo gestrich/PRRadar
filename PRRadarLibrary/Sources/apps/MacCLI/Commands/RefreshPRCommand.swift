@@ -19,7 +19,7 @@ struct RefreshPRCommand: AsyncParsableCommand {
 
         var result: SyncSnapshot?
 
-        for try await progress in useCase.execute(prNumber: options.prNumber) {
+        for try await progress in useCase.execute(prNumber: options.prNumber, force: true) {
             switch progress {
             case .running:
                 break

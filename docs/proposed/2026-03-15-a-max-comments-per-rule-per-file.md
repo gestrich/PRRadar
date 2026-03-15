@@ -341,7 +341,10 @@ Root cause: `PRAcquisitionService.refreshComments()` line 77 uses `try?` which s
 
 **To debug:** Temporarily change `try?` to `try` on line 77 of `PRAcquisitionService.swift` and run `swift run PRRadarMacCLI sync <PR> --config test-repo` to see the actual error message. Alternatively, add a log statement before the call to print the resolved token prefix.
 
-## - [ ] Phase 12: End-to-end demonstration of comment suppression
+## - [x] Phase 12: End-to-end demonstration of comment suppression
+
+**Skills used**: `pr-radar-debug`
+**Principles applied**: Discovered and fixed idempotency bug where `applyLimitingRole` promoted already-limiting `.redetected` comments to `.needsUpdate`; added regression test
 
 **Skills to read**: `pr-radar-debug`
 

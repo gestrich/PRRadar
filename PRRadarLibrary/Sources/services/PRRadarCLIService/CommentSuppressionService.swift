@@ -151,6 +151,9 @@ public struct CommentSuppressionService: Sendable {
         case .needsUpdate(_, let posted):
             return .needsUpdate(pending: limiting, posted: posted)
         case .redetected(_, let posted):
+            if posted.metadata?.suppressionRole == .limiting {
+                return .redetected(pending: limiting, posted: posted)
+            }
             return .needsUpdate(pending: limiting, posted: posted)
         case .postedOnly:
             return comment

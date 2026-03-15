@@ -507,6 +507,39 @@ struct CommentSuppressionServiceTests {
         #expect(byId["p4"]?.suppressionRole == .suppressed) // new, line 30
     }
 
+    // MARK: - Idempotency: already-limiting posted comment stays redetected
+
+    @Test("Redetected comment with limiting metadata stays redetected on re-run")
+    func alreadyLimitingStaysRedetected() {
+        // Arrange — limit 2, 2 redetected (1 normal, 1 already limiting), 1 new pending
+        // Simulates a re-run where the limiting comment was already posted
+        let comments: [ReviewComment] = [
+            .redetected(
+                pending: makePending(id: "p1", lineNumber: 5, maxCommentsPerFile: 2),
+                posted: makeV1Posted(id: "gh-1", path: "Sources/Foo.swift", line: 5)
+            ),
+            .redetected(
+                pending: makePending(id: "p2", lineNumber: 8, maxCommentsPerFile: 2),
+                posted: makeV1Posted(id: "gh-2", path: "Sources/Foo.swift", line: 8, suppressionRole: .limiting)
+            ),
+            .new(pending: makePending(id: "p3", lineNumber: 15, maxCommentsPerFile: 2)),
+        ]
+
+        // Act
+        let result = CommentSuppressionService.applySuppression(to: comments)
+
+        // Assert — remaining = 2-2 = 0, new is suppressed
+        // The already-limiting posted comment (line 8) should stay .redetected, not become .needsUpdate
+        #expect(result.suppressedCount == 1)
+
+        let limitingComment = result.comments.first { $0.pending?.id == "p2" }
+        #expect(limitingComment?.state == .redetected)
+        #expect(limitingComment?.suppressionRole == .limiting)
+
+        let suppressedComment = result.comments.first { $0.pending?.id == "p3" }
+        #expect(suppressedComment?.suppressionRole == .suppressed)
+    }
+
     // MARK: - suppressedCount helper
 
     @Test("suppressedCount helper returns correct count for rule+file")
