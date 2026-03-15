@@ -23,7 +23,10 @@ The limit applies per `(ruleName, filePath)` tuple. A rule that flags 3 files wi
 
 ## Phases
 
-## - [ ] Phase 1: Metadata v2 — Add limiting/suppression fields
+## - [x] Phase 1: Metadata v2 — Add limiting/suppression fields
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Extended v1 format with optional field for backward compatibility; added 5 tests covering round-trip, graceful absence, and unknown values
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
