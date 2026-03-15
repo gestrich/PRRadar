@@ -56,7 +56,7 @@ public struct CommentSuppressionService: Sendable {
             }.count
 
             // Collect pending comment indices, sorted by line number for deterministic ordering
-            let pendingIndices = indices.filter { comments[$0].needsPosting }
+            let pendingIndices = indices.filter { comments[$0].isPending }
                 .sorted { a, b in
                     let lineA = comments[a].lineNumber ?? Int.max
                     let lineB = comments[b].lineNumber ?? Int.max

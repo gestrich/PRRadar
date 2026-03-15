@@ -410,11 +410,11 @@ struct DiffPhaseView: View {
         var counts: [String: Int] = [:]
         for (file, lineMap) in mapping.byFileAndLine {
             counts[file, default: 0] += lineMap.values.reduce(0) { total, comments in
-                total + comments.filter { $0.needsPosting }.count
+                total + comments.filter { $0.readyForPosting }.count
             }
         }
         for (file, comments) in mapping.unmatchedByFile {
-            counts[file, default: 0] += comments.filter { $0.needsPosting }.count
+            counts[file, default: 0] += comments.filter { $0.readyForPosting }.count
         }
         return counts
     }
@@ -428,13 +428,13 @@ struct DiffPhaseView: View {
         var maxScore = 0
         if let lineMap = mapping.byFileAndLine[file] {
             for comments in lineMap.values {
-                for comment in comments where comment.needsPosting {
+                for comment in comments where comment.readyForPosting {
                     maxScore = max(maxScore, comment.score ?? 0)
                 }
             }
         }
         if let comments = mapping.unmatchedByFile[file] {
-            for comment in comments where comment.needsPosting {
+            for comment in comments where comment.readyForPosting {
                 maxScore = max(maxScore, comment.score ?? 0)
             }
         }

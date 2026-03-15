@@ -229,7 +229,7 @@ Update the Mac app views to show suppressed comments with visual distinction.
 - `MacApp/UI/GitViews/InlineCommentView.swift`
 - Possibly `MacApp/UI/GitViews/DiffCommentMapper.swift`
 
-## - [ ] Phase 9: Rename needsPosting to isPending
+## - [x] Phase 9: Rename needsPosting to isPending
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -237,12 +237,12 @@ Update the Mac app views to show suppressed comments with visual distinction.
 
 **Renames:**
 - `ReviewComment.needsPosting` → `isPending` (means `.new` or `.needsUpdate` — a reconciliation state, not a posting decision)
-- Add `ReviewComment.willBePosted: Bool` = `isPending && !isSuppressed` (the actual posting intent)
+- Add `ReviewComment.readyForPosting: Bool` = `isPending && !isSuppressed` (the actual posting intent)
 
 **Update all call sites:**
 - `CommentSuppressionService` uses `needsPosting` to find pending comments *before* suppression → change to `isPending`
-- `PRModel.orderedViolations` currently uses `needsPosting && !isSuppressed` → change to `willBePosted`
-- `DiffPhaseView` uses `needsPosting` for violation counts and navigation → evaluate each usage: if it should exclude suppressed, use `willBePosted`; if it counts all pending, use `isPending`
+- `PRModel.orderedViolations` currently uses `needsPosting && !isSuppressed` → change to `readyForPosting`
+- `DiffPhaseView` uses `needsPosting` for violation counts and navigation → evaluate each usage: if it should exclude suppressed, use `readyForPosting`; if it counts all pending, use `isPending`
 - `ReviewComment.debugSummary` references `needsPosting` → update to `isPending`
 - Any other call sites found via search
 

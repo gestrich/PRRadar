@@ -70,11 +70,15 @@ public enum ReviewComment: Sendable, Identifiable {
         suppressionRole == .suppressed
     }
 
-    public var needsPosting: Bool {
+    public var isPending: Bool {
         switch self {
         case .new, .needsUpdate: true
         case .redetected, .postedOnly: false
         }
+    }
+
+    public var readyForPosting: Bool {
+        isPending && !isSuppressed
     }
 
     public var isPosted: Bool {
@@ -126,7 +130,7 @@ extension ReviewComment {
         } else {
             bodyPreview = "(empty)"
         }
-        return "[\(stateLabel)] id=\(id) rule=\(rule) file=\(filePath) line=\(lineNumber.map(String.init) ?? "nil") needsPosting=\(needsPosting) body=\"\(bodyPreview)...\""
+        return "[\(stateLabel)] id=\(id) rule=\(rule) file=\(filePath) line=\(lineNumber.map(String.init) ?? "nil") isPending=\(isPending) body=\"\(bodyPreview)...\""
     }
 }
 
