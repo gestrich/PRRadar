@@ -179,7 +179,10 @@ The GitHub REST API for review comments does NOT include thread resolution statu
 - Flows through `TaskRule` → `PRComment` → `CommentSuppressionService`
 - Rules without the field have no limit (nil = unlimited)
 
-## - [ ] Phase 7: CLI display — Show suppressed comments
+## - [x] Phase 7: CLI display — Show suppressed comments
+
+**Skills used**: none
+**Principles applied**: Grouped suppressed comments by rule name so each rule shows its per-file limit; both dry-run and post paths use consistent per-rule grouping
 
 **Skills to read**: none
 

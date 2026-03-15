@@ -165,9 +165,13 @@ public struct PostCommentsUseCase: Sendable {
             }
         }
         if !categorized.suppressedComments.isEmpty {
-            continuation.yield(.log(text: "\(categorized.suppressedComments.count) comments suppressed\n"))
-            for v in categorized.suppressedComments {
-                continuation.yield(.log(text: "  [SUPPRESSED] [\(v.score)/10] \(v.ruleName) - \(v.filePath):\(v.lineNumber ?? 0)\n"))
+            let grouped = Dictionary(grouping: categorized.suppressedComments, by: { $0.ruleName })
+            for (ruleName, comments) in grouped.sorted(by: { $0.key < $1.key }) {
+                let limit = comments.first?.maxCommentsPerFile.map(String.init) ?? "?"
+                continuation.yield(.log(text: "\(comments.count) comments suppressed for \(ruleName) (limit: \(limit) per file)\n"))
+                for v in comments {
+                    continuation.yield(.log(text: "  [SUPPRESSED] [\(v.score)/10] \(v.filePath):\(v.lineNumber ?? 0)\n"))
+                }
             }
         }
         return CommentPhaseOutput(
@@ -211,7 +215,11 @@ public struct PostCommentsUseCase: Sendable {
         }
 
         if !categorized.suppressedComments.isEmpty {
-            continuation.yield(.log(text: "\(categorized.suppressedComments.count) comments suppressed (not posted)\n"))
+            let grouped = Dictionary(grouping: categorized.suppressedComments, by: { $0.ruleName })
+            for (ruleName, comments) in grouped.sorted(by: { $0.key < $1.key }) {
+                let limit = comments.first?.maxCommentsPerFile.map(String.init) ?? "?"
+                continuation.yield(.log(text: "\(comments.count) suppressed for \(ruleName) (limit: \(limit) per file, not posted)\n"))
+            }
         }
 
         var logParts: [String] = []
