@@ -2,7 +2,9 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+#if canImport(Security)
 import Security
+#endif
 
 public struct GitHubAppTokenService: Sendable {
 
@@ -29,8 +31,7 @@ public struct GitHubAppTokenService: Sendable {
         let payloadB64 = base64URLEncode(Data(payload.utf8))
         let signingInput = "\(headerB64).\(payloadB64)"
 
-        let privateKey = try loadPrivateKey(pem: privateKeyPEM)
-        let signatureData = try sign(data: Data(signingInput.utf8), with: privateKey)
+        let signatureData = try signJWT(data: Data(signingInput.utf8), privateKeyPEM: privateKeyPEM)
         let signatureB64 = base64URLEncode(signatureData)
 
         return "\(signingInput).\(signatureB64)"
@@ -67,9 +68,24 @@ public struct GitHubAppTokenService: Sendable {
         return tokenResponse.token
     }
 
-    // MARK: - RSA Key Loading
+    // MARK: - RSA Signing (platform-specific)
 
-    func loadPrivateKey(pem: String) throws -> SecKey {
+    #if canImport(Security)
+    private func signJWT(data: Data, privateKeyPEM: String) throws -> Data {
+        let privateKey = try loadPrivateKey(pem: privateKeyPEM)
+        var error: Unmanaged<CFError>?
+        guard let signature = SecKeyCreateSignature(
+            privateKey,
+            .rsaSignatureMessagePKCS1v15SHA256,
+            data as CFData,
+            &error
+        ) else {
+            throw GitHubAppTokenError.signingFailed
+        }
+        return signature as Data
+    }
+
+    private func loadPrivateKey(pem: String) throws -> SecKey {
         let derData = try extractDERFromPEM(pem)
 
         let attributes: [String: Any] = [
@@ -83,6 +99,13 @@ public struct GitHubAppTokenService: Sendable {
         }
         return key
     }
+    #else
+    private func signJWT(data: Data, privateKeyPEM: String) throws -> Data {
+        throw GitHubAppTokenError.signingFailed
+    }
+    #endif
+
+    // MARK: - PEM Parsing
 
     private func extractDERFromPEM(_ pem: String) throws -> Data {
         let lines = pem.components(separatedBy: "\n")
@@ -123,21 +146,6 @@ public struct GitHubAppTokenService: Sendable {
         }
 
         return derData
-    }
-
-    // MARK: - Signing
-
-    private func sign(data: Data, with key: SecKey) throws -> Data {
-        var error: Unmanaged<CFError>?
-        guard let signature = SecKeyCreateSignature(
-            key,
-            .rsaSignatureMessagePKCS1v15SHA256,
-            data as CFData,
-            &error
-        ) else {
-            throw GitHubAppTokenError.signingFailed
-        }
-        return signature as Data
     }
 
     // MARK: - Base64URL
