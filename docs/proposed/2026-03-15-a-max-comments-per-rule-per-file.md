@@ -289,7 +289,10 @@ Update the Mac app views to show suppressed comments with visual distinction.
 cd PRRadarLibrary && swift build && swift test
 ```
 
-## - [ ] Phase 11: Fix limiting indicator not appearing on posted comments
+## - [x] Phase 11: Fix limiting indicator not appearing on posted comments
+
+**Skills used**: `pr-radar-debug`
+**Principles applied**: When `remaining <= 0`, promote last active posted comment to `needsUpdate` with `.limiting` role; extracted duplicated sort-by-line into `sortedByLine` helper; `applyLimitingRole` now handles `.redetected` → `.needsUpdate` promotion; removed redundant `promoteToLimiting`
 
 **Skills to read**: `pr-radar-debug`
 
