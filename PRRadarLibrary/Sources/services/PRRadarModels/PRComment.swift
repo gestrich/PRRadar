@@ -17,6 +17,7 @@ public struct PRComment: Sendable, Identifiable {
     public let analysisMethod: AnalysisMethod?
     public let ruleHash: String
     public let fileBlobSHA: String?
+    public let suppressionRole: SuppressionRole?
 
     public var costUsd: Double? { analysisMethod?.costUsd }
 
@@ -37,7 +38,8 @@ public struct PRComment: Sendable, Identifiable {
         ruleUrl: String? = nil,
         analysisMethod: AnalysisMethod? = nil,
         ruleHash: String,
-        fileBlobSHA: String? = nil
+        fileBlobSHA: String? = nil,
+        suppressionRole: SuppressionRole? = nil
     ) {
         self.id = id
         self.ruleName = ruleName
@@ -51,6 +53,7 @@ public struct PRComment: Sendable, Identifiable {
         self.analysisMethod = analysisMethod
         self.ruleHash = ruleHash
         self.fileBlobSHA = fileBlobSHA
+        self.suppressionRole = suppressionRole
     }
 
     /// Creates a comment from an individual violation and its parent result metadata.
@@ -76,12 +79,31 @@ public struct PRComment: Sendable, Identifiable {
         )
     }
 
+    public func withSuppression(role: SuppressionRole) -> PRComment {
+        PRComment(
+            id: id,
+            ruleName: ruleName,
+            score: score,
+            comment: comment,
+            filePath: filePath,
+            lineNumber: lineNumber,
+            documentationLink: documentationLink,
+            relevantClaudeSkill: relevantClaudeSkill,
+            ruleUrl: ruleUrl,
+            analysisMethod: analysisMethod,
+            ruleHash: ruleHash,
+            fileBlobSHA: fileBlobSHA,
+            suppressionRole: role
+        )
+    }
+
     /// Build metadata for this comment at posting time.
     public func buildMetadata(prHeadSHA: String) -> CommentMetadata {
         CommentMetadata(
             rule: .init(id: ruleName, hash: ruleHash),
             fileInfo: .init(path: filePath, line: lineNumber, blobSHA: fileBlobSHA),
-            prHeadSHA: prHeadSHA
+            prHeadSHA: prHeadSHA,
+            suppressionRole: suppressionRole
         )
     }
 

@@ -56,6 +56,20 @@ public enum ReviewComment: Sendable, Identifiable {
     public var score: Int? { pending?.score }
     public var ruleName: String? { pending?.ruleName }
 
+    public var suppressionRole: SuppressionRole? {
+        if let role = pending?.suppressionRole {
+            return role
+        }
+        if let posted {
+            return CommentMetadata.parse(from: posted.body)?.suppressionRole
+        }
+        return nil
+    }
+
+    public var isSuppressed: Bool {
+        suppressionRole == .suppressed
+    }
+
     public var needsPosting: Bool {
         switch self {
         case .new, .needsUpdate: true

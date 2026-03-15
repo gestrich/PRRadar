@@ -49,7 +49,10 @@ public enum SuppressionRole: String, Codable, Sendable {
 }
 ```
 
-## - [ ] Phase 2: PRComment and ReviewComment — Add suppression state
+## - [x] Phase 2: PRComment and ReviewComment — Add suppression state
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Added suppression role to models without runtime-only display data; computed properties on ReviewComment check pending first then fall back to posted metadata
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
@@ -57,8 +60,7 @@ Add suppression awareness to the comment models so that downstream code (posting
 
 **PRComment changes:**
 - Add `suppressionRole: SuppressionRole?` property (default `nil`)
-- Add `suppressedCount: Int?` property (default `nil`, only set when role is `.limiting`) — this is a runtime-only value for display, not persisted in metadata
-- Add a method or factory to create a copy with suppression info applied: `func withSuppression(role: SuppressionRole, count: Int?) -> PRComment`
+- Add a method to create a copy with suppression info applied: `func withSuppression(role: SuppressionRole) -> PRComment`
 
 **ReviewComment changes:**
 - Add computed property `suppressionRole` that checks:
