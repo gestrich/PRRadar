@@ -45,7 +45,7 @@ public struct CommentService: Sendable {
     }
 
     private func buildBodyWithSuppression(comment: PRComment, commitSHA: String, suppressedCount: Int) -> String {
-        var body = comment.toGitHubMarkdown(suppressedCount: suppressedCount)
+        var body = comment.toGitHubMarkdown(additionalOccurrencesNotPosted: suppressedCount)
 
         let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
         body += "\n\n" + metadata.toHTMLComment()

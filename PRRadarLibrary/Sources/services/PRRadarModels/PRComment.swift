@@ -113,8 +113,9 @@ public struct PRComment: Sendable, Identifiable {
     }
 
     /// Render the comment as GitHub-flavored markdown for posting as a PR comment.
-    /// When `suppressedCount > 0`, appends the suppression indicator for limiting comments.
-    public func toGitHubMarkdown(suppressedCount: Int = 0) -> String {
+    /// When `additionalOccurrencesNotPosted > 0`, appends a note that more violations
+    /// of this rule exist in the file but won't be posted.
+    public func toGitHubMarkdown(additionalOccurrencesNotPosted: Int = 0) -> String {
         let ruleHeader: String
         if let ruleUrl {
             ruleHeader = "**[\(ruleName)](\(ruleUrl))**"
@@ -145,10 +146,10 @@ public struct PRComment: Sendable, Identifiable {
         lines.append("")
         lines.append("*Assisted by [PR Radar](https://github.com/gestrich/PRRadar)\(metaStr)*")
 
-        if suppressedCount > 0 {
+        if additionalOccurrencesNotPosted > 0 {
             lines.append("")
             lines.append(CommentMetadata.suppressionIndicator(
-                suppressedCount: suppressedCount,
+                suppressedCount: additionalOccurrencesNotPosted,
                 maxCommentsPerFile: maxCommentsPerFile
             ))
         }

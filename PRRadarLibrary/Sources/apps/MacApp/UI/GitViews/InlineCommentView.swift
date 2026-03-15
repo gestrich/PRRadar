@@ -74,7 +74,8 @@ struct InlineCommentView: View {
 
     private var commentMarkdown: String {
         guard let comment else { return "" }
-        return comment.toGitHubMarkdown(suppressedCount: suppressedSiblingCount)
+        let count = isLimiting ? suppressedSiblingCount : 0
+        return comment.toGitHubMarkdown(additionalOccurrencesNotPosted: count)
     }
 
     @ViewBuilder
