@@ -175,6 +175,7 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
     public let violationRegex: String?
     public let violationMessage: String?
     public let violationScript: String?
+    public let maxCommentsPerFile: Int?
 
     public var rulesDirSlug: String {
         (filePath as NSString).deletingLastPathComponent
@@ -209,7 +210,8 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
         newCodeLinesOnly: Bool = false,
         violationRegex: String? = nil,
         violationMessage: String? = nil,
-        violationScript: String? = nil
+        violationScript: String? = nil,
+        maxCommentsPerFile: Int? = nil
     ) {
         self.name = name
         self.filePath = filePath
@@ -227,6 +229,7 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
         self.violationRegex = violationRegex
         self.violationMessage = violationMessage
         self.violationScript = violationScript
+        self.maxCommentsPerFile = maxCommentsPerFile
     }
 
     enum CodingKeys: String, CodingKey {
@@ -246,6 +249,7 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
         case violationRegex = "violation_regex"
         case violationMessage = "violation_message"
         case violationScript = "violation_script"
+        case maxCommentsPerFile = "max_comments_per_file"
     }
 
     public init(from decoder: Decoder) throws {
@@ -266,6 +270,7 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
         violationRegex = try container.decodeIfPresent(String.self, forKey: .violationRegex)
         violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
         violationScript = try container.decodeIfPresent(String.self, forKey: .violationScript)
+        maxCommentsPerFile = try container.decodeIfPresent(Int.self, forKey: .maxCommentsPerFile)
     }
 
     // MARK: - File Parsing
@@ -326,6 +331,13 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
             )
         }
 
+        let maxCommentsPerFile: Int?
+        if let val = frontmatter["max_comments_per_file"] as? String {
+            maxCommentsPerFile = Int(val)
+        } else {
+            maxCommentsPerFile = nil
+        }
+
         return ReviewRule(
             name: url.deletingPathExtension().lastPathComponent,
             filePath: url.path,
@@ -341,7 +353,8 @@ public struct ReviewRule: Codable, Sendable, Equatable, Identifiable {
             newCodeLinesOnly: newCodeLinesOnly,
             violationRegex: violationRegex,
             violationMessage: violationMessage,
-            violationScript: violationScript
+            violationScript: violationScript,
+            maxCommentsPerFile: maxCommentsPerFile
         )
     }
 

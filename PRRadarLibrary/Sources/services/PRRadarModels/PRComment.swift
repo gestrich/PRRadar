@@ -18,6 +18,7 @@ public struct PRComment: Sendable, Identifiable {
     public let ruleHash: String
     public let fileBlobSHA: String?
     public let suppressionRole: SuppressionRole?
+    public let maxCommentsPerFile: Int?
 
     public var costUsd: Double? { analysisMethod?.costUsd }
 
@@ -39,7 +40,8 @@ public struct PRComment: Sendable, Identifiable {
         analysisMethod: AnalysisMethod? = nil,
         ruleHash: String,
         fileBlobSHA: String? = nil,
-        suppressionRole: SuppressionRole? = nil
+        suppressionRole: SuppressionRole? = nil,
+        maxCommentsPerFile: Int? = nil
     ) {
         self.id = id
         self.ruleName = ruleName
@@ -54,6 +56,7 @@ public struct PRComment: Sendable, Identifiable {
         self.ruleHash = ruleHash
         self.fileBlobSHA = fileBlobSHA
         self.suppressionRole = suppressionRole
+        self.maxCommentsPerFile = maxCommentsPerFile
     }
 
     /// Creates a comment from an individual violation and its parent result metadata.
@@ -75,7 +78,8 @@ public struct PRComment: Sendable, Identifiable {
             ruleUrl: task.rule.ruleUrl,
             analysisMethod: result.analysisMethod,
             ruleHash: task.ruleBlobHash,
-            fileBlobSHA: task.gitBlobHash
+            fileBlobSHA: task.gitBlobHash,
+            maxCommentsPerFile: task.rule.maxCommentsPerFile
         )
     }
 
@@ -93,7 +97,8 @@ public struct PRComment: Sendable, Identifiable {
             analysisMethod: analysisMethod,
             ruleHash: ruleHash,
             fileBlobSHA: fileBlobSHA,
-            suppressionRole: role
+            suppressionRole: role,
+            maxCommentsPerFile: maxCommentsPerFile
         )
     }
 

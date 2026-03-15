@@ -5,6 +5,8 @@ import PRRadarModels
 ///
 /// After reconciliation produces `[ReviewComment]`, this service decides which pending
 /// comments are normal, which is the limiting comment, and which are suppressed.
+/// The max comments per file is read from each comment's `maxCommentsPerFile` property,
+/// which originates from the rule definition.
 public struct CommentSuppressionService: Sendable {
     public init() {}
 
@@ -16,20 +18,13 @@ public struct CommentSuppressionService: Sendable {
 
     /// Apply per-rule-per-file limits to reconciled comments.
     ///
-    /// - Parameters:
-    ///   - comments: Reconciled review comments from `ViolationService.reconcile()`
-    ///   - maxPerRulePerFile: Maximum comments to post per (ruleName, filePath) group.
-    ///     Pass `nil` for unlimited (no suppression).
+    /// Each comment carries its rule's `maxCommentsPerFile` limit. Groups where no comment
+    /// defines a limit (nil) are left unchanged.
+    ///
+    /// - Parameter comments: Reconciled review comments from `ViolationService.reconcile()`
     /// - Returns: The modified comment list with suppression roles applied to pending comments.
-    public static func applySuppression(
-        to comments: [ReviewComment],
-        maxPerRulePerFile: Int?
-    ) -> SuppressionResult {
-        guard let max = maxPerRulePerFile, max > 0 else {
-            return SuppressionResult(comments: comments, suppressedCount: 0)
-        }
-
-        // Group by (ruleName, filePath) — only groups with pending comments need processing
+    public static func applySuppression(to comments: [ReviewComment]) -> SuppressionResult {
+        // Group by (ruleName, filePath)
         var groups: [GroupKey: [Int]] = [:]
         for (index, comment) in comments.enumerated() {
             guard let ruleName = comment.ruleName else { continue }
@@ -42,6 +37,12 @@ public struct CommentSuppressionService: Sendable {
 
         for (_, indices) in groups {
             let groupComments = indices.map { comments[$0] }
+
+            // Read the max from the rule — use the first non-nil value in the group
+            guard let max = groupComments.compactMap({ $0.pending?.maxCommentsPerFile }).first,
+                  max > 0 else {
+                continue
+            }
 
             // Count already-posted non-suppressed comments (these count toward the limit)
             let postedCount = groupComments.filter { comment in
@@ -65,12 +66,10 @@ public struct CommentSuppressionService: Sendable {
 
             let remaining = max - postedCount
             if remaining >= pendingIndices.count {
-                // Under limit — no suppression needed
                 continue
             }
 
             if remaining <= 0 {
-                // All pending comments are suppressed
                 for idx in pendingIndices {
                     result[idx] = applySuppressedRole(to: result[idx])
                 }
@@ -79,10 +78,7 @@ public struct CommentSuppressionService: Sendable {
             }
 
             // remaining > 0 but < pendingIndices.count
-            let normalCount = remaining - 1
             let limitingIndex = remaining - 1
-
-            // First (remaining - 1) are normal — no suppression role needed
 
             // The limiting comment
             let limitIdx = pendingIndices[limitingIndex]
@@ -99,7 +95,7 @@ public struct CommentSuppressionService: Sendable {
         return SuppressionResult(comments: result, suppressedCount: totalSuppressed)
     }
 
-    /// Count how many comments would be suppressed in a given (ruleName, filePath) group
+    /// Count how many comments are suppressed in a given (ruleName, filePath) group
     /// for display in the limiting comment's visible text.
     public static func suppressedCount(
         in comments: [ReviewComment],

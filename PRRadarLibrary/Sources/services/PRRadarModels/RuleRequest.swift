@@ -17,6 +17,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
     public let violationMessage: String?
     public let violationScript: String?
     public let rulesDir: String
+    public let maxCommentsPerFile: Int?
 
     public var displayName: String {
         let slug = RuleRequest.rulesDirSlug(rulesDir)
@@ -43,7 +44,8 @@ public struct TaskRule: Codable, Sendable, Equatable {
         violationRegex: String? = nil,
         violationMessage: String? = nil,
         violationScript: String? = nil,
-        rulesDir: String
+        rulesDir: String,
+        maxCommentsPerFile: Int? = nil
     ) {
         self.name = name
         self.description = description
@@ -58,6 +60,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         self.violationMessage = violationMessage
         self.violationScript = violationScript
         self.rulesDir = rulesDir
+        self.maxCommentsPerFile = maxCommentsPerFile
     }
 
     enum CodingKeys: String, CodingKey {
@@ -74,6 +77,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         case violationMessage = "violation_message"
         case violationScript = "violation_script"
         case rulesDir = "rules_dir"
+        case maxCommentsPerFile = "max_comments_per_file"
     }
 
     public init(from decoder: Decoder) throws {
@@ -91,6 +95,7 @@ public struct TaskRule: Codable, Sendable, Equatable {
         violationMessage = try container.decodeIfPresent(String.self, forKey: .violationMessage)
         violationScript = try container.decodeIfPresent(String.self, forKey: .violationScript)
         rulesDir = try container.decode(String.self, forKey: .rulesDir)
+        maxCommentsPerFile = try container.decodeIfPresent(Int.self, forKey: .maxCommentsPerFile)
     }
 }
 
@@ -155,7 +160,8 @@ public struct RuleRequest: Codable, Sendable, Hashable, Comparable, Identifiable
             violationRegex: rule.violationRegex,
             violationMessage: rule.violationMessage,
             violationScript: rule.violationScript,
-            rulesDir: rulesDir
+            rulesDir: rulesDir,
+            maxCommentsPerFile: rule.maxCommentsPerFile
         )
         return RuleRequest(taskId: taskId, rule: taskRule, focusArea: focusArea, gitBlobHash: gitBlobHash, ruleBlobHash: ruleBlobHash)
     }

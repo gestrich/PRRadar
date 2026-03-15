@@ -14,10 +14,7 @@ public struct CommentService: Sendable {
         comment: PRComment,
         commitSHA: String
     ) async throws {
-        var body = comment.toGitHubMarkdown()
-
-        let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
-        body += "\n\n" + metadata.toHTMLComment()
+        let body = buildBody(comment: comment, commitSHA: commitSHA)
 
         if let lineNumber = comment.lineNumber {
             try await githubService.postReviewComment(
@@ -41,12 +38,30 @@ public struct CommentService: Sendable {
         comment: PRComment,
         commitSHA: String
     ) async throws {
+        let body = buildBody(comment: comment, commitSHA: commitSHA)
+        try await githubService.editReviewComment(commentId: commentId, body: body)
+    }
+
+    private func buildBody(comment: PRComment, commitSHA: String) -> String {
         var body = comment.toGitHubMarkdown()
 
         let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
         body += "\n\n" + metadata.toHTMLComment()
 
-        try await githubService.editReviewComment(commentId: commentId, body: body)
+        return body
+    }
+
+    private func buildBodyWithSuppression(comment: PRComment, commitSHA: String, suppressedCount: Int) -> String {
+        var body = comment.toGitHubMarkdown()
+
+        if suppressedCount > 0 {
+            body += "\n\n> **Note:** \(suppressedCount) other instance\(suppressedCount == 1 ? "" : "s") of this issue found in this file. Limiting to \(suppressedCount + 1) comments per rule."
+        }
+
+        let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
+        body += "\n\n" + metadata.toHTMLComment()
+
+        return body
     }
 
     /// Post a general comment on a PR (not inline).
@@ -54,11 +69,13 @@ public struct CommentService: Sendable {
         try await githubService.postIssueComment(number: prNumber, body: body)
     }
 
-    /// Post all comments as inline review comments.
+    /// Post all comments as inline review comments, with suppression-aware limiting indicators.
     ///
+    /// Each tuple pairs the comment with its suppressed count (0 for normal comments,
+    /// > 0 for limiting comments that carry the indicator text).
     /// Returns (successful, failed) counts.
     public func postViolations(
-        comments: [PRComment],
+        comments: [(comment: PRComment, suppressedCount: Int)],
         prNumber: Int
     ) async throws -> (successful: Int, failed: Int) {
         let commitSHA = try await githubService.getPRHeadSHA(number: prNumber)
@@ -66,13 +83,23 @@ public struct CommentService: Sendable {
         var successful = 0
         var failed = 0
 
-        for comment in comments {
+        for (comment, suppressedCount) in comments {
             do {
-                try await postReviewComment(
-                    prNumber: prNumber,
-                    comment: comment,
-                    commitSHA: commitSHA
-                )
+                let body = buildBodyWithSuppression(comment: comment, commitSHA: commitSHA, suppressedCount: suppressedCount)
+                if let lineNumber = comment.lineNumber {
+                    try await githubService.postReviewComment(
+                        number: prNumber,
+                        commitId: commitSHA,
+                        path: comment.filePath,
+                        line: lineNumber,
+                        body: body
+                    )
+                } else {
+                    try await githubService.postIssueComment(
+                        number: prNumber,
+                        body: body
+                    )
+                }
                 successful += 1
             } catch {
                 print("  Failed to post comment on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
@@ -83,12 +110,12 @@ public struct CommentService: Sendable {
         return (successful, failed)
     }
 
-    /// Edit existing comments that need updating.
+    /// Edit existing comments that need updating, with suppression-aware limiting indicators.
     ///
-    /// Each tuple pairs the pending comment with the GitHub comment ID to edit.
+    /// Each tuple pairs the comment (with suppressed count) and the GitHub comment ID to edit.
     /// Returns (successful, failed) counts.
     public func editViolations(
-        comments: [(pending: PRComment, commentId: Int)],
+        comments: [(comment: PRComment, suppressedCount: Int, commentId: Int)],
         prNumber: Int
     ) async throws -> (successful: Int, failed: Int) {
         let commitSHA = try await githubService.getPRHeadSHA(number: prNumber)
@@ -96,13 +123,10 @@ public struct CommentService: Sendable {
         var successful = 0
         var failed = 0
 
-        for (comment, commentId) in comments {
+        for (comment, suppressedCount, commentId) in comments {
             do {
-                try await editReviewComment(
-                    commentId: commentId,
-                    comment: comment,
-                    commitSHA: commitSHA
-                )
+                let body = buildBodyWithSuppression(comment: comment, commitSHA: commitSHA, suppressedCount: suppressedCount)
+                try await githubService.editReviewComment(commentId: commentId, body: body)
                 successful += 1
             } catch {
                 print("  Failed to edit comment \(commentId) on \(comment.filePath):\(comment.lineNumber ?? 0): \(error)")
