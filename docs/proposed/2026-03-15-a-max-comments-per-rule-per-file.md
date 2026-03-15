@@ -72,7 +72,10 @@ Add suppression awareness to the comment models so that downstream code (posting
 - `PRRadarModels/PRComment.swift`
 - `PRRadarModels/ReviewComment.swift`
 
-## - [ ] Phase 3: Suppression logic — Apply limits before posting
+## - [x] Phase 3: Suppression logic — Apply limits before posting
+
+**Skills used**: `swift-app-architecture:swift-architecture`
+**Principles applied**: Stateless Sendable struct in Services layer following ViolationService pattern; pure transformation with no side effects
 
 **Skills to read**: `swift-app-architecture:swift-architecture`
 
