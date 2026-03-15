@@ -175,7 +175,7 @@ struct CommentMetadataTests {
             suppressionRole: .limiting
         )
         let contentBody = "**test-rule**\n\nSome violation"
-        let noteText = "> **Note:** 4 other instances of this issue found in this file. Limiting to 2 comments per rule."
+        let noteText = "> **Note:** Limiting PR comments to 2 for this rule to avoid noise. Check for the remaining 4 unreported instances in the diff."
         let fullBody = contentBody + "\n\n" + noteText + "\n\n" + metadata.toHTMLComment()
 
         // Act
@@ -183,7 +183,7 @@ struct CommentMetadataTests {
 
         // Assert
         #expect(stripped == contentBody)
-        #expect(!stripped.contains("Limiting to"))
+        #expect(!stripped.contains("Limiting PR comments"))
     }
 
     @Test("stripMetadata on body without metadata returns unchanged")

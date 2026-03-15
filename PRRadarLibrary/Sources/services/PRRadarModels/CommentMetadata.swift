@@ -131,13 +131,14 @@ public struct CommentMetadata: Codable, Sendable, Equatable {
     }
 
     public static func suppressionIndicator(suppressedCount: Int, maxCommentsPerFile: Int?) -> String {
-        let limitText = maxCommentsPerFile.map { "Limiting to \($0) comments per rule." } ?? ""
-        return "> **Note:** \(suppressedCount) other instance\(suppressedCount == 1 ? "" : "s") of this issue found in this file. \(limitText)"
+        let limit = maxCommentsPerFile.map(String.init) ?? "?"
+        let instances = suppressedCount == 1 ? "instance" : "instances"
+        return "> **Note:** Limiting PR comments to \(limit) for this rule to avoid noise. Check for the remaining \(suppressedCount) unreported \(instances) in the diff."
     }
 
     public static func isSuppressionIndicator(_ line: String) -> Bool {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        return trimmed.hasPrefix("> **Note:**") && trimmed.contains("Limiting to")
+        return trimmed.hasPrefix("> **Note:**") && trimmed.contains("Limiting PR comments")
     }
 
     private static func stripSuppressionIndicator(from body: String) -> String {

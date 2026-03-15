@@ -3,26 +3,28 @@ import SwiftUI
 
 struct InlineCommentView: View {
 
-    let comment: PRComment
+    let reviewComment: ReviewComment
     let prModel: PRModel
     var lineBackground: Color = .clear
     var gutterBackground: Color = Color.gray.opacity(0.1)
     var isHighlighted: Bool = false
 
+    private var comment: PRComment? { reviewComment.pending }
+
     private var isSubmitting: Bool {
-        prModel.submittingCommentIds.contains(comment.id)
+        prModel.submittingCommentIds.contains(reviewComment.id)
     }
 
     private var isSubmitted: Bool {
-        prModel.submittedCommentIds.contains(comment.id)
+        prModel.submittedCommentIds.contains(reviewComment.id)
     }
 
     private var isSuppressed: Bool {
-        comment.suppressionRole == .suppressed
+        reviewComment.isSuppressed
     }
 
     private var isLimiting: Bool {
-        comment.suppressionRole == .limiting
+        reviewComment.suppressionRole == .limiting
     }
 
     private var accentColor: Color {
@@ -32,7 +34,7 @@ struct InlineCommentView: View {
     var body: some View {
         InlineCommentCard(accentColor: accentColor, lineBackground: lineBackground, gutterBackground: gutterBackground, highlightOpacity: isHighlighted ? 0.8 : 0) {
             VStack(alignment: .leading, spacing: 6) {
-                if !isSuppressed, let position = prModel.violationPosition(for: comment.id) {
+                if !isSuppressed, let position = prModel.violationPosition(for: reviewComment.id) {
                     Text("\(position) of \(prModel.orderedViolations.count)")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -41,7 +43,9 @@ struct InlineCommentView: View {
                 }
 
                 HStack(spacing: 8) {
-                    SeverityBadge(score: comment.score)
+                    if let score = reviewComment.score {
+                        SeverityBadge(score: score)
+                    }
 
                     if isSuppressed {
                         SuppressionBadge(label: "Suppressed")
@@ -59,11 +63,18 @@ struct InlineCommentView: View {
                     }
                 }
 
-                RichContentView(comment.toGitHubMarkdown())
+                if let comment {
+                    RichContentView(commentMarkdown)
+                }
             }
         }
         .opacity(isSuppressed ? 0.5 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: isHighlighted)
+    }
+
+    private var commentMarkdown: String {
+        guard let comment else { return "" }
+        return comment.toGitHubMarkdown(suppressedCount: suppressedSiblingCount)
     }
 
     @ViewBuilder
@@ -82,7 +93,7 @@ struct InlineCommentView: View {
             }
         } else {
             Button("Submit") {
-                Task { await prModel.submitSingleComment(comment) }
+                Task { await prModel.submitSingleComment(reviewComment) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -91,8 +102,8 @@ struct InlineCommentView: View {
 
     private var suppressedSiblingCount: Int {
         prModel.reviewComments.suppressedCount(
-            forRule: comment.ruleName,
-            filePath: comment.filePath
+            forRule: reviewComment.ruleName ?? "",
+            filePath: reviewComment.filePath
         )
     }
 }

@@ -12,9 +12,10 @@ public struct CommentService: Sendable {
     public func postReviewComment(
         prNumber: Int,
         comment: PRComment,
+        suppressedCount: Int = 0,
         commitSHA: String
     ) async throws {
-        let body = buildBody(comment: comment, commitSHA: commitSHA)
+        let body = buildBodyWithSuppression(comment: comment, commitSHA: commitSHA, suppressedCount: suppressedCount)
 
         if let lineNumber = comment.lineNumber {
             try await githubService.postReviewComment(
@@ -36,27 +37,15 @@ public struct CommentService: Sendable {
     public func editReviewComment(
         commentId: Int,
         comment: PRComment,
+        suppressedCount: Int = 0,
         commitSHA: String
     ) async throws {
-        let body = buildBody(comment: comment, commitSHA: commitSHA)
+        let body = buildBodyWithSuppression(comment: comment, commitSHA: commitSHA, suppressedCount: suppressedCount)
         try await githubService.editReviewComment(commentId: commentId, body: body)
     }
 
-    private func buildBody(comment: PRComment, commitSHA: String) -> String {
-        var body = comment.toGitHubMarkdown()
-
-        let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
-        body += "\n\n" + metadata.toHTMLComment()
-
-        return body
-    }
-
     private func buildBodyWithSuppression(comment: PRComment, commitSHA: String, suppressedCount: Int) -> String {
-        var body = comment.toGitHubMarkdown()
-
-        if suppressedCount > 0 {
-            body += "\n\n" + CommentMetadata.suppressionIndicator(suppressedCount: suppressedCount, maxCommentsPerFile: comment.maxCommentsPerFile)
-        }
+        var body = comment.toGitHubMarkdown(suppressedCount: suppressedCount)
 
         let metadata = comment.buildMetadata(prHeadSHA: commitSHA)
         body += "\n\n" + metadata.toHTMLComment()

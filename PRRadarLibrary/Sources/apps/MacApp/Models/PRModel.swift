@@ -547,28 +547,33 @@ final class PRModel: Identifiable, Hashable {
 
     // MARK: - Single Comment Submission
 
-    func submitSingleComment(_ comment: PRComment) async {
-        guard let fullDiff else { return }
+    func submitSingleComment(_ reviewComment: ReviewComment) async {
+        guard let fullDiff, let comment = reviewComment.pending else { return }
         let commitSHA = fullDiff.commitHash
 
-        submittingCommentIds.insert(comment.id)
+        let suppressedCount = reviewComments.suppressedCount(
+            forRule: comment.ruleName, filePath: comment.filePath
+        )
+
+        submittingCommentIds.insert(reviewComment.id)
 
         let useCase = PostSingleCommentUseCase(config: config)
 
         do {
             let success = try await useCase.execute(
                 comment: comment,
+                suppressedCount: suppressedCount,
                 commitSHA: commitSHA,
                 prNumber: prNumber
             )
 
-            submittingCommentIds.remove(comment.id)
+            submittingCommentIds.remove(reviewComment.id)
             if success {
-                submittedCommentIds.insert(comment.id)
+                submittedCommentIds.insert(reviewComment.id)
                 await refreshReviewCommentsFromGitHub()
             }
         } catch {
-            submittingCommentIds.remove(comment.id)
+            submittingCommentIds.remove(reviewComment.id)
         }
     }
 

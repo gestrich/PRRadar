@@ -12,6 +12,7 @@ public struct PostSingleCommentUseCase: Sendable {
 
     public func execute(
         comment: PRComment,
+        suppressedCount: Int = 0,
         commitSHA: String,
         prNumber: Int
     ) async throws -> Bool {
@@ -22,6 +23,7 @@ public struct PostSingleCommentUseCase: Sendable {
             try await commentService.postReviewComment(
                 prNumber: prNumber,
                 comment: comment,
+                suppressedCount: suppressedCount,
                 commitSHA: commitSHA
             )
             return true

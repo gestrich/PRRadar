@@ -64,6 +64,7 @@ public struct FetchReviewCommentsUseCase: Sendable {
             return comments.reviewComments
         }()
 
-        return ViolationService.reconcile(pending: pending, posted: posted)
+        let reconciled = ViolationService.reconcile(pending: pending, posted: posted)
+        return CommentSuppressionService.applySuppression(to: reconciled).comments
     }
 }

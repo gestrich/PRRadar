@@ -732,8 +732,8 @@ struct AnnotatedDiffContentView: View {
     @ViewBuilder
     private func commentView(for rc: ReviewComment, lineBackground: Color, gutterBackground: Color) -> some View {
         switch rc {
-        case .new(let pending), .needsUpdate(let pending, _):
-            InlineCommentView(comment: pending, prModel: prModel, lineBackground: lineBackground, gutterBackground: gutterBackground, isHighlighted: rc.id == highlightedCommentID)
+        case .new, .needsUpdate:
+            InlineCommentView(reviewComment: rc, prModel: prModel, lineBackground: lineBackground, gutterBackground: gutterBackground, isHighlighted: rc.id == highlightedCommentID)
                 .id(rc.id)
         case .redetected(_, let posted):
             InlinePostedCommentView(

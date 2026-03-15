@@ -67,8 +67,7 @@ public struct PostCommentsUseCase: Sendable {
         let scoreThreshold = Int(minScore ?? "") ?? defaultMinScore
 
         let fetchUseCase = FetchReviewCommentsUseCase(config: config)
-        let reconciled = fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold, commitHash: commitHash)
-        let allComments = CommentSuppressionService.applySuppression(to: reconciled).comments
+        let allComments = fetchUseCase.execute(prNumber: prNumber, minScore: scoreThreshold, commitHash: commitHash)
 
         let categorized = categorize(allComments)
 
