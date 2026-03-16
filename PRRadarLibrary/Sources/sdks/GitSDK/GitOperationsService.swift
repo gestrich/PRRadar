@@ -29,9 +29,11 @@ public enum GitOperationsError: LocalizedError {
 
 public struct GitOperationsService: Sendable {
     private let client: CLIClient
+    private let environment: [String: String]?
 
-    public init(client: CLIClient) {
+    public init(client: CLIClient, environment: [String: String]? = nil) {
         self.client = client
+        self.environment = environment
     }
 
     public func checkWorkingDirectoryClean(repoPath: String) async throws {
@@ -62,6 +64,7 @@ public struct GitOperationsService: Sendable {
             _ = try await client.execute(
                 GitCLI.Fetch(remote: remote, branch: branch),
                 workingDirectory: repoPath,
+                environment: environment,
                 printCommand: false
             )
         } catch {

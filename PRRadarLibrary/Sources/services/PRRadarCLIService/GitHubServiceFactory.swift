@@ -20,24 +20,9 @@ public enum GitHubServiceError: Error, LocalizedError {
 
 public struct GitHubServiceFactory: Sendable {
     public static func create(repoPath: String, githubAccount: String) async throws -> (gitHub: GitHubService, gitOps: GitOperationsService) {
-        let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: githubAccount)
-        guard let auth = resolver.getGitHubAuth() else {
-            throw GitHubServiceError.missingToken
-        }
+        let token = try await resolveToken(githubAccount: githubAccount)
 
-        let token: String
-        switch auth {
-        case .token(let pat):
-            token = pat
-        case .app(let appId, let installationId, let privateKeyPEM):
-            token = try await GitHubAppTokenService().generateInstallationToken(
-                appId: appId,
-                installationId: installationId,
-                privateKeyPEM: privateKeyPEM
-            )
-        }
-
-        let gitOps = createGitOps()
+        let gitOps = createGitOps(gitHubToken: token)
         let remoteURL = try await gitOps.getRemoteURL(path: repoPath)
 
         guard let (owner, repo) = GitHubService.parseOwnerRepo(from: remoteURL) else {
@@ -67,7 +52,28 @@ public struct GitHubServiceFactory: Sendable {
         }
     }
 
-    public static func createGitOps() -> GitOperationsService {
-        GitOperationsService(client: CLIClient(printOutput: false))
+    public static func createGitOps(gitHubToken: String? = nil) -> GitOperationsService {
+        let environment: [String: String]? = gitHubToken.map { ["GH_TOKEN": $0] }
+        return GitOperationsService(client: CLIClient(printOutput: false), environment: environment)
+    }
+
+    public static func createGitOps(githubAccount: String) async throws -> GitOperationsService {
+        let token = try await resolveToken(githubAccount: githubAccount)
+        return createGitOps(gitHubToken: token)
+    }
+
+    public static func resolveToken(githubAccount: String) async throws -> String {
+        let resolver = CredentialResolver(settingsService: SettingsService(), githubAccount: githubAccount)
+        guard let auth = resolver.getGitHubAuth() else {
+            throw GitHubServiceError.missingToken
+        }
+        switch auth {
+        case .token(let pat):
+            return pat
+        case .app(let appId, let installationId, let privateKeyPEM):
+            return try await GitHubAppTokenService().generateInstallationToken(
+                appId: appId, installationId: installationId, privateKeyPEM: privateKeyPEM
+            )
+        }
     }
 }

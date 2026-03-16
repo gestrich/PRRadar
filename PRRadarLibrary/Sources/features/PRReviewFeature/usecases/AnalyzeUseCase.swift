@@ -272,7 +272,7 @@ public struct AnalyzeUseCase: Sendable {
             return
         }
 
-        let gitOps = GitHubServiceFactory.createGitOps()
+        let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: config.githubAccount)
         continuation.yield(.log(text: "Checking out PR #\(prNumber) commit \(String(fullHash.prefix(7)))...\n"))
         try await gitOps.fetchBranch(remote: "origin", branch: "pull/\(prNumber)/head", repoPath: config.repoPath)
         try await gitOps.checkoutCommit(sha: fullHash, repoPath: config.repoPath)
@@ -281,7 +281,7 @@ public struct AnalyzeUseCase: Sendable {
     // MARK: - Helpers
 
     private static func cumulativeEvalCounts(evalsDir: String) -> (totalTasks: Int, violationsFound: Int, totalCostUsd: Double) {
-        let fm = FileManager.default
+        let fm = FileManager.default 
         guard let files = try? fm.contentsOfDirectory(atPath: evalsDir) else {
             return (0, 0, 0.0)
         }

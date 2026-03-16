@@ -122,7 +122,7 @@ public struct PrepareUseCase: Sendable {
                         return
                     }
 
-                    let gitOps = GitHubServiceFactory.createGitOps()
+                    let gitOps = try await GitHubServiceFactory.createGitOps(githubAccount: self.config.githubAccount)
                     let ruleLoader = RuleLoaderService(gitOps: gitOps)
                     var allRules: [ReviewRule] = []
                     var rulesByDir: [(rulesDir: String, rules: [ReviewRule])] = []
