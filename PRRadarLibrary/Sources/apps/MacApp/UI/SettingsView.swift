@@ -326,6 +326,17 @@ private struct ConfigurationDetailView: View {
                     Text(config.diffSource.displayName)
                         .foregroundStyle(.secondary)
                 }
+
+                if !config.excludePaths.isEmpty {
+                    LabeledContent("Exclude Paths") {
+                        VStack(alignment: .leading) {
+                            ForEach(config.excludePaths, id: \.self) { pattern in
+                                Text(pattern)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
 
             Section {
@@ -399,6 +410,8 @@ private struct ConfigurationEditSheet: View {
                 }
                 .labelsHidden()
             }
+
+            excludePathsSection
 
             HStack {
                 Spacer()
@@ -476,6 +489,40 @@ private struct ConfigurationEditSheet: View {
 
                     Button(role: .destructive) {
                         config.rulePaths.removeAll { $0.id == rulePath.id }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var excludePathsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Exclude Paths")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    config.excludePaths.append("")
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+
+            Text("Glob patterns for file paths to exclude from analysis (e.g. *Tests*, *.generated.swift)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ForEach(config.excludePaths.indices, id: \.self) { index in
+                HStack(spacing: 8) {
+                    TextField("Pattern (e.g. *Tests*)", text: $config.excludePaths[index])
+                        .textFieldStyle(.roundedBorder)
+
+                    Button(role: .destructive) {
+                        config.excludePaths.remove(at: index)
                     } label: {
                         Image(systemName: "minus.circle")
                     }

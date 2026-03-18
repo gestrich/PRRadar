@@ -58,6 +58,26 @@ public struct PRDiff: Codable, Sendable, Equatable {
         return GitDiff(rawContent: "", hunks: effectiveHunks, commitHash: commitHash)
     }
 
+    /// Return a new PRDiff with hunks for excluded file paths removed.
+    ///
+    /// Uses the same glob/fnmatch matching as rule `applies_to.exclude_patterns`.
+    /// Patterns without `/` match against filename only; patterns with `/` match the full path.
+    public func excludingPaths(_ patterns: [String]) -> PRDiff {
+        guard !patterns.isEmpty else { return self }
+        let filtered = hunks.filter { hunk in
+            !patterns.contains { pattern in
+                AppliesTo.fnmatch(hunk.filePath, pattern: pattern)
+            }
+        }
+        return PRDiff(
+            commitHash: commitHash,
+            rawText: rawText,
+            hunks: filtered,
+            moves: moves,
+            stats: DiffStats.compute(from: filtered)
+        )
+    }
+
     /// Derive a MoveReport from the moves and stats already on this diff.
     public var derivedMoveReport: MoveReport {
         MoveReport(

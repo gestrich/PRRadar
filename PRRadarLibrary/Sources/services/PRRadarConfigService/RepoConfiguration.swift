@@ -9,6 +9,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
     public var githubAccount: String
     public var diffSource: DiffSource
     public var defaultBaseBranch: String
+    public var excludePaths: [String]
 
     public var presentableDescription: String {
         let header = isDefault ? "\(name) (default)" : name
@@ -23,6 +24,9 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         lines.append("  default base branch: \(defaultBaseBranch)")
         lines.append("  credential account: \(githubAccount)")
         lines.append("  diff source: \(diffSource.rawValue)")
+        if !excludePaths.isEmpty {
+            lines.append("  exclude paths: \(excludePaths.joined(separator: ", "))")
+        }
         return lines.joined(separator: "\n")
     }
 
@@ -34,7 +38,8 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         isDefault: Bool = false,
         githubAccount: String,
         diffSource: DiffSource = .git,
-        defaultBaseBranch: String
+        defaultBaseBranch: String,
+        excludePaths: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -44,6 +49,7 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         self.githubAccount = githubAccount
         self.diffSource = diffSource
         self.defaultBaseBranch = defaultBaseBranch
+        self.excludePaths = excludePaths
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,5 +62,6 @@ public struct RepositoryConfigurationJSON: Codable, Sendable, Identifiable, Hash
         githubAccount = try container.decode(String.self, forKey: .githubAccount)
         diffSource = try container.decodeIfPresent(DiffSource.self, forKey: .diffSource) ?? .git
         defaultBaseBranch = try container.decode(String.self, forKey: .defaultBaseBranch)
+        excludePaths = try container.decodeIfPresent([String].self, forKey: .excludePaths) ?? []
     }
 }

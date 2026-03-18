@@ -38,11 +38,13 @@ public struct PrepareUseCase: Sendable {
                     let resolvedCommit = commitHash ?? SyncPRUseCase.resolveCommitHash(config: config, prNumber: prNumber)
 
                     let diffSnapshot = SyncPRUseCase.parseOutput(config: config, prNumber: prNumber, commitHash: resolvedCommit)
-                    guard let prDiff = diffSnapshot.prDiff else {
+                    guard let rawDiff = diffSnapshot.prDiff else {
                         continuation.yield(.failed(error: "No diff data found. Run sync phase first.", logs: ""))
                         continuation.finish()
                         return
                     }
+
+                    let prDiff = rawDiff.excludingPaths(self.config.excludePaths)
 
                     let focusDir = DataPathsService.phaseSubdirectory(
                         outputDir: config.resolvedOutputDir,

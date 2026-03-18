@@ -12,6 +12,7 @@ public struct RepositoryConfiguration: Sendable {
     public let githubAccount: String
     public let diffSource: DiffSource
     public let defaultBaseBranch: String
+    public let excludePaths: [String]
 
     public init(
         id: UUID = UUID(),
@@ -22,7 +23,8 @@ public struct RepositoryConfiguration: Sendable {
         agentScriptPath: String,
         githubAccount: String,
         diffSource: DiffSource = .git,
-        defaultBaseBranch: String
+        defaultBaseBranch: String,
+        excludePaths: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -33,6 +35,7 @@ public struct RepositoryConfiguration: Sendable {
         self.githubAccount = githubAccount
         self.diffSource = diffSource
         self.defaultBaseBranch = defaultBaseBranch
+        self.excludePaths = excludePaths
     }
 
     public init(from json: RepositoryConfigurationJSON, agentScriptPath: String, outputDir: String, repoPathOverride: String? = nil, outputDirOverride: String? = nil, diffSourceOverride: DiffSource? = nil) {
@@ -45,6 +48,7 @@ public struct RepositoryConfiguration: Sendable {
         self.githubAccount = json.githubAccount
         self.diffSource = diffSourceOverride ?? json.diffSource
         self.defaultBaseBranch = json.defaultBaseBranch
+        self.excludePaths = json.excludePaths
     }
 
     public static var defaultRulePaths: [RulePath] {
